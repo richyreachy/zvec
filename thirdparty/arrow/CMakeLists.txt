@@ -1,4 +1,4 @@
-set(ARROW_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/apache-arrow-21.0.0)
+﻿set(ARROW_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/apache-arrow-21.0.0)
 if(ANDROID)
         set(ARROW_PATCH ${CMAKE_CURRENT_SOURCE_DIR}/arrow.android.patch)
         apply_patch_once("arrow_android_fix" "${ARROW_SRC_DIR}" "${ARROW_PATCH}")
@@ -12,12 +12,26 @@ include(ProcessorCount)
 
 ProcessorCount(NPROC)
 
-set(LIB_PARQUET ${EXTERNAL_LIB_DIR}/libparquet.a)
-set(LIB_ARROW ${EXTERNAL_LIB_DIR}/libarrow.a)
-set(LIB_COMPUTE ${EXTERNAL_LIB_DIR}/libarrow_compute.a)
-set(LIB_ACERO ${EXTERNAL_LIB_DIR}/libarrow_acero.a)
-set(LIB_ARROW_DEPENDS ${EXTERNAL_LIB_DIR}/libarrow_bundled_dependencies.a)
-set(LIB_ARROW_DATASET ${EXTERNAL_LIB_DIR}/libarrow_dataset.a)
+if(MSVC)
+    set(LIB_PARQUET ${EXTERNAL_LIB_DIR}/parquet_static.lib)
+    set(LIB_ARROW ${EXTERNAL_LIB_DIR}/arrow_static.lib)
+    set(LIB_COMPUTE ${EXTERNAL_LIB_DIR}/arrow_compute_static.lib)
+    set(LIB_ACERO ${EXTERNAL_LIB_DIR}/arrow_acero_static.lib)
+    set(LIB_ARROW_DEPENDS ${EXTERNAL_LIB_DIR}/arrow_bundled_dependencies.lib)
+    set(LIB_ARROW_DATASET ${EXTERNAL_LIB_DIR}/arrow_dataset_static.lib)
+else()
+    set(LIB_PARQUET ${EXTERNAL_LIB_DIR}/libparquet.a)
+    set(LIB_ARROW ${EXTERNAL_LIB_DIR}/libarrow.a)
+    set(LIB_COMPUTE ${EXTERNAL_LIB_DIR}/libarrow_compute.a)
+    set(LIB_ACERO ${EXTERNAL_LIB_DIR}/libarrow_acero.a)
+    set(LIB_ARROW_DEPENDS ${EXTERNAL_LIB_DIR}/libarrow_bundled_dependencies.a)
+    set(LIB_ARROW_DATASET ${EXTERNAL_LIB_DIR}/libarrow_dataset.a)
+endif()
+
+# $<CONFIG> is a generator expression that evaluates to the current build configuration (e.g., Debug, Release) at build system generation time, not at CMake configure time.
+# Multi-config vs. single-config generators:
+# Multi-config generators (Visual Studio, Xcode, Ninja Multi-Config): $<CONFIG> works as expected and evaluates differently for each configuration.
+# Single-config generators (Makefiles, Ninja): $<CONFIG> evaluates to the value of CMAKE_BUILD_TYPE (which must be set at configure time)
 
 set(CONFIGURE_ENV_LIST "")
 if(USE_OSS_MIRROR)
@@ -54,9 +68,9 @@ else()
                 SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/apache-arrow-21.0.0
                 DOWNLOAD_COMMAND ""
                 BUILD_IN_SOURCE false
-                CONFIGURE_COMMAND env ${CONFIGURE_ENV_LIST} "${CMAKE_COMMAND}" ${CMAKE_CACHE_ARGS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_DEBUG_POSTFIX= -DARROW_BUILD_SHARED=OFF -DARROW_ACERO=ON -DARROW_FILESYSTEM=ON -DARROW_DATASET=ON -DARROW_PARQUET=ON -DARROW_COMPUTE=ON -DARROW_WITH_ZLIB=OFF -DARROW_DEPENDENCY_SOURCE=BUNDLED -DARROW_MIMALLOC=OFF -DCMAKE_INSTALL_LIBDIR=lib "<SOURCE_DIR>/cpp"
-                BUILD_COMMAND "${CMAKE_COMMAND}" --build . --target all -- -j ${NPROC}
-                INSTALL_COMMAND "${CMAKE_COMMAND}" --install "<BINARY_DIR>" --prefix=${EXTERNAL_BINARY_DIR}/usr/local
+                CONFIGURE_COMMAND env ${CONFIGURE_ENV_LIST} "${CMAKE_COMMAND}" ${CMAKE_CACHE_ARGS} -DCMAKE_BUILD_TYPE=$<CONFIG> -DCMAKE_DEBUG_POSTFIX= -DARROW_BUILD_SHARED=OFF -DARROW_ACERO=ON -DARROW_FILESYSTEM=ON -DARROW_DATASET=ON -DARROW_PARQUET=ON -DARROW_COMPUTE=ON -DARROW_WITH_ZLIB=OFF -DARROW_DEPENDENCY_SOURCE=BUNDLED -DARROW_MIMALLOC=OFF -DCMAKE_INSTALL_LIBDIR=lib "<SOURCE_DIR>/cpp"
+                BUILD_COMMAND "${CMAKE_COMMAND}" --build . -j ${NPROC} --config $<CONFIG>
+                INSTALL_COMMAND "${CMAKE_COMMAND}" --install "<BINARY_DIR>" --prefix=${EXTERNAL_BINARY_DIR}/usr/local --config $<CONFIG>
                 BYPRODUCTS ${LIB_PARQUET} ${LIB_ARROW} ${LIB_COMPUTE} ${LIB_ACERO} ${LIB_ARROW_DEPENDS} ${LIB_ARROW_DATASET}
                 LOG_DOWNLOAD ON
                 LOG_CONFIGURE ON
@@ -70,7 +84,7 @@ add_dependencies(arrow ARROW.BUILD)
 
 set(Arrow_FOUND TRUE PARENT_SCOPE)
 set(Arrow_INCLUDE_DIR ${EXTERNAL_INC_DIR} PARENT_SCOPE)
-set(Arrow_LIBRARIES ${EXTERNAL_LIB_DIR}/libarrow.a PARENT_SCOPE)
+set(Arrow_LIBRARIES ${LIB_ARROW} PARENT_SCOPE)
 set(Arrow_DIR ${EXTERNAL_BINARY_DIR} PARENT_SCOPE)
 set(Arrow_LIBRARY_DIR ${EXTERNAL_BINARY_DIR} PARENT_SCOPE)
 

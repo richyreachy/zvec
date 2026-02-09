@@ -256,8 +256,8 @@ bool BufferManager::BufferContext::read_vector() {
   }
   AILEGO_DEFER([this] { file.close(); });
   uint32_t len = id.vector().length;
-  auto ret = posix_memalign((void **)&vector, 64, len);  // 64-byte alignment
-  if (ret != 0 || vector == nullptr) {
+  vector = (uint8_t *)ailego_aligned_malloc(len, 64);  // 64-byte alignment
+  if (vector == nullptr) {
     LOG_ERROR("Failed to allocate buffer for file[%s]", file_name.c_str());
     return false;
   }

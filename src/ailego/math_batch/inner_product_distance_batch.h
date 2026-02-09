@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <array>
 #include <vector>
 #include <ailego/internal/cpu_features.h>
 #include <ailego/utility/math_helper.h>

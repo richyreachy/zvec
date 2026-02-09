@@ -174,7 +174,7 @@ static inline int ailego_clz64(uint64_t x) {
 #define ailego_likely(x) (x)
 #define ailego_unlikely(x) (x)
 #ifdef __SSE__
-#define ailego_prefetch(p) _mm_prefetch((p), 0)
+#define ailego_prefetch(p) _mm_prefetch((const char *)(p), 0)
 #else
 #define ailego_prefetch(p) ((void)(p))
 #endif
