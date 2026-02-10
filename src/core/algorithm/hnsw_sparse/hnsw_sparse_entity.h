@@ -161,7 +161,7 @@ struct HNSWSparseHeader {
 
 struct NeighborsHeader {
   uint32_t neighbor_cnt;
-  node_id_t neighbors[0];
+  node_id_t neighbors[1];
 };
 
 struct Neighbors {

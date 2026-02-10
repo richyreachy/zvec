@@ -33,7 +33,7 @@ struct InvertedIndexHeader {
   uint32_t block_count{0};
   uint32_t index_meta_size{0};
   char reserved_[28];
-  char index_meta[0];
+  char index_meta[];
 };
 
 /*! Index Format of Inverted Index Meta for each Inverted list
