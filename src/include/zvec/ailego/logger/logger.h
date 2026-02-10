@@ -19,6 +19,13 @@
 #include <zvec/ailego/container/params.h>
 #include <zvec/ailego/pattern/factory.h>
 
+// Define printf format attribute for GCC/Clang, empty for MSVC
+#if defined(__GNUC__) || defined(__clang__)
+#define AILEGO_PRINTF_FORMAT(fmt_idx, arg_idx) __attribute__((format(printf, fmt_idx, arg_idx)))
+#else
+#define AILEGO_PRINTF_FORMAT(fmt_idx, arg_idx)
+#endif
+
 //! Register Index Logger
 #define FACTORY_REGISTER_LOGGER_ALIAS(__NAME__, __IMPL__, ...)      \
   AILEGO_FACTORY_REGISTER(__NAME__, zvec::ailego::Logger, __IMPL__, \
