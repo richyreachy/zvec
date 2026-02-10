@@ -44,6 +44,12 @@
 #endif
 #endif
 
+//! Add 'ssize_t' for MSVC (before extern "C" so it's available in C++)
+#if defined(_MSC_VER) && !defined(_SSIZE_T_DEFINED)
+#define _SSIZE_T_DEFINED
+typedef intptr_t ssize_t;
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -102,11 +108,6 @@ extern "C" {
 #if !defined(inline)
 #define inline __inline
 #endif
-#endif
-
-//! Add 'ssize_t' for MSVC
-#if defined(_MSC_VER)
-typedef intptr_t ssize_t;
 #endif
 
 #if defined(_MSC_VER)

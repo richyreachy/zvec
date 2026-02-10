@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <cmath>
+#include <zvec/ailego/internal/platform.h>
 #include <limits>
 #include <gtest/gtest.h>
 #include <zvec/ailego/utility/string_helper.h>
