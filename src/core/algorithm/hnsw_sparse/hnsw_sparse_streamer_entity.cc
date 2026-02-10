@@ -93,7 +93,7 @@ int HnswSparseStreamerEntity::update_neighbors(
   }
 
   auto loc = get_neighbor_chunk_loc(level, id);
-  size_t size = reinterpret_cast<char *>(&hd->neighbors[i]) - &buffer[0];
+  size_t size = reinterpret_cast<char *>(&hd->neighbors[i]) - buffer.data();
   size_t ret = loc.first->write(loc.second, hd, size);
   if (ailego_unlikely(ret != size)) {
     LOG_ERROR("Write neighbor header failed, ret=%zu", ret);
