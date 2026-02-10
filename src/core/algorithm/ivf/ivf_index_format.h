@@ -19,6 +19,9 @@
 namespace zvec {
 namespace core {
 
+using node_id_t = uint32_t;
+using key_t = uint64_t;
+
 static constexpr uint64_t kInvalidKey = std::numeric_limits<uint64_t>::max();
 
 /*! Index Format of Inverted Index Header

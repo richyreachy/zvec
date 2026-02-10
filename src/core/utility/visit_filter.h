@@ -28,6 +28,11 @@
 namespace zvec {
 namespace core {
 
+// id_t is a POSIX type from <sys/types.h>; provide a definition for Windows
+#if defined(_MSC_VER)
+typedef unsigned int id_t;
+#endif
+
 struct VisitFilterHeader {
   VisitFilterHeader() : maxDocCnt(0), maxScanNum(0) {}
   uint64_t maxDocCnt;
