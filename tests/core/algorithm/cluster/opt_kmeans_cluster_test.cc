@@ -15,6 +15,7 @@
 #include <cmath>
 #include <random>
 #include <ailego/algorithm/kmeans.h>
+#include <zvec/ailego/internal/platform.h>
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/params.h>
 #include "zvec/core/framework/index_framework.h"
@@ -330,7 +331,7 @@ TEST(OptKmeansCluster, IN4General) {
 
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_int_distribution<uint8_t> dist(0, UINT8_MAX);
+  std::uniform_int_distribution<unsigned short> dist(0, UINT8_MAX);
 
   for (uint32_t i = 0; i < count; ++i) {
     std::vector<uint8_t> vec(dimension / 2);
