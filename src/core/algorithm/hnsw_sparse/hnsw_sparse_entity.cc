@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "hnsw_sparse_entity.h"
+#include <numeric>
 
 namespace zvec {
 namespace core {
