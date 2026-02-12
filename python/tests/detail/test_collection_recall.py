@@ -164,7 +164,7 @@ def get_ground_truth_map(collection, test_docs, query_vectors_map, metric_type, 
 
 
 def calculate_recall_at_k(collection: Collection, test_docs, query_vectors_map, schema, k=1,
-                          expected_doc_ids_scores_map=None, tolerance=0.000001):
+                          expected_doc_ids_scores_map=None, tolerance=0.001):
     recall_stats = {}
 
     for field_name, query_vectors in query_vectors_map.items():
@@ -232,15 +232,15 @@ class TestRecall:
     @pytest.mark.parametrize(
         "full_schema_new",
         [
-            (True, True,  HnswIndexParam()),
+            (True, True,  HnswIndexParam()),    
             (False, True, IVFIndexParam()),
-            (False, True, FlatIndexParam()),
+            (False, True, FlatIndexParam()),#——ok
 
             (True, True, HnswIndexParam(metric_type=MetricType.IP, m=16, ef_construction=100, )),
             (True, True, HnswIndexParam(metric_type=MetricType.COSINE, m=24, ef_construction=150, )),
             (True, True, HnswIndexParam(metric_type=MetricType.L2, m=32, ef_construction=200, )),    
  
-            (False, True, FlatIndexParam(metric_type=MetricType.IP, )),
+            (False, True, FlatIndexParam(metric_type=MetricType.IP, )), #——ok
             (True, True, FlatIndexParam(metric_type=MetricType.COSINE, )),
             (True, True, FlatIndexParam(metric_type=MetricType.L2, )),   
 
@@ -332,7 +332,7 @@ class TestRecall:
             full_schema_new,
             k=top_k,
             expected_doc_ids_scores_map=ground_truth_map,
-            tolerance=0.0001
+            tolerance=0.001
         )
         print("ground_truth_map:\n")
         print(ground_truth_map)

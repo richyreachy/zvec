@@ -1,3 +1,4 @@
+
 import pytest
 import logging
 
@@ -253,6 +254,128 @@ def full_schema_ivf(request) -> CollectionSchema:
         vectors=vectors,
     )
 
+@pytest.fixture(scope="function")
+def full_schema_1024(request) -> CollectionSchema:
+    if hasattr(request, "param"):
+        nullable, has_index, vector_index = request.param
+    else:
+        nullable, has_index, vector_index = True, False, HnswIndexParam()
+
+    scalar_index_param = None
+    vector_index_param = None
+    if has_index:
+        scalar_index_param = InvertIndexParam(enable_range_optimization=True)
+        vector_index_param = vector_index
+
+    fields = []
+    for k, v in DEFAULT_SCALAR_FIELD_NAME.items():
+        fields.append(
+            FieldSchema(
+                v,
+                k,
+                nullable=nullable,
+                index_param=scalar_index_param,
+            )
+        )
+    vectors = []
+
+    if vector_index_param in [HnswIndexParam(),
+                              FlatIndexParam(),
+                              HnswIndexParam(metric_type=MetricType.IP, m=16, ef_construction=100, ),
+                              FlatIndexParam(metric_type=MetricType.IP, ),
+
+                              ]:
+        for k, v in DEFAULT_VECTOR_FIELD_NAME.items():
+            vectors.append(
+                VectorSchema(
+                    v,
+                    k,
+                    dimension=VECTOR_DIMENSION_1024,
+                    index_param=vector_index_param,
+                )
+            )
+    elif vector_index_param in [
+                                   IVFIndexParam(),
+                                   IVFIndexParam(
+                                        metric_type=MetricType.IP,
+                                        n_list=100,
+                                        n_iters=10,
+                                        use_soar=False,
+                                    ),
+                                   IVFIndexParam(metric_type=MetricType.L2,
+                                                 n_list=200,
+                                                 n_iters=20,
+                                                 use_soar=True,),
+                                   IVFIndexParam(metric_type=MetricType.COSINE,
+                                                 n_list=150,
+                                                 n_iters=15,
+                                                 use_soar=False, )
+    ]:
+        for k, v in DEFAULT_VECTOR_FIELD_NAME.items():
+            if v in ["vector_fp16_field", "vector_fp32_field"]:
+                vectors.append(
+                    VectorSchema(
+                        v,
+                        k,
+                        dimension=VECTOR_DIMENSION_1024,
+                        index_param=vector_index_param,
+                    )
+                )
+            elif v in ["vector_int8_field"] and vector_index_param in [
+                                   IVFIndexParam(metric_type=MetricType.L2,
+                                                 n_list=200,
+                                                 n_iters=20,
+                                                 use_soar=True,),
+                                   IVFIndexParam(metric_type=MetricType.COSINE,
+                                                 n_list=150,
+                                                 n_iters=15,
+                                                 use_soar=False, )] :
+                    vectors.append(
+                        VectorSchema(
+                            v,
+                            k,
+                            dimension=DVECTOR_DIMENSION_1024,
+                            index_param=vector_index_param,
+                        )
+                    )
+            else:
+                vectors.append(
+                    VectorSchema(
+                        v,
+                        k,
+                        dimension=VECTOR_DIMENSION_1024,
+                        index_param=HnswIndexParam(),
+                    )
+                )
+    else:
+        for k, v in DEFAULT_VECTOR_FIELD_NAME.items():
+            if v in ["vector_fp16_field", "vector_fp32_field","vector_int8_field"]:
+                vectors.append(
+                    VectorSchema(
+                        v,
+                        k,
+                        dimension=VECTOR_DIMENSION_1024,
+                        index_param=vector_index_param,
+                    )
+                )
+            else:
+               vectors.append(
+                   VectorSchema(
+                       v,
+                       k,
+                       dimension=VECTOR_DIMENSION_1024,
+                       index_param=HnswIndexParam(),
+                   )
+               )
+
+
+    return CollectionSchema(
+        name="full_collection_new",
+        fields=fields,
+        vectors=vectors,
+    )
+
+
 
 @pytest.fixture(scope="function")
 def single_vector_schema(
@@ -370,6 +493,13 @@ def full_collection_ivf(
         collection_temp_dir, full_schema_ivf, collection_option
     )
 
+@pytest.fixture(scope="function")
+def full_collection_1024(
+    collection_temp_dir, full_schema_1024, collection_option
+) -> Generator[Any, Any, Collection]:
+    yield from create_collection_fixture(
+        collection_temp_dir, full_schema_1024, collection_option
+    )
 
 @pytest.fixture
 def sample_field_list(nullable: bool = True, scalar_index_param=None, name_prefix=""):
