@@ -417,62 +417,17 @@ if __name__ == "__main__":
                     assert doc.id in fetched_docs
                     assert is_doc_equal(fetched_docs["1"], exp_doc, recovered_collection.schema), (f"result doc={fetched_docs},doc_exp={exp_doc}")
 
+
             # Verification 3.5: Test insertion functionality after recovery
             print(f"[Test] Step 3.5.1: Testing insertion functionality after recovery")
-            test_doc = generate_doc(9999, full_schema_1024)  # Use original schema from fixture
+            test_insert_doc = generate_doc(9999, full_schema_1024)  # Use original schema from fixture
+            singledoc_and_check(recovered_collection, test_insert_doc, operator="insert",is_delete=0)
 
-            #3.5.1: Verify insert interface
-            insert_res = recovered_collection.insert([test_doc])
-            print("insert_res:\n")
-            print(insert_res)
-            for item in insert_res:
-                assert item.ok()
-            assert recovered_collection.stats.doc_count == current_count + 1
-
-            fetched_docs = recovered_collection.fetch(["9999"])
-            assert len(fetched_docs) == 1
-            assert doc.id in fetched_docs
-            assert is_doc_equal(test_doc, fetched_docs[0]), (f"result doc={test_doc},doc_exp={fetched_docs[0]}")
-
-            #3.5.2: Newly inserted document accessible via query interface
-            print(f"[Test] Step 3.5.2: Newly inserted document accessible via query")
-            for k, v in DEFAULT_VECTOR_FIELD_NAME.items():
-                doc_fields, doc_vectors = generate_vectordict_random(
-                    recovered_collection.schema
-                )
-                query_vector = doc_vectors[v]
-                query_result = recovered_collection.query(
-                    vectors=VectorQuery(
-                        field_name=v, vector=query_vector),
-                    topk=1024,
-                )
-                assert len(query_result) > 0, (
-                    f"Expected at least 1 query result, but got {len(query_result)}"
-                )
-
-                new_doc_found = False
-                for doc in query_result:
-                    if doc.id == "9999":
-                        new_doc_found = True
-                        assert new_doc_found
-                        assert is_doc_equal(doc, test_doc, recovered_collection.schema,False)
-                        assert hasattr(doc, "score")
-                        assert isinstance(new_doc_found.score, (int, float))
-                        print(f"[Test] Step 3.5: Document insertion functionality working after recovery.")
-                        break
-
-            #3.6: Test updat  after recovery
+            # Verification 3.6: Test update functionality after recovery
             print(f"[Test] Step 3.6: Testing update functionality after recovery...")
-            # Create update document with modified fields
-            updated_doc = generate_update_doc(2001,  recovered_collection.schema)
-            update_result = recovered_collection.update(updated_doc)
-            assert len(update_result) == 1
-            assert recovered_collection.stats.doc_count == current_count + 1
-
-            fetched_docs = recovered_collection.fetch(["2001"])
-            assert len(fetched_docs) == 1
-            assert doc.id in fetched_docs
-            assert is_doc_equal(updated_doc, fetched_docs["2001"]), (f"result doc={updated_doc},doc_exp={fetched_docs}")
+            updated_doc = generate_update_doc(2001, recovered_collection.schema)
+            singledoc_and_check(recovered_collection, updated_doc, operator="update",is_delete=0)
+            
 
             #3.7: Test deletion  after recovery
             print(f"[Test] Step 3.7: Testing deletion functionality after recovery...")

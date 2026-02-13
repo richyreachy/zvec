@@ -233,16 +233,16 @@ def generate_update_doc(i: int, schema: CollectionSchema) -> Doc:
     for vector in schema.vectors:
         if vector.data_type == DataType.VECTOR_FP16:
             doc_vectors[vector.name] = generate_constant_vector(
-                i + 1, DEFAULT_VECTOR_DIMENSION, "float16"
+                i + 1, vector.dimension, "float16"
             )
         elif vector.data_type == DataType.VECTOR_FP32:
             doc_vectors[vector.name] = generate_constant_vector(
-                i + 1, DEFAULT_VECTOR_DIMENSION, "float32"
+                i + 1, vector.dimension, "float32"
             )
         elif vector.data_type == DataType.VECTOR_INT8:
             doc_vectors[vector.name] = generate_constant_vector(
                 i + 1,
-                DEFAULT_VECTOR_DIMENSION,
+                vector.dimension,
                 "int8",
             )
         elif vector.data_type == DataType.SPARSE_VECTOR_FP32:
@@ -439,15 +439,15 @@ def generate_vectordict_random(schema: CollectionSchema):
     for vector in schema.vectors:
         if vector.data_type == DataType.VECTOR_FP16:
             doc_vectors[vector.name] = generate_constant_vector(
-                random.randint(1, 100), DEFAULT_VECTOR_DIMENSION, "float16"
+                random.randint(1, 100), vector.dimension, "float16"
             )
         elif vector.data_type == DataType.VECTOR_FP32:
             doc_vectors[vector.name] = generate_constant_vector(
-                random.randint(1, 100), DEFAULT_VECTOR_DIMENSION, "float32"
+                random.randint(1, 100), vector.dimension, "float32"
             )
         elif vector.data_type == DataType.VECTOR_INT8:
             doc_vectors[vector.name] = generate_constant_vector(
-                random.randint(1, 100), DEFAULT_VECTOR_DIMENSION, "int8"
+                random.randint(1, 100), vector.dimension, "int8"
             )
         elif vector.data_type == DataType.SPARSE_VECTOR_FP32:
             doc_vectors[vector.name] = generate_sparse_vector(random.randint(1, 100))
