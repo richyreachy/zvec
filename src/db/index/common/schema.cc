@@ -20,6 +20,7 @@
 #include <zvec/db/schema.h>
 #include <zvec/db/status.h>
 #include <zvec/db/type.h>
+#include "ailego/internal/cpu_features.h"
 #include "db/common/constants.h"
 #include "db/common/typedef.h"
 #include "db/common/utils.h"
@@ -139,6 +140,15 @@ Status FieldSchema::validate() const {
           return Status::InvalidArgument(
               "schema validate failed: HNSW_RABITQ index only support "
               "L2/IP/COSINE metric");
+        }
+#if !RABITQ_SUPPORTED
+        return Status::NotSupported(
+            "RabitQ is not supported on this platform (Linux x86_64 only)");
+#endif
+        auto &flags = zvec::ailego::internal::CpuFeatures::static_flags_;
+        if (!flags.AVX2 && !flags.AVX512F) {
+          return Status::NotSupported(
+              "RabitQ requires AVX2/AVX512F to be supported");
         }
       }
 

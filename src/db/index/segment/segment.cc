@@ -1719,8 +1719,8 @@ Status SegmentImpl::create_vector_index(
       new_segment_meta->add_persisted_block(block);
     } else {
 #if !RABITQ_SUPPORTED
-      LOG_ERROR("RaBitQ is not supported on this platform (Linux x86_64 only)");
-      return Status::NotSupported("RabitQ is not supported on this platform");
+      return Status::NotSupported(
+          "RabitQ is not supported on this platform (Linux x86_64 only)");
 #else
       // rabitq
       auto rabitq_params = std::dynamic_pointer_cast<HnswRabitqIndexParams>(
