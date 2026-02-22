@@ -80,7 +80,13 @@ dev = [
 # BUILD SYSTEM CONFIGURATION (scikit-build-core)
 ######################################################################################################
 [build-system]
-requires = ["scikit-build-core >=0.11", "pybind11 >=3.0", "setuptools_scm>=8.0"]
+requires = [
+    "scikit-build-core >=0.11",
+    "pybind11 >=3.0",
+    "setuptools_scm>=8.0",
+    "cmake>=3.26,<4.0",
+    "ninja>=1.11",
+]
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
@@ -165,7 +171,8 @@ archs = ["auto"]
 test-command = "cd {project} && pytest python/tests -v --tb=short"
 manylinux-x86_64-image = "manylinux_2_28"
 manylinux-aarch64-image = "manylinux_2_28"
-skip = "*musllinux*"
+# Skip 32-bit builds and musllinux
+skip = ["*-manylinux_i686", "*-musllinux*"]
 
 [tool.cibuildwheel.macos]
 archs = ["arm64"]
@@ -217,9 +224,20 @@ ignore = [
     "E731",     # Lambda assignment (used in callbacks)
     "B019",     # `functools.lru_cache` on methods (handled manually)
     "PLR0912",  # Too many branches
+    "PLC0105",  # Ignore contravariant
+    "RUF002",   # Ignore Unicode
 ]
 fixable = ["ALL"]
 unfixable = []
+
+# Ignore all errors in docstrings
+[tool.ruff.lint.pydocstyle]
+convention = "google"  # or "numpy", "pep257"
+ignore-decorators = ["typing.overload"]
+
+[tool.ruff.lint.flake8-type-checking]
+# Don't check code examples in docstrings
+quote-annotations = true
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
@@ -236,6 +254,9 @@ known-first-party = ["zvec"]
 ]
 "python/zvec/model/doc.py" = [
     "RUF023",   # Unused sort (for __slot__)
+]
+"python/zvec/extension/**" = [
+    "PLC0415",  # Import outside top-level (dynamic imports in _get_model)
 ]
 
 [tool.ruff.format]

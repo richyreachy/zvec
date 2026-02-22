@@ -1,4 +1,4 @@
-<div align=" center">
+<div align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://zvec.oss-cn-hongkong.aliyuncs.com/logo/github_log_2.svg" />
     <img src="https://zvec.oss-cn-hongkong.aliyuncs.com/logo/github_logo_1.svg" width="400" alt="zvec logo" />
@@ -17,6 +17,10 @@
 </p>
 
 <p align="center">
+  <a href="https://trendshift.io/repositories/20830" target="_blank"><img src="https://trendshift.io/api/badge/repositories/20830" alt="alibaba%2Fzvec | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+</p>
+
+<p align="center">
   <a href="https://zvec.org/en/docs/quickstart/">🚀 <strong>Quickstart</strong> </a> |
   <a href="https://zvec.org/en/">🏠 <strong>Home</strong> </a> |
   <a href="https://zvec.org/en/docs/">📚 <strong>Docs</strong> </a> |
@@ -30,25 +34,33 @@
 ## 💫 Features
 
 - **Blazing Fast**: Searches billions of vectors in milliseconds.
-- **Simple, Just Works**: Install with `pip install zvec` and start searching in seconds. No servers, no config, no fuss.
+- **Simple, Just Works**: [Install](#-installation) and start searching in seconds. No servers, no config, no fuss.
 - **Dense + Sparse Vectors**: Work with both dense and sparse embeddings, with native support for multi-vector queries in a single call.
 - **Hybrid Search**: Combine semantic similarity with structured filters for precise results.
 - **Runs Anywhere**: As an in-process library, Zvec runs wherever your code runs — notebooks, servers, CLI tools, or even edge devices.
 
 ## 📦 Installation
 
-Install Zvec from PyPI with a single command:
+### [Python](https://pypi.org/project/zvec/)
+
+**Requirements**: Python 3.10 - 3.12
 
 ```bash
 pip install zvec
 ```
 
-**Requirements**:
+### [Node.js](https://www.npmjs.com/package/@zvec/zvec)
 
-- Python 3.10 - 3.12
-- **Supported platforms**:
-  - Linux (x86_64/ARM64)
-  - macOS (ARM64)
+```bash
+npm install @zvec/zvec
+```
+
+### ✅ Supported Platforms
+
+- Linux (x86_64, ARM64)
+- macOS (ARM64)
+
+### 🛠️ Building from Source
 
 If you prefer to build Zvec from source, please check the [Building from Source](https://zvec.org/en/docs/build/) guide.
 
@@ -64,7 +76,7 @@ schema = zvec.CollectionSchema(
 )
 
 # Create collection
-collection = zvec.create_and_open(path="./zvec_example", schema=schema,)
+collection = zvec.create_and_open(path="./zvec_example", schema=schema)
 
 # Insert documents
 collection.insert([
@@ -100,11 +112,11 @@ Stay updated and get support — scan or click:
   <tr>
     <td align="center" style="padding: 8px; width: 25%;">
       <div style="font-weight: 600; font-size: 14px; margin-bottom: 6px;">💬 DingTalk</div>
-      <img src="https://zvec.oss-cn-hongkong.aliyuncs.com/qrcode/dingding.png" width="100" style="border-radius: 8px; border: 1px solid #ddd;">
+      <img src="https://zvec.oss-cn-hongkong.aliyuncs.com/qrcode/dingding.png" alt="DingTalk QR Code" width="100" style="border-radius: 8px; border: 1px solid #ddd;">
     </td>
     <td align="center" style="padding: 8px; width: 25%;">
       <div style="font-weight: 600; font-size: 14px; margin-bottom: 6px;">📱 WeChat</div>
-      <img src="https://zvec.oss-cn-hongkong.aliyuncs.com/qrcode/wechat.png" width="100" style="border-radius: 8px; border: 1px solid #ddd;">
+      <img src="https://zvec.oss-cn-hongkong.aliyuncs.com/qrcode/wechat.png" alt="WeChat QR Code" width="100" style="border-radius: 8px; border: 1px solid #ddd;">
     </td>
     <td align="center" style="padding: 8px; width: 25%;">
       <div style="font-weight: 600; font-size: 14px; margin-bottom: 6px;">🎮 Discord</div>

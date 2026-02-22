@@ -69,9 +69,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
 
-      - name: Install Ruff
+      - name: Install dependencies
         run: |
-          ${{ env.PIP_BIN }} install --upgrade pip ruff
+          ${{ env.PIP_BIN }} install --upgrade pip \
+            ruff==v0.14.4 \
+            clang-format==18.1.8 \
+            pybind11==3.0 \
+            cmake==3.30.0 \
+            ninja==1.11.1 \
+            pytest \
+            pytest-cov \
+            scikit-build-core \
+            setuptools_scm
         shell: bash
 
       - name: Run Ruff Linter
@@ -88,7 +97,6 @@ jobs:
 
       - name: Run clang-format Check
         run: |
-          ${{ env.PIP_BIN }} install clang-format==18.1.8
           cd "$CLEAN_WORKSPACE"
           
 
@@ -113,16 +121,11 @@ jobs:
           cd "$CLEAN_WORKSPACE"
           NPROC=$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)
 
-          ${{ env.PIP_BIN }} install cmake ninja
-
           CMAKE_GENERATOR="Unix Makefiles" \
           CMAKE_BUILD_PARALLEL_LEVEL="$NPROC" \
-          ${{ env.PIP_BIN }} install -v . --config-settings='cmake.define.BUILD_TOOLS="ON"'
-        shell: bash
-
-      - name: Install test dependencies
-        run: |
-          ${{ env.PIP_BIN }} install pytest pytest-cov
+          ${{ env.PIP_BIN }} install -v . \
+            --no-build-isolation \
+            --config-settings='cmake.define.BUILD_TOOLS="ON"'
         shell: bash
 
       - name: Run Python Tests with Coverage
@@ -133,7 +136,6 @@ jobs:
 
       - name: Run Cpp Tests
         run: |
-          ${{ env.PIP_BIN }} install pybind11==3.0
           cd "$CLEAN_WORKSPACE/build"
           make unittest -j$(nproc)
         shell: bash
