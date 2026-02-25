@@ -234,8 +234,6 @@ int RabitqReformer::transform_to_entity(const void *query,
   rotator_->rotate(query_vector, entity->rotated_query.data());
 
   // Quantize query to 4-bit representation
-  // TODO: add IP support
-
   entity->query_wrapper = std::make_unique<rabitqlib::SplitSingleQuery<float>>(
       entity->rotated_query.data(), padded_dim_, ex_bits_, query_config_,
       metric_type_);

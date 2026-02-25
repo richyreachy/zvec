@@ -122,7 +122,7 @@ int HNSWRabitqIndex::_get_coarse_search_topk(
   return -1;
 #else
   const auto &hnsw_search_param =
-      std::dynamic_pointer_cast<HNSWQueryParam>(search_param);
+      std::dynamic_pointer_cast<HNSWRabitqQueryParam>(search_param);
 
   auto ret = std::max(search_param->topk, hnsw_search_param->ef_search);
   return ret;
