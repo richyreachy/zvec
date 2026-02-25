@@ -146,7 +146,8 @@ typedef struct {
  * @param[out] error_details Pointer to error details structure
  * @return ZVecErrorCode Error code
  */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_get_last_error_details(ZVecErrorDetails *error_details);
+ZVEC_EXPORT ZVecErrorCode ZVEC_CALL
+zvec_get_last_error_details(ZVecErrorDetails *error_details);
 
 /**
  * @brief Get last error message
@@ -237,38 +238,40 @@ ZVEC_EXPORT ZVecString *ZVEC_CALL zvec_string_create(const char *str);
 
 /**
  * @brief Create string from string view
- * 
+ *
  * Creates a new ZVecString by copying data from a ZVecStringView.
  * The created string owns its memory and must be freed with zvec_free_string().
- * 
+ *
  * @param view Pointer to source string view (must not be NULL)
  * @return ZVecString* New string instance on success, NULL on error
  * @note Caller is responsible for freeing the returned string
  */
-ZVEC_EXPORT ZVecString *ZVEC_CALL zvec_string_create_from_view(const ZVecStringView *view);
+ZVEC_EXPORT ZVecString *ZVEC_CALL
+zvec_string_create_from_view(const ZVecStringView *view);
 
 /**
  * @brief Create binary-safe string from raw data
- * 
+ *
  * Creates a new ZVecString from raw binary data that may contain null bytes.
  * Unlike zvec_string_create(), this function takes explicit length parameter
  * and doesn't rely on null-termination.
  * The created string owns its memory and must be freed with zvec_free_string().
- * 
+ *
  * @param data Raw binary data pointer (must not be NULL)
  * @param length Length of data in bytes
  * @return ZVecString* New string instance on success, NULL on error
  * @note Caller is responsible for freeing the returned string
  * @note This function is suitable for binary data containing null bytes
  */
-ZVEC_EXPORT ZVecString *ZVEC_CALL zvec_bin_create(const uint8_t *data, size_t length);
+ZVEC_EXPORT ZVecString *ZVEC_CALL zvec_bin_create(const uint8_t *data,
+                                                  size_t length);
 
 /**
  * @brief Copy string
- * 
+ *
  * Creates a new ZVecString by copying an existing string.
  * The created string owns its memory and must be freed with zvec_free_string().
- * 
+ *
  * @param str Pointer to source string (must not be NULL)
  * @return ZVecString* New string instance on success, NULL on error
  * @note Caller is responsible for freeing the returned string
@@ -708,10 +711,9 @@ ZVEC_EXPORT void ZVEC_CALL zvec_index_params_vector_init(
  * @param ef_search Search exploration factor
  * @param quantize_type Quantization type
  */
-ZVEC_EXPORT void ZVEC_CALL zvec_index_params_hnsw_init(ZVecHnswIndexParams *params,
-                                 ZVecMetricType metric_type, int m,
-                                 int ef_construction, int ef_search,
-                                 ZVecQuantizeType quantize_type);
+ZVEC_EXPORT void ZVEC_CALL zvec_index_params_hnsw_init(
+    ZVecHnswIndexParams *params, ZVecMetricType metric_type, int m,
+    int ef_construction, int ef_search, ZVecQuantizeType quantize_type);
 
 /**
  * @brief Initialize Flat index parameters
@@ -719,9 +721,9 @@ ZVEC_EXPORT void ZVEC_CALL zvec_index_params_hnsw_init(ZVecHnswIndexParams *para
  * @param metric_type Metric type
  * @param quantize_type Quantization type
  */
-ZVEC_EXPORT void ZVEC_CALL zvec_index_params_flat_init(ZVecFlatIndexParams *params,
-                                 ZVecMetricType metric_type,
-                                 ZVecQuantizeType quantize_type);
+ZVEC_EXPORT void ZVEC_CALL zvec_index_params_flat_init(
+    ZVecFlatIndexParams *params, ZVecMetricType metric_type,
+    ZVecQuantizeType quantize_type);
 
 /**
  * @brief Initialize IVF index parameters
@@ -733,10 +735,9 @@ ZVEC_EXPORT void ZVEC_CALL zvec_index_params_flat_init(ZVecFlatIndexParams *para
  * @param n_probe Search probe count
  * @param quantize_type Quantization type
  */
-ZVEC_EXPORT void ZVEC_CALL zvec_index_params_ivf_init(ZVecIVFIndexParams *params,
-                                ZVecMetricType metric_type, int n_list,
-                                int n_iters, bool use_soar, int n_probe,
-                                ZVecQuantizeType quantize_type);
+ZVEC_EXPORT void ZVEC_CALL zvec_index_params_ivf_init(
+    ZVecIVFIndexParams *params, ZVecMetricType metric_type, int n_list,
+    int n_iters, bool use_soar, int n_probe, ZVecQuantizeType quantize_type);
 
 /**
  * @brief Initialize generic index parameters
@@ -744,9 +745,9 @@ ZVEC_EXPORT void ZVEC_CALL zvec_index_params_ivf_init(ZVecIVFIndexParams *params
  * @param index_type Index type
  * @param metric_type Metric type (only valid for vector indexes)
  */
-ZVEC_EXPORT void ZVEC_CALL zvec_index_params_init_default(ZVecIndexParams *params,
-                                    ZVecIndexType index_type,
-                                    ZVecMetricType metric_type);
+ZVEC_EXPORT void ZVEC_CALL zvec_index_params_init_default(
+    ZVecIndexParams *params, ZVecIndexType index_type,
+    ZVecMetricType metric_type);
 
 /**
  * @brief Destroy index parameters (free internal dynamically allocated memory)
@@ -1010,8 +1011,7 @@ zvec_query_params_union_create(ZVecIndexType index_type);
  * @brief Destroy base query parameters
  * @param params HNSW query parameters pointer
  */
-ZVEC_EXPORT void ZVEC_CALL
-zvec_query_params_destroy(ZVecQueryParams *params);
+ZVEC_EXPORT void ZVEC_CALL zvec_query_params_destroy(ZVecQueryParams *params);
 
 /**
  * @brief Destroy HNSW query parameters
@@ -1101,8 +1101,8 @@ zvec_query_params_ivf_set_nprobe(ZVecIVFQueryParams *params, int nprobe);
  * @param scale_factor Scale factor
  * @return ZVecErrorCode Error code
  */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL
-zvec_query_params_ivf_set_scale_factor(ZVecIVFQueryParams *params, float scale_factor);
+ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_query_params_ivf_set_scale_factor(
+    ZVecIVFQueryParams *params, float scale_factor);
 
 /**
  * @brief Collection options structure
@@ -1971,9 +1971,9 @@ ZVEC_EXPORT const char *ZVEC_CALL zvec_doc_get_pk_copy(const ZVecDoc *doc);
 /**
  * @brief Get field value (basic type returned directly)
  *
- * Supports basic numeric data types: BOOL, INT32, INT64, UINT32, UINT64, 
+ * Supports basic numeric data types: BOOL, INT32, INT64, UINT32, UINT64,
  * FLOAT, DOUBLE. The value is copied directly into the provided buffer.
- * For STRING, BINARY, and VECTOR types, use zvec_doc_get_field_value_copy 
+ * For STRING, BINARY, and VECTOR types, use zvec_doc_get_field_value_copy
  * or zvec_doc_get_field_value_pointer instead.
  *
  * @param doc Document object pointer
@@ -1993,14 +1993,14 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_doc_get_field_value_basic(
  * Supports all data types including:
  * - Basic types: BOOL, INT32, INT64, UINT32, UINT64, FLOAT, DOUBLE
  * - String types: STRING, BINARY
- * - Vector types: VECTOR_FP32, VECTOR_FP64, VECTOR_FP16, VECTOR_INT4, 
+ * - Vector types: VECTOR_FP32, VECTOR_FP64, VECTOR_FP16, VECTOR_INT4,
  *   VECTOR_INT8, VECTOR_INT16, VECTOR_BINARY32, VECTOR_BINARY64
  * - Sparse vector types: SPARSE_VECTOR_FP32, SPARSE_VECTOR_FP16
- * - Array types: ARRAY_STRING, ARRAY_BINARY, ARRAY_BOOL, ARRAY_INT32, 
+ * - Array types: ARRAY_STRING, ARRAY_BINARY, ARRAY_BOOL, ARRAY_INT32,
  *   ARRAY_INT64, ARRAY_UINT32, ARRAY_UINT64, ARRAY_FLOAT, ARRAY_DOUBLE
  *
- * The returned value pointer must be manually freed using appropriate 
- * deallocation functions (free() for basic types and strings, 
+ * The returned value pointer must be manually freed using appropriate
+ * deallocation functions (free() for basic types and strings,
  * zvec_free_uint8_array() for binary data).
  *
  * @param doc Document object pointer
@@ -2025,8 +2025,8 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_doc_get_field_value_copy(
  * - Array types: ARRAY_INT32, ARRAY_INT64, ARRAY_UINT32, ARRAY_UINT64,
  *   ARRAY_FLOAT, ARRAY_DOUBLE
  *
- * The returned pointer points to data within the document object and 
- * does not require manual memory management. The pointer remains valid 
+ * The returned pointer points to data within the document object and
+ * does not require manual memory management. The pointer remains valid
  * as long as the document exists.
  *
  * @param doc Document object pointer
