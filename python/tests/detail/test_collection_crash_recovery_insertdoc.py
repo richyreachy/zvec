@@ -348,7 +348,8 @@ if __name__ == "__main__":
             os.remove(subprocess_script_path)
 
             # Step 3: Verify recovery situation in main process
-            print(f"[Test] Step 3: Attempting to open collection after simulating crash during document insertion operations...")
+            print(
+                f"[Test] Step 3: Attempting to open collection after simulating crash during document insertion operations...")
             # Verification 3.1: Check if collection can be successfully opened after crash
             recovered_collection = zvec.open(collection_path)
             assert recovered_collection is not None, "Cannot open collection after crash"
@@ -362,16 +363,16 @@ if __name__ == "__main__":
             print(
                 f"[Test] Step 3.2: Found {len(query_result)} documents after crash (expected 0-{subprocess_args['num_docs_to_insert']})")
 
-
             current_count = recovered_collection.stats.doc_count
             assert recovered_collection.stats.doc_count >= 1
-            assert len(query_result)<=recovered_collection.stats.doc_count,(f"query_result count = {len(query_result)},stats.doc_count = {recovered_collection.stats.doc_count}")
+            assert len(query_result) <= current_count, (
+                f"query_result count = {len(query_result)},stats.doc_count = {recovered_collection.stats.doc_count}")
 
             # Verify existing documents have correct structure
             if len(query_result) > 0:
 
                 for doc in query_result[:1024]:
-                    if doc.id=="2001":
+                    if doc.id == "2001":
                         print("Found 2001 data!")
                         fetched_docs = recovered_collection.fetch([doc.id])
                         print("doc.id:\n")
@@ -380,24 +381,26 @@ if __name__ == "__main__":
                         print(fetched_docs)
                         assert len(fetched_docs) == 1
                         assert doc.id in fetched_docs
-                        assert is_doc_equal(fetched_docs["2001"],single_doc, recovered_collection.schema),(f"result doc={fetched_doc},doc_exp={single_doc}")
+                        assert is_doc_equal(fetched_docs["2001"], single_doc, recovered_collection.schema), (
+                            f"result doc={fetched_docs},doc_exp={single_doc}")
                         break
                     else:
                         fetched_docs = recovered_collection.fetch([doc.id])
                         print("doc.id,fetched_docs:\n")
-                        print(doc.id,fetched_docs)
-                        exp_doc =  generate_doc(int(doc.id), recovered_collection.schema)
+                        print(doc.id, fetched_docs)
+                        exp_doc = generate_doc(int(doc.id), recovered_collection.schema)
                         assert len(fetched_docs) == 1
                         assert doc.id in fetched_docs
-                        assert is_doc_equal(fetched_docs["1"], exp_doc, recovered_collection.schema), (f"result doc={fetched_docs},doc_exp={exp_doc}")
+                        assert is_doc_equal(fetched_docs["1"], exp_doc, recovered_collection.schema), (
+                            f"result doc={fetched_docs},doc_exp={exp_doc}")
 
-            #3.4: Check if index is complete and query function works properly
+            # 3.4: Check if index is complete and query function works properly
             print(f"[Test] Step 3.4: Verifying index integrity and query function...")
             filtered_query = recovered_collection.query(filter=f"int32_field >=-100")
             print(f"[Test] Step 3.4.2: Field-filtered query returned {len(filtered_query)} documents")
             assert len(filtered_query) > 0
             for doc in query_result:
-                if doc.id=="2001":
+                if doc.id == "2001":
                     print("Found 2001 data!")
                     fetched_docs = recovered_collection.fetch([doc.id])
                     print("doc.id:\n")
@@ -406,30 +409,30 @@ if __name__ == "__main__":
                     print(fetched_docs)
                     assert len(fetched_docs) == 1
                     assert doc.id in fetched_docs
-                    assert is_doc_equal(fetched_docs["2001"],single_doc, recovered_collection.schema),(f"result doc={fetched_doc},doc_exp={single_doc}")
+                    assert is_doc_equal(fetched_docs["2001"], single_doc, recovered_collection.schema), (
+                        f"result doc={fetched_docs},doc_exp={single_doc}")
                     break
                 else:
                     fetched_docs = recovered_collection.fetch([doc.id])
                     print("doc.id,fetched_docs:\n")
-                    print(doc.id,fetched_docs)
-                    exp_doc =  generate_doc(int(doc.id), recovered_collection.schema)
+                    print(doc.id, fetched_docs)
+                    exp_doc = generate_doc(int(doc.id), recovered_collection.schema)
                     assert len(fetched_docs) == 1
                     assert doc.id in fetched_docs
-                    assert is_doc_equal(fetched_docs["1"], exp_doc, recovered_collection.schema), (f"result doc={fetched_docs},doc_exp={exp_doc}")
-
+                    assert is_doc_equal(fetched_docs["1"], exp_doc, recovered_collection.schema), (
+                        f"result doc={fetched_docs},doc_exp={exp_doc}")
 
             # Verification 3.5: Test insertion functionality after recovery
             print(f"[Test] Step 3.5.1: Testing insertion functionality after recovery")
             test_insert_doc = generate_doc(9999, full_schema_1024)  # Use original schema from fixture
-            singledoc_and_check(recovered_collection, test_insert_doc, operator="insert",is_delete=0)
+            singledoc_and_check(recovered_collection, test_insert_doc, operator="insert", is_delete=0)
 
             # Verification 3.6: Test update functionality after recovery
             print(f"[Test] Step 3.6: Testing update functionality after recovery...")
             updated_doc = generate_update_doc(2001, recovered_collection.schema)
-            singledoc_and_check(recovered_collection, updated_doc, operator="update",is_delete=0)
-            
+            singledoc_and_check(recovered_collection, updated_doc, operator="update", is_delete=0)
 
-            #3.7: Test deletion  after recovery
+            # 3.7: Test deletion  after recovery
             print(f"[Test] Step 3.7: Testing deletion functionality after recovery...")
             doc_ids = ["9999"]
             result = recovered_collection.delete(doc_ids)
