@@ -36,12 +36,13 @@ static void compute_one_to_many_squared_euclidean_fallback(
     float *sums) {
   for (size_t j = 0; j < BatchSize; ++j) {
     sums[j] = 0.0;
-    SquaredEuclideanDistanceMatrix<ValueType, 1, 1>::Compute(ptrs[j], query, dim, sums + j);
+    SquaredEuclideanDistanceMatrix<ValueType, 1, 1>::Compute(ptrs[j], query,
+                                                             dim, sums + j);
     ailego_prefetch(&prefetch_ptrs[j]);
   }
 }
 
-#if defined(__AVX512F__) 
+#if defined(__AVX512F__)
 
 template <typename ValueType, size_t dp_batch>
 static std::enable_if_t<std::is_same_v<ValueType, float>, void>
@@ -77,12 +78,10 @@ compute_one_to_many_squared_euclidean_avx512f_fp32(
     for (size_t i = 0; i < dp_batch; ++i) {
       __m512 zmm_undefined = _mm512_undefined_ps();
 
-      accs[i] =
-          _mm512_mask3_fmadd_ps(_mm512_mask_loadu_ps(
-                                    zmm_undefined, mask, query + dim),
-                                _mm512_mask_loadu_ps(
-                                    zmm_undefined, mask, ptrs[i] + dim),
-                                accs[i], mask);
+      accs[i] = _mm512_mask3_fmadd_ps(
+          _mm512_mask_loadu_ps(zmm_undefined, mask, query + dim),
+          _mm512_mask_loadu_ps(zmm_undefined, mask, ptrs[i] + dim), accs[i],
+          mask);
     }
   }
 

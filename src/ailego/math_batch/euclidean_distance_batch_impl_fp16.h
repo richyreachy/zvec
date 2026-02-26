@@ -63,10 +63,12 @@ compute_one_to_many_squared_euclidean_avx512fp16_fp16(
     for (size_t i = 0; i < dp_batch; ++i) {
       __m512i zmm_undefined = _mm512_undefined_epi32();
       __m512h zmm_undefined_ph = _mm512_undefined_ph();
-      __m512h zmm_d = _mm512_mask_sub_ph(
-        zmm_undefined_ph, mask,
-        _mm512_castsi512_ph(_mm512_mask_loadu_epi16(zmm_undefined, mask, query + dim)),
-        _mm512_castsi512_ph(_mm512_mask_loadu_epi16(zmm_undefined, mask, ptrs[i] + dim)));
+      __m512h zmm_d =
+          _mm512_mask_sub_ph(zmm_undefined_ph, mask,
+                             _mm512_castsi512_ph(_mm512_mask_loadu_epi16(
+                                 zmm_undefined, mask, query + dim)),
+                             _mm512_castsi512_ph(_mm512_mask_loadu_epi16(
+                                 zmm_undefined, mask, ptrs[i] + dim)));
 
       accs[i] = _mm512_mask3_fmadd_ph(zmm_d, zmm_d, accs[i], mask);
     }
@@ -118,11 +120,11 @@ compute_one_to_many_squared_euclidean_avx512f_fp16(
     }
 
     for (size_t i = 0; i < dp_batch; ++i) {
-      __m512 diff1  = _mm512_sub_ps(q1, data_regs_1[i]);
+      __m512 diff1 = _mm512_sub_ps(q1, data_regs_1[i]);
       accs[i] = _mm512_fmadd_ps(diff1, diff1, accs[i]);
 
-      __m512 diff2  = _mm512_sub_ps(q2, data_regs_2[i]);
-      accs[i] = _mm512_fmadd_ps(diff2,diff2, accs[i]);
+      __m512 diff2 = _mm512_sub_ps(q2, data_regs_2[i]);
+      accs[i] = _mm512_fmadd_ps(diff2, diff2, accs[i]);
     }
   }
 

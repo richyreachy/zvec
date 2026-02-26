@@ -39,7 +39,7 @@ compute_one_to_many_squared_euclidean_avx2_int8(
   for (size_t i = 0; i < dp_batch; ++i) {
     accs[i] = _mm256_setzero_si256();
   }
-  
+
   size_t dim = 0;
   for (; dim + 32 <= dimensionality; dim += 32) {
     __m256i q = _mm256_loadu_si256((const __m256i *)(query + dim));
@@ -52,13 +52,14 @@ compute_one_to_many_squared_euclidean_avx2_int8(
         ailego_prefetch(prefetch_ptrs[i] + dim);
       }
     }
-  
+
     for (size_t i = 0; i < dp_batch; ++i) {
       __m256i data_diff = _mm256_sub_epi8(_mm256_max_epi8(q, data_regs[i]),
-                                _mm256_min_epi8(q, data_regs[i]));
+                                          _mm256_min_epi8(q, data_regs[i]));
 
       __m256i diff0 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(data_diff));
-      __m256i diff1 = _mm256_cvtepu8_epi16(_mm256_extractf128_si256(data_diff, 1));
+      __m256i diff1 =
+          _mm256_cvtepu8_epi16(_mm256_extractf128_si256(data_diff, 1));
       accs[i] = _mm256_add_epi32(_mm256_madd_epi16(diff0, diff0), accs[i]);
       accs[i] = _mm256_add_epi32(_mm256_madd_epi16(diff1, diff1), accs[i]);
     }
@@ -71,15 +72,15 @@ compute_one_to_many_squared_euclidean_avx2_int8(
   if (dimensionality >= dim + 16) {
     for (size_t i = 0; i < dp_batch; ++i) {
       __m128i q = _mm_loadu_si128((const __m128i *)query + dim);
-      __m128i data_regs = _mm_loadu_si128((const __m128i *)(ptrs[i]+dim));
+      __m128i data_regs = _mm_loadu_si128((const __m128i *)(ptrs[i] + dim));
 
-      __m128i diff = _mm_sub_epi8(_mm_max_epi8(q, data_regs),
-                                    _mm_min_epi8(q, data_regs));
+      __m128i diff =
+          _mm_sub_epi8(_mm_max_epi8(q, data_regs), _mm_min_epi8(q, data_regs));
 
       __m128i diff0 = _mm_cvtepu8_epi16(diff);
       __m128i diff1 = _mm_cvtepu8_epi16(_mm_unpackhi_epi64(diff, diff));
       __m128i sum = _mm_add_epi32(_mm_madd_epi16(diff0, diff0),
-                              _mm_madd_epi16(diff1, diff1));
+                                  _mm_madd_epi16(diff1, diff1));
 
       results[i] += static_cast<float>(HorizontalAdd_INT32_V128(sum));
     }
@@ -90,49 +91,49 @@ compute_one_to_many_squared_euclidean_avx2_int8(
   for (size_t i = 0; i < dp_batch; ++i) {
     switch (dimensionality - dim) {
       case 15:
-        SSD_INT8_GENERAL(query+dim, ptrs[14]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[14] + dim, results[i]);
         /* FALLTHRU */
       case 14:
-        SSD_INT8_GENERAL(query+dim, ptrs[13+dim], results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[13 + dim], results[i]);
         /* FALLTHRU */
       case 13:
-        SSD_INT8_GENERAL(query+dim, ptrs[12]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[12] + dim, results[i]);
         /* FALLTHRU */
       case 12:
-        SSD_INT8_GENERAL(query+dim, ptrs[11]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[11] + dim, results[i]);
         /* FALLTHRU */
       case 11:
-        SSD_INT8_GENERAL(query+dim, ptrs[10+dim], results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[10 + dim], results[i]);
         /* FALLTHRU */
       case 10:
-        SSD_INT8_GENERAL(query+dim, ptrs[9]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[9] + dim, results[i]);
         /* FALLTHRU */
       case 9:
-        SSD_INT8_GENERAL(query+dim, ptrs[8]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[8] + dim, results[i]);
         /* FALLTHRU */
       case 8:
-        SSD_INT8_GENERAL(query+dim, ptrs[7]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[7] + dim, results[i]);
         /* FALLTHRU */
       case 7:
-        SSD_INT8_GENERAL(query+dim, ptrs[6]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[6] + dim, results[i]);
         /* FALLTHRU */
       case 6:
-        SSD_INT8_GENERAL(query+dim, ptrs[5]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[5] + dim, results[i]);
         /* FALLTHRU */
       case 5:
-        SSD_INT8_GENERAL(query+dim, ptrs[4]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[4] + dim, results[i]);
         /* FALLTHRU */
       case 4:
-        SSD_INT8_GENERAL(query+dim, ptrs[3]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[3] + dim, results[i]);
         /* FALLTHRU */
       case 3:
-        SSD_INT8_GENERAL(query+dim, ptrs[2]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[2] + dim, results[i]);
         /* FALLTHRU */
       case 2:
-        SSD_INT8_GENERAL(query+dim, ptrs[1]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[1] + dim, results[i]);
         /* FALLTHRU */
       case 1:
-        SSD_INT8_GENERAL(query+dim, ptrs[0]+dim, results[i]);
+        SSD_INT8_GENERAL(query + dim, ptrs[0] + dim, results[i]);
     }
   }
 }

@@ -23,8 +23,8 @@ namespace zvec::ailego::DistanceBatch {
 
 #if defined(__AVX512VNNI__)
 
-static void compute_one_to_many_inner_product_avx512_vnni_int8_query_preprocess(void *query,
-                                                                  size_t dim) {
+static void compute_one_to_many_inner_product_avx512_vnni_int8_query_preprocess(
+    void *query, size_t dim) {
   const int8_t *input = reinterpret_cast<const int8_t *>(query);
   uint8_t *output = reinterpret_cast<uint8_t *>(query);
 
