@@ -260,7 +260,7 @@ int HnswRabitqBuilder::train(IndexThreads::Pointer,
       return IndexError_Runtime;
     }
     while (iter->is_valid()) {
-      int ret = metric_->train(iter->data(), meta_.dimension());
+      ret = metric_->train(iter->data(), meta_.dimension());
       if (ailego_unlikely(ret != 0)) {
         LOG_ERROR("Hnsw build measure train failed, ret=%d", ret);
         return ret;

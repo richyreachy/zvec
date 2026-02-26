@@ -866,72 +866,9 @@ TEST(FieldSchemaTest, HnswRabitqIndexValidationMetricTypes) {
         << status.message();
   }
 }
-#endif
 
-TEST(FieldSchemaTest, HnswRabitqIndexValidation_UnsupportedDataTypes) {
-  // Test unsupported data types with HNSW_RABITQ index
 
-  // FP16 is not supported
-  {
-    auto index_params = std::make_shared<HnswRabitqIndexParams>(
-        MetricType::L2, 7, 256, 16, 200, 0);
-    FieldSchema field("vector_field", DataType::VECTOR_FP16, 128, false,
-                      index_params);
-    auto status = field.validate();
-    EXPECT_FALSE(status.ok())
-        << "FP16 should not be supported with HNSW_RABITQ";
-    EXPECT_NE(
-        status.message().find("HNSW_RABITQ index only support FP32 data type"),
-        std::string::npos)
-        << "Error message should mention FP32 support only, got: "
-        << status.message();
-  }
-
-  // INT8 is not supported
-  {
-    auto index_params = std::make_shared<HnswRabitqIndexParams>(
-        MetricType::L2, 7, 256, 16, 200, 0);
-    FieldSchema field("vector_field", DataType::VECTOR_INT8, 128, false,
-                      index_params);
-    auto status = field.validate();
-    EXPECT_FALSE(status.ok())
-        << "INT8 should not be supported with HNSW_RABITQ";
-    EXPECT_NE(
-        status.message().find("HNSW_RABITQ index only support FP32 data type"),
-        std::string::npos)
-        << "Error message should mention FP32 support only, got: "
-        << status.message();
-  }
-
-  // FP64 is not supported
-  {
-    auto index_params = std::make_shared<HnswRabitqIndexParams>(
-        MetricType::L2, 7, 256, 16, 200, 0);
-    FieldSchema field("vector_field", DataType::VECTOR_FP64, 128, false,
-                      index_params);
-    auto status = field.validate();
-    EXPECT_FALSE(status.ok())
-        << "FP64 should not be supported with HNSW_RABITQ";
-  }
-
-  // Sparse vector is not supported with HNSW_RABITQ
-  {
-    auto index_params = std::make_shared<HnswRabitqIndexParams>(
-        MetricType::IP, 7, 256, 16, 200, 0);
-    FieldSchema field("vector_field", DataType::SPARSE_VECTOR_FP32, 128, false,
-                      index_params);
-    auto status = field.validate();
-    EXPECT_FALSE(status.ok())
-        << "Sparse vector should not be supported with HNSW_RABITQ";
-    EXPECT_NE(
-        status.message().find("sparse_vector's index_params only support"),
-        std::string::npos)
-        << "Error message should mention sparse vector index support, got: "
-        << status.message();
-  }
-}
-
-TEST(FieldSchemaTest, HnswRabitqIndexValidation_UnsupportedDimension) {
+TEST(FieldSchemaTest, HnswRabitqIndexValidation_Dimension) {
   // Dimension less than 64 is not supported
   {
     auto index_params = std::make_shared<HnswRabitqIndexParams>(
@@ -996,6 +933,70 @@ TEST(FieldSchemaTest, HnswRabitqIndexValidation_UnsupportedDimension) {
     auto status = field.validate();
     EXPECT_TRUE(status.ok())
         << "Dimension 4095 should be supported, but got error: "
+        << status.message();
+  }
+}
+#endif
+
+TEST(FieldSchemaTest, HnswRabitqIndexValidation_UnsupportedDataTypes) {
+  // Test unsupported data types with HNSW_RABITQ index
+
+  // FP16 is not supported
+  {
+    auto index_params = std::make_shared<HnswRabitqIndexParams>(
+        MetricType::L2, 7, 256, 16, 200, 0);
+    FieldSchema field("vector_field", DataType::VECTOR_FP16, 128, false,
+                      index_params);
+    auto status = field.validate();
+    EXPECT_FALSE(status.ok())
+        << "FP16 should not be supported with HNSW_RABITQ";
+    EXPECT_NE(
+        status.message().find("HNSW_RABITQ index only support FP32 data type"),
+        std::string::npos)
+        << "Error message should mention FP32 support only, got: "
+        << status.message();
+  }
+
+  // INT8 is not supported
+  {
+    auto index_params = std::make_shared<HnswRabitqIndexParams>(
+        MetricType::L2, 7, 256, 16, 200, 0);
+    FieldSchema field("vector_field", DataType::VECTOR_INT8, 128, false,
+                      index_params);
+    auto status = field.validate();
+    EXPECT_FALSE(status.ok())
+        << "INT8 should not be supported with HNSW_RABITQ";
+    EXPECT_NE(
+        status.message().find("HNSW_RABITQ index only support FP32 data type"),
+        std::string::npos)
+        << "Error message should mention FP32 support only, got: "
+        << status.message();
+  }
+
+  // FP64 is not supported
+  {
+    auto index_params = std::make_shared<HnswRabitqIndexParams>(
+        MetricType::L2, 7, 256, 16, 200, 0);
+    FieldSchema field("vector_field", DataType::VECTOR_FP64, 128, false,
+                      index_params);
+    auto status = field.validate();
+    EXPECT_FALSE(status.ok())
+        << "FP64 should not be supported with HNSW_RABITQ";
+  }
+
+  // Sparse vector is not supported with HNSW_RABITQ
+  {
+    auto index_params = std::make_shared<HnswRabitqIndexParams>(
+        MetricType::IP, 7, 256, 16, 200, 0);
+    FieldSchema field("vector_field", DataType::SPARSE_VECTOR_FP32, 128, false,
+                      index_params);
+    auto status = field.validate();
+    EXPECT_FALSE(status.ok())
+        << "Sparse vector should not be supported with HNSW_RABITQ";
+    EXPECT_NE(
+        status.message().find("sparse_vector's index_params only support"),
+        std::string::npos)
+        << "Error message should mention sparse vector index support, got: "
         << status.message();
   }
 }
