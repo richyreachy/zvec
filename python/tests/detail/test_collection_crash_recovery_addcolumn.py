@@ -66,7 +66,7 @@ def singledoc_and_check(
         if v != {}:
             query_result = collection.query(
                 VectorQuery(field_name=v, vector=insert_doc.vectors[v]),
-                topk=10,
+                topk=1024,
             )
             assert len(query_result) > 0, (
                 f"Expected at least 1 query result, but got {len(query_result)}"
@@ -78,7 +78,7 @@ def singledoc_and_check(
                     found_doc = doc
                     break
             assert found_doc is not None, (
-                f"Inserted document {insert_doc.id} not found in query results"
+                f"deleted document {insert_doc.id} not found in query results"
             )
             assert is_doc_equal(found_doc, insert_doc, collection.schema, True, False)
     if is_delete == 1:
@@ -111,43 +111,44 @@ def run_zvec_addcolumn_operations(args_json_str):
     add_column_iterations = args.get("add_column_iterations", 10)  # Number of column addition iterations
     delay_between_additions = args.get("delay_between_additions", 0.5)  # Delay between column additions
 
-    print(f"[Subprocess] Starting Zvec add column operations on {collection_path} at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"[Subprocess] Will add column '{column_field_name}' of type '{column_data_type}', {add_column_iterations} times")
+    print("[Subprocess] Starting Zvec add column operations on " + collection_path + " at: " + time.strftime('%Y-%m-%d %H:%M:%S'))
+    print("[Subprocess] Will add column '" + column_field_name + "' of type '" + column_data_type + "', " + str(add_column_iterations) + " times")
 
     try:
         # Open existing collection
         collection = zvec.open(collection_path)
-        print(f"[Subprocess] Successfully opened collection.")
+        print("[Subprocess] Successfully opened collection.")
 
-        print(f"[Subprocess] Starting {add_column_iterations} column addition operations...")
+        print("[Subprocess] Starting " + str(add_column_iterations) + " column addition operations...")
 
         # Loop to add columns multiple times - this increases the chance of interruption during the operation
         for i in range(add_column_iterations):
-            print(f"[Subprocess] Iteration {i+1}/{add_column_iterations}: Adding column '{column_field_name}_{i}'...")
+            column_name = column_field_name + "_" + str(i)
+            print("[Subprocess] Iteration " + str(i+1) + "/" + str(add_column_iterations) + ": Adding column '" + column_name + "'...")
 
             # Add column - this operation can take time and be interrupted
             # Import the required data type
             from zvec import FieldSchema, DataType, AddColumnOption
-            
-            # Map string data type to actual DataType
+
+            # Map string data type to actual DataType (only supported types)
             if column_data_type == "INT32":
                 data_type = DataType.INT32
             elif column_data_type == "INT64":
                 data_type = DataType.INT64
+            elif column_data_type == "UINT32":
+                data_type = DataType.UINT32
+            elif column_data_type == "UINT64":
+                data_type = DataType.UINT64
             elif column_data_type == "FLOAT":
                 data_type = DataType.FLOAT
             elif column_data_type == "DOUBLE":
                 data_type = DataType.DOUBLE
-            elif column_data_type == "STRING":
-                data_type = DataType.STRING
-            elif column_data_type == "BOOL":
-                data_type = DataType.BOOL
             else:
-                data_type = DataType.INT32  # Default fallback
-                
+                data_type = DataType.INT32  # Default fallback (supported type)
+
             # Create the new field schema
-            new_field = FieldSchema(f"{column_field_name}_{i}", data_type, nullable=True)
-            
+            new_field = FieldSchema(column_name, data_type, nullable=True)
+
             # Add the column with a simple expression
             collection.add_column(
                 field_schema=new_field,
@@ -155,27 +156,27 @@ def run_zvec_addcolumn_operations(args_json_str):
                 option=AddColumnOption()
             )
 
-            print(f"[Subprocess] Iteration {i+1}: Column '{column_field_name}_{i}' addition completed successfully.")
+            print("[Subprocess] Iteration " + str(i+1) + ": Column '" + column_name + "' addition completed successfully.")
 
             # Add delay between iterations to allow interruption opportunity
             if i < add_column_iterations - 1:  # Don't sleep after the last iteration
-                print(f"[Subprocess] Waiting {delay_between_additions}s before next column addition...")
+                print("[Subprocess] Waiting " + str(delay_between_additions) + "s before next column addition...")
                 time.sleep(delay_between_additions)
 
         if hasattr(collection, "close"):
             collection.close()
         else:
             del collection  # Use del as fallback
-        print(f"[Subprocess] Closed collection after column addition operations.")
+        print("[Subprocess] Closed collection after column addition operations.")
 
     except Exception as e:
-        print(f"[Subprocess] Error during column addition operations: {e}")
+        print("[Subprocess] Error during column addition operations: " + str(e))
         import traceback
         traceback.print_exc()
         # Optionally re-raise or handle differently
         raise  # Re-raising may be useful depending on how parent process responds
 
-    print(f"[Subprocess] Column addition operations completed at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print("[Subprocess] Column addition operations completed at: " + time.strftime('%Y-%m-%d %H:%M:%S'))
 
 
 if __name__ == "__main__":
@@ -192,14 +193,32 @@ if __name__ == "__main__":
         """
         self._test_addcolumn_with_crash_recovery(full_schema_1024, collection_option, "INT32")
 
-    def test_addcolumn_simulate_crash_during_column_addition_string(self, full_schema_1024, collection_option):
+    def test_addcolumn_simulate_crash_during_column_addition_int64(self, full_schema_1024, collection_option):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
-                  Then start a subprocess to open the collection and perform STRING column addition operations.
+                  Then start a subprocess to open the collection and perform INT64 column addition operations.
                   During the column addition operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_addcolumn_with_crash_recovery(full_schema_1024, collection_option, "STRING")
+        self._test_addcolumn_with_crash_recovery(full_schema_1024, collection_option, "INT64")
+
+    def test_addcolumn_simulate_crash_during_column_addition_uint32(self, full_schema_1024, collection_option):
+        """
+        Scenario: First successfully create a Zvec collection in the main process and insert some documents.
+                  Then start a subprocess to open the collection and perform UINT32 column addition operations.
+                  During the column addition operation, forcibly terminate the subprocess (simulate power failure or process crash).
+                  Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
+        """
+        self._test_addcolumn_with_crash_recovery(full_schema_1024, collection_option, "UINT32")
+
+    def test_addcolumn_simulate_crash_during_column_addition_uint64(self, full_schema_1024, collection_option):
+        """
+        Scenario: First successfully create a Zvec collection in the main process and insert some documents.
+                  Then start a subprocess to open the collection and perform UINT64 column addition operations.
+                  During the column addition operation, forcibly terminate the subprocess (simulate power failure or process crash).
+                  Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
+        """
+        self._test_addcolumn_with_crash_recovery(full_schema_1024, collection_option, "UINT64")
 
     def test_addcolumn_simulate_crash_during_column_addition_float(self, full_schema_1024, collection_option):
         """
@@ -209,6 +228,16 @@ if __name__ == "__main__":
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
         self._test_addcolumn_with_crash_recovery(full_schema_1024, collection_option, "FLOAT")
+
+    def test_addcolumn_simulate_crash_during_column_addition_double(self, full_schema_1024, collection_option):
+        """
+        Scenario: First successfully create a Zvec collection in the main process and insert some documents.
+                  Then start a subprocess to open the collection and perform DOUBLE column addition operations.
+                  During the column addition operation, forcibly terminate the subprocess (simulate power failure or process crash).
+                  Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
+        """
+        self._test_addcolumn_with_crash_recovery(full_schema_1024, collection_option, "DOUBLE")
+
     def _test_addcolumn_with_crash_recovery(self, schema, collection_option, column_data_type):
         """
         Common method to test column addition with crash recovery for different column types.
@@ -221,14 +250,14 @@ if __name__ == "__main__":
             coll = zvec.create_and_open(path=collection_path, schema=schema, option=collection_option)
             assert coll is not None
             print(f"[Test] Step 1.1: Collection created successfully.")
-            exp_doc_dict= {}
+            exp_doc_dict = {}
             # Insert some documents to have data for column operations
             for i in range(100):
-                exp_doc_dict[i]={}
+                exp_doc_dict[i] = {}
                 doc = generate_doc(i, coll.schema)
                 result = coll.insert([doc])
                 assert result is not None and len(result) > 0, f"Failed to insert document {i}"
-                exp_doc_dict[i]=doc
+                exp_doc_dict[i] = doc
 
             print(f"[Test] Step 1.2: Inserted 100 documents for column operations.")
 
@@ -368,22 +397,22 @@ if __name__ == "__main__":
 
             # Now try to add a column after the crash recovery
             from zvec import FieldSchema, DataType, AddColumnOption
-            
-            # Map string data type to actual DataType
+
+            # Map string data type to actual DataType (only supported types)
             if column_data_type == "INT32":
                 data_type = DataType.INT32
             elif column_data_type == "INT64":
                 data_type = DataType.INT64
+            elif column_data_type == "UINT32":
+                data_type = DataType.UINT32
+            elif column_data_type == "UINT64":
+                data_type = DataType.UINT64
             elif column_data_type == "FLOAT":
                 data_type = DataType.FLOAT
             elif column_data_type == "DOUBLE":
                 data_type = DataType.DOUBLE
-            elif column_data_type == "STRING":
-                data_type = DataType.STRING
-            elif column_data_type == "BOOL":
-                data_type = DataType.BOOL
             else:
-                data_type = DataType.INT32  # Default fallback
+                data_type = DataType.INT32  # Default fallback (supported type)
 
             # This should succeed if the collection is properly recovered
             recovered_collection.add_column(

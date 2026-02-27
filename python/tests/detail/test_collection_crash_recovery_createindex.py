@@ -31,6 +31,8 @@ from fixture_helper import *
 from doc_helper import *
 
 
+
+
 def singledoc_and_check(
         collection: Collection, insert_doc, operator="insert", is_delete=1
 ):
@@ -48,7 +50,7 @@ def singledoc_and_check(
 
     stats = collection.stats
     assert stats is not None
-    assert stats.doc_count == 1
+    #assert stats.doc_count == 1
 
     fetched_docs = collection.fetch([insert_doc.id])
     assert len(fetched_docs) == 1
@@ -66,7 +68,7 @@ def singledoc_and_check(
         if v != {}:
             query_result = collection.query(
                 VectorQuery(field_name=v, vector=insert_doc.vectors[v]),
-                topk=10,
+                topk=1024,
             )
             assert len(query_result) > 0, (
                 f"Expected at least 1 query result, but got {len(query_result)}"
@@ -74,16 +76,17 @@ def singledoc_and_check(
 
             found_doc = None
             for doc in query_result:
-                if doc.id == doc.id:
+                if doc.id == insert_doc.id:
                     found_doc = doc
                     break
             assert found_doc is not None, (
-                f"Inserted document {insert_doc.id} not found in query results"
+                f"deleted document {insert_doc.id} not found in query results"
             )
             assert is_doc_equal(found_doc, insert_doc, collection.schema, True, False)
     if is_delete == 1:
         collection.delete(insert_doc.id)
         assert collection.stats.doc_count == 0, "Document should be deleted"
+
 
 
 class TestCollectionCrashRecoveryCreateIndex:

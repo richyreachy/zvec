@@ -34,6 +34,8 @@ from fixture_helper import *
 from doc_helper import *
 
 
+
+
 def singledoc_and_check(
         collection: Collection, insert_doc, operator="insert", is_delete=1
 ):
@@ -59,7 +61,7 @@ def singledoc_and_check(
 
     fetched_doc = fetched_docs[insert_doc.id]
 
-    assert is_doc_equal(fetched_doc, insert_doc, collection.schema),(f"fetched_doc={fetched_doc}, insert_doc={insert_doc}")
+    assert is_doc_equal(fetched_doc, insert_doc, collection.schema)
     assert hasattr(fetched_doc, "score"), "Document should have a score attribute"
     assert fetched_doc.score == 0.0, (
         "Fetch operation should return default score of 0.0"
@@ -71,30 +73,23 @@ def singledoc_and_check(
                 VectorQuery(field_name=v, vector=insert_doc.vectors[v]),
                 topk=1024,
             )
-            print( "query_result:\n")
-            print( len(query_result))
             assert len(query_result) > 0, (
                 f"Expected at least 1 query result, but got {len(query_result)}"
             )
 
             found_doc = None
-            q_result=[]
             for doc in query_result:
-                q_result.append(doc.id)
                 if doc.id == insert_doc.id:
                     found_doc = doc
-
                     break
-            print(f"q_result={q_result}")
             assert found_doc is not None, (
-                f"Updated document {insert_doc.id} not found in query results"
+                f"deleted document {insert_doc.id} not found in query results"
             )
-            print("insert_doc.id,found_doc:\n")
-            print(insert_doc.id,found_doc)
-            assert is_doc_equal(found_doc, insert_doc, collection.schema, True, False),(f"found_doc={found_doc}, insert_doc={insert_doc}")
+            assert is_doc_equal(found_doc, insert_doc, collection.schema, True, False)
     if is_delete == 1:
         collection.delete(insert_doc.id)
         assert collection.stats.doc_count == 0, "Document should be deleted"
+
 
 
 class TestCollectionCrashRecoveryUpdateDoc:
@@ -470,7 +465,7 @@ if __name__ == "__main__":
                 f"[Test] Step 3.2: Found {len(query_result)} documents after crash (expected 0-{subprocess_args['num_docs_to_update']})")
 
             # Verify quantity consistency
-            current_count = recovered_collection.stats.doc_count
+            #current_count = recovered_collection.stats.doc_count
             assert recovered_collection.stats.doc_count == 201
             assert len(query_result) <= recovered_collection.stats.doc_count, (
                 f"query_result count = {len(query_result)},stats.doc_count = {recovered_collection.stats.doc_count}")

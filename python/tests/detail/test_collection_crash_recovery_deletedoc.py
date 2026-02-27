@@ -69,7 +69,7 @@ def singledoc_and_check(
         if v != {}:
             query_result = collection.query(
                 VectorQuery(field_name=v, vector=insert_doc.vectors[v]),
-                topk=10,
+                topk=1024,
             )
             assert len(query_result) > 0, (
                 f"Expected at least 1 query result, but got {len(query_result)}"
@@ -77,7 +77,7 @@ def singledoc_and_check(
 
             found_doc = None
             for doc in query_result:
-                if doc.id == doc.id:
+                if doc.id == insert_doc.id:
                     found_doc = doc
                     break
             assert found_doc is not None, (
