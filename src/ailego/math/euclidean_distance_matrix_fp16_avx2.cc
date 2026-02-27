@@ -68,5 +68,11 @@ namespace ailego {
     v_sum = vfmaq_f32(v_sum, v_d, v_d);    \
   }
 
+static float SquaredEuclideanDistanceAVX(const Float16 *lhs, const Float16 *rhs, size_t size) {
+  float score;
+  ACCUM_FP16_1X1_AVX(lhs, rhs, size, &score, 0ull, )    
+
+  return score;                                          
+}
 }  // namespace ailego
 }  // namespace zvec

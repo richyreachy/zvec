@@ -18,17 +18,10 @@ if(UNIX AND NOT APPLE)
     list(APPEND EXTRA_LIBS ${LIB_RT})
 endif()
 
-set(MATH_MARCH_FLAG_AVX "-march=sandybridge")
+set(MATH_MARCH_FLAG_AVX "-march=haswell")
 set(MATH_MARCH_FLAG_AVX2 "-march=core-avx2")
 set(MATH_MARCH_FLAG_AVX512 "-march=sapphirerapids")
 # set(MATH_MARCH_FLAG_NEON "-march=armv8-a")
-
-file(GLOB_RECURSE MATH_FILES_AVX
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/*_avx.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/math/*_avx.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*_avx.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*_avx.c
-)
 
 file(GLOB_RECURSE MATH_FILES_AVX2
     ${CMAKE_CURRENT_SOURCE_DIR}/math/*_avx2.cc

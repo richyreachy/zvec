@@ -129,7 +129,7 @@ static float SquaredEuclideanDistanceAVX512FP16(const Float16 *lhs,
 }
 #endif
 
-#if defined(__AVX512FP16__)
+#if defined(__AVX512F__)
 static float SquaredEuclideanDistanceAVX512(const Float16 *lhs, const Float16 *rhs, size_t size) {
   float score;
   ACCUM_FP16_1X1_AVX512(lhs, rhs, size, &score, 0ull, )    
