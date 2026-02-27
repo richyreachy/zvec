@@ -18,28 +18,72 @@ if(UNIX AND NOT APPLE)
     list(APPEND EXTRA_LIBS ${LIB_RT})
 endif()
 
-#set(CMAKE_CXX_FLAGS "-march=sapphirerapids")
-#set(CMAKE_C_FLAGS "-march=sapphirerapids")
+set(MATH_MARCH_FLAG_AVX "-march=sandybridge")
+set(MATH_MARCH_FLAG_AVX2 "-march=core-avx2")
+set(MATH_MARCH_FLAG_AVX512 "-march=sapphirerapids")
+# set(MATH_MARCH_FLAG_NEON "-march=armv8-a")
 
-set(MATH_MARCH_FLAG "-march=sapphirerapids")
+file(GLOB_RECURSE MATH_FILES_AVX
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/*_avx.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/*_avx.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*_avx.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*_avx.c
+)
 
-# Apply custom march flags to math directories if specified
-if(MATH_MARCH_FLAG)
-    file(GLOB_RECURSE MATH_FILES 
-        ${CMAKE_CURRENT_SOURCE_DIR}/math/*.cc 
-        ${CMAKE_CURRENT_SOURCE_DIR}/math/*.c 
-        ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*.cc 
-        ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*.c
+file(GLOB_RECURSE MATH_FILES_AVX2
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/*_avx2.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/*_avx2.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*_avx2.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*_avx2.c
+)
+
+file(GLOB_RECURSE MATH_FILES_AVX512
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/*_dispatch.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/*_dispatch.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/*_avx512.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/*_avx512.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*_avx512.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*_avx512.c
+)
+
+# file(GLOB_RECURSE MATH_FILES_NEON
+#     ${CMAKE_CURRENT_SOURCE_DIR}/math/*_neon.cc
+#     ${CMAKE_CURRENT_SOURCE_DIR}/math/*_neon.c
+#     ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*_neon.cc
+#     ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*_neon.c
+# )
+
+foreach(MATH_FILE ${MATH_FILES_AVX})
+    set_source_files_properties(
+        ${MATH_FILE}
+        PROPERTIES
+        COMPILE_FLAGS "${MATH_MARCH_FLAG_AVX}"
     )
-    
-    foreach(MATH_FILE ${MATH_FILES})
-        set_source_files_properties(
-            ${MATH_FILE}
-            PROPERTIES
-            COMPILE_FLAGS "${MATH_MARCH_FLAG}"
-        )
-    endforeach()
-endif()
+endforeach()
+
+foreach(MATH_FILE ${MATH_FILES_AVX2})
+    set_source_files_properties(
+        ${MATH_FILE}
+        PROPERTIES
+        COMPILE_FLAGS "${MATH_MARCH_FLAG_AVX}"
+    )
+endforeach()
+
+foreach(MATH_FILE ${MATH_FILES_AVX512})
+    set_source_files_properties(
+        ${MATH_FILE}
+        PROPERTIES
+        COMPILE_FLAGS "${MATH_MARCH_FLAG_AVX512}"
+    )
+endforeach()
+
+# foreach(MATH_FILE ${MATH_FILES_NEON})
+#     set_source_files_properties(
+#         ${MATH_FILE}
+#         PROPERTIES
+#         COMPILE_FLAGS "${MATH_MARCH_FLAG_NEON}"
+#     )
+# endforeach()
 
 cc_library(
     NAME zvec_ailego STATIC STRICT PACKED
