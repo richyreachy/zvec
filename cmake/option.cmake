@@ -38,17 +38,16 @@ set(ARCH_OPTIONS
   ENABLE_ZEN1 ENABLE_ZEN2 ENABLE_ZEN3
   ENABLE_ARMV8A ENABLE_ARMV8.1A ENABLE_ARMV8.2A ENABLE_ARMV8.3A ENABLE_ARMV8.4A
   ENABLE_ARMV8.5A ENABLE_ARMV8.6A
+  ENABLE_NATIVE
 )
 
 option(AUTO_DETECT_ARCH "Auto detect CPU microarchitecture" ON)
-if(NOT ENABLE_NATIVE)
-  foreach(opt IN LISTS ARCH_OPTIONS)
-    if(${opt})
-      set(AUTO_DETECT_ARCH OFF)
-      break()
-    endif()
-  endforeach()
-endif()
+foreach(opt IN LISTS ARCH_OPTIONS)
+  if(${opt})
+    set(AUTO_DETECT_ARCH OFF)
+    break()
+  endif()
+endforeach()
 
 include(CheckCCompilerFlag)
 
@@ -76,13 +75,9 @@ macro(add_arch_flag FLAG VAR_NAME OPTION_NAME)
 endmacro()
 
 function(_detect_armv8_best)
-  if(ENABLE_NATIVE)
-    set(_arm_flags "native")
-  else()
-    set(_arm_flags
-      "armv8.6-a" "armv8.5-a" "armv8.4-a" "armv8.3-a" "armv8.2-a" "armv8.1-a" "armv8-a" "armv8"
-    )
-  endif()
+  set(_arm_flags
+    "armv8.6-a" "armv8.5-a" "armv8.4-a" "armv8.3-a" "armv8.2-a" "armv8.1-a" "armv8-a" "armv8"
+  )
   foreach(_ver IN LISTS _arm_flags)
     check_c_compiler_flag("-march=${_ver}" _COMP_SUPP_${_ver})
     if(_COMP_SUPP_${_ver})
@@ -97,16 +92,12 @@ function(_detect_armv8_best)
 endfunction()
 
 function(_detect_x86_best)
-  if(ENABLE_NATIVE)
-    set(_x86_flags "native")
-  else()
-    set(_x86_flags
-      "graniterapids" "emeraldrapids" "sapphirerapids"
-      "skylake-avx512" "skylake"
-      "broadwell" "haswell" "sandybridge" "nehalem"
-      "znver3" "znver2" "znver1"
-    )
-  endif()
+  set(_x86_flags
+    "graniterapids" "emeraldrapids" "sapphirerapids"
+    "skylake-avx512" "skylake"
+    "broadwell" "haswell" "sandybridge" "nehalem"
+    "znver3" "znver2" "znver1"
+  )
   foreach(_arch IN LISTS _x86_flags)
     check_c_compiler_flag("-march=${_arch}" _COMP_SUPP_${_arch})
     if(_COMP_SUPP_${_arch})
@@ -135,6 +126,10 @@ if(MSVC)
 endif()
 
 if(NOT AUTO_DETECT_ARCH)
+  if(ENABLE_NATIVE)
+    add_arch_flag("-march=native" NATIVE ENABLE_NATIVE)
+  endif()
+
   if(ENABLE_ZEN3)
     add_arch_flag("-march=znver3" ZNVER3 ENABLE_ZEN3)
   endif()
