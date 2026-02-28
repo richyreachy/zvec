@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-test_collection_crash_recovery_updatecolumn.py
+test_collection_crash_recovery_altercolumn.py
 
 This script is used to test Zvec's recovery capability after simulating a "power failure" (forced process termination) during column update operations.
 It first successfully creates a collection in the main process and inserts some documents, then starts a subprocess to open the collection and perform column update operations.
@@ -86,7 +86,7 @@ def singledoc_and_check(
         assert collection.stats.doc_count == 0, "Document should be deleted"
 
 
-class TestCollectionCrashRecoveryUpdateColumn:
+class TestCollectionCrashRecoveryaltercolumn:
     """
     Test Zvec collection recovery capability after simulating power failure/process crash during column update operations.
     Focus on verifying whether the file remains consistent after interruption of column update operations,
@@ -95,7 +95,7 @@ class TestCollectionCrashRecoveryUpdateColumn:
 
     # Script content for subprocess to execute Zvec column update operations
     # Write this script content to a temporary file and execute it in the subprocess.
-    ZVEC_SUBPROCESS_SCRIPT_UPDATECOLUMN = '''
+    ZVEC_SUBPROCESS_SCRIPT_altercolumn = '''
 import zvec
 import time
 import json
@@ -103,7 +103,7 @@ import sys
 import os
 
 
-def run_zvec_updatecolumn_operations(args_json_str):
+def run_zvec_altercolumn_operations(args_json_str):
     args = json.loads(args_json_str)
     collection_path = args["collection_path"]
     update_field_name = args.get("update_field_name", "int32_field")  # Field name for the update
@@ -180,69 +180,69 @@ def run_zvec_updatecolumn_operations(args_json_str):
 
 if __name__ == "__main__":
     args_json_str = sys.argv[1]
-    run_zvec_updatecolumn_operations(args_json_str)
+    run_zvec_altercolumn_operations(args_json_str)
 '''
 
-    def test_updatecolumn_simulate_crash_during_column_update_int32(self, full_schema_1024, collection_option):
+    def test_altercolumn_simulate_crash_during_column_update_int32(self, full_schema_1024, collection_option):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
                   Then start a subprocess to open the collection and perform INT32 column update operations.
                   During the column update operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_updatecolumn_with_crash_recovery(full_schema_1024, collection_option, "INT32", "int32_field1")
+        self._test_altercolumn_with_crash_recovery(full_schema_1024, collection_option, "INT32", "int32_field1")
 
-    def test_updatecolumn_simulate_crash_during_column_update_int64(self, full_schema_1024, collection_option):
+    def test_altercolumn_simulate_crash_during_column_update_int64(self, full_schema_1024, collection_option):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
                   Then start a subprocess to open the collection and perform INT64 column update operations.
                   During the column update operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_updatecolumn_with_crash_recovery(full_schema_1024, collection_option, "INT64", "int64_field1")
+        self._test_altercolumn_with_crash_recovery(full_schema_1024, collection_option, "INT64", "int64_field1")
 
-    def test_updatecolumn_simulate_crash_during_column_update_uint32(self, full_schema_1024, collection_option):
+    def test_altercolumn_simulate_crash_during_column_update_uint32(self, full_schema_1024, collection_option):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
                   Then start a subprocess to open the collection and perform UINT32 column update operations.
                   During the column update operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_updatecolumn_with_crash_recovery(full_schema_1024, collection_option, "UINT32", "uint32_field1")
+        self._test_altercolumn_with_crash_recovery(full_schema_1024, collection_option, "UINT32", "uint32_field1")
 
-    def test_updatecolumn_simulate_crash_during_column_update_uint64(self, full_schema_1024, collection_option):
+    def test_altercolumn_simulate_crash_during_column_update_uint64(self, full_schema_1024, collection_option):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
                   Then start a subprocess to open the collection and perform UINT64 column update operations.
                   During the column update operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_updatecolumn_with_crash_recovery(full_schema_1024, collection_option, "UINT64", "uint64_field1")
+        self._test_altercolumn_with_crash_recovery(full_schema_1024, collection_option, "UINT64", "uint64_field1")
 
-    def test_updatecolumn_simulate_crash_during_column_update_float(self, full_schema_1024, collection_option):
+    def test_altercolumn_simulate_crash_during_column_update_float(self, full_schema_1024, collection_option):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
                   Then start a subprocess to open the collection and perform FLOAT column update operations.
                   During the column update operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_updatecolumn_with_crash_recovery(full_schema_1024, collection_option, "FLOAT", "float_field1")
+        self._test_altercolumn_with_crash_recovery(full_schema_1024, collection_option, "FLOAT", "float_field1")
 
-    def test_updatecolumn_simulate_crash_during_column_update_double(self, full_schema_1024, collection_option):
+    def test_altercolumn_simulate_crash_during_column_update_double(self, full_schema_1024, collection_option):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
                   Then start a subprocess to open the collection and perform DOUBLE column update operations.
                   During the column update operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_updatecolumn_with_crash_recovery(full_schema_1024, collection_option, "DOUBLE", "double_field1")
+        self._test_altercolumn_with_crash_recovery(full_schema_1024, collection_option, "DOUBLE", "double_field1")
 
-    def _test_updatecolumn_with_crash_recovery(self, schema, collection_option, update_data_type, update_field_name):
+    def _test_altercolumn_with_crash_recovery(self, schema, collection_option, update_data_type, update_field_name):
         """
         Common method to test column update with crash recovery for different column types.
         """
         with tempfile.TemporaryDirectory() as temp_dir:
-            collection_path = f"{temp_dir}/test_collection_updatecolumn_crash_recovery_{update_data_type.lower()}"
+            collection_path = f"{temp_dir}/test_collection_altercolumn_crash_recovery_{update_data_type.lower()}"
 
             # Step 1: Successfully create collection in main process and insert some documents
             print(f"[Test] Step 1: Creating collection in main process, path: {collection_path}...")
@@ -296,9 +296,9 @@ if __name__ == "__main__":
 
             # Step 2: Prepare and run subprocess for column update operations
             # Write subprocess script to temporary file
-            subprocess_script_path = f"{temp_dir}/zvec_subprocess_updatecolumn.py"
+            subprocess_script_path = f"{temp_dir}/zvec_subprocess_altercolumn.py"
             with open(subprocess_script_path, 'w', encoding='utf-8') as f:
-                f.write(self.ZVEC_SUBPROCESS_SCRIPT_UPDATECOLUMN)
+                f.write(self.ZVEC_SUBPROCESS_SCRIPT_altercolumn)
 
             # Prepare subprocess parameters
             subprocess_args = {
