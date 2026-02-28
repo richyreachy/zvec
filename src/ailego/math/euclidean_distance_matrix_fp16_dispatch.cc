@@ -18,11 +18,15 @@
 namespace zvec {
 namespace ailego {
 
-static float SquaredEuclideanDistanceAVX512FP16(const Float16 *lhs,const Float16 *rhs, size_t size);
+#if defined(__AVX512FP16__)
+float SquaredEuclideanDistanceAVX512FP16(const Float16 *lhs,const Float16 *rhs, size_t size);
+#endif
 
-static float SquaredEuclideanDistanceAVX512(const Float16 *lhs, const Float16 *rhs, size_t size);
+#if defined(__AVX512F__)
+float SquaredEuclideanDistanceAVX512(const Float16 *lhs, const Float16 *rhs, size_t size);
+#endif
 
-static float SquaredEuclideanDistanceAVX(const Float16 *lhs, const Float16 *rhs, size_t size);
+float SquaredEuclideanDistanceAVX(const Float16 *lhs, const Float16 *rhs, size_t size);
 
 //! Compute the distance between matrix and query (FP16, M=1, N=1)
 void SquaredEuclideanDistanceMatrix<Float16, 1, 1>::Compute(const ValueType *m,

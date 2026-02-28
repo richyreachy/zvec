@@ -18,7 +18,9 @@ if(UNIX AND NOT APPLE)
     list(APPEND EXTRA_LIBS ${LIB_RT})
 endif()
 
-set(MATH_MARCH_FLAG_AVX "-march=haswell")
+set(CMAKE_CXX_FLAGS "-march=broadwell")
+set(CMAKE_C_FLAGS "-march=broadwell")
+
 set(MATH_MARCH_FLAG_AVX2 "-march=core-avx2")
 set(MATH_MARCH_FLAG_AVX512 "-march=sapphirerapids")
 # set(MATH_MARCH_FLAG_NEON "-march=armv8-a")
@@ -46,19 +48,11 @@ file(GLOB_RECURSE MATH_FILES_AVX512
 #     ${CMAKE_CURRENT_SOURCE_DIR}/math_batch/*_neon.c
 # )
 
-foreach(MATH_FILE ${MATH_FILES_AVX})
-    set_source_files_properties(
-        ${MATH_FILE}
-        PROPERTIES
-        COMPILE_FLAGS "${MATH_MARCH_FLAG_AVX}"
-    )
-endforeach()
-
 foreach(MATH_FILE ${MATH_FILES_AVX2})
     set_source_files_properties(
         ${MATH_FILE}
         PROPERTIES
-        COMPILE_FLAGS "${MATH_MARCH_FLAG_AVX}"
+        COMPILE_FLAGS "${MATH_MARCH_FLAG_AVX2}"
     )
 endforeach()
 

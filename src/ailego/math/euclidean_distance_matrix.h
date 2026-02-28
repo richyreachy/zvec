@@ -958,8 +958,7 @@ struct EuclideanDistanceMatrix<float, 32, 32> {
 };
 #endif  // __SSE__ || __ARM_NEON  && __aarch64__
 
-#if (defined(__F16C__) && defined(__AVX__)) || \
-    (defined(__ARM_NEON) && defined(__aarch64__))
+
 /*! Squared Euclidean Distance Matrix (FP16, M=1, N=1)
  */
 template <>
@@ -984,6 +983,8 @@ struct EuclideanDistanceMatrix<Float16, 1, 1> {
                       float *out);
 };
 
+#if (defined(__F16C__) && defined(__AVX__)) || \
+    (defined(__ARM_NEON) && defined(__aarch64__))
 #if !defined(__ARM_NEON)
 /*! Squared Euclidean Distance Matrix (FP16, M=2, N=1)
  */

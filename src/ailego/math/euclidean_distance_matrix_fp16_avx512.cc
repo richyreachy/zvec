@@ -70,7 +70,7 @@ namespace ailego {
 
 #if defined(__AVX512FP16__)
 //! Squared Euclidean Distance
-static float SquaredEuclideanDistanceAVX512FP16(const Float16 *lhs,
+float SquaredEuclideanDistanceAVX512FP16(const Float16 *lhs,
                                                 const Float16 *rhs,
                                                 size_t size) {
   const Float16 *last = lhs + size;
@@ -130,7 +130,7 @@ static float SquaredEuclideanDistanceAVX512FP16(const Float16 *lhs,
 #endif
 
 #if defined(__AVX512F__)
-static float SquaredEuclideanDistanceAVX512(const Float16 *lhs, const Float16 *rhs, size_t size) {
+float SquaredEuclideanDistanceAVX512(const Float16 *lhs, const Float16 *rhs, size_t size) {
   float score;
   ACCUM_FP16_1X1_AVX512(lhs, rhs, size, &score, 0ull, )    
 

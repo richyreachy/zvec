@@ -21,10 +21,7 @@ namespace ailego {
 
 #define ACCUM_FP32_STEP_SSE SSD_FP32_SSE
 #define ACCUM_FP32_STEP_AVX SSD_FP32_AVX
-#define ACCUM_FP32_STEP_AVX512 SSD_FP32_AVX512
-#define ACCUM_FP32_STEP_NEON SSD_FP32_NEON
 #define ACCUM_FP16_STEP_GENERAL SSD_FP16_GENERAL
-#define ACCUM_FP16_STEP_NEON SSD_FP16_NEON
 
 //! Calculate sum of squared difference (SSE)
 #define SSD_FP32_SSE(xmm_m, xmm_q, xmm_sum)        \
@@ -40,12 +37,6 @@ namespace ailego {
     ymm_sum = _mm256_fmadd_ps(ymm_d, ymm_d, ymm_sum); \
   }
 
-//! Calculate sum of squared difference (AVX512)
-#define SSD_FP32_AVX512(zmm_m, zmm_q, zmm_sum)        \
-  {                                                   \
-    __m512 zmm_d = _mm512_sub_ps(zmm_m, zmm_q);       \
-    zmm_sum = _mm512_fmadd_ps(zmm_d, zmm_d, zmm_sum); \
-  }
 
 //! Calculate sum of squared difference (GENERAL)
 #define SSD_FP16_GENERAL(m, q, sum) \
@@ -54,21 +45,7 @@ namespace ailego {
     sum += (x * x);                 \
   }
 
-//! Calculate sum of squared difference (NEON)
-#define SSD_FP16_NEON(v_m, v_q, v_sum)     \
-  {                                        \
-    float16x8_t v_d = vsubq_f16(v_m, v_q); \
-    v_sum = vfmaq_f16(v_sum, v_d, v_d);    \
-  }
-
-//! Calculate sum of squared difference (NEON)
-#define SSD_FP32_NEON(v_m, v_q, v_sum)     \
-  {                                        \
-    float32x4_t v_d = vsubq_f32(v_m, v_q); \
-    v_sum = vfmaq_f32(v_sum, v_d, v_d);    \
-  }
-
-static float SquaredEuclideanDistanceAVX(const Float16 *lhs, const Float16 *rhs, size_t size) {
+float SquaredEuclideanDistanceAVX(const Float16 *lhs, const Float16 *rhs, size_t size) {
   float score;
   ACCUM_FP16_1X1_AVX(lhs, rhs, size, &score, 0ull, )    
 
