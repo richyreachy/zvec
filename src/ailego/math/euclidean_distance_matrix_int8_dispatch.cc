@@ -18,7 +18,6 @@
 namespace zvec {
 namespace ailego {
 
-
 #if defined(__AVX2__)
 float SquaredEuclideanDistanceAVX2(const int8_t *lhs, const int8_t *rhs, size_t size);
 float SquaredEuclideanDistanceAVX2_2X1(const int8_t *lhs, const int8_t *rhs, size_t size);
