@@ -139,7 +139,16 @@ int RabitqReformer::load(IndexStorage::Pointer storage) {
   IndexMeta centroid_meta;
   centroid_meta.set_data_type(IndexMeta::DataType::DT_FP32);
   centroid_meta.set_dimension(static_cast<uint32_t>(dimension_));
-  centroid_meta.set_metric("SquaredEuclidean", 0, ailego::Params());
+  // Note:
+  // 1. spherical kmeans is used for InnerProduct and Cosine, so centroids are
+  // normalized.
+  // 2. for Cosine metric, `transform_to_entity` input is normalized, need to
+  // use InnerProduct metric as Cosine metric requires extra dimension which is
+  // unsuitable for centroids.
+  centroid_meta.set_metric(metric_type_ == rabitqlib::METRIC_L2
+                               ? "SquaredEuclidean"
+                               : "InnerProduct",
+                           0, ailego::Params());
 
   centroid_features_ = std::make_shared<CoherentIndexFeatures>();
   centroid_features_->mount(centroid_meta, centroids_.data(),
@@ -262,29 +271,6 @@ int RabitqReformer::transform_to_entity(const void *query,
   }
 
   return 0;
-}
-
-size_t RabitqReformer::find_nearest_centroid(const float *vector) const {
-  size_t nearest_id = 0;
-  float min_dist = std::numeric_limits<float>::max();
-
-  for (size_t i = 0; i < num_clusters_; ++i) {
-    const float *centroid = &rotated_centroids_[i * padded_dim_];
-
-    // Compute L2 distance
-    float dist = 0.0f;
-    for (size_t d = 0; d < dimension_; ++d) {
-      float diff = vector[d] - centroid[d];
-      dist += diff * diff;
-    }
-
-    if (dist < min_dist) {
-      min_dist = dist;
-      nearest_id = i;
-    }
-  }
-
-  return nearest_id;
 }
 
 int RabitqReformer::quantize_vector(const float *raw_vector,

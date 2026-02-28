@@ -77,9 +77,6 @@ class RabitqReformer : public IndexReformer {
   }
 
  private:
-  //! Find nearest centroid for a vector
-  size_t find_nearest_centroid(const float *vector) const;
-
   //! Quantize a single vector
   int quantize_vector(const float *raw_vector, uint32_t cluster_id,
                       std::string *quantized_data) const;

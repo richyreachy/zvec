@@ -41,9 +41,9 @@ int RabitqConverter::init(const IndexMeta &meta, const ailego::Params &params) {
   meta_ = meta;
   dimension_ = meta.dimension();
 
-  // Ensure meta has metric set
   if (meta_.metric_name().empty()) {
-    meta_.set_metric("SquaredEuclidean", 0, ailego::Params());
+    LOG_ERROR("Meta metric is empty");
+    return IndexError_InvalidArgument;
   }
 
   // Round up dimension to multiple of 64
@@ -64,12 +64,6 @@ int RabitqConverter::init(const IndexMeta &meta, const ailego::Params &params) {
   params.get(PARAM_RABITQ_NUM_CLUSTERS, &num_clusters_);
   if (num_clusters_ == 0) {
     num_clusters_ = kDefaultNumClusters;
-  }
-
-  // Validate parameters
-  if (num_clusters_ == 0 || num_clusters_ > 256) {
-    LOG_ERROR("Invalid num_clusters: %zu, must be in [1, 256]", num_clusters_);
-    return IndexError_InvalidArgument;
   }
 
   if (ex_bits_ > 8) {
