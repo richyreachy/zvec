@@ -115,7 +115,6 @@ static const __m256i INT4_LOOKUP_AVX =
     FMA_INT8_AVX(ymm_rhs_1, ymm_rhs_1, ymm_sum_norm2);                     \
   }
 
-#if defined(__SSE4_1__)
 #if defined(__AVX2__)
 //! Compute the Inner Product between p and q, and each Squared L2-Norm value
 static inline float InnerProductAndSquaredNormAVX(const uint8_t *lhs,
@@ -231,128 +230,7 @@ static inline float InnerProductAndSquaredNormAVX(const uint8_t *lhs,
   *sqr = norm2;
   return result;
 }
-#else
-//! Compute the Inner Product between p and q, and each Squared L2-Norm value
-static inline float InnerProductAndSquaredNormSSE(const uint8_t *lhs,
-                                                  const uint8_t *rhs,
-                                                  size_t size, float *sql,
-                                                  float *sqr) {
-  const uint8_t *last = lhs + size;
-  const uint8_t *last_aligned = lhs + ((size >> 4) << 4);
-  __m128i xmm_sum = _mm_setzero_si128();
-  __m128i xmm_sum_norm1 = _mm_setzero_si128();
-  __m128i xmm_sum_norm2 = _mm_setzero_si128();
-
-  if (((uintptr_t)lhs & 0xf) == 0 && ((uintptr_t)rhs & 0xf) == 0) {
-    for (; lhs != last_aligned; lhs += 16, rhs += 16) {
-      __m128i xmm_lhs = _mm_load_si128((const __m128i *)(lhs));
-      __m128i xmm_rhs = _mm_load_si128((const __m128i *)(rhs));
-      FMA_INT4_ITER_SSE(xmm_lhs, xmm_rhs, xmm_sum, xmm_sum_norm1, xmm_sum_norm2)
-    }
-  } else {
-    for (; lhs != last_aligned; lhs += 16, rhs += 16) {
-      __m128i xmm_lhs = _mm_loadu_si128((const __m128i *)(lhs));
-      __m128i xmm_rhs = _mm_loadu_si128((const __m128i *)(rhs));
-      FMA_INT4_ITER_SSE(xmm_lhs, xmm_rhs, xmm_sum, xmm_sum_norm1, xmm_sum_norm2)
-    }
-  }
-  float result = static_cast<float>(HorizontalAdd_INT32_V128(xmm_sum));
-  float norm1 = static_cast<float>(HorizontalAdd_INT32_V128(xmm_sum_norm1));
-  float norm2 = static_cast<float>(HorizontalAdd_INT32_V128(xmm_sum_norm2));
-
-  switch (last - lhs) {
-    case 15:
-      FMA_INT4_GENERAL(lhs[14], rhs[14], result, norm1, norm2)
-      /* FALLTHRU */
-    case 14:
-      FMA_INT4_GENERAL(lhs[13], rhs[13], result, norm1, norm2)
-      /* FALLTHRU */
-    case 13:
-      FMA_INT4_GENERAL(lhs[12], rhs[12], result, norm1, norm2)
-      /* FALLTHRU */
-    case 12:
-      FMA_INT4_GENERAL(lhs[11], rhs[11], result, norm1, norm2)
-      /* FALLTHRU */
-    case 11:
-      FMA_INT4_GENERAL(lhs[10], rhs[10], result, norm1, norm2)
-      /* FALLTHRU */
-    case 10:
-      FMA_INT4_GENERAL(lhs[9], rhs[9], result, norm1, norm2)
-      /* FALLTHRU */
-    case 9:
-      FMA_INT4_GENERAL(lhs[8], rhs[8], result, norm1, norm2)
-      /* FALLTHRU */
-    case 8:
-      FMA_INT4_GENERAL(lhs[7], rhs[7], result, norm1, norm2)
-      /* FALLTHRU */
-    case 7:
-      FMA_INT4_GENERAL(lhs[6], rhs[6], result, norm1, norm2)
-      /* FALLTHRU */
-    case 6:
-      FMA_INT4_GENERAL(lhs[5], rhs[5], result, norm1, norm2)
-      /* FALLTHRU */
-    case 5:
-      FMA_INT4_GENERAL(lhs[4], rhs[4], result, norm1, norm2)
-      /* FALLTHRU */
-    case 4:
-      FMA_INT4_GENERAL(lhs[3], rhs[3], result, norm1, norm2)
-      /* FALLTHRU */
-    case 3:
-      FMA_INT4_GENERAL(lhs[2], rhs[2], result, norm1, norm2)
-      /* FALLTHRU */
-    case 2:
-      FMA_INT4_GENERAL(lhs[1], rhs[1], result, norm1, norm2)
-      /* FALLTHRU */
-    case 1:
-      FMA_INT4_GENERAL(lhs[0], rhs[0], result, norm1, norm2)
-  }
-  *sql = norm1;
-  *sqr = norm2;
-  return result;
-}
 #endif  // __AVX2__
-
-//! Compute the distance between matrix and query by SphericalInjection
-void MipsSquaredEuclideanDistanceMatrix<uint8_t, 1, 1>::Compute(
-    const ValueType *p, const ValueType *q, size_t dim, float e2, float *out) {
-  float u2;
-  float v2;
-  float sum;
-
-#if defined(__AVX2__)
-  sum = InnerProductAndSquaredNormAVX(p, q, dim >> 1, &u2, &v2);
-#else
-  sum = InnerProductAndSquaredNormSSE(p, q, dim >> 1, &u2, &v2);
-#endif
-
-  *out = ComputeSphericalInjection(sum, u2, v2, e2);
-}
-
-//! Compute the distance between matrix and query by RepeatedQuadraticInjection
-void MipsSquaredEuclideanDistanceMatrix<uint8_t, 1, 1>::Compute(
-    const ValueType *p, const ValueType *q, size_t dim, size_t m, float e2,
-    float *out) {
-  float u2;
-  float v2;
-  float sum;
-
-#if defined(__AVX2__)
-  sum = InnerProductAndSquaredNormAVX(p, q, dim >> 1, &u2, &v2);
-#else
-  sum = InnerProductAndSquaredNormSSE(p, q, dim >> 1, &u2, &v2);
-#endif
-
-  sum = e2 * (u2 + v2 - 2 * sum);
-  u2 *= e2;
-  v2 *= e2;
-  for (size_t i = 0; i < m; ++i) {
-    sum += (u2 - v2) * (u2 - v2);
-    u2 = u2 * u2;
-    v2 = v2 * v2;
-  }
-  *out = sum;
-}
-#endif  // __SSE4_1__
 
 }  // namespace ailego
 }  // namespace zvec

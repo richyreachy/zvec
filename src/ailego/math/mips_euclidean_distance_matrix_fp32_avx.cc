@@ -12,57 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "distance_matrix_accum_fp16.i"
+#include "distance_matrix_accum_fp32.i"
 #include "mips_euclidean_distance_matrix.h"
 
 namespace zvec {
 namespace ailego {
 
-//! Calculate Fused-Multiply-Add (AVX512)
-#define FMA_FP32_AVX512(zmm_m, zmm_q, zmm_sum) \
-  zmm_sum = _mm512_fmadd_ps(zmm_m, zmm_q, zmm_sum);
-#define FMA_MASK_FP32_AVX512(zmm_m, zmm_q, zmm_sum, mask) \
-  zmm_sum = _mm512_mask3_fmadd_ps(zmm_m, zmm_q, zmm_sum, mask);
-
-#define HorizontalAdd_FP16_NEON(v) \
-  vaddvq_f32(vaddq_f32(vcvt_f32_f16(vget_low_f16(v)), vcvt_high_f32_f16(v)))
-
-#define HorizontalAdd_FP32_V512_TO_V256(zmm) \
-  _mm256_add_ps(                             \
-      _mm512_castps512_ps256(zmm),           \
-      _mm256_castpd_ps(_mm512_extractf64x4_pd(_mm512_castps_pd(zmm), 1)))
-
-//! Calculate Fused-Multiply-Add (AVX, FP16)
-#define FMA_FP16_GENERAL(lhs, rhs, sum, norm1, norm2) \
+//! Calculate Fused-Multiply-Add (GENERAL)
+#define FMA_FP32_GENERAL(lhs, rhs, sum, norm1, norm2) \
   {                                                   \
-    float v1 = lhs;                                   \
-    float v2 = rhs;                                   \
-    sum += v1 * v2;                                   \
-    norm1 += v1 * v1;                                 \
-    norm2 += v2 * v2;                                 \
+    sum += (lhs) * (rhs);                             \
+    norm1 += (lhs) * (lhs);                           \
+    norm2 += (rhs) * (rhs);                           \
   }
 
-#if defined(__AVX__) && defined(__F16C__)
+#if defined(__AVX__)
 //! Compute the Inner Product between p and q, and each Squared L2-Norm value
-float InnerProductAndSquaredNormAVX(const Float16 *lhs,
-                                                  const Float16 *rhs,
-                                                  size_t size, float *sql,
-                                                  float *sqr) {
+float InnerProductAndSquaredNormAVX(const float *lhs,
+                                                  const float *rhs, size_t size,
+                                                  float *sql, float *sqr) {
+  const float *last = lhs + size;
+  const float *last_aligned = lhs + ((size >> 4) << 4);
+
   __m256 ymm_sum_0 = _mm256_setzero_ps();
   __m256 ymm_sum_1 = _mm256_setzero_ps();
   __m256 ymm_sum_norm1 = _mm256_setzero_ps();
   __m256 ymm_sum_norm2 = _mm256_setzero_ps();
 
-  const Float16 *last = lhs + size;
-  const Float16 *last_aligned = lhs + ((size >> 4) << 4);
   if (((uintptr_t)lhs & 0x1f) == 0 && ((uintptr_t)rhs & 0x1f) == 0) {
     for (; lhs != last_aligned; lhs += 16, rhs += 16) {
-      __m256i ymm_lhs = _mm256_load_si256((const __m256i *)lhs);
-      __m256i ymm_rhs = _mm256_load_si256((const __m256i *)rhs);
-      __m256 ymm_lhs_0 = _mm256_cvtph_ps(_mm256_castsi256_si128(ymm_lhs));
-      __m256 ymm_lhs_1 = _mm256_cvtph_ps(_mm256_extractf128_si256(ymm_lhs, 1));
-      __m256 ymm_rhs_0 = _mm256_cvtph_ps(_mm256_castsi256_si128(ymm_rhs));
-      __m256 ymm_rhs_1 = _mm256_cvtph_ps(_mm256_extractf128_si256(ymm_rhs, 1));
+      __m256 ymm_lhs_0 = _mm256_load_ps(lhs + 0);
+      __m256 ymm_lhs_1 = _mm256_load_ps(lhs + 8);
+      __m256 ymm_rhs_0 = _mm256_load_ps(rhs + 0);
+      __m256 ymm_rhs_1 = _mm256_load_ps(rhs + 8);
       ymm_sum_0 = _mm256_fmadd_ps(ymm_lhs_0, ymm_rhs_0, ymm_sum_0);
       ymm_sum_1 = _mm256_fmadd_ps(ymm_lhs_1, ymm_rhs_1, ymm_sum_1);
       ymm_sum_norm1 = _mm256_fmadd_ps(ymm_lhs_0, ymm_lhs_0, ymm_sum_norm1);
@@ -70,9 +52,10 @@ float InnerProductAndSquaredNormAVX(const Float16 *lhs,
       ymm_sum_norm2 = _mm256_fmadd_ps(ymm_rhs_0, ymm_rhs_0, ymm_sum_norm2);
       ymm_sum_norm2 = _mm256_fmadd_ps(ymm_rhs_1, ymm_rhs_1, ymm_sum_norm2);
     }
+
     if (last >= last_aligned + 8) {
-      __m256 ymm_lhs_0 = _mm256_cvtph_ps(_mm_load_si128((const __m128i *)lhs));
-      __m256 ymm_rhs_0 = _mm256_cvtph_ps(_mm_load_si128((const __m128i *)rhs));
+      __m256 ymm_lhs_0 = _mm256_load_ps(lhs);
+      __m256 ymm_rhs_0 = _mm256_load_ps(rhs);
       ymm_sum_0 = _mm256_fmadd_ps(ymm_lhs_0, ymm_rhs_0, ymm_sum_0);
       ymm_sum_norm1 = _mm256_fmadd_ps(ymm_lhs_0, ymm_lhs_0, ymm_sum_norm1);
       ymm_sum_norm2 = _mm256_fmadd_ps(ymm_rhs_0, ymm_rhs_0, ymm_sum_norm2);
@@ -81,12 +64,10 @@ float InnerProductAndSquaredNormAVX(const Float16 *lhs,
     }
   } else {
     for (; lhs != last_aligned; lhs += 16, rhs += 16) {
-      __m256i ymm_lhs = _mm256_loadu_si256((const __m256i *)lhs);
-      __m256i ymm_rhs = _mm256_loadu_si256((const __m256i *)rhs);
-      __m256 ymm_lhs_0 = _mm256_cvtph_ps(_mm256_castsi256_si128(ymm_lhs));
-      __m256 ymm_lhs_1 = _mm256_cvtph_ps(_mm256_extractf128_si256(ymm_lhs, 1));
-      __m256 ymm_rhs_0 = _mm256_cvtph_ps(_mm256_castsi256_si128(ymm_rhs));
-      __m256 ymm_rhs_1 = _mm256_cvtph_ps(_mm256_extractf128_si256(ymm_rhs, 1));
+      __m256 ymm_lhs_0 = _mm256_loadu_ps(lhs + 0);
+      __m256 ymm_lhs_1 = _mm256_loadu_ps(lhs + 8);
+      __m256 ymm_rhs_0 = _mm256_loadu_ps(rhs + 0);
+      __m256 ymm_rhs_1 = _mm256_loadu_ps(rhs + 8);
       ymm_sum_0 = _mm256_fmadd_ps(ymm_lhs_0, ymm_rhs_0, ymm_sum_0);
       ymm_sum_1 = _mm256_fmadd_ps(ymm_lhs_1, ymm_rhs_1, ymm_sum_1);
       ymm_sum_norm1 = _mm256_fmadd_ps(ymm_lhs_0, ymm_lhs_0, ymm_sum_norm1);
@@ -94,9 +75,10 @@ float InnerProductAndSquaredNormAVX(const Float16 *lhs,
       ymm_sum_norm2 = _mm256_fmadd_ps(ymm_rhs_0, ymm_rhs_0, ymm_sum_norm2);
       ymm_sum_norm2 = _mm256_fmadd_ps(ymm_rhs_1, ymm_rhs_1, ymm_sum_norm2);
     }
+
     if (last >= last_aligned + 8) {
-      __m256 ymm_lhs_0 = _mm256_cvtph_ps(_mm_loadu_si128((const __m128i *)lhs));
-      __m256 ymm_rhs_0 = _mm256_cvtph_ps(_mm_loadu_si128((const __m128i *)rhs));
+      __m256 ymm_lhs_0 = _mm256_loadu_ps(lhs);
+      __m256 ymm_rhs_0 = _mm256_loadu_ps(rhs);
       ymm_sum_0 = _mm256_fmadd_ps(ymm_lhs_0, ymm_rhs_0, ymm_sum_0);
       ymm_sum_norm1 = _mm256_fmadd_ps(ymm_lhs_0, ymm_lhs_0, ymm_sum_norm1);
       ymm_sum_norm2 = _mm256_fmadd_ps(ymm_rhs_0, ymm_rhs_0, ymm_sum_norm2);
@@ -104,38 +86,37 @@ float InnerProductAndSquaredNormAVX(const Float16 *lhs,
       rhs += 8;
     }
   }
-
   float result = HorizontalAdd_FP32_V256(_mm256_add_ps(ymm_sum_0, ymm_sum_1));
   float norm1 = HorizontalAdd_FP32_V256(ymm_sum_norm1);
   float norm2 = HorizontalAdd_FP32_V256(ymm_sum_norm2);
+
   switch (last - lhs) {
     case 7:
-      FMA_FP16_GENERAL(lhs[6], rhs[6], result, norm1, norm2);
+      FMA_FP32_GENERAL(lhs[6], rhs[6], result, norm1, norm2)
       /* FALLTHRU */
     case 6:
-      FMA_FP16_GENERAL(lhs[5], rhs[5], result, norm1, norm2);
+      FMA_FP32_GENERAL(lhs[5], rhs[5], result, norm1, norm2)
       /* FALLTHRU */
     case 5:
-      FMA_FP16_GENERAL(lhs[4], rhs[4], result, norm1, norm2);
+      FMA_FP32_GENERAL(lhs[4], rhs[4], result, norm1, norm2)
       /* FALLTHRU */
     case 4:
-      FMA_FP16_GENERAL(lhs[3], rhs[3], result, norm1, norm2);
+      FMA_FP32_GENERAL(lhs[3], rhs[3], result, norm1, norm2)
       /* FALLTHRU */
     case 3:
-      FMA_FP16_GENERAL(lhs[2], rhs[2], result, norm1, norm2);
+      FMA_FP32_GENERAL(lhs[2], rhs[2], result, norm1, norm2)
       /* FALLTHRU */
     case 2:
-      FMA_FP16_GENERAL(lhs[1], rhs[1], result, norm1, norm2);
+      FMA_FP32_GENERAL(lhs[1], rhs[1], result, norm1, norm2)
       /* FALLTHRU */
     case 1:
-      FMA_FP16_GENERAL(lhs[0], rhs[0], result, norm1, norm2);
+      FMA_FP32_GENERAL(lhs[0], rhs[0], result, norm1, norm2)
   }
-
   *sql = norm1;
   *sqr = norm2;
   return result;
 }
-#endif  // __AVX__ && __F16C__
+#endif  // __AVX__
 
 }  // namespace ailego
 }  // namespace zvec

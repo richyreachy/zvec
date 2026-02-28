@@ -18,6 +18,18 @@
 namespace zvec {
 namespace ailego {
 
+#if defined(__ARM_NEON)
+float SquaredEuclideanDistanceNEON(const Float16 *lhs, const Float16 *rhs, size_t size, float *sql, float *sqr);
+#endif
+
+#if defined(__AVX512F__)
+float InnerProductAndSquaredNormAVX512(const Float16 *lhs, const Float16 *rhs, size_t size, float *sql, float *sqr);
+#endif
+
+#if defined(__AVX__)
+float InnerProductAndSquaredNormAVX(const Float16 *lhs, const Float16 *rhs, size_t size, float *sql, float *sqr);
+#endif
+
 #if (defined(__F16C__) && defined(__AVX__)) || \
     (defined(__ARM_NEON) && defined(__aarch64__))
 //! Compute the distance between matrix and query by SphericalInjection
@@ -29,10 +41,18 @@ void MipsSquaredEuclideanDistanceMatrix<Float16, 1, 1>::Compute(
 
 #if defined(__ARM_NEON)
   sum = InnerProductAndSquaredNormNEON(p, q, dim, &u2, &v2);
-#elif defined(__AVX512F__)
-  sum = InnerProductAndSquaredNormAVX512(p, q, dim, &u2, &v2);
-#else
-  sum = InnerProductAndSquaredNormAVX(p, q, dim, &u2, &v2);
+#endif
+#if defined(__AVX512F__)
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
+    sum = InnerProductAndSquaredNormAVX512(p, q, dim, &u2, &v2);
+    return;
+  }
+#endif
+#if defined(__AVX__)
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
+    sum = InnerProductAndSquaredNormAVX(p, q, dim, &u2, &v2);
+    return;
+  }
 #endif
 
   *out = ComputeSphericalInjection(sum, u2, v2, e2);
@@ -48,10 +68,17 @@ void MipsSquaredEuclideanDistanceMatrix<Float16, 1, 1>::Compute(
 
 #if defined(__ARM_NEON)
   sum = InnerProductAndSquaredNormNEON(p, q, dim, &u2, &v2);
-#elif defined(__AVX512F__)
-  sum = InnerProductAndSquaredNormAVX512(p, q, dim, &u2, &v2);
-#else
-  sum = InnerProductAndSquaredNormAVX(p, q, dim, &u2, &v2);
+#endif
+#if defined(__AVX512F__)
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
+    sum = InnerProductAndSquaredNormAVX512(p, q, dim, &u2, &v2);
+  }
+#endif
+#if defined(__AVX__)
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
+    sum = InnerProductAndSquaredNormAVX(p, q, dim, &u2, &v2);
+    return;
+  }
 #endif
 
   sum = e2 * (u2 + v2 - 2 * sum);
