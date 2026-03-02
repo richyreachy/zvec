@@ -417,7 +417,7 @@ void MipsRepeatedQuadraticInjectionBenchMark(void) {
   MatrixTranspose(&query2[0], query1.data(), dimension, query_size);
 
   ElapsedTime elapsed_time;
-  float results[batch_size * query_size];
+  std::vector<float> results(batch_size * query_size);
 
   std::cout << "# (" << IntelIntrinsics() << ") FP32 " << dimension << "d, "
             << batch_size << " * " << query_size << " * " << block_size
@@ -446,7 +446,7 @@ void MipsRepeatedQuadraticInjectionBenchMark(void) {
     const float *matrix_batch = &matrix2[i * batch_size * dimension];
 
     MipsSquaredEuclideanDistanceMatrix<float, batch_size, query_size>::Compute(
-        matrix_batch, &query2[0], dimension, m_val, e2, results);
+        matrix_batch, &query2[0], dimension, m_val, e2, results.data());
   }
   std::cout
       << "* N Batched MipsSquaredEuclidean(RepeatedQuadraticInjection) (us) \t"
@@ -873,7 +873,7 @@ void MipsSphericalInjectionBenchMarkk(void) {
   MatrixTranspose(&query2[0], query1.data(), dimension, query_size);
 
   ElapsedTime elapsed_time;
-  float results[batch_size * query_size];
+  std::vector<float> results(batch_size * query_size);
 
   std::cout << "# (" << IntelIntrinsics() << ") FP32 " << dimension << "d, "
             << batch_size << " * " << query_size << " * " << block_size
@@ -901,7 +901,7 @@ void MipsSphericalInjectionBenchMarkk(void) {
     const float *matrix_batch = &matrix2[i * batch_size * dimension];
 
     MipsSquaredEuclideanDistanceMatrix<float, batch_size, query_size>::Compute(
-        matrix_batch, &query2[0], dimension, e2, results);
+        matrix_batch, &query2[0], dimension, e2, results.data());
   }
   std::cout << "* N Batched MipsSquaredEuclidean(SphericalInjection) (us) \t"
             << elapsed_time.micro_seconds() << std::endl;
