@@ -113,7 +113,7 @@ jobs:
               -DCMAKE_C_COMPILER_LAUNCHER=ccache \
               -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
               -DCMAKE_VERBOSE_MAKEFILE=ON
-            cmake --build build-android-${{ matrix.abi }} --parallel
+            cmake --build build-android-${{ matrix.abi }} --parallel --verbose
           else
             echo "Using cached Android build directory"
           fi
