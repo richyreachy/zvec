@@ -155,8 +155,6 @@ jobs:
           # emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -netdelay none -netspeed full
           # disable-animations: true
           script: |
-            set -euxo pipefail
-
             adb wait-for-device
 
             echo "Device ABI:"
