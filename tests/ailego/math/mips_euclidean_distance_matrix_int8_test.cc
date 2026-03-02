@@ -911,7 +911,7 @@ void MipsSphericalInjectionBenchMark(void) {
     const int8_t *matrix_batch = &matrix2[i * batch_size * dimension];
 
     MipsSquaredEuclideanDistanceMatrix<int8_t, batch_size, query_size>::Compute(
-        matrix_batch, &query2[0], dimension, e2, results);
+        matrix_batch, &query2[0], dimension, e2, results.data());
   }
   std::cout << "* N Batched MipsSquaredErclidean(SphericalInjection) (us) \t"
             << elapsed_time.micro_seconds() << std::endl;
