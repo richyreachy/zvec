@@ -169,333 +169,169 @@ static inline float InnerProductSSE(const uint8_t *lhs, const uint8_t *rhs,
 
 #if defined(__SSE4_1__)
 
-float InnerProductSSE_2X1(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_2X1_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_2X1(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_2X1_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_2X2(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_2X2_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_2X2(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_2X2_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_4X1(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_4X1_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_4X1(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_4X1_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_4X2(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_4X2_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_4X2(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_4X2_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_4X4(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_4X4_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_4X4(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_4X4_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_8X1(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_8X1_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_8X1(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_8X1_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_8X2(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_8X2_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_8X2(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_8X2_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_8X4(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_8X4_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_8X4(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_8X4_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_8X8(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_8X8_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_8X8(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_8X8_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_16X1(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_16X1_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_16X1(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_16X1_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_16X2(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_16X2_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_16X2(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_16X2_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_16X4(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_16X4_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_16X4(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_16X4_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_16X8(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_16X8_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_16X8(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_16X8_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_16X16(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_16X16_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_16X16(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_16X16_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_32X1(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_32X1_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_32X1(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_32X1_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_32X2(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_32X2_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_32X2(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_32X2_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_32X4(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_32X4_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_32X4(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_32X4_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_32X8(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_32X8_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_32X8(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_32X8_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_32X16(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_32X16_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_32X16(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_32X16_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
-float InnerProductSSE_32X32(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_32X32_SSE(lhs, rhs, size, &score, _mm_cvtepi32_ps)
-
-  return score;
+float InnerProductSSE_32X32(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_32X32_SSE(lhs, rhs, size, out, _mm_cvtepi32_ps)
 }
 
 float MinusInnerProductSSE(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  score = -InnerProductSSE(lhs, rhs, size);
-
-  return score;
+  return -InnerProductSSE(lhs, rhs, size);
 }
 
-float MinusInnerProductSSE_2X1(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_2X1_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_2X1(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_2X1_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_2X2(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_2X2_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_2X2(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_2X2_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_4X1(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_4X1_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_4X1(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_4X1_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_4X2(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_4X2_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_4X2(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_4X2_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_4X4(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_4X4_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_4X4(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_4X4_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_8X1(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_8X1_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_8X1(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_8X1_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_8X2(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_8X2_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_8X2(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_8X2_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_8X4(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_8X4_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_8X4(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_8X4_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_8X8(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_8X8_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_8X8(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_8X8_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_16X1(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_16X1_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_16X1(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_16X1_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_16X2(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_16X2_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_16X2(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_16X2_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_16X4(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_16X4_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_16X4(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_16X4_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_16X8(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_16X8_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_16X8(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_16X8_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_16X16(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_16X16_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_16X16(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_16X16_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_32X1(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_32X1_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_32X1(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_32X1_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_32X2(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_32X2_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_32X2(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_32X2_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_32X4(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_32X4_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_32X4(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_32X4_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_32X8(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_32X8_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_32X8(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_32X8_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_32X16(const uint8_t *lhs, const uint8_t *rhs, size_t size){
-  float score;
-
-  ACCUM_INT4_32X16_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductSSE_32X16(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out){
+  ACCUM_INT4_32X16_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductSSE_32X32(const uint8_t *lhs, const uint8_t *rhs, size_t size)
+void MinusInnerProductSSE_32X32(const uint8_t *lhs, const uint8_t *rhs, size_t size, float *out)
 {
-  float score;
-
-  ACCUM_INT4_32X32_SSE(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+  ACCUM_INT4_32X32_SSE(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
 #endif  // __SSE4_1__

@@ -180,7 +180,7 @@ void SquaredEuclideanDistanceMatrix<Float16, 8, 2>::Compute(const ValueType *m,
                                                             const ValueType *q,
                                                             size_t dim,
                                                             float *out) {
-  SquaredEuclideanDistanceAVX_8X1(m, q, dim, out);
+  SquaredEuclideanDistanceAVX_8X2(m, q, dim, out);
 }
 
 //! Compute the distance between matrix and query (FP16, M=8, N=4)

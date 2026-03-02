@@ -133,281 +133,161 @@ float InnerProductAVX(const float *lhs, const float *rhs,
 }
 
 //! InnerProduct
-float InnerProductAVX_2X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_2X1_AVX(lhs, rhs, size, &score, )
-
-  return score;
+void InnerProductAVX_2X1(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_2X1_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_2X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_2X2_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_2X2(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_2X2_AVX(lhs, rhs, size, out, )
 }
-float InnerProductAVX_4X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_4X1_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_4X1(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_4X1_AVX(lhs, rhs, size, out, )
 }
-float InnerProductAVX_4X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_4X2_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_4X2(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_4X2_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_4X4(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_4X4_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_4X4(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_4X4_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_8X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_8X1_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_8X1(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_8X1_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_8X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_8X2_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_8X2(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_8X2_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_8X4(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_8X4_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_8X4(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_8X4_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_8X8(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_8X8_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_8X8(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_8X8_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_16X1(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X1_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_16X1(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X1_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_16X2(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X2_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_16X2(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X2_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_16X4(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X4_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_16X4(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X4_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_16X8(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X8_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_16X8(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X8_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_16X16(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X16_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_16X16(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X16_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_32X1(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X1_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_32X1(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X1_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_32X2(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X2_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_32X2(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X2_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_32X4(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X4_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_32X4(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X4_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_32X8(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X8_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_32X8(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X8_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_32X16(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X16_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_32X16(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X16_AVX(lhs, rhs, size, out, )
 }
 
-float InnerProductAVX_32X32(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X32_AVX(lhs, rhs, size, &score, )
-  
-  return score;
+void InnerProductAVX_32X32(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X32_AVX(lhs, rhs, size, out, )
 }
 
 //! MinusInnerProduct
-float MinusInnerProductAVX_2X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_2X1_AVX(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-
-  return score;
+void MinusInnerProductAVX_2X1(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_2X1_AVX(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductAVX_2X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_2X2_AVX(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-  
-  return score;
+void MinusInnerProductAVX_2X2(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_2X2_AVX(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
-float MinusInnerProductAVX_4X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_4X1_AVX(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-  
-  return score;
+void MinusInnerProductAVX_4X1(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_4X1_AVX(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
-float MinusInnerProductAVX_4X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_4X2_AVX(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-  
-  return score;
+void MinusInnerProductAVX_4X2(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_4X2_AVX(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductAVX_4X4(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_4X4_AVX(lhs, rhs, size, &score, NEGATE_FP32_SSE)
-  
-  return score;
+void MinusInnerProductAVX_4X4(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_4X4_AVX(lhs, rhs, size, out, NEGATE_FP32_SSE)
 }
 
-float MinusInnerProductAVX_8X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_8X1_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_8X1(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_8X1_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_8X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_8X2_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_8X2(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_8X2_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_8X4(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_8X4_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_8X4(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_8X4_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_8X8(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_8X8_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_8X8(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_8X8_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_16X1(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X1_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_16X1(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X1_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_16X2(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X2_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_16X2(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X2_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_16X4(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X4_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_16X4(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X4_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_16X8(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X8_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_16X8(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X8_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_16X16(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X16_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_16X16(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X16_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_32X1(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X1_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_32X1(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X1_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_32X2(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X2_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_32X2(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X2_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_32X4(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X4_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_32X4(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X4_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_32X8(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X8_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_32X8(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X8_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_32X16(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X16_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_32X16(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X16_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
-float MinusInnerProductAVX_32X32(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X32_AVX(lhs, rhs, size, &score, NEGATE_FP32_AVX)
-  
-  return score;
+void MinusInnerProductAVX_32X32(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X32_AVX(lhs, rhs, size, out, NEGATE_FP32_AVX)
 }
 
 #endif  // __AVX__

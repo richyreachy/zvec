@@ -20,168 +20,168 @@ namespace ailego {
 
 #if defined(__ARM_NEON)
 float InnerProductNEON(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_2X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_2X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_4X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_4X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_4X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_8X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_8X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_8X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_8X8(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_16X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_16X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_16X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_16X8(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_16X16(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_32X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_32X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_32X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_32X8(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_32X16(const float *lhs, const float *rhs, size_t size);
-float InnerProductNEON_32X32(const float *lhs, const float *rhs, size_t size);
+void InnerProductNEON_2X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_2X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_4X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_4X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_4X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_8X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_8X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_8X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_8X8(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductNEON_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 
 float MinusInnerProductNEON(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_2X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_2X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_4X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_4X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_4X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_8X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_8X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_8X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_8X8(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_16X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_16X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_16X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_16X8(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_16X16(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_32X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_32X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_32X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_32X8(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_32X16(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductNEON_32X32(const float *lhs, const float *rhs, size_t size);
+void MinusInnerProductNEON_2X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_2X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_4X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_4X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_4X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_8X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_8X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_8X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_8X8(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductNEON_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 #endif
 
 #if defined(__AVX512F__)
 float InnerProductAVX512(const float *lhs, const float *rhs, size_t size);
 
-float InnerProductAVX512_16X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX512_16X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX512_16X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX512_16X8(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX512_16X16(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX512_32X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX512_32X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX512_32X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX512_32X8(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX512_32X16(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX512_32X32(const float *lhs, const float *rhs, size_t size);
+void InnerProductAVX512_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX512_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX512_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX512_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX512_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX512_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX512_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX512_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX512_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX512_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX512_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 
-float MinusInnerProductAVX512_16X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX512_16X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX512_16X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX512_16X8(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX512_16X16(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX512_32X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX512_32X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX512_32X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX512_32X8(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX512_32X16(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX512_32X32(const float *lhs, const float *rhs, size_t size);
+void MinusInnerProductAVX512_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX512_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX512_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX512_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX512_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX512_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX512_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX512_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX512_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX512_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX512_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 #endif
 
 #if defined(__AVX__)
 float InnerProductAVX(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_2X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_2X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_4X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_4X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_4X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_8X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_8X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_8X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_8X8(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_16X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_16X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_16X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_16X8(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_16X16(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_32X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_32X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_32X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_32X8(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_32X16(const float *lhs, const float *rhs, size_t size);
-float InnerProductAVX_32X32(const float *lhs, const float *rhs, size_t size);
+void InnerProductAVX_2X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_2X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_4X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_4X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_4X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_8X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_8X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_8X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_8X8(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductAVX_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 
 float MinusInnerProductAVX(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_2X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_2X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_4X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_4X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_4X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_8X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_8X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_8X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_8X8(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_16X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_16X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_16X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_16X8(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_16X16(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_32X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_32X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_32X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_32X8(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_32X16(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductAVX_32X32(const float *lhs, const float *rhs, size_t size);
+void MinusInnerProductAVX_2X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_2X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_4X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_4X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_4X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_8X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_8X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_8X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_8X8(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductAVX_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 #endif
 
 #if defined(__SSE__)
 float InnerProductSSE(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_2X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_2X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_4X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_4X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_4X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_8X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_8X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_8X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_8X8(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_16X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_16X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_16X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_16X8(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_16X16(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_32X1(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_32X2(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_32X4(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_32X8(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_32X16(const float *lhs, const float *rhs, size_t size);
-float InnerProductSSE_32X32(const float *lhs, const float *rhs, size_t size);
+void InnerProductSSE_2X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_2X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_4X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_4X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_4X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_8X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_8X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_8X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_8X8(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void InnerProductSSE_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 
 float MinusInnerProductSSE(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_2X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_2X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_4X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_4X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_4X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_8X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_8X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_8X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_8X8(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_16X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_16X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_16X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_16X8(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_16X16(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_32X1(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_32X2(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_32X4(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_32X8(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_32X16(const float *lhs, const float *rhs, size_t size);
-float MinusInnerProductSSE_32X32(const float *lhs, const float *rhs, size_t size);
+void MinusInnerProductSSE_2X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_2X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_4X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_4X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_4X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_8X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_8X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_8X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_8X8(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void MinusInnerProductSSE_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 #endif 
 
 #if defined(__SSE__) || defined(__ARM_NEON)
@@ -217,15 +217,15 @@ void InnerProductMatrix<float, 2, 1>::Compute(const ValueType *m,
                                               const ValueType *q, size_t dim,
                                               float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_2X1(m, q, dim);
+  InnerProductNEON_2X1(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_2X1(m, q, dim);
+    InnerProductAVX_2X1(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_2X1(m, q, dim);
+  InnerProductSSE_2X1(m, q, dim, out);
 #endif
 }
 
@@ -234,15 +234,15 @@ void InnerProductMatrix<float, 2, 2>::Compute(const ValueType *m,
                                               const ValueType *q, size_t dim,
                                               float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_2X2(m, q, dim);
+  InnerProductNEON_2X2(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_2X2(m, q, dim);
+    InnerProductAVX_2X2(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_2X2(m, q, dim);
+  InnerProductSSE_2X2(m, q, dim, out);
 #endif
 }
 
@@ -251,15 +251,15 @@ void InnerProductMatrix<float, 4, 1>::Compute(const ValueType *m,
                                               const ValueType *q, size_t dim,
                                               float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_4X1(m, q, dim);
+  InnerProductNEON_4X1(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_4X1(m, q, dim);
+    InnerProductAVX_4X1(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_4X1(m, q, dim);
+  InnerProductSSE_4X1(m, q, dim, out);
 #endif
 }
 
@@ -268,15 +268,15 @@ void InnerProductMatrix<float, 4, 2>::Compute(const ValueType *m,
                                               const ValueType *q, size_t dim,
                                               float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_4X2(m, q, dim);
+  InnerProductNEON_4X2(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_4X2(m, q, dim);
+    InnerProductAVX_4X2(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_4X2(m, q, dim);
+  InnerProductSSE_4X2(m, q, dim, out);
 #endif
 }
 
@@ -285,15 +285,15 @@ void InnerProductMatrix<float, 4, 4>::Compute(const ValueType *m,
                                               const ValueType *q, size_t dim,
                                               float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_4X4(m, q, dim);
+  InnerProductNEON_4X4(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_4X4(m, q, dim);
+    InnerProductAVX_4X4(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_4X4(m, q, dim);
+  InnerProductSSE_4X4(m, q, dim, out);
 #endif
 }
 
@@ -302,15 +302,15 @@ void InnerProductMatrix<float, 8, 1>::Compute(const ValueType *m,
                                               const ValueType *q, size_t dim,
                                               float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_8X1(m, q, dim);
+  InnerProductNEON_8X1(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_8X1(m, q, dim);
+    InnerProductAVX_8X1(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_8X1(m, q, dim);
+  InnerProductSSE_8X1(m, q, dim, out);
 #endif
 }
 
@@ -319,15 +319,15 @@ void InnerProductMatrix<float, 8, 2>::Compute(const ValueType *m,
                                               const ValueType *q, size_t dim,
                                               float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_8X2(m, q, dim);
+  InnerProductNEON_8X2(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_8X2(m, q, dim);
+    InnerProductAVX_8X2(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_8X2(m, q, dim);
+  InnerProductSSE_8X2(m, q, dim, out);
 #endif
 }
 
@@ -336,15 +336,15 @@ void InnerProductMatrix<float, 8, 4>::Compute(const ValueType *m,
                                               const ValueType *q, size_t dim,
                                               float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_8X4(m, q, dim);
+  InnerProductNEON_8X4(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_8X4(m, q, dim);
+    InnerProductAVX_8X4(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_8X4(m, q, dim);
+  InnerProductSSE_8X4(m, q, dim, out);
 #endif
 }
 
@@ -353,15 +353,15 @@ void InnerProductMatrix<float, 8, 8>::Compute(const ValueType *m,
                                               const ValueType *q, size_t dim,
                                               float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_8X8(m, q, dim);
+  InnerProductNEON_8X8(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_8X8(m, q, dim);
+    InnerProductAVX_8X8(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_8X8(m, q, dim);
+  InnerProductSSE_8X8(m, q, dim, out);
 #endif
 }
 
@@ -370,21 +370,21 @@ void InnerProductMatrix<float, 16, 1>::Compute(const ValueType *m,
                                                const ValueType *q, size_t dim,
                                                float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_16X1(m, q, dim);
+  InnerProductNEON_16X1(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = InnerProductAVX512_16X1(m, q, dim);
+    InnerProductAVX512_16X1(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_16X1(m, q, dim);
+    InnerProductAVX_16X1(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_16X1(m, q, dim);
+  InnerProductSSE_16X1(m, q, dim, out);
 #endif
 }
 
@@ -393,21 +393,21 @@ void InnerProductMatrix<float, 16, 2>::Compute(const ValueType *m,
                                                const ValueType *q, size_t dim,
                                                float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_16X2(m, q, dim);
+  InnerProductNEON_16X2(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = InnerProductAVX512_16X2(m, q, dim);
+    InnerProductAVX512_16X2(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_16X2(m, q, dim);
+    InnerProductAVX_16X2(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_16X2(m, q, dim);
+  InnerProductSSE_16X2(m, q, dim, out);
 #endif
 }
 
@@ -416,21 +416,21 @@ void InnerProductMatrix<float, 16, 4>::Compute(const ValueType *m,
                                                const ValueType *q, size_t dim,
                                                float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_16X4(m, q, dim);
+  InnerProductNEON_16X4(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = InnerProductAVX512_16X4(m, q, dim);
+    InnerProductAVX512_16X4(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_16X4(m, q, dim);
+    InnerProductAVX_16X4(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_16X4(m, q, dim);
+  InnerProductSSE_16X4(m, q, dim, out);
 #endif
 }
 
@@ -439,21 +439,21 @@ void InnerProductMatrix<float, 16, 8>::Compute(const ValueType *m,
                                                const ValueType *q, size_t dim,
                                                float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_16X8(m, q, dim);
+  InnerProductNEON_16X8(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = InnerProductAVX512_16X8(m, q, dim);
+    InnerProductAVX512_16X8(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_16X8(m, q, dim);
+    InnerProductAVX_16X8(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_16X8(m, q, dim);
+  InnerProductSSE_16X8(m, q, dim, out);
 #endif
 }
 
@@ -462,21 +462,21 @@ void InnerProductMatrix<float, 16, 16>::Compute(const ValueType *m,
                                                 const ValueType *q, size_t dim,
                                                 float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_16X1(m, q, dim);
+  InnerProductNEON_16X1(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = InnerProductAVX512_16X16(m, q, dim);
+    InnerProductAVX512_16X16(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_16X16(m, q, dim);
+    InnerProductAVX_16X16(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_16X16(m, q, dim);
+  InnerProductSSE_16X16(m, q, dim, out);
 #endif
 }
 
@@ -485,21 +485,21 @@ void InnerProductMatrix<float, 32, 1>::Compute(const ValueType *m,
                                                const ValueType *q, size_t dim,
                                                float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_32X1(m, q, dim);
+  InnerProductNEON_32X1(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = InnerProductAVX512_32X1(m, q, dim);
+    InnerProductAVX512_32X1(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_32X1(m, q, dim);
+    InnerProductAVX_32X1(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_32X1(m, q, dim);
+  InnerProductSSE_32X1(m, q, dim, out);
 #endif
 }
 
@@ -508,21 +508,21 @@ void InnerProductMatrix<float, 32, 2>::Compute(const ValueType *m,
                                                const ValueType *q, size_t dim,
                                                float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_32X2(m, q, dim);
+  InnerProductNEON_32X2(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = InnerProductAVX512_32X2(m, q, dim);
+    InnerProductAVX512_32X2(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_32X2(m, q, dim);
+    InnerProductAVX_32X2(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_32X2(m, q, dim);
+  InnerProductSSE_32X2(m, q, dim, out);
 #endif
 }
 
@@ -531,21 +531,21 @@ void InnerProductMatrix<float, 32, 4>::Compute(const ValueType *m,
                                                const ValueType *q, size_t dim,
                                                float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_32X4(m, q, dim);
+  InnerProductNEON_32X4(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = InnerProductAVX512_32X4(m, q, dim);
+    InnerProductAVX512_32X4(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_32X4(m, q, dim);
+    InnerProductAVX_32X4(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_32X4(m, q, dim);
+  InnerProductSSE_32X4(m, q, dim, out);
 #endif
 }
 
@@ -554,21 +554,21 @@ void InnerProductMatrix<float, 32, 8>::Compute(const ValueType *m,
                                                const ValueType *q, size_t dim,
                                                float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_32X8(m, q, dim);
+  InnerProductNEON_32X8(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = InnerProductAVX512_32X8(m, q, dim);
+    InnerProductAVX512_32X8(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_32X8(m, q, dim);
+    InnerProductAVX_32X8(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_32X8(m, q, dim);
+  InnerProductSSE_32X8(m, q, dim, out);
 #endif
 }
 
@@ -577,21 +577,21 @@ void InnerProductMatrix<float, 32, 16>::Compute(const ValueType *m,
                                                 const ValueType *q, size_t dim,
                                                 float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_32X16(m, q, dim);
+  InnerProductNEON_32X16(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = InnerProductAVX512_32X16(m, q, dim);
+    InnerProductAVX512_32X16(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_32X16(m, q, dim);
+    InnerProductAVX_32X16(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_32X16(m, q, dim);
+  InnerProductSSE_32X16(m, q, dim, out);
 #endif
 }
 
@@ -600,21 +600,21 @@ void InnerProductMatrix<float, 32, 32>::Compute(const ValueType *m,
                                                 const ValueType *q, size_t dim,
                                                 float *out) {
 #if defined(__ARM_NEON)
-  *out = InnerProductNEON_32X32(m, q, dim);
+  InnerProductNEON_32X32(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = InnerProductAVX512_32X32(m, q, dim);
+    InnerProductAVX512_32X32(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = InnerProductAVX_32X32(m, q, dim);
+    InnerProductAVX_32X32(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = InnerProductSSE_32X32(m, q, dim);
+  InnerProductSSE_32X32(m, q, dim, out);
 #endif
 }
 
@@ -650,15 +650,15 @@ void MinusInnerProductMatrix<float, 2, 1>::Compute(const ValueType *m,
                                                    const ValueType *q,
                                                    size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_2X1(m, q, dim);
+  MinusInnerProductNEON_2X1(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_2X1(m, q, dim);
+    MinusInnerProductAVX_2X1(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_2X1(m, q, dim);
+  MinusInnerProductSSE_2X1(m, q, dim, out);
 #endif
 }
 
@@ -667,15 +667,15 @@ void MinusInnerProductMatrix<float, 2, 2>::Compute(const ValueType *m,
                                                    const ValueType *q,
                                                    size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_2X2(m, q, dim);
+  MinusInnerProductNEON_2X2(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_2X2(m, q, dim);
+    MinusInnerProductAVX_2X2(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_2X2(m, q, dim);
+  MinusInnerProductSSE_2X2(m, q, dim, out);
 #endif
 }
 
@@ -684,15 +684,15 @@ void MinusInnerProductMatrix<float, 4, 1>::Compute(const ValueType *m,
                                                    const ValueType *q,
                                                    size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_4X1(m, q, dim);
+  MinusInnerProductNEON_4X1(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_4X1(m, q, dim);
+    MinusInnerProductAVX_4X1(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_4X1(m, q, dim);
+  MinusInnerProductSSE_4X1(m, q, dim, out);
 #endif
 }
 
@@ -701,15 +701,15 @@ void MinusInnerProductMatrix<float, 4, 2>::Compute(const ValueType *m,
                                                    const ValueType *q,
                                                    size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_4X2(m, q, dim);
+  MinusInnerProductNEON_4X2(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_4X2(m, q, dim);
+    MinusInnerProductAVX_4X2(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_4X2(m, q, dim);
+  MinusInnerProductSSE_4X2(m, q, dim, out);
 #endif
 }
 
@@ -718,15 +718,15 @@ void MinusInnerProductMatrix<float, 4, 4>::Compute(const ValueType *m,
                                                    const ValueType *q,
                                                    size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_4X4(m, q, dim);
+  MinusInnerProductNEON_4X4(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_4X4(m, q, dim);
+    MinusInnerProductAVX_4X4(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_4X4(m, q, dim);
+  MinusInnerProductSSE_4X4(m, q, dim, out);
 #endif
 }
 
@@ -735,15 +735,15 @@ void MinusInnerProductMatrix<float, 8, 1>::Compute(const ValueType *m,
                                                    const ValueType *q,
                                                    size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_8X1(m, q, dim);
+  MinusInnerProductNEON_8X1(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_8X1(m, q, dim);
+    MinusInnerProductAVX_8X1(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_8X1(m, q, dim);
+  MinusInnerProductSSE_8X1(m, q, dim, out);
 #endif
 }
 
@@ -752,15 +752,15 @@ void MinusInnerProductMatrix<float, 8, 2>::Compute(const ValueType *m,
                                                    const ValueType *q,
                                                    size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_8X2(m, q, dim);
+  MinusInnerProductNEON_8X2(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_8X2(m, q, dim);
+    MinusInnerProductAVX_8X2(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_8X2(m, q, dim);
+  MinusInnerProductSSE_8X2(m, q, dim, out);
 #endif
 }
 
@@ -769,15 +769,15 @@ void MinusInnerProductMatrix<float, 8, 4>::Compute(const ValueType *m,
                                                    const ValueType *q,
                                                    size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_8X4(m, q, dim);
+  MinusInnerProductNEON_8X4(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_8X4(m, q, dim);
+    MinusInnerProductAVX_8X4(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_8X4(m, q, dim);
+  MinusInnerProductSSE_8X4(m, q, dim, out);
 #endif
 }
 
@@ -786,15 +786,15 @@ void MinusInnerProductMatrix<float, 8, 8>::Compute(const ValueType *m,
                                                    const ValueType *q,
                                                    size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_8X8(m, q, dim);
+  MinusInnerProductNEON_8X8(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_8X8(m, q, dim);
+    MinusInnerProductAVX_8X8(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_8X8(m, q, dim);
+  MinusInnerProductSSE_8X8(m, q, dim, out);
 #endif
 }
 
@@ -803,21 +803,21 @@ void MinusInnerProductMatrix<float, 16, 1>::Compute(const ValueType *m,
                                                     const ValueType *q,
                                                     size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_16X1(m, q, dim);
+  MinusInnerProductNEON_16X1(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = MinusInnerProductAVX512_16X1(m, q, dim);
+    MinusInnerProductAVX512_16X1(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_16X1(m, q, dim);
+    MinusInnerProductAVX_16X1(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_16X1(m, q, dim);
+  MinusInnerProductSSE_16X1(m, q, dim, out);
 #endif
 }
 
@@ -826,21 +826,21 @@ void MinusInnerProductMatrix<float, 16, 2>::Compute(const ValueType *m,
                                                     const ValueType *q,
                                                     size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_16X2(m, q, dim);
+  MinusInnerProductNEON_16X2(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = MinusInnerProductAVX512_16X2(m, q, dim);
+    MinusInnerProductAVX512_16X2(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_16X2(m, q, dim);
+    MinusInnerProductAVX_16X2(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_16X2(m, q, dim);
+  MinusInnerProductSSE_16X2(m, q, dim, out);
 #endif
 }
 
@@ -849,21 +849,21 @@ void MinusInnerProductMatrix<float, 16, 4>::Compute(const ValueType *m,
                                                     const ValueType *q,
                                                     size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_16X4(m, q, dim);
+  MinusInnerProductNEON_16X4(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = MinusInnerProductAVX512_16X4(m, q, dim);
+    MinusInnerProductAVX512_16X4(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_16X4(m, q, dim);
+    MinusInnerProductAVX_16X4(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_16X4(m, q, dim);
+  MinusInnerProductSSE_16X4(m, q, dim, out);
 #endif
 }
 
@@ -872,21 +872,21 @@ void MinusInnerProductMatrix<float, 16, 8>::Compute(const ValueType *m,
                                                     const ValueType *q,
                                                     size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_16X8(m, q, dim);
+  MinusInnerProductNEON_16X8(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = MinusInnerProductAVX512_16X8(m, q, dim);
+    MinusInnerProductAVX512_16X8(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_16X8(m, q, dim);
+    MinusInnerProductAVX_16X8(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_16X8(m, q, dim);
+  MinusInnerProductSSE_16X8(m, q, dim, out);
 #endif
 }
 
@@ -895,21 +895,21 @@ void MinusInnerProductMatrix<float, 16, 16>::Compute(const ValueType *m,
                                                      const ValueType *q,
                                                      size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_16X16(m, q, dim);
+  MinusInnerProductNEON_16X16(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = MinusInnerProductAVX512_16X16(m, q, dim);
+    MinusInnerProductAVX512_16X16(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_16X16(m, q, dim);
+    MinusInnerProductAVX_16X16(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_16X16(m, q, dim);
+  MinusInnerProductSSE_16X16(m, q, dim, out);
 #endif
 }
 
@@ -918,21 +918,21 @@ void MinusInnerProductMatrix<float, 32, 1>::Compute(const ValueType *m,
                                                     const ValueType *q,
                                                     size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_32X1(m, q, dim);
+  MinusInnerProductNEON_32X1(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = MinusInnerProductAVX512_32X1(m, q, dim);
+    MinusInnerProductAVX512_32X1(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_32X1(m, q, dim);
+    MinusInnerProductAVX_32X1(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_32X1(m, q, dim);
+  MinusInnerProductSSE_32X1(m, q, dim, out);
 #endif
 }
 
@@ -941,21 +941,21 @@ void MinusInnerProductMatrix<float, 32, 2>::Compute(const ValueType *m,
                                                     const ValueType *q,
                                                     size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_32X2(m, q, dim);
+  MinusInnerProductNEON_32X2(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = MinusInnerProductAVX512_32X2(m, q, dim);
+    MinusInnerProductAVX512_32X2(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_32X2(m, q, dim);
+    MinusInnerProductAVX_32X2(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_32X2(m, q, dim);
+  MinusInnerProductSSE_32X2(m, q, dim, out);
 #endif
 }
 
@@ -964,21 +964,21 @@ void MinusInnerProductMatrix<float, 32, 4>::Compute(const ValueType *m,
                                                     const ValueType *q,
                                                     size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_32X4(m, q, dim);
+  MinusInnerProductNEON_32X4(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = MinusInnerProductAVX512_32X4(m, q, dim);
+    MinusInnerProductAVX512_32X4(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_32X4(m, q, dim);
+    MinusInnerProductAVX_32X4(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_32X4(m, q, dim);
+  MinusInnerProductSSE_32X4(m, q, dim, out);
 #endif
 }
 
@@ -987,21 +987,21 @@ void MinusInnerProductMatrix<float, 32, 8>::Compute(const ValueType *m,
                                                     const ValueType *q,
                                                     size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_32X8(m, q, dim);
+  MinusInnerProductNEON_32X8(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = MinusInnerProductAVX512_32X8(m, q, dim);
+    MinusInnerProductAVX512_32X8(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_32X8(m, q, dim);
+    MinusInnerProductAVX_32X8(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_32X8(m, q, dim);
+  MinusInnerProductSSE_32X8(m, q, dim, out);
 #endif
 }
 
@@ -1010,21 +1010,21 @@ void MinusInnerProductMatrix<float, 32, 16>::Compute(const ValueType *m,
                                                      const ValueType *q,
                                                      size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_32X16(m, q, dim);
+  MinusInnerProductNEON_32X16(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = MinusInnerProductAVX512_32X16(m, q, dim);
+    MinusInnerProductAVX512_32X16(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_32X16(m, q, dim);
+    MinusInnerProductAVX_32X16(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_32X16(m, q, dim);
+  MinusInnerProductSSE_32X16(m, q, dim, out);
 #endif
 }
 
@@ -1033,21 +1033,21 @@ void MinusInnerProductMatrix<float, 32, 32>::Compute(const ValueType *m,
                                                      const ValueType *q,
                                                      size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  *out = MinusInnerProductNEON_32X32(m, q, dim);
+  MinusInnerProductNEON_32X32(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = MinusInnerProductAVX512_32X32(m, q, dim);
+    MinusInnerProductAVX512_32X32(m, q, dim, out);
     return;
   }
 #endif // __AVX512F__
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = MinusInnerProductAVX_32X32(m, q, dim);
+    MinusInnerProductAVX_32X32(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = MinusInnerProductSSE_32X32(m, q, dim);
+  MinusInnerProductSSE_32X32(m, q, dim, out);
 #endif
 }
 
