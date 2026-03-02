@@ -40,7 +40,7 @@ namespace ailego {
 
 #if defined(__ARM_NEON)
 //! Squared Euclidean Distance
-float SquaredEuclideanDistanceNEON(const float *lhs, const float *rhs, size_t size) {
+void SquaredEuclideanDistanceNEON(const float *lhs, const float *rhs, size_t size, float *out) {
   const float *last = lhs + size;
   const float *last_aligned = lhs + ((size >> 3) << 3);
 
@@ -75,281 +75,163 @@ float SquaredEuclideanDistanceNEON(const float *lhs, const float *rhs, size_t si
 }
 
 //! SquaredEuclideanDistance
-float SquaredEuclideanDistanceNEON_2X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void SquaredEuclideanDistanceNEON_2X1(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_2X1_NEON(lhs, rhs, size, &score, )
 
   return score;
 }
 
-float SquaredEuclideanDistanceNEON_2X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void SquaredEuclideanDistanceNEON_2X2(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_2X2_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
-float SquaredEuclideanDistanceNEON_4X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void SquaredEuclideanDistanceNEON_4X1(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_4X1_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
-float SquaredEuclideanDistanceNEON_4X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void SquaredEuclideanDistanceNEON_4X2(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_4X2_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_4X4(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void SquaredEuclideanDistanceNEON_4X4(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_4X4_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_8X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void SquaredEuclideanDistanceNEON_8X1(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_8X1_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_8X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void SquaredEuclideanDistanceNEON_8X2(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_8X2_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_8X4(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_8X4(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_8X4_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_8X8(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_8X8(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_8X8_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_16X1(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_16X1(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_16X1_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_16X2(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_16X2(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_16X2_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_16X4(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_16X4(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_16X4_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_16X8(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_16X8(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_16X8_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_16X16(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_16X16(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_16X16_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_32X1(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_32X1(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_32X1_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_32X2(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_32X2(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_32X2_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_32X4(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_32X4(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_32X4_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_32X8(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_32X8(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_32X8_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_32X16(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_32X16(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_32X16_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
-float SquaredEuclideanDistanceNEON_32X32(const float *lhs, const float *rhs, size_t size){
-  float score;
+void SquaredEuclideanDistanceNEON_32X32(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_32X32_NEON(lhs, rhs, size, &score, )
-  
-  return score;
 }
 
 //! EuclideanDistance
-float EuclideanDistanceNEON_2X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void EuclideanDistanceNEON_2X1(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_2X1_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-
-  return score;
 }
 
-float EuclideanDistanceNEON_2X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void EuclideanDistanceNEON_2X2(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_2X2_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
-float EuclideanDistanceNEON_4X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void EuclideanDistanceNEON_4X1(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_4X1_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
-float EuclideanDistanceNEON_4X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void EuclideanDistanceNEON_4X2(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_4X2_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_4X4(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void EuclideanDistanceNEON_4X4(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_4X4_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_8X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void EuclideanDistanceNEON_8X1(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_8X1_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_8X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
+void EuclideanDistanceNEON_8X2(const float *lhs, const float *rhs, size_t size, float *out) {
   ACCUM_FP32_8X2_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_8X4(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_8X4(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_8X4_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_8X8(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_8X8(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_8X8_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_16X1(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_16X1(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_16X1_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_16X2(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_16X2(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_16X2_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_16X4(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_16X4(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_16X4_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_16X8(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_16X8(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_16X8_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_16X16(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_16X16(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_16X16_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_32X1(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_32X1(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_32X1_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_32X2(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_32X2(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_32X2_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_32X4(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_32X4(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_32X4_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_32X8(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_32X8(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_32X8_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_32X16(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_32X16(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_32X16_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
-float EuclideanDistanceNEON_32X32(const float *lhs, const float *rhs, size_t size){
-  float score;
+void EuclideanDistanceNEON_32X32(const float *lhs, const float *rhs, size_t size, float *out){
   ACCUM_FP32_32X32_NEON(lhs, rhs, size, &score, vsqrtq_f32)
-  
-  return score;
 }
 
 #endif  // __ARM_NEON

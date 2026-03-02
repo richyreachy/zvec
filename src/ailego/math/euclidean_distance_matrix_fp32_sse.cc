@@ -88,281 +88,161 @@ float SquaredEuclideanDistanceSSE(const float *lhs, const float *rhs, size_t siz
 }
 
 //! SquaredEuclideanDistance
-float SquaredEuclideanDistanceSSE_2X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_2X1_SSE(lhs, rhs, size, &score, )
-
-  return score;
+void SquaredEuclideanDistanceSSE_2X1(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_2X1_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_2X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_2X2_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_2X2(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_2X2_SSE(lhs, rhs, size, out, )
 }
-float SquaredEuclideanDistanceSSE_4X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_4X1_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_4X1(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_4X1_SSE(lhs, rhs, size, out, )
 }
-float SquaredEuclideanDistanceSSE_4X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_4X2_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_4X2(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_4X2_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_4X4(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_4X4_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_4X4(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_4X4_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_8X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_8X1_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_8X1(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_8X1_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_8X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_8X2_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_8X2(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_8X2_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_8X4(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_8X4_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_8X4(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_8X4_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_8X8(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_8X8_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_8X8(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_8X8_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_16X1(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X1_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_16X1(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X1_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_16X2(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X2_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_16X2(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X2_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_16X4(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X4_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_16X4(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X4_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_16X8(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X8_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_16X8(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X8_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_16X16(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X16_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_16X16(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X16_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_32X1(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X1_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_32X1(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X1_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_32X2(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X2_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_32X2(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X2_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_32X4(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X4_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_32X4(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X4_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_32X8(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X8_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_32X8(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X8_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_32X16(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X16_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_32X16(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X16_SSE(lhs, rhs, size, out, )
 }
 
-float SquaredEuclideanDistanceSSE_32X32(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X32_SSE(lhs, rhs, size, &score, )
-  
-  return score;
+void SquaredEuclideanDistanceSSE_32X32(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X32_SSE(lhs, rhs, size, out, )
 }
 
 //! EuclideanDistance
-float EuclideanDistanceSSE_2X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_2X1_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-
-  return score;
+void EuclideanDistanceSSE_2X1(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_2X1_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_2X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_2X2_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_2X2(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_2X2_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
-float EuclideanDistanceSSE_4X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_4X1_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_4X1(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_4X1_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
-float EuclideanDistanceSSE_4X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_4X2_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_4X2(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_4X2_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_4X4(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_4X4_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_4X4(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_4X4_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_8X1(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_8X1_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_8X1(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_8X1_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_8X2(const float *lhs, const float *rhs, size_t size) {
-  float score;
-  ACCUM_FP32_8X2_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_8X2(const float *lhs, const float *rhs, size_t size, float *out) {
+  ACCUM_FP32_8X2_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_8X4(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_8X4_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_8X4(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_8X4_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_8X8(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_8X8_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_8X8(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_8X8_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_16X1(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X1_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_16X1(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X1_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_16X2(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X2_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_16X2(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X2_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_16X4(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X4_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_16X4(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X4_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_16X8(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X8_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_16X8(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X8_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_16X16(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_16X16_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_16X16(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_16X16_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_32X1(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X1_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_32X1(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X1_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_32X2(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X2_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_32X2(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X2_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_32X4(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X4_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_32X4(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X4_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_32X8(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X8_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_32X8(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X8_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_32X16(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X16_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_32X16(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X16_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
-float EuclideanDistanceSSE_32X32(const float *lhs, const float *rhs, size_t size){
-  float score;
-  ACCUM_FP32_32X32_SSE(lhs, rhs, size, &score, _mm_sqrt_ps)
-  
-  return score;
+void EuclideanDistanceSSE_32X32(const float *lhs, const float *rhs, size_t size, float *out){
+  ACCUM_FP32_32X32_SSE(lhs, rhs, size, out, _mm_sqrt_ps)
 }
 
 #endif  // __SSE__

@@ -24,123 +24,123 @@ float SquaredEuclideanDistanceNEON(const float *lhs, const float *rhs, size_t si
 
 #if defined(__AVX512F__)
 float SquaredEuclideanDistanceAVX512(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX512_16X1(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX512_16X2(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX512_16X4(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX512_16X8(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX512_16X16(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX512_32X1(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX512_32X2(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX512_32X4(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX512_32X8(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX512_32X16(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX512_32X32(const float *lhs, const float *rhs, size_t size);
+void SquaredEuclideanDistanceAVX512_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX512_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX512_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX512_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX512_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX512_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX512_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX512_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX512_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX512_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX512_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 
 float EuclideanDistanceAVX512(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX512_16X1(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX512_16X2(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX512_16X4(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX512_16X8(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX512_16X16(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX512_32X1(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX512_32X2(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX512_32X4(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX512_32X8(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX512_32X16(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX512_32X32(const float *lhs, const float *rhs, size_t size);
+void EuclideanDistanceAVX512_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX512_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX512_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX512_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX512_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX512_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX512_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX512_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX512_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX512_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX512_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 #endif
 
 #if defined(__AVX__)
 float SquaredEuclideanDistanceAVX(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_2X1(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_2X2(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_4X1(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_4X2(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_4X4(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_8X1(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_8X2(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_8X4(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_8X8(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_16X1(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_16X2(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_16X4(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_16X8(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_16X16(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_32X1(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_32X2(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_32X4(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_32X8(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_32X16(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceAVX_32X32(const float *lhs, const float *rhs, size_t size);
+void SquaredEuclideanDistanceAVX_2X1(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_2X2(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_4X1(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_4X2(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_4X4(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_8X1(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_8X2(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_8X4(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_8X8(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceAVX_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 
 float EuclideanDistanceAVX(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_2X1(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_2X2(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_4X1(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_4X2(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_4X4(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_8X1(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_8X2(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_8X4(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_8X8(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_16X1(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_16X2(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_16X4(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_16X8(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_16X16(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_32X1(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_32X2(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_32X4(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_32X8(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_32X16(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceAVX_32X32(const float *lhs, const float *rhs, size_t size);
+void EuclideanDistanceAVX_2X1(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_2X2(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_4X1(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_4X2(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_4X4(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_8X1(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_8X2(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_8X4(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_8X8(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceAVX_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 #endif
 
 #if defined(__SSE__)
 float SquaredEuclideanDistanceSSE(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_2X1(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_2X2(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_4X1(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_4X2(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_4X4(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_8X1(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_8X2(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_8X4(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_8X8(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_16X1(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_16X2(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_16X4(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_16X8(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_16X16(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_32X1(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_32X2(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_32X4(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_32X8(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_32X16(const float *lhs, const float *rhs, size_t size);
-float SquaredEuclideanDistanceSSE_32X32(const float *lhs, const float *rhs, size_t size);
+void SquaredEuclideanDistanceSSE_2X1(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_2X2(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_4X1(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_4X2(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_4X4(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_8X1(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_8X2(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_8X4(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_8X8(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void SquaredEuclideanDistanceSSE_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 
 
 float EuclideanDistanceSSE(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_2X1(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_2X2(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_4X1(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_4X2(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_4X4(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_8X1(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_8X2(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_8X4(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_8X8(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_16X1(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_16X2(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_16X4(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_16X8(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_16X16(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_32X1(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_32X2(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_32X4(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_32X8(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_32X16(const float *lhs, const float *rhs, size_t size);
-float EuclideanDistanceSSE_32X32(const float *lhs, const float *rhs, size_t size);
+void EuclideanDistanceSSE_2X1(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_2X2(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_4X1(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_4X2(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_4X4(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_8X1(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_8X2(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_8X4(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_8X8(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_16X1(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_16X2(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_16X4(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_16X8(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_16X16(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_32X1(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_32X2(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_32X4(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_32X8(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_32X16(const float *lhs, const float *rhs, size_t size, float *out);
+void EuclideanDistanceSSE_32X32(const float *lhs, const float *rhs, size_t size, float *out);
 #endif 
 
 //-----------------------------------------------------------
@@ -182,15 +182,15 @@ void SquaredEuclideanDistanceMatrix<float, 2, 1>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_2X1(m, q, dim);
+  SquaredEuclideanDistanceNEON_2X1(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_2X1(m, q, dim);
+    SquaredEuclideanDistanceAVX_2X1(m, q, dim, out);
     return;
   }
 #endif // __AVX__
-  *out = SquaredEuclideanDistanceSSE_2X1(m, q, dim);
+  SquaredEuclideanDistanceSSE_2X1(m, q, dim, out);
 #endif  
 }
 
@@ -201,15 +201,15 @@ void SquaredEuclideanDistanceMatrix<float, 2, 2>::Compute(const ValueType *m,
                                                           float *out) {
 #if defined(__ARM_NEON)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceNEON_2X2(m, q, dim);
+    SquaredEuclideanDistanceNEON_2X2(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_2X2(m, q, dim);
+    SquaredEuclideanDistanceAVX_2X2(m, q, dim, out);
     return;
   }
 #endif // __AVX__
-  *out = SquaredEuclideanDistanceSSE_2X2(m, q, dim);
+  SquaredEuclideanDistanceSSE_2X2(m, q, dim, out);
 #endif  
 }
 
@@ -219,15 +219,15 @@ void SquaredEuclideanDistanceMatrix<float, 4, 1>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_4X1(m, q, dim);
+  SquaredEuclideanDistanceNEON_4X1(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_4X1(m, q, dim);
+    SquaredEuclideanDistanceAVX_4X1(m, q, dim, out);
     return;
   }
 #endif // __AVX__
-  *out = SquaredEuclideanDistanceSSE_4X1(m, q, dim);
+  SquaredEuclideanDistanceSSE_4X1(m, q, dim, out);
 #endif  
 }
 
@@ -237,15 +237,15 @@ void SquaredEuclideanDistanceMatrix<float, 4, 2>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_4X2(m, q, dim);
+  SquaredEuclideanDistanceNEON_4X2(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_4X2(m, q, dim);
+    SquaredEuclideanDistanceAVX_4X2(m, q, dim, out);
     return;
   }
 #endif // __AVX__
-  *out = SquaredEuclideanDistanceSSE_4X2(m, q, dim);
+  SquaredEuclideanDistanceSSE_4X2(m, q, dim, out);
 #endif  
 }
 
@@ -255,15 +255,15 @@ void SquaredEuclideanDistanceMatrix<float, 4, 4>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_4X4(m, q, dim);
+  SquaredEuclideanDistanceNEON_4X4(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_4X4(m, q, dim);
+    SquaredEuclideanDistanceAVX_4X4(m, q, dim, out);
     return;
   }
 #endif // __AVX__
-  *out = SquaredEuclideanDistanceSSE_4X4(m, q, dim);
+  SquaredEuclideanDistanceSSE_4X4(m, q, dim, out);
 #endif
 }
 
@@ -273,15 +273,15 @@ void SquaredEuclideanDistanceMatrix<float, 8, 1>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_8X1(m, q, dim);
+  SquaredEuclideanDistanceNEON_8X1(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_8X1(m, q, dim);
+    SquaredEuclideanDistanceAVX_8X1(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = SquaredEuclideanDistanceSSE_8X1(m, q, dim);
+  SquaredEuclideanDistanceSSE_8X1(m, q, dim, out);
 #endif
 }
 
@@ -291,15 +291,15 @@ void SquaredEuclideanDistanceMatrix<float, 8, 2>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_8X2(m, q, dim);
+  SquaredEuclideanDistanceNEON_8X2(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_8X2(m, q, dim);
+    SquaredEuclideanDistanceAVX_8X2(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = SquaredEuclideanDistanceSSE_8X2(m, q, dim);
+  SquaredEuclideanDistanceSSE_8X2(m, q, dim, out);
 #endif  
 }
 
@@ -309,15 +309,15 @@ void SquaredEuclideanDistanceMatrix<float, 8, 4>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_8X4(m, q, dim);
+  SquaredEuclideanDistanceNEON_8X4(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_8X4(m, q, dim);
+    SquaredEuclideanDistanceAVX_8X4(m, q, dim, out);
     return;
   }
 #endif  // __AVX__
-  *out = SquaredEuclideanDistanceSSE_8X4(m, q, dim);
+  SquaredEuclideanDistanceSSE_8X4(m, q, dim, out);
 #endif 
 }
 
@@ -327,15 +327,15 @@ void SquaredEuclideanDistanceMatrix<float, 8, 8>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_8X8(m, q, dim);
+  SquaredEuclideanDistanceNEON_8X8(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_8X8(m, q, dim);
+    SquaredEuclideanDistanceAVX_8X8(m, q, dim, out);
     return;
   }
 #endif
-  *out = SquaredEuclideanDistanceSSE_8X8(m, q, dim);
+  SquaredEuclideanDistanceSSE_8X8(m, q, dim, out);
 #endif  // __AVX__
 }
 
@@ -345,21 +345,21 @@ void SquaredEuclideanDistanceMatrix<float, 16, 1>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_16X1(m, q, dim);
+  SquaredEuclideanDistanceNEON_16X1(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = SquaredEuclideanDistanceAVX512_16X1(m, q, dim);
+    SquaredEuclideanDistanceAVX512_16X1(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_16X1(m, q, dim);
+    SquaredEuclideanDistanceAVX_16X1(m, q, dim, out);
     return;
   }
 #endif
-  *out = SquaredEuclideanDistanceSSE_16X1(m, q, dim);
+  SquaredEuclideanDistanceSSE_16X1(m, q, dim, out);
 #endif
 }
 
@@ -369,21 +369,21 @@ void SquaredEuclideanDistanceMatrix<float, 16, 2>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_16X2(m, q, dim);
+  SquaredEuclideanDistanceNEON_16X2(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = SquaredEuclideanDistanceAVX512_16X2(m, q, dim);
+    SquaredEuclideanDistanceAVX512_16X2(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_16X2(m, q, dim);
+    SquaredEuclideanDistanceAVX_16X2(m, q, dim, out);
     return;
   }
 #endif
-  *out = SquaredEuclideanDistanceSSE_16X2(m, q, dim);
+  SquaredEuclideanDistanceSSE_16X2(m, q, dim, out);
 #endif
 }
 
@@ -393,21 +393,21 @@ void SquaredEuclideanDistanceMatrix<float, 16, 4>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_16X6(m, q, dim);
+  SquaredEuclideanDistanceNEON_16X6(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = SquaredEuclideanDistanceAVX512_16X4(m, q, dim);
+    SquaredEuclideanDistanceAVX512_16X4(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_16X4(m, q, dim);
+    SquaredEuclideanDistanceAVX_16X4(m, q, dim, out);
     return;
   }
 #endif
-  *out = SquaredEuclideanDistanceSSE_16X4(m, q, dim);
+  SquaredEuclideanDistanceSSE_16X4(m, q, dim, out);
 #endif
 }
 
@@ -417,21 +417,21 @@ void SquaredEuclideanDistanceMatrix<float, 16, 8>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_16X8(m, q, dim);
+  SquaredEuclideanDistanceNEON_16X8(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = SquaredEuclideanDistanceAVX512_16X8(m, q, dim);
+    SquaredEuclideanDistanceAVX512_16X8(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_16X8(m, q, dim);
+    SquaredEuclideanDistanceAVX_16X8(m, q, dim, out);
     return;
   }
 #endif
-  *out = SquaredEuclideanDistanceSSE_16X8(m, q, dim);
+  SquaredEuclideanDistanceSSE_16X8(m, q, dim, out);
 #endif 
 }
 
@@ -441,21 +441,21 @@ void SquaredEuclideanDistanceMatrix<float, 16, 16>::Compute(const ValueType *m,
                                                             size_t dim,
                                                             float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_16X16(m, q, dim);
+  SquaredEuclideanDistanceNEON_16X16(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = SquaredEuclideanDistanceAVX512_16X16(m, q, dim);
+    SquaredEuclideanDistanceAVX512_16X16(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_16X16(m, q, dim);
+    SquaredEuclideanDistanceAVX_16X16(m, q, dim, out);
     return;
   }
 #endif
-  *out = SquaredEuclideanDistanceSSE_16X16(m, q, dim);
+  SquaredEuclideanDistanceSSE_16X16(m, q, dim, out);
 #endif
 }
 
@@ -465,21 +465,21 @@ void SquaredEuclideanDistanceMatrix<float, 32, 1>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_32X1(m, q, dim);
+  SquaredEuclideanDistanceNEON_32X1(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = SquaredEuclideanDistanceAVX512_32X1(m, q, dim);
+    SquaredEuclideanDistanceAVX512_32X1(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_32X1(m, q, dim);
+    SquaredEuclideanDistanceAVX_32X1(m, q, dim, out);
     return;
   }
 #endif
-  *out = SquaredEuclideanDistanceSSE_32X1(m, q, dim);
+  SquaredEuclideanDistanceSSE_32X1(m, q, dim, out);
 #endif
 }
 
@@ -489,21 +489,21 @@ void SquaredEuclideanDistanceMatrix<float, 32, 2>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_32X2(m, q, dim);
+  SquaredEuclideanDistanceNEON_32X2(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = SquaredEuclideanDistanceAVX512_32X2(m, q, dim);
+    SquaredEuclideanDistanceAVX512_32X2(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_32X2(m, q, dim);
+    SquaredEuclideanDistanceAVX_32X2(m, q, dim, out);
     return;
   }
 #endif
-  *out = SquaredEuclideanDistanceSSE_32X2(m, q, dim);
+  SquaredEuclideanDistanceSSE_32X2(m, q, dim, out);
 #endif
 }
 
@@ -513,21 +513,21 @@ void SquaredEuclideanDistanceMatrix<float, 32, 4>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_32X4(m, q, dim);
+  SquaredEuclideanDistanceNEON_32X4(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = SquaredEuclideanDistanceAVX512_32X4(m, q, dim);
+    SquaredEuclideanDistanceAVX512_32X4(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_32X4(m, q, dim);
+    SquaredEuclideanDistanceAVX_32X4(m, q, dim, out);
     return;
   }
 #endif
-  *out = SquaredEuclideanDistanceSSE_32X4(m, q, dim);
+  SquaredEuclideanDistanceSSE_32X4(m, q, dim, out);
 #endif
 }
 
@@ -537,21 +537,21 @@ void SquaredEuclideanDistanceMatrix<float, 32, 8>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_32X8(m, q, dim);
+  SquaredEuclideanDistanceNEON_32X8(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = SquaredEuclideanDistanceAVX512_32X8(m, q, dim);
+    SquaredEuclideanDistanceAVX512_32X8(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_32X8(m, q, dim);
+    SquaredEuclideanDistanceAVX_32X8(m, q, dim, out);
     return;
   }
 #endif
-  *out = SquaredEuclideanDistanceSSE_32X8(m, q, dim);
+  SquaredEuclideanDistanceSSE_32X8(m, q, dim, out);
 #endif
 }
 
@@ -561,21 +561,21 @@ void SquaredEuclideanDistanceMatrix<float, 32, 16>::Compute(const ValueType *m,
                                                             size_t dim,
                                                             float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_32X16(m, q, dim);
+  SquaredEuclideanDistanceNEON_32X16(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = SquaredEuclideanDistanceAVX512_32X16(m, q, dim);
+    SquaredEuclideanDistanceAVX512_32X16(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_32X16(m, q, dim);
+    SquaredEuclideanDistanceAVX_32X16(m, q, dim, out);
     return;
   }
 #endif
-  *out = SquaredEuclideanDistanceSSE_32X16(m, q, dim);
+  SquaredEuclideanDistanceSSE_32X16(m, q, dim, out);
 #endif
 }
 
@@ -585,21 +585,21 @@ void SquaredEuclideanDistanceMatrix<float, 32, 32>::Compute(const ValueType *m,
                                                             size_t dim,
                                                             float *out) {
 #if defined(__ARM_NEON)
-  *out = SquaredEuclideanDistanceNEON_32X32(m, q, dim);
+  SquaredEuclideanDistanceNEON_32X32(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = SquaredEuclideanDistanceAVX512_32X32(m, q, dim);
+    SquaredEuclideanDistanceAVX512_32X32(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = SquaredEuclideanDistanceAVX_32X32(m, q, dim);
+    SquaredEuclideanDistanceAVX_32X32(m, q, dim, out);
     return;
   }
 #endif
-  *out = SquaredEuclideanDistanceSSE_32X32(m, q, dim);
+  SquaredEuclideanDistanceSSE_32X32(m, q, dim, out);
 #endif
 }
 
@@ -643,15 +643,15 @@ void EuclideanDistanceMatrix<float, 2, 1>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_2X1(m, q, dim);
+  EuclideanDistanceNEON_2X1(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_2X1(m, q, dim);
+    EuclideanDistanceAVX_2X1(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_2X1(m, q, dim);
+  EuclideanDistanceSSE_2X1(m, q, dim, out);
 #endif  // __AVX__
 }
 
@@ -661,15 +661,15 @@ void EuclideanDistanceMatrix<float, 2, 2>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_2X2(m, q, dim);
+  EuclideanDistanceNEON_2X2(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_2X2(m, q, dim);
+    EuclideanDistanceAVX_2X2(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_2X2(m, q, dim);
+  EuclideanDistanceSSE_2X2(m, q, dim, out);
 #endif  // __AVX__
 }
 
@@ -679,15 +679,15 @@ void EuclideanDistanceMatrix<float, 4, 1>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_4X1(m, q, dim);
+  EuclideanDistanceNEON_4X1(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_4X1(m, q, dim);
+    EuclideanDistanceAVX_4X1(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_4X1(m, q, dim);
+  EuclideanDistanceSSE_4X1(m, q, dim, out);
 #endif  // __AVX__
 }
 
@@ -697,15 +697,15 @@ void EuclideanDistanceMatrix<float, 4, 2>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_4X2(m, q, dim);
+  EuclideanDistanceNEON_4X2(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_4X2(m, q, dim);
+    EuclideanDistanceAVX_4X2(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_4X2(m, q, dim);
+  EuclideanDistanceSSE_4X2(m, q, dim, out);
 #endif  // __AVX__
 }
 
@@ -715,15 +715,15 @@ void EuclideanDistanceMatrix<float, 4, 4>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_4X4(m, q, dim);
+  EuclideanDistanceNEON_4X4(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_4X4(m, q, dim);
+    EuclideanDistanceAVX_4X4(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_4X4(m, q, dim);
+  EuclideanDistanceSSE_4X4(m, q, dim, out);
 #endif  // __AVX__
 }
 
@@ -733,15 +733,15 @@ void EuclideanDistanceMatrix<float, 8, 1>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_8X1(m, q, dim);
+  EuclideanDistanceNEON_8X1(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_8X1(m, q, dim);
+    EuclideanDistanceAVX_8X1(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_8X1(m, q, dim);
+  EuclideanDistanceSSE_8X1(m, q, dim, out);
 #endif  // __AVX__
 }
 
@@ -751,15 +751,15 @@ void EuclideanDistanceMatrix<float, 8, 2>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_8X2(m, q, dim);
+  EuclideanDistanceNEON_8X2(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_8X2(m, q, dim);
+    EuclideanDistanceAVX_8X2(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_8X2(m, q, dim);
+  EuclideanDistanceSSE_8X2(m, q, dim, out);
 #endif  // __AVX__
 }
 
@@ -769,15 +769,15 @@ void EuclideanDistanceMatrix<float, 8, 4>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_8X4(m, q, dim);
+  EuclideanDistanceNEON_8X4(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_8X4(m, q, dim);
+    EuclideanDistanceAVX_8X4(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_8X4(m, q, dim);
+  EuclideanDistanceSSE_8X4(m, q, dim, out);
 #endif  // __AVX__
 }
 
@@ -787,15 +787,15 @@ void EuclideanDistanceMatrix<float, 8, 8>::Compute(const ValueType *m,
                                                           size_t dim,
                                                           float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_8X8(m, q, dim);
+  EuclideanDistanceNEON_8X8(m, q, dim, out);
 #else
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_8X8(m, q, dim);
+    EuclideanDistanceAVX_8X8(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_8X8(m, q, dim);
+  EuclideanDistanceSSE_8X8(m, q, dim, out);
 #endif  // __AVX__
 }
 
@@ -805,21 +805,21 @@ void EuclideanDistanceMatrix<float, 16, 1>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_16X1(m, q, dim);
+  EuclideanDistanceNEON_16X1(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = EuclideanDistanceAVX512_16X1(m, q, dim);
+    EuclideanDistanceAVX512_16X1(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_16X1(m, q, dim);
+    EuclideanDistanceAVX_16X1(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_16X1(m, q, dim);
+  EuclideanDistanceSSE_16X1(m, q, dim, out);
 #endif
 }
 
@@ -829,21 +829,21 @@ void EuclideanDistanceMatrix<float, 16, 2>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_16X2(m, q, dim);
+  EuclideanDistanceNEON_16X2(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = EuclideanDistanceAVX512_16X2(m, q, dim);
+    EuclideanDistanceAVX512_16X2(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_16X2(m, q, dim);
+    EuclideanDistanceAVX_16X2(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_16X2(m, q, dim);
+  EuclideanDistanceSSE_16X2(m, q, dim, out);
 #endif
 }
 
@@ -853,21 +853,21 @@ void EuclideanDistanceMatrix<float, 16, 4>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_16X6(m, q, dim);
+  EuclideanDistanceNEON_16X6(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = EuclideanDistanceAVX512_16X4(m, q, dim);
+    EuclideanDistanceAVX512_16X4(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_16X4(m, q, dim);
+    EuclideanDistanceAVX_16X4(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_16X4(m, q, dim);
+  EuclideanDistanceSSE_16X4(m, q, dim, out);
 #endif
 }
 
@@ -877,21 +877,21 @@ void EuclideanDistanceMatrix<float, 16, 8>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_16X8(m, q, dim);
+  EuclideanDistanceNEON_16X8(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = EuclideanDistanceAVX512_16X8(m, q, dim);
+    EuclideanDistanceAVX512_16X8(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_16X8(m, q, dim);
+    EuclideanDistanceAVX_16X8(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_16X8(m, q, dim);
+  EuclideanDistanceSSE_16X8(m, q, dim, out);
 #endif
 }
 
@@ -901,21 +901,21 @@ void EuclideanDistanceMatrix<float, 16, 16>::Compute(const ValueType *m,
                                                             size_t dim,
                                                             float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_16X16(m, q, dim);
+  EuclideanDistanceNEON_16X16(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = EuclideanDistanceAVX512_16X16(m, q, dim);
+    EuclideanDistanceAVX512_16X16(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_16X16(m, q, dim);
+    EuclideanDistanceAVX_16X16(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_16X16(m, q, dim);
+  EuclideanDistanceSSE_16X16(m, q, dim, out);
 #endif
 }
 
@@ -925,21 +925,21 @@ void EuclideanDistanceMatrix<float, 32, 1>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_32X1(m, q, dim);
+  EuclideanDistanceNEON_32X1(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = EuclideanDistanceAVX512_32X1(m, q, dim);
+    EuclideanDistanceAVX512_32X1(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_32X1(m, q, dim);
+    EuclideanDistanceAVX_32X1(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_32X1(m, q, dim);
+  EuclideanDistanceSSE_32X1(m, q, dim, out);
 #endif
 }
 
@@ -949,21 +949,21 @@ void EuclideanDistanceMatrix<float, 32, 2>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_32X2(m, q, dim);
+  EuclideanDistanceNEON_32X2(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = EuclideanDistanceAVX512_32X2(m, q, dim);
+    EuclideanDistanceAVX512_32X2(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_32X2(m, q, dim);
+    EuclideanDistanceAVX_32X2(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_32X2(m, q, dim);
+  EuclideanDistanceSSE_32X2(m, q, dim, out);
 #endif
 }
 
@@ -973,21 +973,21 @@ void EuclideanDistanceMatrix<float, 32, 4>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_32X4(m, q, dim);
+  EuclideanDistanceNEON_32X4(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = EuclideanDistanceAVX512_32X4(m, q, dim);
+    EuclideanDistanceAVX512_32X4(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_32X4(m, q, dim);
+    EuclideanDistanceAVX_32X4(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_32X4(m, q, dim);
+  EuclideanDistanceSSE_32X4(m, q, dim, out);
 #endif
 }
 
@@ -997,21 +997,21 @@ void EuclideanDistanceMatrix<float, 32, 8>::Compute(const ValueType *m,
                                                            size_t dim,
                                                            float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_32X8(m, q, dim);
+  EuclideanDistanceNEON_32X8(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = EuclideanDistanceAVX512_32X8(m, q, dim);
+    EuclideanDistanceAVX512_32X8(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_32X8(m, q, dim);
+    EuclideanDistanceAVX_32X8(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_32X8(m, q, dim);
+  EuclideanDistanceSSE_32X8(m, q, dim, out);
 #endif
 }
 
@@ -1021,21 +1021,21 @@ void EuclideanDistanceMatrix<float, 32, 16>::Compute(const ValueType *m,
                                                             size_t dim,
                                                             float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_32X16(m, q, dim);
+  EuclideanDistanceNEON_32X16(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = EuclideanDistanceAVX512_32X16(m, q, dim);
+    EuclideanDistanceAVX512_32X16(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_32X16(m, q, dim);
+    EuclideanDistanceAVX_32X16(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_32X16(m, q, dim);
+  EuclideanDistanceSSE_32X16(m, q, dim, out);
 #endif
 }
 
@@ -1045,21 +1045,21 @@ void EuclideanDistanceMatrix<float, 32, 32>::Compute(const ValueType *m,
                                                             size_t dim,
                                                             float *out) {
 #if defined(__ARM_NEON)
-  *out = EuclideanDistanceNEON_32X32(m, q, dim);
+  EuclideanDistanceNEON_32X32(m, q, dim, out);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = EuclideanDistanceAVX512_32X32(m, q, dim);
+    EuclideanDistanceAVX512_32X32(m, q, dim, out);
     return;
   }
 #endif
 #if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    *out = EuclideanDistanceAVX_32X32(m, q, dim);
+    EuclideanDistanceAVX_32X32(m, q, dim, out);
     return;
   }
 #endif
-  *out = EuclideanDistanceSSE_32X32(m, q, dim);
+  EuclideanDistanceSSE_32X32(m, q, dim, out);
 #endif
 }
 
