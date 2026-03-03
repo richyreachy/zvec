@@ -143,12 +143,12 @@ def full_schema_new(request) -> CollectionSchema:
                                                  n_list=200,
                                                  n_iters=20,
                                                  use_soar=True,),
-        (True, True, IVFIndexParam(metric_type=MetricType.COSINE, n_list=150, n_iters=15, use_soar=False, )),
+        IVFIndexParam(metric_type=MetricType.COSINE, n_list=150, n_iters=15, use_soar=False, ),
 
-        (True, True, HnswIndexParam(metric_type=MetricType.COSINE, m=24, ef_construction=150, )),
-        (True, True, HnswIndexParam(metric_type=MetricType.L2, m=32, ef_construction=200, )),
-        (True, True, FlatIndexParam(metric_type=MetricType.COSINE, )),
-        (True, True, FlatIndexParam(metric_type=MetricType.L2, )),
+        HnswIndexParam(metric_type=MetricType.COSINE, m=24, ef_construction=150, ),
+        HnswIndexParam(metric_type=MetricType.L2, m=32, ef_construction=200, ),
+        FlatIndexParam(metric_type=MetricType.COSINE, ),
+        FlatIndexParam(metric_type=MetricType.L2, ),
 
     ]:
         for k, v in DEFAULT_VECTOR_FIELD_NAME.items():
@@ -167,8 +167,8 @@ def full_schema_new(request) -> CollectionSchema:
                               n_iters=20,
                               use_soar=True,
                                     ),
-                (True, True, HnswIndexParam(metric_type=MetricType.L2, m=32, ef_construction=200, )),
-                (True, True, FlatIndexParam(metric_type=MetricType.L2, )),
+                HnswIndexParam(metric_type=MetricType.L2, m=32, ef_construction=200, ),
+                FlatIndexParam(metric_type=MetricType.L2, ),
     ]:
                 vectors.append(
                     VectorSchema(
