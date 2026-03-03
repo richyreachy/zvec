@@ -88,7 +88,7 @@ def singledoc_and_check(
         assert collection.stats.doc_count == 0, "Document should be deleted"
 
 
-@pytest.mark.skip("Known issue")
+#@pytest.mark.skip("Known issue")
 class TestCollectionCrashRecoveryCreateIndex:
     """
     Test Zvec collection recovery capability after simulating power failure/process crash during index creation.
