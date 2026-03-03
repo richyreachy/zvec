@@ -46,12 +46,12 @@ void MipsSquaredEuclideanDistanceMatrix<float, 1, 1>::Compute(
   float sum;
 
 #if defined(__AVX512F__)
-  if (dim > 15) {
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F && dim > 15) {
     sum = InnerProductAndSquaredNormAVX512(p, q, dim, &u2, &v2);
   } else
 #endif  // __AVX512F__
 #if defined(__AVX__)
-      if (dim > 7) {
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX && dim > 7) {
     sum = InnerProductAndSquaredNormAVX(p, q, dim, &u2, &v2);
   } else
 #endif  // __AVX__
@@ -71,12 +71,12 @@ void MipsSquaredEuclideanDistanceMatrix<float, 1, 1>::Compute(
   float sum;
 
 #if defined(__AVX512F__)
-  if (dim > 15) {
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F && dim > 15) {
     sum = InnerProductAndSquaredNormAVX512(p, q, dim, &u2, &v2);
   } else
 #endif  // __AVX512F__
 #if defined(__AVX__)
-      if (dim > 7) {
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX && dim > 7) {
     sum = InnerProductAndSquaredNormAVX(p, q, dim, &u2, &v2);
   } else
 #endif  // __AVX__

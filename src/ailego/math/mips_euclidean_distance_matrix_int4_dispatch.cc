@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "distance_matrix_accum_int8.i"
+#include <ailego/internal/cpu_features.h>
 #include "inner_product_matrix.h"
 #include "mips_euclidean_distance_matrix.h"
 #include "norm_matrix.h"
@@ -36,9 +36,13 @@ void MipsSquaredEuclideanDistanceMatrix<uint8_t, 1, 1>::Compute(
   float sum;
 
 #if defined(__AVX2__)
-  sum = InnerProductAndSquaredNormAVX(p, q, dim >> 1, &u2, &v2);
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX2) {
+    sum = InnerProductAndSquaredNormAVX(p, q, dim >> 1, &u2, &v2);
+  } else 
 #else
-  sum = InnerProductAndSquaredNormSSE(p, q, dim >> 1, &u2, &v2);
+  {
+    sum = InnerProductAndSquaredNormSSE(p, q, dim >> 1, &u2, &v2);
+  }
 #endif
 
   *out = ComputeSphericalInjection(sum, u2, v2, e2);
@@ -53,9 +57,13 @@ void MipsSquaredEuclideanDistanceMatrix<uint8_t, 1, 1>::Compute(
   float sum;
 
 #if defined(__AVX2__)
-  sum = InnerProductAndSquaredNormAVX(p, q, dim >> 1, &u2, &v2);
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX2) {
+    sum = InnerProductAndSquaredNormAVX(p, q, dim >> 1, &u2, &v2);
+  } else
 #else
-  sum = InnerProductAndSquaredNormSSE(p, q, dim >> 1, &u2, &v2);
+  {
+    sum = InnerProductAndSquaredNormSSE(p, q, dim >> 1, &u2, &v2);
+  }
 #endif
 
   sum = e2 * (u2 + v2 - 2 * sum);
