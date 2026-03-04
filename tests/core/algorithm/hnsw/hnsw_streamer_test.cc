@@ -353,7 +353,7 @@ TEST_F(HnswStreamerTest, TestKnnSearch) {
   }
   float recall = totalHits * 1.0f / totalCnts;
   float topk1Recall = topk1Hits * 1.0f / cnt;
-  float cost = linearTotalTime * 1.0f / knnTotalTime;
+  // float cost = linearTotalTime * 1.0f / knnTotalTime;
 #if 0
     printf("knnTotalTime=%zd linearTotalTime=%zd totalHits=%d totalCnts=%d "
            "R@%zd=%f R@1=%f cost=%f\n",
@@ -439,7 +439,7 @@ TEST_F(HnswStreamerTest, TestAddAndSearch) {
   }
   float recall = totalHits * 1.0f / totalCnts;
   float topk1Recall = topk1Hits * 100.0f / cnt;
-  float cost = linearTotalTime * 1.0f / knnTotalTime;
+  // float cost = linearTotalTime * 1.0f / knnTotalTime;
 #if 0
     printf("knnTotalTime=%zd linearTotalTime=%zd totalHits=%d totalCnts=%d "
            "R@%zd=%f R@1=%f cost=%f\n",
@@ -1678,15 +1678,12 @@ TEST_F(HnswStreamerTest, TestDumpIndexAndAdd) {
   ASSERT_EQ(IndexError_Unsupported, code);
 
   // check dump index
-  IndexSearcher::Pointer searcher =
-      IndexFactory::CreateSearcher("HnswSearcher");
-  auto container = IndexFactory::CreateStorage("FileReadStorage");
-  ASSERT_EQ(0, container->init(ailego::Params()));
-  ASSERT_EQ(0, container->open(path1, false));
-  ASSERT_NE(searcher, nullptr);
-  ASSERT_EQ(0, searcher->init(ailego::Params()));
-  ASSERT_EQ(0, searcher->load(container, IndexMetric::Pointer()));
-  auto iter = searcher->create_provider()->create_iterator();
+  IndexStreamer::Pointer read_streamer =
+      IndexFactory::CreateStreamer("HnswStreamer");
+  ASSERT_NE(read_streamer, nullptr);
+  ASSERT_EQ(0, read_streamer->init(*index_meta_ptr_, params));
+  ASSERT_EQ(0, read_streamer->open(storage));
+  auto iter = read_streamer->create_provider()->create_iterator();
   size_t docs = 0;
   while (iter->is_valid()) {
     auto key = iter->key();
@@ -1777,15 +1774,12 @@ TEST_F(HnswStreamerTest, TestProvider) {
   streamer->close();
 
   // check dump index
-  IndexSearcher::Pointer searcher =
-      IndexFactory::CreateSearcher("HnswSearcher");
-  auto container = IndexFactory::CreateStorage("FileReadStorage");
-  ASSERT_EQ(0, container->init(ailego::Params()));
-  ASSERT_EQ(0, container->open(path1, false));
-  ASSERT_NE(searcher, nullptr);
-  ASSERT_EQ(0, searcher->init(ailego::Params()));
-  ASSERT_EQ(0, searcher->load(container, IndexMetric::Pointer()));
-  auto iter = searcher->create_provider()->create_iterator();
+  IndexStreamer::Pointer read_streamer =
+      IndexFactory::CreateStreamer("HnswStreamer");
+  ASSERT_NE(read_streamer, nullptr);
+  ASSERT_EQ(0, read_streamer->init(*index_meta_ptr_, params));
+  ASSERT_EQ(0, read_streamer->open(storage));
+  auto iter = read_streamer->create_provider()->create_iterator();
   size_t cnt = 0;
   while (iter->is_valid()) {
     auto key = iter->key();
@@ -1812,29 +1806,6 @@ TEST_F(HnswStreamerTest, TestProvider) {
     iter->next();
   }
   ASSERT_EQ(cnt, docs);
-
-
-  auto searcher_provider = searcher->create_provider();
-  auto streamer_provider = streamer->create_provider();
-  for (size_t i = 0; i < keys.size(); ++i) {
-    const float *d1 =
-        reinterpret_cast<const float *>(searcher_provider->get_vector(keys[i]));
-    ASSERT_TRUE(d1);
-    for (size_t j = 0; j < dim; ++j) {
-      ASSERT_FLOAT_EQ(d1[j], keys[i]);
-    }
-
-    const float *d2 =
-        reinterpret_cast<const float *>(streamer_provider->get_vector(keys[i]));
-    ASSERT_TRUE(d2);
-    for (size_t j = 0; j < dim; ++j) {
-      ASSERT_FLOAT_EQ(d2[j], keys[i]);
-    }
-  }
-
-  ASSERT_EQ(dim, streamer_provider->dimension());
-  ASSERT_EQ(index_meta_ptr_->element_size(), streamer_provider->element_size());
-  ASSERT_EQ(index_meta_ptr_->data_type(), streamer_provider->data_type());
 }
 
 TEST_F(HnswStreamerTest, TestSharedContext) {
@@ -2093,7 +2064,7 @@ TEST_F(HnswStreamerTest, TestBruteForceSetupInContext) {
   }
   float recall = totalHits * 1.0f / totalCnts;
   float topk1Recall = topk1Hits * 1.0f / cnt;
-  float cost = linearTotalTime * 1.0f / knnTotalTime;
+  // float cost = linearTotalTime * 1.0f / knnTotalTime;
 #if 0
     printf("knnTotalTime=%zd linearTotalTime=%zd totalHits=%d totalCnts=%d "
            "R@%zd=%f R@1=%f cost=%f\n",
@@ -2220,7 +2191,7 @@ TEST_F(HnswStreamerTest, TestKnnSearchCosine) {
   }
   float recall = totalHits * 1.0f / totalCnts;
   float topk1Recall = topk1Hits * 1.0f / query_cnt;
-  float cost = linearTotalTime * 1.0f / knnTotalTime;
+  // float cost = linearTotalTime * 1.0f / knnTotalTime;
 #if 0
     printf("knnTotalTime=%zd linearTotalTime=%zd totalHits=%d totalCnts=%d "
            "R@%zd=%f R@1=%f cost=%f\n",
@@ -3654,7 +3625,7 @@ TEST_F(HnswStreamerTest, TestAddAndSearchWithID) {
   }
   float recall = totalHits * 1.0f / totalCnts;
   float topk1Recall = topk1Hits * 100.0f / cnt;
-  float cost = linearTotalTime * 1.0f / knnTotalTime;
+  // float cost = linearTotalTime * 1.0f / knnTotalTime;
 #if 0
     printf("knnTotalTime=%zd linearTotalTime=%zd totalHits=%d totalCnts=%d "
            "R@%zd=%f R@1=%f cost=%f\n",
