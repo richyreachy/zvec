@@ -12,12 +12,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 if(NOT DEFINED PROJECT_ROOT_DIR OR NOT PROJECT_ROOT_DIR)
-    set(PROJECT_ROOT_DIR ${CMAKE_SOURCE_DIR} CACHE PATH "Root directory of the project" FORCE)
+    set(PROJECT_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "Root directory of the project" FORCE)
 endif()
 
 message(STATUS "PROJECT_ROOT_DIR = ${PROJECT_ROOT_DIR}")
 
-include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/bazel.cmake)
 
 include_directories(${PROJECT_ROOT_DIR}/src/include)
 include_directories(${PROJECT_ROOT_DIR}/src)
