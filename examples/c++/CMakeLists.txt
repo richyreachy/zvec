@@ -157,7 +157,7 @@ target_link_libraries(ailego-example PRIVATE
 )
 
 # Strip symbols to reduce executable size
-if(CMAKE_BUILD_TYPE STREQUAL "Release" OR ANDROID)
+if(CMAKE_BUILD_TYPE STREQUAL "Release" AND ANDROID)
     add_custom_command(TARGET db-example POST_BUILD
         COMMAND ${CMAKE_STRIP} "$<TARGET_FILE:db-example>"
         COMMENT "Stripping symbols from db-example")
@@ -170,7 +170,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release" OR ANDROID)
 endif()
 
 # Optimize for size
-if(CMAKE_BUILD_TYPE STREQUAL "Release" OR ANDROID)
+if(CMAKE_BUILD_TYPE STREQUAL "Release" AND ANDROID)
     set_property(TARGET db-example core-example ailego-example
                  PROPERTY COMPILE_FLAGS "-Os")
     set_property(TARGET db-example core-example ailego-example
