@@ -17,7 +17,7 @@ endif()
 
 message(STATUS "PROJECT_ROOT_DIR = ${PROJECT_ROOT_DIR}")
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/bazel.cmake)
+include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
 
 include_directories(${PROJECT_ROOT_DIR}/src/include)
 include_directories(${PROJECT_ROOT_DIR}/src)
