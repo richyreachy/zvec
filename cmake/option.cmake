@@ -71,6 +71,34 @@ macro(add_arch_flag FLAG VAR_NAME OPTION_NAME)
   endif()
 endmacro()
 
+function(_setup_armv8_march)
+  set(_arch "armv8")
+  check_c_compiler_flag("-march=${_ver}" _COMP_SUPP_${_arch})
+  if(_COMP_SUPP_${_arch})
+    _AppendFlags(CMAKE_C_FLAGS "-march=${_arch}")
+    _AppendFlags(CMAKE_CXX_FLAGS "-march=${_arch}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" PARENT_SCOPE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
+    return()
+  else()
+    message(WARNING "No ARMv8 march flag supported by compiler.")
+  endif()
+endfunction()
+
+function(_setup_x86_march)
+  set(_arch "x86-64")
+  check_c_compiler_flag("-march=${_arch}" _COMP_SUPP_${_arch})
+  if(_COMP_SUPP_${_arch})
+    _AppendFlags(CMAKE_C_FLAGS "-march=${_arch}")
+    _AppendFlags(CMAKE_CXX_FLAGS "-march=${_arch}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" PARENT_SCOPE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
+    return()
+  else()
+    message(WARNING "No known x86 march flag supported; falling back to generic.")
+  endif()
+endfunction()
+
 function(_detect_armv8_best)
   set(_arm_flags
     "armv8.6-a" "armv8.5-a" "armv8.4-a" "armv8.3-a" "armv8.2-a" "armv8.1-a" "armv8-a" "armv8"
@@ -88,22 +116,18 @@ function(_detect_armv8_best)
   message(WARNING "No ARMv8 architecture flag supported by compiler.")
 endfunction()
 
-function(_detect_x86_best)
+function(_detect_x86_best_for_avx512 _FLAGS)
   set(_x86_flags
-	  #"graniterapids" "emeraldrapids" "sapphirerapids"
-	  #"skylake-avx512" "skylake"
-	  #"broadwell" "haswell" "sandybridge" "nehalem"
-	  #"znver3" "znver2" "znver1"
-    "x86-64"
-    # "broadwell"
+    "graniterapids" "emeraldrapids" "sapphirerapids"
+    "skylake-avx512" "skylake"
+    "broadwell" "haswell" "sandybridge" "nehalem"
+    "znver3" "znver2" "znver1"
   )
   foreach(_arch IN LISTS _x86_flags)
     check_c_compiler_flag("-march=${_arch}" _COMP_SUPP_${_arch})
     if(_COMP_SUPP_${_arch})
-      _AppendFlags(CMAKE_C_FLAGS "-march=${_arch}")
-      _AppendFlags(CMAKE_CXX_FLAGS "-march=${_arch}")
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" PARENT_SCOPE)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
+      _AppendFlags(_FLAGS "-march=${_arch}")
+      _AppendFlags(_FLAGS "-march=${_arch}")
       return()
     endif()
   endforeach()
@@ -202,9 +226,9 @@ else()
   # AUTO DETECT
   # Heuristic: detect host architecture and probe appropriate flags
   if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
-    _detect_armv8_best()
+    _setup_armv8_march()
   elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
-    _detect_x86_best()
+    _setup_x86_march()
   else()
     message(WARNING "Unknown host architecture: ${CMAKE_SYSTEM_PROCESSOR}; no -march= set.")
   endif()

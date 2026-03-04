@@ -18,12 +18,17 @@ if(UNIX AND NOT APPLE)
     list(APPEND EXTRA_LIBS ${LIB_RT})
 endif()
 
+#for SSE
 set(CMAKE_CXX_FLAGS "-march=broadwell")
 set(CMAKE_C_FLAGS "-march=broadwell")
 
+#for AVX2
 set(MATH_MARCH_FLAG_AVX2 "-march=core-avx2")
+
+#for AVX512
+#_detect_x86_best_for_avx512(MATH_MARCH_FLAG_AVX512)
 set(MATH_MARCH_FLAG_AVX512 "-march=sapphirerapids")
-# set(MATH_MARCH_FLAG_NEON "-march=armv8-a")
+# # set(MATH_MARCH_FLAG_NEON "-march=armv8-a")
 
 file(GLOB_RECURSE MATH_FILES_AVX2
     ${CMAKE_CURRENT_SOURCE_DIR}/math/*_avx2.cc
