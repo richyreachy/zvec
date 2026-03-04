@@ -592,24 +592,24 @@ TEST_F(HnswStreamerTest, TestOpenClose) {
     ASSERT_EQ(0, streamer->open(storage1));
     auto ctx = streamer->create_context();
     ASSERT_TRUE(!!ctx);
-    float vec1[dim];
+    std::vector<float> vec1(dim);
     for (size_t d = 0; d < dim; ++d) {
       vec1[d] = v1;
     }
-    ASSERT_EQ(0, streamer->add_impl(i, vec1, qmeta, ctx));
+    ASSERT_EQ(0, streamer->add_impl(i, vec1.data(), qmeta, ctx));
     checkIter(0, i / 2 + 1, streamer);
     ASSERT_EQ(0, streamer->flush(0UL));
     ASSERT_EQ(0, streamer->close());
 
     float v2 = (float)(i + 1);
-    float vec2[dim];
+    std::vector<float> vec2(dim);
     for (size_t d = 0; d < dim; ++d) {
       vec2[d] = v2;
     }
     ASSERT_EQ(0, streamer->open(storage2));
     ctx = streamer->create_context();
     ASSERT_TRUE(!!ctx);
-    ASSERT_EQ(0, streamer->add_impl(i + 1, vec2, qmeta, ctx));
+    ASSERT_EQ(0, streamer->add_impl(i + 1, vec2.data(), qmeta, ctx));
     checkIter(1, i / 2 + 1, streamer);
     ASSERT_EQ(0, streamer->flush(0UL));
     ASSERT_EQ(0, streamer->close());
@@ -1949,11 +1949,11 @@ TEST_F(HnswStreamerTest, TestMipsEuclideanMetric) {
                              "proxima.mips_euclidean.metric.max_l2_norm"));
     auto ctx = streamer->create_context();
     for (size_t i = COUNT; i < 2 * COUNT; i++) {
-      float vec[dim];
+      std::vector<float> vec(dim);
       for (size_t d = 0; d < dim; ++d) {
         vec[d] = i;
       }
-      ASSERT_EQ(0, streamer->add_impl(i, vec, qmeta, ctx));
+      ASSERT_EQ(0, streamer->add_impl(i, vec.data(), qmeta, ctx));
     }
     ASSERT_EQ(0, streamer->flush(0UL));
     ASSERT_EQ(0, streamer->close());
@@ -1970,19 +1970,19 @@ TEST_F(HnswStreamerTest, TestMipsEuclideanMetric) {
       metric_params.get_as_float("proxima.mips_euclidean.metric.max_l2_norm"));
   auto ctx = streamer->create_context();
   for (size_t i = 0; i < COUNT; i++) {
-    float vec[dim];
+    std::vector<float> vec(dim);
     for (size_t d = 0; d < dim; ++d) {
       vec[d] = i;
     }
-    ASSERT_EQ(0, streamer->add_impl(i, vec, qmeta, ctx));
+    ASSERT_EQ(0, streamer->add_impl(i, vec.data(), qmeta, ctx));
   }
-  float vec[dim];
+  std::vector<float> vec(dim);
   for (size_t d = 0; d < dim; ++d) {
     vec[d] = 1.0;
   }
 
   ctx->set_topk(10);
-  ASSERT_EQ(0, streamer->search_impl(vec, qmeta, ctx));
+  ASSERT_EQ(0, streamer->search_impl(vec.data(), qmeta, ctx));
   const auto &results = ctx->result();
   EXPECT_EQ(results.size(), 10);
   EXPECT_NEAR((uint64_t)(2 * COUNT - 1), results[0].key(), 10);
