@@ -32,7 +32,7 @@ from doc_helper import *
 
 
 def singledoc_and_check(
-        collection: Collection, insert_doc, operator="insert", is_delete=1
+    collection: Collection, insert_doc, operator="insert", is_delete=1
 ):
     if operator == "insert":
         result = collection.insert(insert_doc)
@@ -48,7 +48,7 @@ def singledoc_and_check(
 
     stats = collection.stats
     assert stats is not None
-    #assert stats.doc_count == 1
+    # assert stats.doc_count == 1
 
     fetched_docs = collection.fetch([insert_doc.id])
     assert len(fetched_docs) == 1
@@ -95,7 +95,7 @@ class TestCollectionCrashRecoveryDropColumn:
 
     # Script content for subprocess to execute Zvec column drop operations
     # Write this script content to a temporary file and execute it in the subprocess.
-    ZVEC_SUBPROCESS_SCRIPT_DROPCOLUMN = '''
+    ZVEC_SUBPROCESS_SCRIPT_DROPCOLUMN = """
 import zvec
 import time
 import json
@@ -183,63 +183,89 @@ def run_zvec_dropcolumn_operations(args_json_str):
 if __name__ == "__main__":
     args_json_str = sys.argv[1]
     run_zvec_dropcolumn_operations(args_json_str)
-'''
+"""
 
-    def test_dropcolumn_simulate_crash_during_column_drop_int32(self, full_schema_1024, collection_option):
+    def test_dropcolumn_simulate_crash_during_column_drop_int32(
+        self, full_schema_1024, collection_option
+    ):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
                   Then start a subprocess to open the collection and perform INT32 column drop operations.
                   During the column drop operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_dropcolumn_with_crash_recovery(full_schema_1024, collection_option, "INT32", "int32_field1")
+        self._test_dropcolumn_with_crash_recovery(
+            full_schema_1024, collection_option, "INT32", "int32_field1"
+        )
 
-    def test_dropcolumn_simulate_crash_during_column_drop_int64(self, full_schema_1024, collection_option):
+    def test_dropcolumn_simulate_crash_during_column_drop_int64(
+        self, full_schema_1024, collection_option
+    ):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
                   Then start a subprocess to open the collection and perform INT64 column drop operations.
                   During the column drop operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_dropcolumn_with_crash_recovery(full_schema_1024, collection_option, "INT64", "int64_field1")
+        self._test_dropcolumn_with_crash_recovery(
+            full_schema_1024, collection_option, "INT64", "int64_field1"
+        )
 
-    def test_dropcolumn_simulate_crash_during_column_drop_uint32(self, full_schema_1024, collection_option):
+    def test_dropcolumn_simulate_crash_during_column_drop_uint32(
+        self, full_schema_1024, collection_option
+    ):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
                   Then start a subprocess to open the collection and perform UINT32 column drop operations.
                   During the column drop operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_dropcolumn_with_crash_recovery(full_schema_1024, collection_option, "UINT32", "uint32_field1")
+        self._test_dropcolumn_with_crash_recovery(
+            full_schema_1024, collection_option, "UINT32", "uint32_field1"
+        )
 
-    def test_dropcolumn_simulate_crash_during_column_drop_uint64(self, full_schema_1024, collection_option):
+    def test_dropcolumn_simulate_crash_during_column_drop_uint64(
+        self, full_schema_1024, collection_option
+    ):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
                   Then start a subprocess to open the collection and perform UINT64 column drop operations.
                   During the column drop operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_dropcolumn_with_crash_recovery(full_schema_1024, collection_option, "UINT64", "uint64_field1")
+        self._test_dropcolumn_with_crash_recovery(
+            full_schema_1024, collection_option, "UINT64", "uint64_field1"
+        )
 
-    def test_dropcolumn_simulate_crash_during_column_drop_float(self, full_schema_1024, collection_option):
+    def test_dropcolumn_simulate_crash_during_column_drop_float(
+        self, full_schema_1024, collection_option
+    ):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
                   Then start a subprocess to open the collection and perform FLOAT column drop operations.
                   During the column drop operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_dropcolumn_with_crash_recovery(full_schema_1024, collection_option, "FLOAT", "float_field1")
+        self._test_dropcolumn_with_crash_recovery(
+            full_schema_1024, collection_option, "FLOAT", "float_field1"
+        )
 
-    def test_dropcolumn_simulate_crash_during_column_drop_double(self, full_schema_1024, collection_option):
+    def test_dropcolumn_simulate_crash_during_column_drop_double(
+        self, full_schema_1024, collection_option
+    ):
         """
         Scenario: First successfully create a Zvec collection in the main process and insert some documents.
                   Then start a subprocess to open the collection and perform DOUBLE column drop operations.
                   During the column drop operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_dropcolumn_with_crash_recovery(full_schema_1024, collection_option, "DOUBLE", "double_field1")
+        self._test_dropcolumn_with_crash_recovery(
+            full_schema_1024, collection_option, "DOUBLE", "double_field1"
+        )
 
-    def _test_dropcolumn_with_crash_recovery(self, schema, collection_option, drop_data_type, drop_field_name):
+    def _test_dropcolumn_with_crash_recovery(
+        self, schema, collection_option, drop_data_type, drop_field_name
+    ):
         """
         Common method to test column drop with crash recovery for different column types.
         """
@@ -247,8 +273,12 @@ if __name__ == "__main__":
             collection_path = f"{temp_dir}/test_collection_dropcolumn_crash_recovery_{drop_data_type.lower()}"
 
             # Step 1: Successfully create collection in main process and insert some documents
-            print(f"[Test] Step 1: Creating collection in main process, path: {collection_path}...")
-            coll = zvec.create_and_open(path=collection_path, schema=schema, option=collection_option)
+            print(
+                f"[Test] Step 1: Creating collection in main process, path: {collection_path}..."
+            )
+            coll = zvec.create_and_open(
+                path=collection_path, schema=schema, option=collection_option
+            )
             assert coll is not None
             print(f"[Test] Step 1.1: Collection created successfully.")
 
@@ -258,14 +288,18 @@ if __name__ == "__main__":
                 exp_doc_dict[i] = {}
                 doc = generate_doc(i, coll.schema)
                 result = coll.insert([doc])
-                assert result is not None and len(result) > 0, f"Failed to insert document {i}"
+                assert result is not None and len(result) > 0, (
+                    f"Failed to insert document {i}"
+                )
                 exp_doc_dict[i] = doc
 
             print(f"[Test] Step 1.2: Inserted 50 documents for column operations.")
 
             # Verify collection state before crash
             initial_doc_count = coll.stats.doc_count
-            print(f"[Test] Step 1.3: Collection has {initial_doc_count} documents before crash simulation.")
+            print(
+                f"[Test] Step 1.3: Collection has {initial_doc_count} documents before crash simulation."
+            )
 
             del coll
             print(f"[Test] Step 1.4: Closed collection.")
@@ -273,7 +307,7 @@ if __name__ == "__main__":
             # Step 2: Prepare and run subprocess for column drop operations
             # Write subprocess script to temporary file
             subprocess_script_path = f"{temp_dir}/zvec_subprocess_dropcolumn.py"
-            with open(subprocess_script_path, 'w', encoding='utf-8') as f:
+            with open(subprocess_script_path, "w", encoding="utf-8") as f:
                 f.write(self.ZVEC_SUBPROCESS_SCRIPT_DROPCOLUMN)
 
             # Prepare subprocess parameters
@@ -282,21 +316,24 @@ if __name__ == "__main__":
                 "drop_field_name": drop_field_name,  # Use appropriate field name for this test
                 "drop_data_type": drop_data_type,  # Type of field to drop
                 "drop_column_iterations": 20,  # Number of drop iterations to increase interruption chance
-                "delay_between_drops": 0.3  # Delay between drops to allow interruption opportunity
+                "delay_between_drops": 0.3,  # Delay between drops to allow interruption opportunity
             }
             args_json_str = json.dumps(subprocess_args)
 
             print(
-                f"[Test] Step 2: Starting {drop_data_type} column drop operations in subprocess, path: {collection_path}")
+                f"[Test] Step 2: Starting {drop_data_type} column drop operations in subprocess, path: {collection_path}"
+            )
             # Start subprocess to execute column drop operations
-            proc = subprocess.Popen([
-                sys.executable, subprocess_script_path, args_json_str
-            ])
+            proc = subprocess.Popen(
+                [sys.executable, subprocess_script_path, args_json_str]
+            )
 
             # Wait briefly to allow subprocess to begin column drop operations
             time.sleep(3)  # Wait 3 seconds to allow column drop process to start
 
-            print(f"[Test] Step 2: Simulating crash/power failure by terminating subprocess PID {proc.pid}...")
+            print(
+                f"[Test] Step 2: Simulating crash/power failure by terminating subprocess PID {proc.pid}..."
+            )
             # Suddenly kill subprocess (simulate power failure or crash during column drop operations)
             if psutil:
                 try:
@@ -307,13 +344,19 @@ if __name__ == "__main__":
                         child.kill()
                     parent.kill()
                     proc.wait(timeout=5)
-                except (psutil.NoSuchProcess, psutil.AccessDenied, subprocess.TimeoutExpired):
+                except (
+                    psutil.NoSuchProcess,
+                    psutil.AccessDenied,
+                    subprocess.TimeoutExpired,
+                ):
                     # If psutil is unavailable or process has been terminated, fall back to original method
                     proc.send_signal(signal.SIGKILL)
                     try:
                         proc.wait(timeout=5)
                     except subprocess.TimeoutExpired:
-                        print(f"[Test] Subprocess {proc.pid} could not be terminated with SIGKILL, force killing...")
+                        print(
+                            f"[Test] Subprocess {proc.pid} could not be terminated with SIGKILL, force killing..."
+                        )
                         proc.kill()
                         proc.wait()
             else:
@@ -322,7 +365,9 @@ if __name__ == "__main__":
                 try:
                     proc.wait(timeout=5)
                 except subprocess.TimeoutExpired:
-                    print(f"[Test] Subprocess {proc.pid} could not be terminated with SIGKILL, force killing...")
+                    print(
+                        f"[Test] Subprocess {proc.pid} could not be terminated with SIGKILL, force killing..."
+                    )
                     proc.kill()
                     proc.wait()
             print(f"[Test] Subprocess {proc.pid} has been terminated.")
@@ -332,10 +377,13 @@ if __name__ == "__main__":
 
             # Step 3: Verify recovery situation in main process
             print(
-                f"[Test] Step 3: Attempting to open collection after simulating crash during column drop operations...")
+                f"[Test] Step 3: Attempting to open collection after simulating crash during column drop operations..."
+            )
             # Verification 3.1: Check if collection can be successfully opened after crash
             recovered_collection = zvec.open(collection_path)
-            assert recovered_collection is not None, "Cannot open collection after crash"
+            assert recovered_collection is not None, (
+                "Cannot open collection after crash"
+            )
             print(f"[Test] Step 3.1: Verified collection can be opened after crash...")
 
             # Verification 3.2: Check data integrity (document count and content)
@@ -343,52 +391,68 @@ if __name__ == "__main__":
             query_result = recovered_collection.query(topk=1024)
             # We expect some documents to have been successfully inserted before crash
             # The exact number depends on when the crash occurred during the bulk insertion process
-            print(
-                f"[Test] Step 3.2: Found {len(query_result)} documents after crash")
+            print(f"[Test] Step 3.2: Found {len(query_result)} documents after crash")
 
             current_count = recovered_collection.stats.doc_count
             assert recovered_collection.stats.doc_count >= 1
             assert len(query_result) <= current_count, (
-                f"query_result count = {len(query_result)},stats.doc_count = {recovered_collection.stats.doc_count}")
+                f"query_result count = {len(query_result)},stats.doc_count = {recovered_collection.stats.doc_count}"
+            )
 
             # Verify existing documents have correct structure
             if len(query_result) > 0:
                 for doc in query_result[:50]:  # Limit to first 50 for efficiency
                     fetched_docs = recovered_collection.fetch([doc.id])
-                    '''print("doc.id,fetched_docs:\n")
-                    print(doc.id, fetched_docs)'''
+                    """print("doc.id,fetched_docs:\n")
+                    print(doc.id, fetched_docs)"""
                     exp_doc = exp_doc_dict[int(doc.id)]
                     assert len(fetched_docs) == 1
                     assert doc.id in fetched_docs
                     # Note: The doc content may have been partially updated before the crash
                     # So we only verify the schema structure and basic fields
-                    assert is_doc_equal(fetched_docs[doc.id], exp_doc, recovered_collection.schema,
-                                        True, True), (
-                        f"result doc={fetched_docs},doc_exp={exp_doc}")
+                    assert is_doc_equal(
+                        fetched_docs[doc.id],
+                        exp_doc,
+                        recovered_collection.schema,
+                        True,
+                        True,
+                    ), f"result doc={fetched_docs},doc_exp={exp_doc}"
 
             # 3.4: Check if query function works properly
             print(f"[Test] Step 3.4: Verifying query function after crash...")
             filtered_query = recovered_collection.query(filter=f"int32_field >=-100")
-            print(f"[Test] Step 3.4.2: Field-filtered query returned {len(filtered_query)} documents")
+            print(
+                f"[Test] Step 3.4.2: Field-filtered query returned {len(filtered_query)} documents"
+            )
             assert len(filtered_query) > 0
             for doc in query_result[:10]:  # Check first 10 docs
                 fetched_docs = recovered_collection.fetch([doc.id])
                 exp_doc = exp_doc_dict[int(doc.id)]
                 assert len(fetched_docs) == 1
                 assert doc.id in fetched_docs
-                assert is_doc_equal(fetched_docs[doc.id], exp_doc, recovered_collection.schema,
-                                    True, True), (
-                    f"result doc={fetched_docs},doc_exp={exp_doc}")
+                assert is_doc_equal(
+                    fetched_docs[doc.id],
+                    exp_doc,
+                    recovered_collection.schema,
+                    True,
+                    True,
+                ), f"result doc={fetched_docs},doc_exp={exp_doc}"
 
             # Verification 3.5: Test insertion functionality after recovery
             print(f"[Test] Step 3.5.1: Testing insertion functionality after recovery")
-            test_insert_doc = generate_doc(9999, schema)  # Use original schema from fixture
-            singledoc_and_check(recovered_collection, test_insert_doc, operator="insert", is_delete=0)
+            test_insert_doc = generate_doc(
+                9999, schema
+            )  # Use original schema from fixture
+            singledoc_and_check(
+                recovered_collection, test_insert_doc, operator="insert", is_delete=0
+            )
 
             # Verification 3.6: Test update functionality after recovery
             print(f"[Test] Step 3.6: Testing update functionality after recovery...")
             updated_doc = generate_update_doc(9999, recovered_collection.schema)
-            singledoc_and_check(recovered_collection, updated_doc, operator="update", is_delete=0)
+            singledoc_and_check(
+                recovered_collection, updated_doc, operator="update", is_delete=0
+            )
 
             # 3.7: Test deletion after recovery
             print(f"[Test] Step 3.7: Testing deletion functionality after recovery...")
@@ -404,23 +468,31 @@ if __name__ == "__main__":
             # Now try to drop a column after the crash recovery
             # This should succeed if the collection is properly recovered
             try:
-                recovered_collection.drop_column(
-                    field_name=drop_field_name
+                recovered_collection.drop_column(field_name=drop_field_name)
+                print(
+                    f"[Test] Step 3.8: {drop_data_type} Column drop succeeded after crash recovery"
                 )
-                print(f"[Test] Step 3.8: {drop_data_type} Column drop succeeded after crash recovery")
             except Exception as e:
-                print(f"[Test] Step 3.8: {drop_data_type} Column drop failed after crash recovery: {str(e)}")
+                print(
+                    f"[Test] Step 3.8: {drop_data_type} Column drop failed after crash recovery: {str(e)}"
+                )
                 # This is expected if the column was already dropped during the interrupted operation
 
             # Only do a simple verification after column drop
             stats_after_drop_column = recovered_collection.stats
-            print(f"[Test] Step 3.8.1: Stats after column drop - doc_count: {stats_after_drop_column.doc_count}")
+            print(
+                f"[Test] Step 3.8.1: Stats after column drop - doc_count: {stats_after_drop_column.doc_count}"
+            )
 
             # 3.9: Check if query function works properly after column drop
             print(f"[Test] Step 3.9: Verifying query function after column drop...")
             # Use a simpler query that matches the field type
-            filtered_query = recovered_collection.query(filter=f"int32_field >= 0", topk=10)
-            print(f"[Test] Step 3.9.1: Field-filtered query returned {len(filtered_query)} documents")
+            filtered_query = recovered_collection.query(
+                filter=f"int32_field >= 0", topk=10
+            )
+            print(
+                f"[Test] Step 3.9.1: Field-filtered query returned {len(filtered_query)} documents"
+            )
             # Note: After column drop, this query might return 0 results
 
             # Close the recovered collection

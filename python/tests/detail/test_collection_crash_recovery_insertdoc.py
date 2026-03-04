@@ -34,10 +34,8 @@ from fixture_helper import *
 from doc_helper import *
 
 
-
-
 def singledoc_and_check(
-        collection: Collection, insert_doc, operator="insert", is_delete=1
+    collection: Collection, insert_doc, operator="insert", is_delete=1
 ):
     if operator == "insert":
         result = collection.insert(insert_doc)
@@ -53,7 +51,7 @@ def singledoc_and_check(
 
     stats = collection.stats
     assert stats is not None
-    #assert stats.doc_count == 1
+    # assert stats.doc_count == 1
 
     fetched_docs = collection.fetch([insert_doc.id])
     assert len(fetched_docs) == 1
@@ -91,7 +89,6 @@ def singledoc_and_check(
         assert collection.stats.doc_count == 0, "Document should be deleted"
 
 
-
 class TestCollectionCrashRecoveryInsertDoc:
     """
     Test Zvec collection recovery capability after simulating power failure/process crash during document insertion.
@@ -101,7 +98,7 @@ class TestCollectionCrashRecoveryInsertDoc:
 
     # Script content for subprocess to execute Zvec document insertion operations
     # Write this script content to a temporary file and execute it in the subprocess.
-    ZVEC_SUBPROCESS_SCRIPT_INSERTDOC = '''
+    ZVEC_SUBPROCESS_SCRIPT_INSERTDOC = """
 import zvec
 import time
 import json
@@ -268,9 +265,11 @@ def run_zvec_insertdoc_operations(args_json_str):
 if __name__ == "__main__":
     args_json_str = sys.argv[1]
     run_zvec_insertdoc_operations(args_json_str)
-'''
+"""
 
-    def test_insertdoc_simulate_crash_during_bulk_insert(self, full_schema_1024, collection_option, basic_schema):
+    def test_insertdoc_simulate_crash_during_bulk_insert(
+        self, full_schema_1024, collection_option, basic_schema
+    ):
         """
         Scenario: First successfully create a Zvec collection in the main process.
                   Then start a subprocess to open the collection and perform bulk document insertion operations.
@@ -281,8 +280,12 @@ if __name__ == "__main__":
             collection_path = f"{temp_dir}/test_collection_insertdoc_crash_recovery"
 
             # Step 1: Successfully create collection in main process
-            print(f"[Test] Step 1: Creating collection in main process, path: {collection_path}...")
-            coll = zvec.create_and_open(path=collection_path, schema=full_schema_1024, option=collection_option)
+            print(
+                f"[Test] Step 1: Creating collection in main process, path: {collection_path}..."
+            )
+            coll = zvec.create_and_open(
+                path=collection_path, schema=full_schema_1024, option=collection_option
+            )
             assert coll is not None
             print(f"[Test] Step 1.1: Collection created successfully.")
             single_doc = generate_doc(2001, coll.schema)
@@ -295,7 +298,7 @@ if __name__ == "__main__":
             # Step 2: Prepare and run subprocess for bulk insertion operations
             # Write subprocess script to temporary file
             subprocess_script_path = f"{temp_dir}/zvec_subprocess_insertdoc.py"
-            with open(subprocess_script_path, 'w', encoding='utf-8') as f:
+            with open(subprocess_script_path, "w", encoding="utf-8") as f:
                 f.write(self.ZVEC_SUBPROCESS_SCRIPT_INSERTDOC)
 
             # Prepare subprocess parameters
@@ -303,20 +306,24 @@ if __name__ == "__main__":
                 "collection_path": collection_path,
                 "num_docs_to_insert": 200,  # Insert 200 documents to allow for interruption
                 "batch_size": 10,  # Insert 10 documents per batch
-                "delay_between_batches": 0.2  # 0.2 second delay between batches to increase interruption timing
+                "delay_between_batches": 0.2,  # 0.2 second delay between batches to increase interruption timing
             }
             args_json_str = json.dumps(subprocess_args)
 
-            print(f"[Test] Step 2: Starting bulk insertion operations in subprocess, path: {collection_path}")
+            print(
+                f"[Test] Step 2: Starting bulk insertion operations in subprocess, path: {collection_path}"
+            )
             # Start subprocess to execute bulk insertion operations
-            proc = subprocess.Popen([
-                sys.executable, subprocess_script_path, args_json_str
-            ])
+            proc = subprocess.Popen(
+                [sys.executable, subprocess_script_path, args_json_str]
+            )
 
             # Wait briefly to allow subprocess to begin insertion operations
             time.sleep(2)  # Wait 2 seconds to allow insertion loop to start
 
-            print(f"[Test] Step 2: Simulating crash/power failure by terminating subprocess PID {proc.pid}...")
+            print(
+                f"[Test] Step 2: Simulating crash/power failure by terminating subprocess PID {proc.pid}..."
+            )
             # Suddenly kill subprocess (simulate power failure or crash during insertion operations)
             if psutil:
                 try:
@@ -327,13 +334,19 @@ if __name__ == "__main__":
                         child.kill()
                     parent.kill()
                     proc.wait(timeout=5)
-                except (psutil.NoSuchProcess, psutil.AccessDenied, subprocess.TimeoutExpired):
+                except (
+                    psutil.NoSuchProcess,
+                    psutil.AccessDenied,
+                    subprocess.TimeoutExpired,
+                ):
                     # If psutil is unavailable or process has been terminated, fall back to original method
                     proc.send_signal(signal.SIGKILL)
                     try:
                         proc.wait(timeout=5)
                     except subprocess.TimeoutExpired:
-                        print(f"[Test] Subprocess {proc.pid} could not be terminated with SIGKILL, force killing...")
+                        print(
+                            f"[Test] Subprocess {proc.pid} could not be terminated with SIGKILL, force killing..."
+                        )
                         proc.kill()
                         proc.wait()
             else:
@@ -342,7 +355,9 @@ if __name__ == "__main__":
                 try:
                     proc.wait(timeout=5)
                 except subprocess.TimeoutExpired:
-                    print(f"[Test] Subprocess {proc.pid} could not be terminated with SIGKILL, force killing...")
+                    print(
+                        f"[Test] Subprocess {proc.pid} could not be terminated with SIGKILL, force killing..."
+                    )
                     proc.kill()
                     proc.wait()
             print(f"[Test] Subprocess {proc.pid} has been terminated.")
@@ -352,10 +367,13 @@ if __name__ == "__main__":
 
             # Step 3: Verify recovery situation in main process
             print(
-                f"[Test] Step 3: Attempting to open collection after simulating crash during document insertion operations...")
+                f"[Test] Step 3: Attempting to open collection after simulating crash during document insertion operations..."
+            )
             # Verification 3.1: Check if collection can be successfully opened after crash
             recovered_collection = zvec.open(collection_path)
-            assert recovered_collection is not None, "Cannot open collection after crash"
+            assert recovered_collection is not None, (
+                "Cannot open collection after crash"
+            )
             print(f"[Test] Step 3.1: Verified collection can be opened after crash...")
 
             # Verification 3.2: Check data integrity (document count and content)
@@ -364,16 +382,17 @@ if __name__ == "__main__":
             # We expect some documents to have been successfully inserted before crash
             # The exact number depends on when the crash occurred during the bulk insertion process
             print(
-                f"[Test] Step 3.2: Found {len(query_result)} documents after crash (expected 0-{subprocess_args['num_docs_to_insert']})")
+                f"[Test] Step 3.2: Found {len(query_result)} documents after crash (expected 0-{subprocess_args['num_docs_to_insert']})"
+            )
 
             current_count = recovered_collection.stats.doc_count
             assert recovered_collection.stats.doc_count >= 1
             assert len(query_result) <= current_count, (
-                f"query_result count = {len(query_result)},stats.doc_count = {recovered_collection.stats.doc_count}")
+                f"query_result count = {len(query_result)},stats.doc_count = {recovered_collection.stats.doc_count}"
+            )
 
             # Verify existing documents have correct structure
             if len(query_result) > 0:
-
                 for doc in query_result[:1024]:
                     if doc.id == "2001":
                         print("Found 2001 data!")
@@ -384,8 +403,11 @@ if __name__ == "__main__":
                         print(fetched_docs)
                         assert len(fetched_docs) == 1
                         assert doc.id in fetched_docs
-                        assert is_doc_equal(fetched_docs["2001"], single_doc, recovered_collection.schema), (
-                            f"result doc={fetched_docs},doc_exp={single_doc}")
+                        assert is_doc_equal(
+                            fetched_docs["2001"],
+                            single_doc,
+                            recovered_collection.schema,
+                        ), f"result doc={fetched_docs},doc_exp={single_doc}"
                         break
                     else:
                         fetched_docs = recovered_collection.fetch([doc.id])
@@ -394,13 +416,16 @@ if __name__ == "__main__":
                         exp_doc = generate_doc(int(doc.id), recovered_collection.schema)
                         assert len(fetched_docs) == 1
                         assert doc.id in fetched_docs
-                        assert is_doc_equal(fetched_docs["1"], exp_doc, recovered_collection.schema), (
-                            f"result doc={fetched_docs},doc_exp={exp_doc}")
+                        assert is_doc_equal(
+                            fetched_docs["1"], exp_doc, recovered_collection.schema
+                        ), f"result doc={fetched_docs},doc_exp={exp_doc}"
 
             # 3.4: Check if index is complete and query function works properly
             print(f"[Test] Step 3.4: Verifying index integrity and query function...")
             filtered_query = recovered_collection.query(filter=f"int32_field >=-100")
-            print(f"[Test] Step 3.4.2: Field-filtered query returned {len(filtered_query)} documents")
+            print(
+                f"[Test] Step 3.4.2: Field-filtered query returned {len(filtered_query)} documents"
+            )
             assert len(filtered_query) > 0
             for doc in query_result:
                 if doc.id == "2001":
@@ -412,8 +437,9 @@ if __name__ == "__main__":
                     print(fetched_docs)
                     assert len(fetched_docs) == 1
                     assert doc.id in fetched_docs
-                    assert is_doc_equal(fetched_docs["2001"], single_doc, recovered_collection.schema), (
-                        f"result doc={fetched_docs},doc_exp={single_doc}")
+                    assert is_doc_equal(
+                        fetched_docs["2001"], single_doc, recovered_collection.schema
+                    ), f"result doc={fetched_docs},doc_exp={single_doc}"
                     break
                 else:
                     fetched_docs = recovered_collection.fetch([doc.id])
@@ -422,18 +448,25 @@ if __name__ == "__main__":
                     exp_doc = generate_doc(int(doc.id), recovered_collection.schema)
                     assert len(fetched_docs) == 1
                     assert doc.id in fetched_docs
-                    assert is_doc_equal(fetched_docs["1"], exp_doc, recovered_collection.schema), (
-                        f"result doc={fetched_docs},doc_exp={exp_doc}")
+                    assert is_doc_equal(
+                        fetched_docs["1"], exp_doc, recovered_collection.schema
+                    ), f"result doc={fetched_docs},doc_exp={exp_doc}"
 
             # Verification 3.5: Test insertion functionality after recovery
             print(f"[Test] Step 3.5.1: Testing insertion functionality after recovery")
-            test_insert_doc = generate_doc(9999, full_schema_1024)  # Use original schema from fixture
-            singledoc_and_check(recovered_collection, test_insert_doc, operator="insert", is_delete=0)
+            test_insert_doc = generate_doc(
+                9999, full_schema_1024
+            )  # Use original schema from fixture
+            singledoc_and_check(
+                recovered_collection, test_insert_doc, operator="insert", is_delete=0
+            )
 
             # Verification 3.6: Test update functionality after recovery
             print(f"[Test] Step 3.6: Testing update functionality after recovery...")
             updated_doc = generate_update_doc(2001, recovered_collection.schema)
-            singledoc_and_check(recovered_collection, updated_doc, operator="update", is_delete=0)
+            singledoc_and_check(
+                recovered_collection, updated_doc, operator="update", is_delete=0
+            )
 
             # 3.7: Test deletion  after recovery
             print(f"[Test] Step 3.7: Testing deletion functionality after recovery...")

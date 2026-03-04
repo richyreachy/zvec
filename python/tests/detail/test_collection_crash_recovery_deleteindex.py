@@ -33,10 +33,8 @@ from doc_helper import generate_update_doc
 from distance_helper import *
 
 
-
-
 def singledoc_and_check(
-        collection: Collection, insert_doc, operator="insert", is_delete=1
+    collection: Collection, insert_doc, operator="insert", is_delete=1
 ):
     if operator == "insert":
         result = collection.insert(insert_doc)
@@ -52,7 +50,7 @@ def singledoc_and_check(
 
     stats = collection.stats
     assert stats is not None
-    #assert stats.doc_count == 1
+    # assert stats.doc_count == 1
 
     fetched_docs = collection.fetch([insert_doc.id])
     assert len(fetched_docs) == 1
@@ -99,7 +97,7 @@ class TestCollectionCrashRecoveryDeleteIndex:
 
     # Script content for subprocess to execute Zvec index deletion operations
     # Write this script content to a temporary file and execute it in the subprocess.
-    ZVEC_SUBPROCESS_SCRIPT_DELETEINDEX = '''
+    ZVEC_SUBPROCESS_SCRIPT_DELETEINDEX = """
 import zvec
 import time
 import json
@@ -164,36 +162,50 @@ def run_zvec_deleteindex_operations(args_json_str):
 if __name__ == "__main__":
     args_json_str = sys.argv[1]
     run_zvec_deleteindex_operations(args_json_str)
-'''
+"""
 
-    def test_deleteindex_simulate_crash_during_index_deletion_invert(self, full_schema_1024, collection_option, basic_schema):
+    def test_deleteindex_simulate_crash_during_index_deletion_invert(
+        self, full_schema_1024, collection_option, basic_schema
+    ):
         """
         Scenario: First successfully create a Zvec collection in the main process and create an INVERT index.
                   Then start a subprocess to open the collection and perform INVERT index deletion operations.
                   During the index deletion operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_deleteindex_with_crash_recovery(full_schema_1024, collection_option, "INVERT")
+        self._test_deleteindex_with_crash_recovery(
+            full_schema_1024, collection_option, "INVERT"
+        )
 
-    def test_deleteindex_simulate_crash_during_index_deletion_hnsw(self, full_schema_1024, collection_option, basic_schema):
+    def test_deleteindex_simulate_crash_during_index_deletion_hnsw(
+        self, full_schema_1024, collection_option, basic_schema
+    ):
         """
         Scenario: First successfully create a Zvec collection in the main process and create an HNSW index.
                   Then start a subprocess to open the collection and perform HNSW index deletion operations.
                   During the index deletion operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_deleteindex_with_crash_recovery(full_schema_1024, collection_option, "HNSW")
+        self._test_deleteindex_with_crash_recovery(
+            full_schema_1024, collection_option, "HNSW"
+        )
 
-    def test_deleteindex_simulate_crash_during_index_deletion_flat(self, full_schema_1024, collection_option, basic_schema):
+    def test_deleteindex_simulate_crash_during_index_deletion_flat(
+        self, full_schema_1024, collection_option, basic_schema
+    ):
         """
         Scenario: First successfully create a Zvec collection in the main process and create a FLAT index.
                   Then start a subprocess to open the collection and perform FLAT index deletion operations.
                   During the index deletion operation, forcibly terminate the subprocess (simulate power failure or process crash).
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
-        self._test_deleteindex_with_crash_recovery(full_schema_1024, collection_option, "FLAT")
+        self._test_deleteindex_with_crash_recovery(
+            full_schema_1024, collection_option, "FLAT"
+        )
 
-    def test_deleteindex_simulate_crash_during_index_deletion_ivf(self, full_schema_1024, collection_option, basic_schema):
+    def test_deleteindex_simulate_crash_during_index_deletion_ivf(
+        self, full_schema_1024, collection_option, basic_schema
+    ):
         """
         Scenario: First successfully create a Zvec collection in the main process and create an IVF index.
                   Then start a subprocess to open the collection and perform IVF index deletion operations.
@@ -201,7 +213,9 @@ if __name__ == "__main__":
                   Finally, in the main process, reopen the collection and verify whether its state and functionality are normal.
         """
 
-    def _test_deleteindex_with_crash_recovery(self, schema, collection_option, index_type):
+    def _test_deleteindex_with_crash_recovery(
+        self, schema, collection_option, index_type
+    ):
         """
         Common method to test index deletion with crash recovery for different index types.
         """
@@ -209,8 +223,12 @@ if __name__ == "__main__":
             collection_path = f"{temp_dir}/test_collection_deleteindex_crash_recovery_{index_type.lower()}"
 
             # Step 1: Successfully create collection in main process and insert some documents
-            print(f"[Test] Step 1: Creating collection in main process, path: {collection_path}...")
-            coll = zvec.create_and_open(path=collection_path, schema=schema, option=collection_option)
+            print(
+                f"[Test] Step 1: Creating collection in main process, path: {collection_path}..."
+            )
+            coll = zvec.create_and_open(
+                path=collection_path, schema=schema, option=collection_option
+            )
             assert coll is not None
             print(f"[Test] Step 1.1: Collection created successfully.")
 
@@ -218,48 +236,59 @@ if __name__ == "__main__":
             for i in range(100):
                 doc = generate_doc(i, coll.schema)
                 result = coll.insert([doc])
-                assert result is not None and len(result) > 0, f"Failed to insert document {i}"
+                assert result is not None and len(result) > 0, (
+                    f"Failed to insert document {i}"
+                )
 
             print(f"[Test] Step 1.2: Inserted 100 documents for indexing.")
 
             # Create index based on the index type
             print(f"[Test] Step 1.3: Creating {index_type} index...")
-            
+
             # Determine the appropriate field and index type for each case
             if index_type == "INVERT":
                 from zvec import InvertIndexParam, IndexOption
+
                 index_param = InvertIndexParam()
                 field_name = "int32_field"  # Scalar fields support INVERT index
             elif index_type == "HNSW":
                 from zvec import DataType, HnswIndexParam, IndexOption
+
                 index_param = HnswIndexParam()
                 # Use a vector field for HNSW index
-                field_name = DEFAULT_VECTOR_FIELD_NAME[DataType.VECTOR_FP32]  # Use vector field for HNSW
+                field_name = DEFAULT_VECTOR_FIELD_NAME[
+                    DataType.VECTOR_FP32
+                ]  # Use vector field for HNSW
             elif index_type == "FLAT":
                 from zvec import DataType, FlatIndexParam, IndexOption
+
                 index_param = FlatIndexParam()
                 # Use a vector field for FLAT index
                 field_name = DEFAULT_VECTOR_FIELD_NAME[DataType.VECTOR_FP32]
             elif index_type == "IVF":
                 from zvec import DataType, IVFIndexParam, IndexOption
+
                 index_param = IVFIndexParam()
                 # Use a vector field for IVF index
                 field_name = DEFAULT_VECTOR_FIELD_NAME[DataType.VECTOR_FP32]
             else:
                 from zvec import InvertIndexParam, IndexOption
+
                 index_param = InvertIndexParam()
                 field_name = "int32_field"
 
             coll.create_index(
-                field_name=field_name, 
-                index_param=index_param, 
-                option=IndexOption()
+                field_name=field_name, index_param=index_param, option=IndexOption()
             )
-            print(f"[Test] Step 1.3: {index_type} index created successfully on {field_name}.")
+            print(
+                f"[Test] Step 1.3: {index_type} index created successfully on {field_name}."
+            )
 
             # Verify collection state before crash
             initial_doc_count = coll.stats.doc_count
-            print(f"[Test] Step 1.4: Collection has {initial_doc_count} documents before crash simulation.")
+            print(
+                f"[Test] Step 1.4: Collection has {initial_doc_count} documents before crash simulation."
+            )
 
             del coll
             print(f"[Test] Step 1.5: Closed collection.")
@@ -267,7 +296,7 @@ if __name__ == "__main__":
             # Step 2: Prepare and run subprocess for index deletion operations
             # Write subprocess script to temporary file
             subprocess_script_path = f"{temp_dir}/zvec_subprocess_deleteindex.py"
-            with open(subprocess_script_path, 'w', encoding='utf-8') as f:
+            with open(subprocess_script_path, "w", encoding="utf-8") as f:
                 f.write(self.ZVEC_SUBPROCESS_SCRIPT_DELETEINDEX)
 
             # Prepare subprocess parameters
@@ -276,20 +305,24 @@ if __name__ == "__main__":
                 "index_field": field_name,  # Use the correct field name for this index type
                 "index_type": index_type,  # Type of index to delete
                 "index_deletion_iterations": 20,  # Number of index deletion iterations to increase interruption chance
-                "delay_between_deletions": 0.3  # Delay between index deletions to allow interruption opportunity
+                "delay_between_deletions": 0.3,  # Delay between index deletions to allow interruption opportunity
             }
             args_json_str = json.dumps(subprocess_args)
 
-            print(f"[Test] Step 2: Starting {index_type} index deletion operations in subprocess, path: {collection_path}")
+            print(
+                f"[Test] Step 2: Starting {index_type} index deletion operations in subprocess, path: {collection_path}"
+            )
             # Start subprocess to execute index deletion operations
-            proc = subprocess.Popen([
-                sys.executable, subprocess_script_path, args_json_str
-            ])
+            proc = subprocess.Popen(
+                [sys.executable, subprocess_script_path, args_json_str]
+            )
 
             # Wait briefly to allow subprocess to begin index deletion operations
             time.sleep(3)  # Wait 3 seconds to allow index deletion process to start
 
-            print(f"[Test] Step 2: Simulating crash/power failure by terminating subprocess PID {proc.pid}...")
+            print(
+                f"[Test] Step 2: Simulating crash/power failure by terminating subprocess PID {proc.pid}..."
+            )
             # Suddenly kill subprocess (simulate power failure or crash during index deletion operations)
             if psutil:
                 try:
@@ -300,13 +333,19 @@ if __name__ == "__main__":
                         child.kill()
                     parent.kill()
                     proc.wait(timeout=5)
-                except (psutil.NoSuchProcess, psutil.AccessDenied, subprocess.TimeoutExpired):
+                except (
+                    psutil.NoSuchProcess,
+                    psutil.AccessDenied,
+                    subprocess.TimeoutExpired,
+                ):
                     # If psutil is unavailable or process has been terminated, fall back to original method
                     proc.send_signal(signal.SIGKILL)
                     try:
                         proc.wait(timeout=5)
                     except subprocess.TimeoutExpired:
-                        print(f"[Test] Subprocess {proc.pid} could not be terminated with SIGKILL, force killing...")
+                        print(
+                            f"[Test] Subprocess {proc.pid} could not be terminated with SIGKILL, force killing..."
+                        )
                         proc.kill()
                         proc.wait()
             else:
@@ -315,7 +354,9 @@ if __name__ == "__main__":
                 try:
                     proc.wait(timeout=5)
                 except subprocess.TimeoutExpired:
-                    print(f"[Test] Subprocess {proc.pid} could not be terminated with SIGKILL, force killing...")
+                    print(
+                        f"[Test] Subprocess {proc.pid} could not be terminated with SIGKILL, force killing..."
+                    )
                     proc.kill()
                     proc.wait()
             print(f"[Test] Subprocess {proc.pid} has been terminated.")
@@ -325,10 +366,13 @@ if __name__ == "__main__":
 
             # Step 3: Verify recovery situation in main process
             print(
-                f"[Test] Step 3: Attempting to open collection after simulating crash during {index_type} index deletion operations...")
+                f"[Test] Step 3: Attempting to open collection after simulating crash during {index_type} index deletion operations..."
+            )
             # Verification 3.1: Check if collection can be successfully opened after crash
             recovered_collection = zvec.open(collection_path)
-            assert recovered_collection is not None, "Cannot open collection after crash"
+            assert recovered_collection is not None, (
+                "Cannot open collection after crash"
+            )
             print(f"[Test] Step 3.1: Verified collection can be opened after crash...")
 
             # Verification 3.2: Check data integrity (document count and content)
@@ -336,23 +380,38 @@ if __name__ == "__main__":
             # Try a safer way to get document count
             try:
                 stats_after_crash = recovered_collection.stats
-                print(f"[Test] Step 3.2.1: Collection stats after crash - doc_count: {stats_after_crash.doc_count}, segments: {stats_after_crash.segment_count}")
-                
+                print(
+                    f"[Test] Step 3.2.1: Collection stats after crash - doc_count: {stats_after_crash.doc_count}, segments: {stats_after_crash.segment_count}"
+                )
+
                 # Try a simple fetch operation instead of complex query to avoid segfault
                 if stats_after_crash.doc_count > 0:
                     # Get a sample of document IDs to fetch
-                    sample_ids = [str(i) for i in range(min(5, stats_after_crash.doc_count))]
+                    sample_ids = [
+                        str(i) for i in range(min(5, stats_after_crash.doc_count))
+                    ]
                     fetched_docs = recovered_collection.fetch(sample_ids)
-                    print(f"[Test] Step 3.2.2: Successfully fetched {len(fetched_docs)} documents out of {len(sample_ids)} attempted")
+                    print(
+                        f"[Test] Step 3.2.2: Successfully fetched {len(fetched_docs)} documents out of {len(sample_ids)} attempted"
+                    )
             except Exception as e:
                 print(f"[Test] Step 3.2: Data integrity check failed after crash: {e}")
 
             # Verification 3.3: Test insertion functionality after recovery (critical functionality check)
             print(f"[Test] Step 3.3: Testing insertion functionality after recovery")
             try:
-                test_insert_doc = generate_doc(9999, schema)  # Use original schema from fixture
-                singledoc_and_check(recovered_collection, test_insert_doc, operator="insert", is_delete=0)
-                print(f"[Test] Step 3.3: Insertion functionality works after crash recovery")
+                test_insert_doc = generate_doc(
+                    9999, schema
+                )  # Use original schema from fixture
+                singledoc_and_check(
+                    recovered_collection,
+                    test_insert_doc,
+                    operator="insert",
+                    is_delete=0,
+                )
+                print(
+                    f"[Test] Step 3.3: Insertion functionality works after crash recovery"
+                )
             except Exception as e:
                 print(f"[Test] Step 3.3: Insertion failed after crash recovery: {e}")
 
@@ -362,10 +421,19 @@ if __name__ == "__main__":
                 current_count = recovered_collection.stats.doc_count
                 if current_count > 0:
                     # Pick an existing document to update
-                    sample_doc_id = str(min(0, current_count-1))  # Use first document
-                    updated_doc = generate_update_doc(int(sample_doc_id), recovered_collection.schema)
-                    singledoc_and_check(recovered_collection, updated_doc, operator="update", is_delete=0)
-                    print(f"[Test] Step 3.4: Update functionality works after crash recovery")
+                    sample_doc_id = str(min(0, current_count - 1))  # Use first document
+                    updated_doc = generate_update_doc(
+                        int(sample_doc_id), recovered_collection.schema
+                    )
+                    singledoc_and_check(
+                        recovered_collection,
+                        updated_doc,
+                        operator="update",
+                        is_delete=0,
+                    )
+                    print(
+                        f"[Test] Step 3.4: Update functionality works after crash recovery"
+                    )
             except Exception as e:
                 print(f"[Test] Step 3.4: Update failed after crash recovery: {e}")
 
@@ -375,11 +443,13 @@ if __name__ == "__main__":
                 test_delete_doc = generate_doc(8888, schema)
                 insert_result = recovered_collection.insert([test_delete_doc])
                 assert insert_result is not None and len(insert_result) > 0
-                
+
                 delete_result = recovered_collection.delete([test_delete_doc.id])
                 assert len(delete_result) == 1
                 assert delete_result[0].ok()
-                print(f"[Test] Step 3.5: Deletion functionality works after crash recovery")
+                print(
+                    f"[Test] Step 3.5: Deletion functionality works after crash recovery"
+                )
             except Exception as e:
                 print(f"[Test] Step 3.5: Deletion failed after crash recovery: {e}")
 
@@ -389,33 +459,46 @@ if __name__ == "__main__":
             # Create index after the crash recovery using the same field and type
             if index_type == "INVERT":
                 from zvec import InvertIndexParam, IndexOption
+
                 index_param = InvertIndexParam()
                 field_to_index = "int32_field"  # Scalar fields support INVERT index
             elif index_type == "HNSW":
                 from zvec import DataType, HnswIndexParam, IndexOption
+
                 index_param = HnswIndexParam()
-                field_to_index = DEFAULT_VECTOR_FIELD_NAME[DataType.VECTOR_FP32]  # Use vector field for HNSW
+                field_to_index = DEFAULT_VECTOR_FIELD_NAME[
+                    DataType.VECTOR_FP32
+                ]  # Use vector field for HNSW
             elif index_type == "FLAT":
                 from zvec import DataType, FlatIndexParam, IndexOption
+
                 index_param = FlatIndexParam()
-                field_to_index = DEFAULT_VECTOR_FIELD_NAME[DataType.VECTOR_FP32]  # Use vector field for FLAT
+                field_to_index = DEFAULT_VECTOR_FIELD_NAME[
+                    DataType.VECTOR_FP32
+                ]  # Use vector field for FLAT
             elif index_type == "IVF":
                 from zvec import DataType, IVFIndexParam, IndexOption
+
                 index_param = IVFIndexParam()
-                field_to_index = DEFAULT_VECTOR_FIELD_NAME[DataType.VECTOR_FP32]  # Use vector field for IVF
+                field_to_index = DEFAULT_VECTOR_FIELD_NAME[
+                    DataType.VECTOR_FP32
+                ]  # Use vector field for IVF
             else:
                 from zvec import InvertIndexParam, IndexOption
+
                 index_param = InvertIndexParam()
                 field_to_index = "int32_field"
 
             # This should succeed if the collection is properly recovered
             recovered_collection.create_index(
-                field_name=field_to_index,
-                index_param=index_param,
-                option=IndexOption()
+                field_name=field_to_index, index_param=index_param, option=IndexOption()
             )
-            print(f"[Test] Step 3.6: {index_type} Index creation succeeded after crash recovery on field {field_to_index}")
+            print(
+                f"[Test] Step 3.6: {index_type} Index creation succeeded after crash recovery on field {field_to_index}"
+            )
 
             # Only do a simple verification after index creation
             stats_after_index = recovered_collection.stats
-            print(f"[Test] Step 3.6.1: Stats after index creation - doc_count: {stats_after_index.doc_count}")
+            print(
+                f"[Test] Step 3.6.1: Stats after index creation - doc_count: {stats_after_index.doc_count}"
+            )

@@ -534,7 +534,7 @@ def singledoc_and_check(
 
             found_doc = None
             for doc in query_result:
-                if doc.id ==insert_doc.id:
+                if doc.id == insert_doc.id:
                     found_doc = doc
                     break
             assert found_doc is not None, (
