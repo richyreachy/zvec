@@ -32,8 +32,11 @@ float InnerProductAndSquaredNormAVX(const float *lhs, const float *rhs, size_t s
 
 #if defined(__SSE__)
 float InnerProductAndSquaredNormSSE(const float *lhs, const float *rhs, size_t size, float *sql, float *sqr);
-float MipsInnerProductSparseInSegmentSSE(uint32_t m_sparse_count, const uint16_t *m_sparse_index, const float *m_sparse_value, uint32_t q_sparse_count, const uint16_t *q_sparse_index, const float *q_sparse_value);
 #endif
+
+#if defined(__SSE4_1__)
+float MipsInnerProductSparseInSegmentSSE(uint32_t m_sparse_count, const uint16_t *m_sparse_index, const float *m_sparse_value, uint32_t q_sparse_count, const uint16_t *q_sparse_index, const float *q_sparse_value);
+#endif 
 
 float MipsInnerProductSparseInSegment(uint32_t m_sparse_count, const uint16_t *m_sparse_index, const float *m_sparse_value, uint32_t q_sparse_count, const uint16_t *q_sparse_index, const float *q_sparse_value);
 
