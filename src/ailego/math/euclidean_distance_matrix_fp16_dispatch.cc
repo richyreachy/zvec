@@ -20,6 +20,7 @@ namespace ailego {
 
 #if defined(__ARM_NEON)
 void SquaredEuclideanDistanceNEON(const Float16 *lhs, const Float16 *rhs, size_t size, float *out);
+void EuclideanDistanceNEON(const Float16 *lhs, const Float16 *rhs, size_t size, float *out);
 #endif
 
 #if defined(__AVX512FP16__)
@@ -70,8 +71,7 @@ void EuclideanDistanceMatrix<Float16, 1, 1>::Compute(const ValueType *m,
                                                      const ValueType *q,
                                                      size_t dim, float *out) {
 #if defined(__ARM_NEON)
-  SquaredEuclideanDistanceNEON(m, q, dim, out);
-  //ACCUM_FP16_1X1_NEON(m, q, dim, out, 0ull, std::sqrt)
+  EuclideanDistanceNEON(m, q, dim, out);
 #else
 #if defined(__AVX512FP16__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512_FP16) {
