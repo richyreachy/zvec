@@ -392,24 +392,24 @@ TEST_F(FlatStreamerTest, TestOpenClose) {
     ASSERT_EQ(0, streamer->open(storage1));
     auto ctx = streamer->create_context();
     ASSERT_TRUE(!!ctx);
-    float vec1[dim];
+    std::vector<float> vec1(dim);
     for (size_t d = 0; d < dim; ++d) {
       vec1[d] = v1;
     }
-    ASSERT_EQ(0, streamer->add_impl(i, vec1, qmeta, ctx));
+    ASSERT_EQ(0, streamer->add_impl(i, vec1.data(), qmeta, ctx));
     checkIter(0, i / 2 + 1, streamer);
     ASSERT_EQ(0, streamer->flush(0UL));
     ASSERT_EQ(0, streamer->close());
 
     float v2 = (float)(i + 1);
-    float vec2[dim];
+    std::vector<float> vec2(dim);
     for (size_t d = 0; d < dim; ++d) {
       vec2[d] = v2;
     }
     ASSERT_EQ(0, streamer->open(storage2));
     ctx = streamer->create_context();
     ASSERT_TRUE(!!ctx);
-    ASSERT_EQ(0, streamer->add_impl(i + 1, vec2, qmeta, ctx));
+    ASSERT_EQ(0, streamer->add_impl(i + 1, vec2.data(), qmeta, ctx));
     checkIter(1, i / 2 + 1, streamer);
     ASSERT_EQ(0, streamer->flush(0UL));
     ASSERT_EQ(0, streamer->close());
