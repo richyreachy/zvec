@@ -21,8 +21,8 @@ namespace zvec::ailego::DistanceBatch {
 
 #if defined(__AVX512VNNI__)
 
-void compute_one_to_many_inner_product_avx512_vnni_int8_query_preprocess(void *query,
-                                                                  size_t dim) {
+void compute_one_to_many_inner_product_avx512_vnni_int8_query_preprocess(
+    void *query, size_t dim) {
   const int8_t *input = reinterpret_cast<const int8_t *>(query);
   uint8_t *output = reinterpret_cast<uint8_t *>(query);
 
@@ -151,18 +151,18 @@ static void compute_one_to_many_inner_product_avx512_vnni_int8(
 //   }
 // }
 
-void compute_one_to_many_inner_product_avx512_vnni_int8_1(const int8_t *query, const int8_t **ptrs,
-    std::array<const int8_t *, 1> &prefetch_ptrs, size_t dim,
-    float *sums) {
+void compute_one_to_many_inner_product_avx512_vnni_int8_1(
+    const int8_t *query, const int8_t **ptrs,
+    std::array<const int8_t *, 1> &prefetch_ptrs, size_t dim, float *sums) {
   return compute_one_to_many_inner_product_avx512_vnni_int8<1>(
-        query, ptrs, prefetch_ptrs, dim, sums);
+      query, ptrs, prefetch_ptrs, dim, sums);
 }
 
-void compute_one_to_many_inner_product_avx512_vnni_int8_12(const int8_t *query, const int8_t **ptrs,
-    std::array<const int8_t *, 12> &prefetch_ptrs, size_t dim,
-    float *sums) {
+void compute_one_to_many_inner_product_avx512_vnni_int8_12(
+    const int8_t *query, const int8_t **ptrs,
+    std::array<const int8_t *, 12> &prefetch_ptrs, size_t dim, float *sums) {
   return compute_one_to_many_inner_product_avx512_vnni_int8<12>(
-        query, ptrs, prefetch_ptrs, dim, sums);
+      query, ptrs, prefetch_ptrs, dim, sums);
 }
 
 

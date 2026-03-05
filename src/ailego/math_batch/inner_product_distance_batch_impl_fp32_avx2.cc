@@ -109,18 +109,18 @@ compute_one_to_many_inner_product_avx2_fp32(
   }
 }
 
-void compute_one_to_many_inner_product_avx2_fp32_1(const float *query, const float **ptrs,
-    std::array<const float *, 1> &prefetch_ptrs,
-    size_t dim, float *sums) {
+void compute_one_to_many_inner_product_avx2_fp32_1(
+    const float *query, const float **ptrs,
+    std::array<const float *, 1> &prefetch_ptrs, size_t dim, float *sums) {
   return compute_one_to_many_inner_product_avx2_fp32<float, 1>(
-        query, ptrs, prefetch_ptrs, dim, sums);
+      query, ptrs, prefetch_ptrs, dim, sums);
 }
 
-void compute_one_to_many_inner_product_avx2_fp32_12(const float *query, const float **ptrs,
-    std::array<const float *, 12> &prefetch_ptrs,
-    size_t dim, float *sums) {
+void compute_one_to_many_inner_product_avx2_fp32_12(
+    const float *query, const float **ptrs,
+    std::array<const float *, 12> &prefetch_ptrs, size_t dim, float *sums) {
   return compute_one_to_many_inner_product_avx2_fp32<float, 12>(
-        query, ptrs, prefetch_ptrs, dim, sums);
+      query, ptrs, prefetch_ptrs, dim, sums);
 }
 
 #endif

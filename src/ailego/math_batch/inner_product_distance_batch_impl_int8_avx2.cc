@@ -83,18 +83,18 @@ compute_one_to_many_inner_product_avx2_int8(
   }
 }
 
-void compute_one_to_many_inner_product_avx2_int8_1(const int8_t *query, const int8_t **ptrs,
-    std::array<const int8_t *, 1> &prefetch_ptrs, size_t dim,
-    float *sums) {
+void compute_one_to_many_inner_product_avx2_int8_1(
+    const int8_t *query, const int8_t **ptrs,
+    std::array<const int8_t *, 1> &prefetch_ptrs, size_t dim, float *sums) {
   return compute_one_to_many_inner_product_avx2_int8<int8_t, 1>(
-        query, ptrs, prefetch_ptrs, dim, sums);
+      query, ptrs, prefetch_ptrs, dim, sums);
 }
 
-void compute_one_to_many_inner_product_avx2_int8_12(const int8_t *query, const int8_t **ptrs,
-    std::array<const int8_t *, 12> &prefetch_ptrs, size_t dim,
-    float *sums) {
+void compute_one_to_many_inner_product_avx2_int8_12(
+    const int8_t *query, const int8_t **ptrs,
+    std::array<const int8_t *, 12> &prefetch_ptrs, size_t dim, float *sums) {
   return compute_one_to_many_inner_product_avx2_int8<int8_t, 12>(
-        query, ptrs, prefetch_ptrs, dim, sums);
+      query, ptrs, prefetch_ptrs, dim, sums);
 }
 
 #endif

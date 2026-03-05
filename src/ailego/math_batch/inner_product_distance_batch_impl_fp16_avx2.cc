@@ -89,18 +89,20 @@ compute_one_to_many_inner_product_avx2_fp16(
   }
 }
 
-void compute_one_to_many_inner_product_avx2_fp16_1(const ailego::Float16 *query, const ailego::Float16 **ptrs,
-    std::array<const ailego::Float16 *, 1> &prefetch_ptrs,
-    size_t dim, float *sums) {
+void compute_one_to_many_inner_product_avx2_fp16_1(
+    const ailego::Float16 *query, const ailego::Float16 **ptrs,
+    std::array<const ailego::Float16 *, 1> &prefetch_ptrs, size_t dim,
+    float *sums) {
   return compute_one_to_many_inner_product_avx2_fp16<ailego::Float16, 1>(
-        query, ptrs, prefetch_ptrs, dim, sums);
+      query, ptrs, prefetch_ptrs, dim, sums);
 }
 
-void compute_one_to_many_inner_product_avx2_fp16_12(const ailego::Float16 *query, const ailego::Float16 **ptrs,
-    std::array<const ailego::Float16 *, 12> &prefetch_ptrs,
-    size_t dim, float *sums) {
+void compute_one_to_many_inner_product_avx2_fp16_12(
+    const ailego::Float16 *query, const ailego::Float16 **ptrs,
+    std::array<const ailego::Float16 *, 12> &prefetch_ptrs, size_t dim,
+    float *sums) {
   return compute_one_to_many_inner_product_avx2_fp16<ailego::Float16, 12>(
-        query, ptrs, prefetch_ptrs, dim, sums);
+      query, ptrs, prefetch_ptrs, dim, sums);
 }
 
 #endif
