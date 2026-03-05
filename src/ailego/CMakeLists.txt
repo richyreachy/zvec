@@ -18,14 +18,13 @@ if(UNIX AND NOT APPLE)
     list(APPEND EXTRA_LIBS ${LIB_RT})
 endif()
 
-#for SSE
-if(UNIX AND NOT APPLE)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
     set(CMAKE_CXX_FLAGS "-march=broadwell")
     set(CMAKE_C_FLAGS "-march=broadwell")
 
     setup_compiler_march_for_x86(MATH_MARCH_FLAG_AVX2 MATH_MARCH_FLAG_AVX512)
     message(STATUS "best compiler avx2 march: " ${MATH_MARCH_FLAG_AVX2} ", avx512 march: " ${MATH_MARCH_FLAG_AVX512})
-else()
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
     set(CMAKE_CXX_FLAGS "-march=native")
     set(CMAKE_C_FLAGS "-march=native")
 
