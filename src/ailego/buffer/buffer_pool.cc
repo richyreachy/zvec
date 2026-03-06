@@ -1,5 +1,6 @@
 #include <zvec/ailego/buffer/buffer_pool.h>
 #include <zvec/core/framework/index_logger.h>
+#include <zvec/ailego/internal/platform.h>
 
 namespace zvec {
 namespace ailego {
@@ -154,7 +155,7 @@ int VecBufferPool::init(size_t pool_capacity, size_t block_size) {
   size_t block_num = file_size_ / block_size + 10;
   lp_map_.init(block_num);
   for (size_t i = 0; i < buffer_num; i++) {
-    char *buffer = (char *)aligned_alloc(64, block_size);
+    char *buffer = (char *)ailego_malloc(block_size);
     if (buffer != nullptr) {
       free_buffers_.try_enqueue(buffer);
     } else {
