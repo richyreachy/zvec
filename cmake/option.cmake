@@ -102,23 +102,6 @@ function(_setup_x86_march)
   endif()
 endfunction()
 
-function(_detect_armv8_best)
-  set(_arm_flags
-    "armv8.6-a" "armv8.5-a" "armv8.4-a" "armv8.3-a" "armv8.2-a" "armv8.1-a" "armv8-a" "armv8"
-  )
-  foreach(_ver IN LISTS _arm_flags)
-    check_c_compiler_flag("-march=${_ver}" _COMP_SUPP_${_ver})
-    if(_COMP_SUPP_${_ver})
-      _AppendFlags(CMAKE_C_FLAGS "-march=${_ver}")
-      _AppendFlags(CMAKE_CXX_FLAGS "-march=${_ver}")
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" PARENT_SCOPE)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
-      return()
-    endif()
-  endforeach()
-  message(WARNING "No ARMv8 architecture flag supported by compiler.")
-endfunction()
-
 function(setup_compiler_march_for_x86 VAR_NAME_AVX2 VAR_NAME_AVX512)
   #avx 2
   set(${VAR_NAME_AVX2} "-march=core-avx2" PARENT_SCOPE)
@@ -134,7 +117,11 @@ function(setup_compiler_march_for_x86 VAR_NAME_AVX2 VAR_NAME_AVX512)
       return()
     endif()
   endforeach()
-  message(WARNING "No known avx512 microarchitecture flag found.")
+
+
+  set(${VAR_NAME_AVX512} "-march=core-avx2" PARENT_SCOPE)
+  message(WARNING "No known avx512 microarchitecture flag found. Set up as core-avx2")
+
 endfunction()
 
 if(MSVC)
