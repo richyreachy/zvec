@@ -152,7 +152,7 @@ class IndexStorage : public IndexModule {
 
     MemoryBlockType type_{MBT_UNKNOWN};
     void *data_{nullptr};
-    mutable ailego::VecBufferPoolHandle *buffer_pool_handle_;
+    mutable ailego::VecBufferPoolHandle *buffer_pool_handle_{nullptr};
     int buffer_block_id_{0};
   };
 

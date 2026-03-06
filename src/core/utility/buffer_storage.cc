@@ -118,8 +118,6 @@ class BufferStorage : public IndexStorage {
       data.reset(
           owner_->buffer_pool_handle_.get(), segment_id_,
           owner_->get_buffer(buffer_offset, capacity_, segment_id_) + offset);
-      // data.reset(owner_->get_buffer(buffer_offset, capacity_, segment_id_) +
-      // offset);
       if (data.data()) {
         return len;
       } else {
@@ -166,7 +164,7 @@ class BufferStorage : public IndexStorage {
 
   //! Initialize storage
   int init(const ailego::Params &params) override {
-    params.get(MMAPFILE_STORAGE_COPY_ON_WRITE, &buffer_size_);
+    params.get(BUFFER_STORAGE_MEMORY_SIZE, &buffer_size_);
     return 0;
   }
 
@@ -186,7 +184,7 @@ class BufferStorage : public IndexStorage {
     if (ret != 0) {
       return ret;
     }
-    ret = buffer_pool_->init(20lu * 1024 * 1024 * 1024, max_segment_size_);
+    ret = buffer_pool_->init(buffer_size_, max_segment_size_);
     if (ret != 0) {
       return ret;
     }
@@ -203,7 +201,11 @@ class BufferStorage : public IndexStorage {
 
   int ParseHeader(size_t offset) {
     char *buffer = new char[sizeof(header_)];
-    get_meta(offset, sizeof(header_), buffer);
+    if (get_meta(offset, sizeof(header_), buffer) != 0) {
+      LOG_ERROR("Get segment header failed.");
+      delete[] buffer;
+      return IndexError_Runtime;
+    }
     uint8_t *header_ptr = reinterpret_cast<uint8_t *>(buffer);
     memcpy(&header_, header_ptr, sizeof(header_));
     delete[] buffer;
@@ -221,7 +223,11 @@ class BufferStorage : public IndexStorage {
 
   int ParseFooter(size_t offset) {
     char *buffer = new char[sizeof(footer_)];
-    get_meta(offset, sizeof(footer_), buffer);
+    if (get_meta(offset, sizeof(footer_), buffer) != 0) {
+      LOG_ERROR("Get segment footer failed.");
+      delete[] buffer;
+      return IndexError_Runtime;
+    }
     uint8_t *footer_ptr = reinterpret_cast<uint8_t *>(buffer);
     memcpy(&footer_, footer_ptr, sizeof(footer_));
     delete[] buffer;
@@ -239,7 +245,10 @@ class BufferStorage : public IndexStorage {
 
   int ParseSegment(size_t offset) {
     segment_buffer_ = std::make_unique<char[]>(footer_.segments_meta_size);
-    get_meta(offset, footer_.segments_meta_size, segment_buffer_.get());
+    if (get_meta(offset, footer_.segments_meta_size, segment_buffer_.get()) != 0) {
+      LOG_ERROR("Get segment meta failed.");
+      return IndexError_Runtime;
+    }
     if (ailego::Crc32c::Hash(segment_buffer_.get(), footer_.segments_meta_size,
                              0u) != footer_.segments_meta_crc) {
       LOG_ERROR("Index segments meta checksum is invalid.");
@@ -443,7 +452,7 @@ class BufferStorage : public IndexStorage {
     segments_.clear();
     memset(&header_, 0, sizeof(header_));
     memset(&footer_, 0, sizeof(footer_));
-    segment_buffer_.release();
+    segment_buffer_.reset();
   }
 
   //! Append a segment into storage
