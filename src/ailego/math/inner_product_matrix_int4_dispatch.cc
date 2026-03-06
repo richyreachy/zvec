@@ -48,12 +48,12 @@ void MinusInnerProductMatrix<uint8_t, 1, 1>::Compute(const ValueType *m,
                                                      const ValueType *q,
                                                      size_t dim, float *out) {
 #if defined(__AVX2__)
-  if (dim > 31) {
-    *out = MinusInnerProductAVX2(m, q, dim);
+  if (dim > 63) {
+    *out = MinusInnerProductAVX2(m, q, dim >> 1);
     return;
   }
 #endif  // __AVX2__
-  *out = MinusInnerProductSSE(m, q, dim);
+  *out = MinusInnerProductSSE(m, q, dim >> 1);
 }
 
 #endif  //__SSE4_1__
