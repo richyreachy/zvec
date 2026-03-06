@@ -30,7 +30,7 @@ namespace ailego {
 #endif  // __AVX512DQ__
 
 #if defined(__SSE__)
-#define NEGZEROS_FP32_SSE_mm_set1_ps(-0.0f)
+#define NEGZEROS_FP32_SSE _mm_set1_ps(-0.0f)
 #endif  // __SSE__
 
 #if defined(__AVX__)
