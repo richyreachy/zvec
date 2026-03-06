@@ -102,7 +102,10 @@ function(_setup_x86_march)
   endif()
 endfunction()
 
-function(setup_compiler_march_for_x86 VAR_NAME_AVX2 VAR_NAME_AVX512)
+function(setup_compiler_march_for_x86 VAR_NAME_SSE VAR_NAME_AVX2 VAR_NAME_AVX512)
+  #sse
+  set(${VAR_NAME_SSE} "-march=corei7" PARENT_SCOPE)
+
   #avx 2
   set(${VAR_NAME_AVX2} "-march=core-avx2" PARENT_SCOPE)
 
