@@ -2469,11 +2469,11 @@ ZVEC_EXPORT void ZVEC_CALL zvec_free_uint8_array(uint8_t *array);
  * Usage example:
  * ZVecCollectionOptions opts = ZVEC_DEFAULT_OPTIONS();
  */
-#define ZVEC_DEFAULT_OPTIONS()                        \
-  (ZVecCollectionOptions){.enable_mmap = true,        \
-                          .max_buffer_size = 1048576, \
-                          .read_only = false,         \
-                          .max_doc_count_per_segment = 1000000}
+#define ZVEC_DEFAULT_OPTIONS()                                           \
+  (ZVecCollectionOptions) {                                              \
+    .enable_mmap = true, .max_buffer_size = 1048576, .read_only = false, \
+    .max_doc_count_per_segment = 1000000                                 \
+  }
 
 /**
  * @brief Simplified vector query initialization macro
@@ -2486,13 +2486,12 @@ ZVEC_EXPORT void ZVEC_CALL zvec_free_uint8_array(uint8_t *array);
  * ZVecVectorQuery query = ZVEC_VECTOR_QUERY("embedding", query_vectors, 10,
  * "");
  */
-#define ZVEC_VECTOR_QUERY(field_name_str, query_vec, top_k, filter_str) \
-  (ZVecVectorQuery){.field_name = ZVEC_STRING(field_name_str),          \
-                    .query_vector = query_vec,                          \
-                    .topk = top_k,                                      \
-                    .filter = ZVEC_STRING(filter_str),                  \
-                    .include_vector = 1,                                \
-                    .include_doc_id = 1}
+#define ZVEC_VECTOR_QUERY(field_name_str, query_vec, top_k, filter_str)    \
+  (ZVecVectorQuery) {                                                      \
+    .field_name = ZVEC_STRING(field_name_str), .query_vector = query_vec,  \
+    .topk = top_k, .filter = ZVEC_STRING(filter_str), .include_vector = 1, \
+    .include_doc_id = 1                                                    \
+  }
 
 /**
  * @brief Simplified document field initialization macro

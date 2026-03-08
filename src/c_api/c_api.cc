@@ -142,37 +142,30 @@ ZVecString *zvec_string_create(const char *str) {
                            __FUNCTION__);
     return nullptr;
   }
-
   ZVecString *zstr = nullptr;
   char *data_buffer = nullptr;
-
   try {
     size_t len = strlen(str);
     zstr = new ZVecString();
-    data_buffer = new char[len + 1];
-    strcpy(const_cast<char *>(data_buffer), str);
-
+    data_buffer = static_cast<char*>(malloc(len + 1));
+    strcpy(data_buffer, str);
     zstr->data = data_buffer;
     zstr->length = len;
     zstr->capacity = len + 1;
-
     return zstr;
-
   } catch (const std::exception &e) {
     if (data_buffer) {
-      delete[] data_buffer;
+      free(data_buffer);
     }
     if (zstr) {
       delete zstr;
     }
-
     set_last_error_details(ZVEC_ERROR_INTERNAL_ERROR,
                            std::string("String creation failed: ") + e.what(),
                            __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
 }
-
 
 ZVecString *zvec_string_create_from_view(const ZVecStringView *view) {
   if (!view || !view->data) {
@@ -651,8 +644,7 @@ static ZVecErrorCode handle_expected_result(
 // Helper function: copy strings
 static char *copy_string(const std::string &str) {
   if (str.empty()) return nullptr;
-
-  char *copy = new char[str.length() + 1];
+  char *copy = static_cast<char*>(malloc(str.length() + 1));
   strcpy(copy, str.c_str());
   return copy;
 }
@@ -2903,7 +2895,7 @@ const char *zvec_doc_get_pk_copy(const ZVecDoc *doc) {
   const std::string &pk = (*doc_ptr)->pk_ref();
   if (pk.empty()) return nullptr;
 
-  char *result = new char[pk.length() + 1];
+  char *result = static_cast<char*>(malloc(pk.length() + 1));
   strcpy(result, pk.c_str());
   return result;
 }
