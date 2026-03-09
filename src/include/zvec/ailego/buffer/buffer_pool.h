@@ -44,7 +44,7 @@ class LRUCache {
 
  private:
   constexpr static size_t CATCH_QUEUE_NUM = 3;
-  int block_size_;
+  size_t block_size_;
   std::vector<ConcurrentQueue> queues_;
   alignas(64) std::atomic<size_t> evict_queue_insertions_{0};
 };

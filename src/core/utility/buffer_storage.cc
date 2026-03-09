@@ -83,9 +83,11 @@ class BufferStorage : public IndexStorage {
       size_t buffer_offset = segment_header_start_offset_ +
                              segment_header_->content_offset +
                              segment_->meta()->data_index;
-      auto data =
-          owner_->get_buffer(buffer_offset, capacity_, segment_id_) + offset;
-      memmove(buf, data, len);
+      auto *raw = owner_->get_buffer(buffer_offset, capacity_, segment_id_);
+      if (!raw) {
+        return 0;
+      }
+      auto data = memmove(buf, data, len);
       return len;
     }
 
@@ -101,8 +103,11 @@ class BufferStorage : public IndexStorage {
       size_t buffer_offset = segment_header_start_offset_ +
                              segment_header_->content_offset +
                              segment_->meta()->data_index;
-      *data =
-          owner_->get_buffer(buffer_offset, capacity_, segment_id_) + offset;
+      auto *raw = owner_->get_buffer(buffer_offset, capacity_, segment_id_);
+      if (!raw) {
+        return 0;
+      }
+      *data = raw + offset;
       return len;
     }
 
