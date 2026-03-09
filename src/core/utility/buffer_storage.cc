@@ -255,19 +255,19 @@ class BufferStorage : public IndexStorage {
   }
 
   int ParseSegment(size_t offset) {
-    segment_buffer_ = std::make_unique<char[]>(footer_.segments_meta_size);
-    if (get_meta(offset, footer_.segments_meta_size, segment_buffer_.get()) !=
+    std::unique_ptr<char[]> segment_buffer = std::make_unique<char[]>(footer_.segments_meta_size);
+    if (get_meta(offset, footer_.segments_meta_size, segment_buffer.get()) !=
         0) {
       LOG_ERROR("Get segment meta failed.");
       return IndexError_Runtime;
     }
-    if (ailego::Crc32c::Hash(segment_buffer_.get(), footer_.segments_meta_size,
+    if (ailego::Crc32c::Hash(segment_buffer.get(), footer_.segments_meta_size,
                              0u) != footer_.segments_meta_crc) {
       LOG_ERROR("Index segments meta checksum is invalid.");
       return IndexError_InvalidChecksum;
     }
     IndexFormat::SegmentMeta *segment_start =
-        reinterpret_cast<IndexFormat::SegmentMeta *>(segment_buffer_.get());
+        reinterpret_cast<IndexFormat::SegmentMeta *>(segment_buffer.get());
     uint32_t segment_ids_offset = footer_.segments_meta_size;
     for (IndexFormat::SegmentMeta *iter = segment_start,
                                   *end = segment_start + footer_.segment_count;
@@ -464,7 +464,6 @@ class BufferStorage : public IndexStorage {
     segments_.clear();
     memset(&header_, 0, sizeof(header_));
     memset(&footer_, 0, sizeof(footer_));
-    segment_buffer_.reset();
   }
 
   //! Append a segment into storage
@@ -499,7 +498,6 @@ class BufferStorage : public IndexStorage {
   std::map<std::string, IndexMapping::SegmentInfo> segments_{};
   std::map<std::string, size_t> id_hash_{};
   uint64_t max_segment_size_{0};
-  std::unique_ptr<char[]> segment_buffer_{nullptr};
 
   ailego::VecBufferPool::Pointer buffer_pool_{nullptr};
   ailego::VecBufferPoolHandle::Pointer buffer_pool_handle_{nullptr};
