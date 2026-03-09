@@ -46,7 +46,7 @@ class IndexStorage : public IndexModule {
     }
     MemoryBlock(void *data) : type_(MemoryBlockType::MBT_MMAP), data_(data) {}
 
-    MemoryBlock(MemoryBlock &rhs) {
+    MemoryBlock(const MemoryBlock &rhs) {
       switch (rhs.type_) {
         case MemoryBlockType::MBT_MMAP:
           this->reset(rhs.data_);
@@ -69,13 +69,14 @@ class IndexStorage : public IndexModule {
           this->reset(std::move(rhs.buffer_pool_handle_),
                       std::move(rhs.buffer_block_id_), std::move(rhs.data_));
           rhs.buffer_pool_handle_ = nullptr;
+          rhs.type_ = MemoryBlockType::MBT_UNKNOWN;
           break;
         default:
           break;
       }
     }
 
-    MemoryBlock &operator=(MemoryBlock &rhs) {
+    MemoryBlock &operator=(const MemoryBlock &rhs) {
       if (this != &rhs) {
         switch (rhs.type_) {
           case MemoryBlockType::MBT_MMAP:
@@ -103,6 +104,7 @@ class IndexStorage : public IndexModule {
             this->reset(std::move(rhs.buffer_pool_handle_),
                         std::move(rhs.buffer_block_id_), std::move(rhs.data_));
             rhs.buffer_pool_handle_ = nullptr;
+            rhs.type_ = MemoryBlockType::MBT_UNKNOWN;
             break;
           default:
             break;
