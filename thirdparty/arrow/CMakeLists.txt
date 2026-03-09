@@ -22,13 +22,13 @@ set(LIB_ARROW_DATASET ${EXTERNAL_LIB_DIR}/libarrow_dataset.a)
 set(CONFIGURE_ENV_LIST "")
 if(USE_OSS_MIRROR)
         list(APPEND CONFIGURE_ENV_LIST
-                "ARROW_BOOST_URL=https://zvec.oss-cn-hongkong.aliyuncs.com/thirdparty/boost-1.88.0-cmake.tar.gz"
-                "ARROW_RAPIDJSON_URL=https://zvec.oss-cn-hongkong.aliyuncs.com/thirdparty/rapidjson-232389d4f1012dddec4ef84861face2d2ba85709.tar.gz"
-                "ARROW_RE2_URL=https://zvec.oss-cn-hongkong.aliyuncs.com/thirdparty/re2-2022-06-01.tar.gz"
-                "ARROW_THRIFT_URL=https://zvec.oss-cn-hongkong.aliyuncs.com/thirdparty/thrift-0.22.0.tar.gz"
-                "ARROW_UTF8PROC_URL=https://zvec.oss-cn-hongkong.aliyuncs.com/thirdparty/utf8proc-2.10.0.tar.gz"
-                "ARROW_XSIMD_URL=https://zvec.oss-cn-hongkong.aliyuncs.com/thirdparty/xsimd-13.0.0.tar.gz"
-                "ARROW_ZLIB_URL=https://zvec.oss-cn-hongkong.aliyuncs.com/thirdparty/zlib-1.3.1.tar.gz"
+                "ARROW_BOOST_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/boost-1.88.0-cmake.tar.gz"
+                "ARROW_RAPIDJSON_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/rapidjson-232389d4f1012dddec4ef84861face2d2ba85709.tar.gz"
+                "ARROW_RE2_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/re2-2022-06-01.tar.gz"
+                "ARROW_THRIFT_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/thrift-0.22.0.tar.gz"
+                "ARROW_UTF8PROC_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/utf8proc-2.10.0.tar.gz"
+                "ARROW_XSIMD_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/xsimd-13.0.0.tar.gz"
+                "ARROW_ZLIB_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/zlib-1.3.1.tar.gz"
         )
         message(STATUS "Using OSS mirror for third-party downloads")
 endif()
