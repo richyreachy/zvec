@@ -147,7 +147,7 @@ ZVecString *zvec_string_create(const char *str) {
   try {
     size_t len = strlen(str);
     zstr = new ZVecString();
-    data_buffer = static_cast<char*>(malloc(len + 1));
+    data_buffer = static_cast<char *>(malloc(len + 1));
     strcpy(data_buffer, str);
     zstr->data = data_buffer;
     zstr->length = len;
@@ -644,7 +644,7 @@ static ZVecErrorCode handle_expected_result(
 // Helper function: copy strings
 static char *copy_string(const std::string &str) {
   if (str.empty()) return nullptr;
-  char *copy = static_cast<char*>(malloc(str.length() + 1));
+  char *copy = static_cast<char *>(malloc(str.length() + 1));
   strcpy(copy, str.c_str());
   return copy;
 }
@@ -2895,7 +2895,7 @@ const char *zvec_doc_get_pk_copy(const ZVecDoc *doc) {
   const std::string &pk = (*doc_ptr)->pk_ref();
   if (pk.empty()) return nullptr;
 
-  char *result = static_cast<char*>(malloc(pk.length() + 1));
+  char *result = static_cast<char *>(malloc(pk.length() + 1));
   strcpy(result, pk.c_str());
   return result;
 }
