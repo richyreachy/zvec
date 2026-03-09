@@ -87,7 +87,8 @@ class BufferStorage : public IndexStorage {
       if (!raw) {
         return 0;
       }
-      auto data = memmove(buf, data, len);
+      auto *data = raw + offset;
+      memmove(buf, data, len);
       return len;
     }
 
@@ -122,9 +123,12 @@ class BufferStorage : public IndexStorage {
       size_t buffer_offset = segment_header_start_offset_ +
                              segment_header_->content_offset +
                              segment_->meta()->data_index;
-      data.reset(
-          owner_->buffer_pool_handle_.get(), segment_id_,
-          owner_->get_buffer(buffer_offset, capacity_, segment_id_) + offset);
+      auto *raw = owner_->get_buffer(buffer_offset, capacity_, segment_id_);
+      if (!raw) {
+        return 0;
+      }
+      
+      data.reset(owner_->buffer_pool_handle_.get(), segment_id_, raw + offset);
       if (data.data()) {
         return len;
       } else {
