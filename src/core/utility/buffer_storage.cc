@@ -255,7 +255,8 @@ class BufferStorage : public IndexStorage {
   }
 
   int ParseSegment(size_t offset) {
-    std::unique_ptr<char[]> segment_buffer = std::make_unique<char[]>(footer_.segments_meta_size);
+    std::unique_ptr<char[]> segment_buffer =
+        std::make_unique<char[]>(footer_.segments_meta_size);
     if (get_meta(offset, footer_.segments_meta_size, segment_buffer.get()) !=
         0) {
       LOG_ERROR("Get segment meta failed.");
