@@ -212,6 +212,7 @@ TEST(IndexInterface, BufferGeneral) {
             .data.data());
     ASSERT_FLOAT_EQ(1.0f, fetched_vector[1]);
     ASSERT_FLOAT_EQ(2.0f, fetched_vector[2]);
+    result.doc_list_.clear();
     read_index->Close();
     system(cmd_buf);
   };
