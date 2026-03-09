@@ -160,6 +160,13 @@ Status FieldSchema::validate() const {
               "types according to the IP metric");
         }
       }
+      if (vector_index_params->metric_type() == MetricType::COSINE &&
+          vector_index_params->quantize_type() == QuantizeType::UNDEFINED &&
+          data_type_ == DataType::VECTOR_INT8) {
+        return Status::InvalidArgument(
+            "schema validate failed: cosine metric only support FP32/FP16 "
+            "data types according to the cosine metric");
+      }
     }
   } else {
     if (index_params_) {
