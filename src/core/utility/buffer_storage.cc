@@ -127,7 +127,7 @@ class BufferStorage : public IndexStorage {
       if (!raw) {
         return 0;
       }
-      
+
       data.reset(owner_->buffer_pool_handle_.get(), segment_id_, raw + offset);
       if (data.data()) {
         return len;
