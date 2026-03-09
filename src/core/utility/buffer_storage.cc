@@ -303,6 +303,7 @@ class BufferStorage : public IndexStorage {
         return IndexError_InvalidLength;
       }
     }
+    buffer_pool_buffers_.push_back(std::move(segment_buffer));
     return 0;
   }
 
@@ -471,6 +472,7 @@ class BufferStorage : public IndexStorage {
     buffer_pool_handle_.reset();
     buffer_pool_.reset();
     max_segment_size_ = 0;
+    buffer_pool_buffers_.clear();
   }
 
   //! Append a segment into storage
@@ -505,6 +507,7 @@ class BufferStorage : public IndexStorage {
   std::map<std::string, IndexMapping::SegmentInfo> segments_{};
   std::map<std::string, size_t> id_hash_{};
   uint64_t max_segment_size_{0};
+  std::vector<std::unique_ptr<char[]>> buffer_pool_buffers_{};
 
   ailego::VecBufferPool::Pointer buffer_pool_{nullptr};
   ailego::VecBufferPoolHandle::Pointer buffer_pool_handle_{nullptr};
