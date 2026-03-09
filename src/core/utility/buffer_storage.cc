@@ -462,9 +462,13 @@ class BufferStorage : public IndexStorage {
   void close_index(void) {
     std::lock_guard<std::mutex> latch(mapping_mutex_);
     file_name_.clear();
+    id_hash_.clear();
     segments_.clear();
     memset(&header_, 0, sizeof(header_));
     memset(&footer_, 0, sizeof(footer_));
+    buffer_pool_handle_.reset();
+    buffer_pool_.reset();
+    max_segment_size_ = 0;
   }
 
   //! Append a segment into storage

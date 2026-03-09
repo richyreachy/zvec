@@ -130,7 +130,7 @@ class IndexStorage : public IndexModule {
       return data_;
     }
 
-    void reset(ailego::VecBufferPoolHandle *buffer_pool_handle, int block_id,
+    void reset(ailego::VecBufferPoolHandle *buffer_pool_handle, size_t block_id,
                void *data) {
       if (type_ == MemoryBlockType::MBT_BUFFERPOOL) {
         buffer_pool_handle_->release_one(buffer_block_id_);
@@ -153,7 +153,7 @@ class IndexStorage : public IndexModule {
     MemoryBlockType type_{MBT_UNKNOWN};
     void *data_{nullptr};
     mutable ailego::VecBufferPoolHandle *buffer_pool_handle_{nullptr};
-    int buffer_block_id_{0};
+    size_t buffer_block_id_{0};
   };
 
   struct SegmentData {
