@@ -80,10 +80,12 @@ class BufferStorage : public IndexStorage {
         }
         len = meta->data_size - offset;
       }
-      memmove(buf,
-              (const uint8_t *)(owner_->get_buffer(offset, len, segment_id_)) +
-                  offset,
-              len);
+      size_t buffer_offset = segment_header_start_offset_ +
+                             segment_header_->content_offset +
+                             segment_->meta()->data_index;
+      auto data =
+          owner_->get_buffer(buffer_offset, capacity_, segment_id_) + offset;
+      memmove(buf, data, len);
       return len;
     }
 
