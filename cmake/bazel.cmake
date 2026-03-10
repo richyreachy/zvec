@@ -365,7 +365,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-if(APPLE)
+if(APPLE OR ANDROID)
     option(CLANG_USE_LIBCXX "Use libc++ instead of libstdc++" ON)
 else()
     option(CLANG_USE_LIBCXX "Use libc++ instead of libstdc++" OFF)
