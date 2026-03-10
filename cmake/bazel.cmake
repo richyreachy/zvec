@@ -371,7 +371,7 @@ else()
   set(_clang_use_libcxx_default OFF)
 endif()
 option(CLANG_USE_LIBCXX "Use libc++ instead of libstdc++" ${_clang_use_libcxx_default})
-unset(_clang_use_libcxx_default))
+unset(_clang_use_libcxx_default)
 
 set(CLANG_STDLIB_OPTION "")
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
