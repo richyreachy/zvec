@@ -172,8 +172,8 @@ int64_t HnswEntity::dump_vectors(
 
   size_t padding_size = AlignSize(vector_dump_size) - vector_dump_size;
 
-  char padding[padding_size];
-  memset(padding, 0, sizeof(padding));
+  std::vector<char> padding(padding_size);
+  memset(padding.data(), 0, sizeof(char) * padding_size);
   const void *data = nullptr;
   uint32_t crc = 0U;
   size_t vecs_size = 0UL;
