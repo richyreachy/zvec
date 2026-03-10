@@ -83,29 +83,8 @@ void SquaredEuclideanDistanceMatrix<float, 1, 1>::Compute(const ValueType *m,
 void EuclideanDistanceMatrix<float, 1, 1>::Compute(const ValueType *m,
                                                    const ValueType *q,
                                                    size_t dim, float *out) {
-#if defined(__ARM_NEON)
-  SquaredEuclideanDistanceNEON(m, q, dim, out);
+  SquaredEuclideanDistanceMatrix<float, 1, 1>::Compute(m, q, dim, out);
   *out = std::sqrt(*out);
-#else
-#if defined(__AVX512F__)
-  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    if (dim > 15) {
-      *out = std::sqrt(SquaredEuclideanDistanceAVX512(m, q, dim));
-      return;
-    }
-  }
-#endif  // __AVX512F__
-
-#if defined(__AVX__)
-  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
-    if (dim > 7) {
-      *out = std::sqrt(SquaredEuclideanDistanceAVX(m, q, dim));
-      return;
-    }
-  }
-#endif  // __AVX__
-  *out = std::sqrt(SquaredEuclideanDistanceSSE(m, q, dim));
-#endif  // __ARM_NEON
 }
 #endif  // __SSE__ || __ARM_NEON && __aarch64__
 

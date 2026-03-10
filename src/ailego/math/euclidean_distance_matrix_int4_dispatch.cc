@@ -50,13 +50,8 @@ void SquaredEuclideanDistanceMatrix<uint8_t, 1, 1>::Compute(const ValueType *m,
 void EuclideanDistanceMatrix<uint8_t, 1, 1>::Compute(const ValueType *m,
                                                      const ValueType *q,
                                                      size_t dim, float *out) {
-#if defined(__AVX2__)
-  if (dim > 63) {
-    *out = std::sqrt(SquaredEuclideanDistanceAVX2(m, q, dim >> 1));
-    return;
-  }
-#endif  // __AVX2__
-  *out = std::sqrt(SquaredEuclideanDistanceSSE(m, q, dim >> 1));
+  SquaredEuclideanDistanceMatrix<uint8_t, 1, 1>::Compute(m, q, dim, out);
+  *out = std::sqrt(*out);
 }
 
 #endif  // __SSE4_1__

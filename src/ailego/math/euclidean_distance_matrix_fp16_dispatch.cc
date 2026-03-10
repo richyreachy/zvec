@@ -77,23 +77,8 @@ void SquaredEuclideanDistanceMatrix<Float16, 1, 1>::Compute(const ValueType *m,
 void EuclideanDistanceMatrix<Float16, 1, 1>::Compute(const ValueType *m,
                                                      const ValueType *q,
                                                      size_t dim, float *out) {
-#if defined(__ARM_NEON)
-  EuclideanDistanceNEON(m, q, dim, out);
-#else
-#if defined(__AVX512FP16__)
-  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512_FP16) {
-    *out = std::sqrt(SquaredEuclideanDistanceAVX512FP16(m, q, dim));
-    return;
-  }
-#endif
-#if defined(__AVX512F__)
-  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    EuclideanDistanceAVX512(m, q, dim, out);
-    return;
-  }
-#endif
-  EuclideanDistanceAVX(m, q, dim, out);
-#endif  //__ARM_NEON
+  SquaredEuclideanDistanceMatrix<Float16, 1, 1>::Compute(m, q, dim, out);
+  *out = std::sqrt(*out);
 }
 
 #endif
