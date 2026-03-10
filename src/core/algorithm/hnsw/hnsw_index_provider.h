@@ -16,14 +16,14 @@
 #include <zvec/core/framework/index_provider.h>
 #include <zvec/core/framework/index_searcher.h>
 #include <zvec/core/framework/index_streamer.h>
-#include "hnsw_entity.h"
+#include "hnsw_streamer_entity_new.h"
 
 namespace zvec {
 namespace core {
 
 class HnswIndexProvider : public IndexProvider {
  public:
-  HnswIndexProvider(const IndexMeta &meta, const HnswEntity::Pointer &entity,
+  HnswIndexProvider(const IndexMeta &meta, const HnswStreamerEntityNew::Pointer &entity,
                     const std::string &owner)
       : meta_(meta), entity_(entity), owner_class_(owner) {}
 
@@ -76,7 +76,7 @@ class HnswIndexProvider : public IndexProvider {
  private:
   class Iterator : public IndexProvider::Iterator {
    public:
-    Iterator(const HnswEntity::Pointer &entity)
+    Iterator(const HnswStreamerEntityNew::Pointer &entity)
         : entity_(entity), cur_id_(0U) {}
 
     //! Retrieve pointer of data
@@ -119,13 +119,13 @@ class HnswIndexProvider : public IndexProvider {
     }
 
    private:
-    const HnswEntity::Pointer entity_;
+    const HnswStreamerEntityNew::Pointer entity_;
     node_id_t cur_id_;
   };
 
  private:
   const IndexMeta &meta_;
-  const HnswEntity::Pointer entity_;
+  const HnswStreamerEntityNew::Pointer entity_;
   const std::string owner_class_;
 };
 

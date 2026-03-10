@@ -20,7 +20,7 @@
 namespace zvec {
 namespace core {
 
-HnswAlgorithm::HnswAlgorithm(HnswEntity &entity)
+HnswAlgorithm::HnswAlgorithm(HnswStreamerEntityNew &entity)
     : entity_(entity),
       mt_(std::chrono::system_clock::now().time_since_epoch().count()),
       lock_pool_(kLockCnt) {}
