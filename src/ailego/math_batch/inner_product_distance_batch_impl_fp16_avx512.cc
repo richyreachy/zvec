@@ -53,7 +53,7 @@ compute_one_to_many_inner_product_avx512fp16_fp16(
     }
   }
 
-  if (dim < dimensionality) {
+  if (dim <= dimensionality) {
     __mmask32 mask = (__mmask32)((1 << (dimensionality - dim)) - 1);
 
     for (size_t i = 0; i < dp_batch; ++i) {
@@ -119,7 +119,7 @@ compute_one_to_many_inner_product_avx512f_fp16(
     }
   }
 
-  if (dim + 16 < dimensionality) {
+  if (dim + 16 <= dimensionality) {
     __m512 q = _mm512_cvtph_ps(
         _mm256_loadu_si256(reinterpret_cast<const __m256i *>(query + dim)));
 
@@ -140,7 +140,7 @@ compute_one_to_many_inner_product_avx512f_fp16(
         _mm256_castpd_ps(_mm512_extractf64x4_pd(_mm512_castps_pd(accs[i]), 1)));
   }
 
-  if (dim + 8 < dimensionality) {
+  if (dim + 8 <= dimensionality) {
     __m256 q = _mm256_cvtph_ps(
         _mm_loadu_si128(reinterpret_cast<const __m128i *>(query + dim)));
 
