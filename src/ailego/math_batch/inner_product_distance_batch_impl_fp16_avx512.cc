@@ -53,7 +53,7 @@ compute_one_to_many_inner_product_avx512fp16_fp16(
     }
   }
 
-  if (dim <= dimensionality) {
+  if (dim < dimensionality) {
     __mmask32 mask = (__mmask32)((1 << (dimensionality - dim)) - 1);
 
     for (size_t i = 0; i < dp_batch; ++i) {
