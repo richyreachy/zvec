@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <_printf.h>
 #ifdef _POSIX_C_SOURCE
 #include <sys/time.h>
 #endif
@@ -2146,7 +2147,7 @@ void test_performance_benchmarks(void) {
     ZVecErrorCode err =
         zvec_collection_create_and_open(temp_dir, schema, NULL, &collection);
     TEST_ASSERT(err == ZVEC_OK);
-    
+
     TEST_ASSERT(collection != NULL);
 
     if (collection) {
@@ -2204,8 +2205,8 @@ void test_performance_benchmarks(void) {
 
 #ifdef _POSIX_C_SOURCE
       gettimeofday(&end_time, NULL);
-      double insert_time = (end_time.tv_sec - start_time.tv_sec) + 
-                          (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
+      double insert_time = (end_time.tv_sec - start_time.tv_sec) +
+                           (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
 #else
       clock_t end_clock = clock();
       double insert_time = ((double)(end_clock - start_clock)) / CLOCKS_PER_SEC;
@@ -2253,11 +2254,13 @@ void test_performance_benchmarks(void) {
 
 #ifdef _POSIX_C_SOURCE
       gettimeofday(&query_end_time, NULL);
-      double query_time = (query_end_time.tv_sec - query_start_time.tv_sec) + 
-                         (query_end_time.tv_usec - query_start_time.tv_usec) / 1000000.0;
+      double query_time =
+          (query_end_time.tv_sec - query_start_time.tv_sec) +
+          (query_end_time.tv_usec - query_start_time.tv_usec) / 1000000.0;
 #else
       clock_t query_end_clock = clock();
-      double query_time = ((double)(query_end_clock - query_start_clock)) / CLOCKS_PER_SEC;
+      double query_time =
+          ((double)(query_end_clock - query_start_clock)) / CLOCKS_PER_SEC;
 #endif
       double avg_query_time =
           (query_time * 1000) / QUERY_COUNT;  // ms per query
@@ -2284,7 +2287,7 @@ void test_performance_benchmarks(void) {
 
 int main(void) {
   printf("Starting comprehensive C API tests...\n\n");
-  
+
   // Clean up previous test directories
   printf("Cleaning up previous test directories...\n");
   system("rm -rf /tmp/zvec_test_*");

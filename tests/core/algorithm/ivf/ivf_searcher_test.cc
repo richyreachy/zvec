@@ -392,7 +392,7 @@ TEST_F(IVFSearcherTest, TestSimpleCosine) {
   {
     size_t topk = 33;
     context->set_topk(topk);
-    
+
     std::string new_vec;
     IndexQueryMeta new_meta;
     ASSERT_EQ(0, reformer->convert(query.data(), qmeta, &new_vec, &new_meta));

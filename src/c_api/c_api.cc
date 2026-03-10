@@ -3551,19 +3551,19 @@ ZVecErrorCode zvec_doc_get_field_value_pointer(const ZVecDoc *doc,
         break;
       }
       case ZVEC_DATA_TYPE_BOOL: {
-        const bool val = (*doc_ptr)->get_ref<bool>(field_name);
+        const bool &val = (*doc_ptr)->get_ref<bool>(field_name);
         *value = &val;
         *value_size = sizeof(bool);
         break;
       }
       case ZVEC_DATA_TYPE_INT32: {
-        const int32_t val = (*doc_ptr)->get_ref<int32_t>(field_name);
+        const int32_t &val = (*doc_ptr)->get_ref<int32_t>(field_name);
         *value = &val;
         *value_size = sizeof(int32_t);
         break;
       }
       case ZVEC_DATA_TYPE_INT64: {
-        const int64_t val = (*doc_ptr)->get_ref<int64_t>(field_name);
+        const int64_t &val = (*doc_ptr)->get_ref<int64_t>(field_name);
         *value = &val;
         *value_size = sizeof(int64_t);
         break;
@@ -3575,19 +3575,19 @@ ZVecErrorCode zvec_doc_get_field_value_pointer(const ZVecDoc *doc,
         break;
       }
       case ZVEC_DATA_TYPE_UINT64: {
-        const uint64_t val = (*doc_ptr)->get_ref<uint64_t>(field_name);
+        const uint64_t &val = (*doc_ptr)->get_ref<uint64_t>(field_name);
         *value = &val;
         *value_size = sizeof(uint64_t);
         break;
       }
       case ZVEC_DATA_TYPE_FLOAT: {
-        const float val = (*doc_ptr)->get_ref<float>(field_name);
+        const float &val = (*doc_ptr)->get_ref<float>(field_name);
         *value = &val;
         *value_size = sizeof(float);
         break;
       }
       case ZVEC_DATA_TYPE_DOUBLE: {
-        const double val = (*doc_ptr)->get_ref<double>(field_name);
+        const double &val = (*doc_ptr)->get_ref<double>(field_name);
         *value = &val;
         *value_size = sizeof(double);
         break;
