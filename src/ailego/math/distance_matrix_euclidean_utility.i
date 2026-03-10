@@ -61,21 +61,24 @@
     zmm_sum = _mm512_fmadd_ps(zmm_d, zmm_d, zmm_sum); \
   }
 
-#define ACCUM_FP32_STEP_SSE SSD_FP32_SSE
-#define ACCUM_FP32_STEP_AVX SSD_FP32_AVX
-#define ACCUM_FP32_STEP_AVX512 SSD_FP32_AVX512
-#define ACCUM_FP32_STEP_NEON SSD_FP32_NEON
-#define ACCUM_FP16_STEP_GENERAL SSD_FP16_GENERAL
-#define ACCUM_FP16_STEP_NEON SSD_FP16_NEON
-#define ACCUM_FP32_STEP_SSE SSD_FP32_SSE
-#define ACCUM_FP32_STEP_AVX SSD_FP32_AVX
-#define ACCUM_FP32_STEP_SSE SSD_FP32_SSE
-#define ACCUM_INT4_STEP_SSE SSD_INT4_SSE
-
 //! Calculate sum of squared difference (GENERAL)
 #define SSD_INT4_GENERAL(m, q, sum)                                       \
   sum += Int4SquaredDiffTable[(((m) << 4) & 0xf0) | (((q) >> 0) & 0xf)] + \
          Int4SquaredDiffTable[(((m) >> 0) & 0xf0) | (((q) >> 4) & 0xf)];
+
+
+#if defined(__SSE4_1__)
+static const __m128i MASK_INT4_SSE = _mm_set1_epi32(0xf0f0f0f0);
+static const __m128i ONES_INT16_SSE = _mm_set1_epi32(0x00010001);
+#endif  // __SSE4_1__
+
+//! Compute the square root of value (SSE)
+#define SQRT_FP32_SSE(v, ...) _mm_sqrt_ps(_mm_cvtepi32_ps(v))
+
+#if defined(__AVX2__)
+static const __m256i MASK_INT4_AVX = _mm256_set1_epi32(0xf0f0f0f0);
+static const __m256i ONES_INT16_AVX = _mm256_set1_epi32(0x00010001);
+#endif  // __AVX2__
 
 //! Calculate sum of squared difference (SSE)
 #define SSD_INT4_SSE(xmm_m, xmm_q, xmm_sum)                                  \
@@ -229,29 +232,22 @@
                      1));                                                      \
   }
 
-
-#if defined(__SSE4_1__)
-static const __m128i MASK_INT4_SSE = _mm_set1_epi32(0xf0f0f0f0);
-static const __m128i ONES_INT16_SSE = _mm_set1_epi32(0x00010001);
-#endif  // __SSE4_1__
-
-//! Compute the square root of value (SSE)
-#define SQRT_FP32_SSE(v, ...) _mm_sqrt_ps(_mm_cvtepi32_ps(v))
-
-#define ACCUM_INT4_STEP_SSE SSD_INT4_SSE
-#define ACCUM_INT4_STEP_AVX SSD_INT4_AVX
-
-#if defined(__AVX2__)
-static const __m256i MASK_INT4_AVX = _mm256_set1_epi32(0xf0f0f0f0);
-static const __m256i ONES_INT16_AVX = _mm256_set1_epi32(0x00010001);
-#endif  // __AVX2__
-
 //! Compute the square root of value (AVX)
 #define SQRT_FP32_AVX(v, ...) _mm256_sqrt_ps(_mm256_cvtepi32_ps(v))
 
 //! Compute the square root of value (AVX512)
 #define SQRT_FP32_AVX512(v, ...) _mm512_sqrt_ps(_mm512_cvtepi32_ps(v))
 
+#define ACCUM_FP32_STEP_SSE SSD_FP32_SSE
+#define ACCUM_FP32_STEP_AVX SSD_FP32_AVX
+
+#define ACCUM_FP32_STEP_AVX512 SSD_FP32_AVX512
+#define ACCUM_FP16_STEP_GENERAL SSD_FP16_GENERAL
+
+#define ACCUM_FP16_STEP_NEON SSD_FP16_NEON
+#define ACCUM_FP32_STEP_NEON SSD_FP32_NEON
+
+#define ACCUM_INT4_STEP_SSE SSD_INT4_SSE
+#define ACCUM_INT4_STEP_AVX SSD_INT4_AVX
 #define ACCUM_INT8_STEP_SSE SSD_INT8_SSE
 #define ACCUM_INT8_STEP_AVX SSD_INT8_AVX
-

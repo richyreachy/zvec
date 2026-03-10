@@ -17,9 +17,7 @@
 static const AILEGO_ALIGNED(32) int8_t Int4ConvertTable[32] = {
     0, 1, 2, 3, 4, 5, 6, 7, -8, -7, -6, -5, -4, -3, -2, -1,
     0, 1, 2, 3, 4, 5, 6, 7, -8, -7, -6, -5, -4, -3, -2, -1};
-#endif  // __SSE4_1__
 
-#if defined(__SSE4_1__)
 #define NEGZEROS_FP32_SSE _mm_set1_ps(-0.0f)
 #define  MASK_INT4_SSE _mm_set1_epi32(0x0f0f0f0f)
 #define ONES_INT16_SSE _mm_set1_epi32(0x00010001)
@@ -70,17 +68,6 @@ static const AILEGO_ALIGNED(32) int8_t Int4ConvertTable[32] = {
 //! Calculate Fused-Multiply-Add (NEON)
 #define FMA_FP32_NEON(v_m, v_q, v_sum) v_sum = vfmaq_f32(v_sum, v_m, v_q);
 
-#define ACCUM_FP16_STEP_GENERAL FMA_FP16_GENERAL
-#define ACCUM_FP16_STEP_NEON FMA_FP16_NEON
-
-#define ACCUM_FP32_STEP_SSE FMA_FP32_SSE
-#define ACCUM_FP32_STEP_AVX FMA_FP32_AVX
-#define ACCUM_FP32_STEP_AVX512 FMA_FP32_AVX512
-#define ACCUM_FP32_STEP_NEON FMA_FP32_NEON
-
-#define ACCUM_INT4_STEP_SSE FMA_INT4_SSE
-#define ACCUM_INT4_STEP_AVX FMA_INT4_AVX
-
 //! Calculate Fused-Multiply-Add (GENERAL)
 #define FMA_INT4_GENERAL(m, q, sum)                               \
   sum += Int4MulTable[(((m) << 4) & 0xf0) | (((q) >> 0) & 0xf)] + \
@@ -93,9 +80,6 @@ static const AILEGO_ALIGNED(32) int8_t Int4ConvertTable[32] = {
 //! Reverse sign of value (AVX512)
 #define NEGATE_FP32_AVX512(v, ...) \
   _mm512_xor_ps(_mm512_cvtepi32_ps(v), NEGZEROS_FP32_AVX512)
-
-#define ACCUM_INT8_STEP_SSE FMA_INT8_SSE
-#define ACCUM_INT8_STEP_AVX FMA_INT8_AVX
 
 //! Calculate Fused-Multiply-Add (GENERAL)
 #define FMA_INT8_GENERAL(m, q, sum) sum += static_cast<float>(m * q);
@@ -115,18 +99,6 @@ static const AILEGO_ALIGNED(32) int8_t Int4ConvertTable[32] = {
                                              _mm256_sign_epi8(ymm_m, ymm_q)), \
                         ONES_INT16_AVX),                                      \
       ymm_sum);
-
-//! Calculate Fused-Multiply-Add (GENERAL)
-#define FMA_INT8_GENERAL(m, q, sum) sum += static_cast<float>(m * q);
-
-//! Calculate Fused-Multiply-Add (SSE)
-#define FMA_INT8_SSE(xmm_m, xmm_q, xmm_sum)                                    \
-  xmm_sum = _mm_add_epi32(                                                     \
-      _mm_madd_epi16(                                                          \
-          _mm_maddubs_epi16(_mm_abs_epi8(xmm_q), _mm_sign_epi8(xmm_m, xmm_q)), \
-          ONES_INT16_SSE),                                                     \
-      xmm_sum);
-
 
 //! Calculate Fused-Multiply-Add (SSE)
 #define FMA_INT4_SSE(xmm_m, xmm_q, xmm_sum)                                    \
@@ -228,3 +200,17 @@ static const AILEGO_ALIGNED(32) int8_t Int4ConvertTable[32] = {
     ymm_sum =                                                                 \
         _mm256_add_epi32(_mm256_add_epi32(ymm_lhs_0, ymm_lhs_1), ymm_sum);    \
   }
+
+#define ACCUM_FP16_STEP_GENERAL FMA_FP16_GENERAL
+#define ACCUM_FP16_STEP_NEON FMA_FP16_NEON
+
+#define ACCUM_FP32_STEP_SSE FMA_FP32_SSE
+#define ACCUM_FP32_STEP_AVX FMA_FP32_AVX
+#define ACCUM_FP32_STEP_AVX512 FMA_FP32_AVX512
+#define ACCUM_FP32_STEP_NEON FMA_FP32_NEON
+
+#define ACCUM_INT4_STEP_SSE FMA_INT4_SSE
+#define ACCUM_INT4_STEP_AVX FMA_INT4_AVX
+
+#define ACCUM_INT8_STEP_SSE FMA_INT8_SSE
+#define ACCUM_INT8_STEP_AVX FMA_INT8_AVX
