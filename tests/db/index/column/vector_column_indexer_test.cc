@@ -1577,7 +1577,7 @@ TEST(VectorColumnIndexerTest, CosineGeneral) {
   const int kDim = 20;
   const int kCount = 20;  // can't set too large, or the qunatization error
                           // will be too large due to float's precision
-  const int kTopk = 10;
+  const uint32_t kTopk = 10;
 
   char cmd_buf[100];
   snprintf(cmd_buf, 100, "rm -f %s", index_file_path.c_str());
@@ -1725,7 +1725,7 @@ TEST(VectorColumnIndexerTest, CosineGeneral) {
 
 TEST(VectorColumnIndexerTest, Score) {
   const std::string index_file_path = "test_indexer.index";
-  const int kTopk = 10;
+  const uint32_t kTopk = 10;
   constexpr idx_t kDocId1 = 2345;
   constexpr idx_t kDocId2 = 5432;
   auto vector1 = std::vector<float>{3.0f, 4.0f, 5.0f};
@@ -2573,7 +2573,7 @@ TEST(VectorColumnIndexerTest, Refiner) {
   const int kDim = 20;
   const int kCount = 20;  // can't set too large, or the qunatization error
                           // will be too large due to float's precision
-  const int kTopk = 10;
+  const uint32_t kTopk = 10;
 
   auto del_index_file_func = [&](const std::string &file_name) {
     auto cmd_buf = "rm -f " + file_name;
