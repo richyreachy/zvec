@@ -155,6 +155,9 @@ jobs:
             ${{ matrix.arch_flag }}
         shell: bash
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+
       - name: Run C++ Tests
         run: |
           cd "$GITHUB_WORKSPACE/build"
@@ -178,6 +181,3 @@ jobs:
           ./core-example
           ./ailego-example
         shell: bash
-
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
