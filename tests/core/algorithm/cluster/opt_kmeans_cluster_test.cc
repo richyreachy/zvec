@@ -262,7 +262,7 @@ TEST(OptKmeansCluster, BinaryGeneral) {
   for (const auto &it : centroids) {
     const auto &vec = it.vector<uint32_t>();
 
-    uint mask = 0x1;
+    unsigned int mask = 0x1;
     std::cout << it.follows() << " (" << it.score() << ") { "
               << !!(vec[0] & mask) << ", " << !!(vec[0] & (mask << 1)) << ", "
               << !!(vec[0] & (mask << 2)) << ", ... , "
@@ -278,7 +278,7 @@ TEST(OptKmeansCluster, BinaryGeneral) {
   for (const auto &it : centroids) {
     const auto &vec = it.vector<uint32_t>();
 
-    uint mask = 0x1;
+    unsigned int mask = 0x1;
     std::cout << it.follows() << " (" << it.score() << ") { "
               << !!(vec[0] & mask) << ", " << !!(vec[0] & (mask << 1)) << ", "
               << !!(vec[0] & (mask << 2)) << ", ... , "
@@ -294,7 +294,7 @@ TEST(OptKmeansCluster, BinaryGeneral) {
   for (const auto &it : centroids) {
     const auto &vec = it.vector<uint32_t>();
 
-    uint mask = 0x1;
+    unsigned int mask = 0x1;
     std::cout << it.follows() << " (" << it.score() << ") { "
               << !!(vec[0] & mask) << ", " << !!(vec[0] & (mask << 1)) << ", "
               << !!(vec[0] & (mask << 2)) << ", ... , "
