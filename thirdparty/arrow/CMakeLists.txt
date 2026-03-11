@@ -1,4 +1,4 @@
-﻿set(ARROW_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/apache-arrow-21.0.0)
+set(ARROW_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/apache-arrow-21.0.0)
 if(ANDROID)
         set(ARROW_PATCH ${CMAKE_CURRENT_SOURCE_DIR}/arrow.android.patch)
         apply_patch_once("arrow_android_fix" "${ARROW_SRC_DIR}" "${ARROW_PATCH}")
@@ -63,12 +63,16 @@ if(ANDROID)
                 LOG_INSTALL ON
         )
 else()
+        set(ARROW_EXTRA_CMAKE_ARGS "")
+        if(MSVC)
+                set(ARROW_EXTRA_CMAKE_ARGS -DCMAKE_C_FLAGS=/FS -DCMAKE_CXX_FLAGS=/FS)
+        endif()
         ExternalProject_Add(
                 ARROW.BUILD PREFIX arrow
                 SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/apache-arrow-21.0.0
                 DOWNLOAD_COMMAND ""
                 BUILD_IN_SOURCE false
-                CONFIGURE_COMMAND env ${CONFIGURE_ENV_LIST} "${CMAKE_COMMAND}" ${CMAKE_CACHE_ARGS} -DCMAKE_BUILD_TYPE=$<CONFIG> -DCMAKE_DEBUG_POSTFIX= -DARROW_BUILD_SHARED=OFF -DARROW_ACERO=ON -DARROW_FILESYSTEM=ON -DARROW_DATASET=ON -DARROW_PARQUET=ON -DARROW_COMPUTE=ON -DARROW_WITH_ZLIB=OFF -DARROW_DEPENDENCY_SOURCE=BUNDLED -DARROW_MIMALLOC=OFF -DCMAKE_INSTALL_LIBDIR=lib "<SOURCE_DIR>/cpp"
+                CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${CMAKE_CACHE_ARGS} ${ARROW_EXTRA_CMAKE_ARGS} -DCMAKE_BUILD_TYPE=$<CONFIG> -DCMAKE_DEBUG_POSTFIX= -DARROW_BUILD_SHARED=OFF -DARROW_ACERO=ON -DARROW_FILESYSTEM=ON -DARROW_DATASET=ON -DARROW_PARQUET=ON -DARROW_COMPUTE=ON -DARROW_WITH_ZLIB=OFF -DARROW_DEPENDENCY_SOURCE=BUNDLED -DARROW_MIMALLOC=OFF -DCMAKE_INSTALL_LIBDIR=lib "<SOURCE_DIR>/cpp"
                 BUILD_COMMAND "${CMAKE_COMMAND}" --build . -j ${NPROC} --config $<CONFIG>
                 INSTALL_COMMAND "${CMAKE_COMMAND}" --install "<BINARY_DIR>" --prefix=${EXTERNAL_BINARY_DIR}/usr/local --config $<CONFIG>
                 BYPRODUCTS ${LIB_PARQUET} ${LIB_ARROW} ${LIB_COMPUTE} ${LIB_ACERO} ${LIB_ARROW_DEPENDS} ${LIB_ARROW_DATASET}
@@ -103,6 +107,7 @@ set_target_properties(
         INTERFACE_INCLUDE_DIRECTORIES ${EXTERNAL_INC_DIR}
         IMPORTED_LOCATION "${LIB_ARROW}"
         INTERFACE_LINK_LIBRARIES "Arrow::arrow_depends"
+        INTERFACE_COMPILE_DEFINITIONS "ARROW_STATIC"
 )
 add_dependencies(Arrow::arrow_static ARROW.BUILD)
 
@@ -112,6 +117,7 @@ set_target_properties(
         INTERFACE_INCLUDE_DIRECTORIES ${EXTERNAL_INC_DIR}
         IMPORTED_LOCATION "${LIB_PARQUET}"
         INTERFACE_LINK_LIBRARIES "Arrow::arrow_depends;Arrow::arrow_static"
+        INTERFACE_COMPILE_DEFINITIONS "PARQUET_STATIC"
 )
 add_dependencies(Arrow::parquet_static ARROW.BUILD)
 
@@ -121,6 +127,7 @@ set_target_properties(
         INTERFACE_INCLUDE_DIRECTORIES ${EXTERNAL_INC_DIR}
         IMPORTED_LOCATION "${LIB_COMPUTE}"
         INTERFACE_LINK_LIBRARIES "Arrow::arrow_depends;Arrow::arrow_static"
+        INTERFACE_COMPILE_DEFINITIONS "ARROW_COMPUTE_STATIC"
 )
 add_dependencies(Arrow::arrow_compute ARROW.BUILD)
 
@@ -130,6 +137,7 @@ set_target_properties(
         INTERFACE_INCLUDE_DIRECTORIES ${EXTERNAL_INC_DIR}
         IMPORTED_LOCATION "${LIB_ACERO}"
         INTERFACE_LINK_LIBRARIES "Arrow::arrow_depends;Arrow::arrow_static;Arrow::arrow_compute"
+        INTERFACE_COMPILE_DEFINITIONS "ARROW_ACERO_STATIC"
 )
 add_dependencies(Arrow::arrow_acero ARROW.BUILD)
 
@@ -139,5 +147,6 @@ set_target_properties(
         INTERFACE_INCLUDE_DIRECTORIES ${EXTERNAL_INC_DIR}
         IMPORTED_LOCATION "${LIB_ARROW_DATASET}"
         INTERFACE_LINK_LIBRARIES "Arrow::arrow_depends;Arrow::arrow_static;Arrow::arrow_compute;Arrow::arrow_acero"
+        INTERFACE_COMPILE_DEFINITIONS "ARROW_DS_STATIC"
 )
 add_dependencies(Arrow::arrow_dataset ARROW.BUILD)

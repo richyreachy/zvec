@@ -2,13 +2,19 @@ set(ANTLR_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/antlr4)
 set(ANTLR_PATCH ${CMAKE_CURRENT_SOURCE_DIR}/antlr4.patch)
 apply_patch_once("antlr4_fix" "${ANTLR_SRC_DIR}" "${ANTLR_PATCH}")
 
+set(WITH_STATIC_CRT OFF CACHE BOOL "Use dynamic CRT for antlr4" FORCE)
 add_subdirectory(antlr4/runtime/Cpp/)
 
 add_library(antlr4 UNKNOWN IMPORTED GLOBAL)
+if(MSVC)
+  set(_antlr4_lib_name "antlr4-runtime-static.lib")
+else()
+  set(_antlr4_lib_name "libantlr4-runtime.a")
+endif()
 set_target_properties(
   antlr4 PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/antlr4/runtime/Cpp/runtime/src/"
-  IMPORTED_LOCATION "${EXTERNAL_LIB_DIR}/libantlr4-runtime.a"
+  IMPORTED_LOCATION "${EXTERNAL_LIB_DIR}/${_antlr4_lib_name}"
   )
 add_dependencies(antlr4 antlr4_static)
 
