@@ -151,6 +151,9 @@ jobs:
           python -m pytest python/tests/
         shell: bash
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+
       - name: Run C++ Examples
         run: |
           cd "$GITHUB_WORKSPACE/examples/c++"
