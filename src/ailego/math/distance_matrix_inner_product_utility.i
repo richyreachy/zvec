@@ -73,14 +73,6 @@ static const AILEGO_ALIGNED(32) int8_t Int4ConvertTable[32] = {
   sum += Int4MulTable[(((m) << 4) & 0xf0) | (((q) >> 0) & 0xf)] + \
          Int4MulTable[(((m) >> 0) & 0xf0) | (((q) >> 4) & 0xf)];
 
-//! Reverse sign of value (SSE)
-#define NEGATE_FP32_SSE(v, ...) \
-  _mm_xor_ps(_mm_cvtepi32_ps(v), NEGZEROS_FP32_SSE)
-
-//! Reverse sign of value (AVX512)
-#define NEGATE_FP32_AVX512(v, ...) \
-  _mm512_xor_ps(_mm512_cvtepi32_ps(v), NEGZEROS_FP32_AVX512)
-
 //! Calculate Fused-Multiply-Add (GENERAL)
 #define FMA_INT8_GENERAL(m, q, sum) sum += static_cast<float>(m * q);
 
