@@ -28,7 +28,10 @@ message(STATUS "BUILD_PYTHON_BINDINGS:${BUILD_PYTHON_BINDINGS}")
 option(BUILD_TOOLS "Build tools" ON)
 message(STATUS "BUILD_TOOLS:${BUILD_TOOLS}")
 
-option(USE_OSS_MIRROR "Use OSS mirror for faster third-party downloads" ON)
+option(USE_OSS_MIRROR "Use OSS mirror for faster third-party downloads" OFF)
+if(DEFINED ENV{USE_OSS_MIRROR} AND NOT "$ENV{USE_OSS_MIRROR}" STREQUAL "")
+  set(USE_OSS_MIRROR "$ENV{USE_OSS_MIRROR}" CACHE BOOL "Use OSS mirror for faster third-party downloads" FORCE)
+endif()
 message(STATUS "USE_OSS_MIRROR:${USE_OSS_MIRROR}")
 
 cc_directory(thirdparty)

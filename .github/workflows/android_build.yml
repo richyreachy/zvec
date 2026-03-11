@@ -32,10 +32,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: |
             ~/.ccache
@@ -49,7 +49,7 @@ jobs:
             build-essential make ccache
 
       - name: Setup Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -63,7 +63,7 @@ jobs:
           sdkmanager "ndk;26.1.10909125"
 
       - name: Cache host protoc build
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: build-host
           key: ${{ runner.os }}-host-protoc-${{ hashFiles('src/**', 'CMakeLists.txt') }}-stl-fix
@@ -88,7 +88,7 @@ jobs:
           fi
 
       - name: Cache Android build
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: build-android-${{ matrix.abi }}
           key: ${{ runner.os }}-android-build-${{ matrix.abi }}-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**', 'thirdparty/**') }}-stl-fix-3
@@ -126,7 +126,7 @@ jobs:
           fi
 
       - name: Cache examples build
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: examples/c++/build-android-examples-${{ matrix.abi }}
           key: ${{ runner.os }}-examples-build-${{ matrix.abi }}-${{ hashFiles('examples/c++/**', 'CMakeLists.txt', 'src/**') }}-stl-fix-3
