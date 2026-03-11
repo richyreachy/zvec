@@ -61,11 +61,19 @@ void Norm1Matrix<float, 1>::Compute(const ValueType *m, size_t dim,
                                     float *out) {
 #if defined(__ARM_NEON)
   NORM_FP32_1_NEON(m, dim, out, )
-#elif defined(__AVX512F__)
-  NORM_FP32_1_AVX512(m, dim, out, )
-#elif defined(__AVX__)
-  NORM_FP32_1_AVX(m, dim, out, )
 #else
+#if defined(__AVX512F__)
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
+    NORM_FP32_1_AVX512(m, dim, out, )
+    return;
+  }
+#endif
+#if defined(__AVX__)
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
+    NORM_FP32_1_AVX(m, dim, out, )
+    return;
+  }
+#endif
   NORM_FP32_1_SSE(m, dim, out, )
 #endif
 }

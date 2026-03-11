@@ -55,14 +55,14 @@ void Norm2Matrix<float, 1>::Compute(const ValueType *m, size_t dim,
     NORM_FP32_1_AVX512(m, dim, out, std::sqrt)
     return;
   }
-#elif defined(__AVX__)
+#endif
+#if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
     NORM_FP32_1_AVX(m, dim, out, std::sqrt)
     return;
   }
-#else
-  NORM_FP32_1_SSE(m, dim, out, std::sqrt)
 #endif
+  NORM_FP32_1_SSE(m, dim, out, std::sqrt)
 #endif
 }
 
@@ -77,14 +77,14 @@ void SquaredNorm2Matrix<float, 1>::Compute(const ValueType *m, size_t dim,
     NORM_FP32_1_AVX512(m, dim, out, )
     return;
   }
-#elif defined(__AVX__)
+#endif
+#if defined(__AVX__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX) {
     NORM_FP32_1_AVX(m, dim, out, )
     return;
   }
-#else
-  NORM_FP32_1_SSE(m, dim, out, )
 #endif
+  NORM_FP32_1_SSE(m, dim, out, )
 #endif
 }
 #endif  // __SSE__ || (__ARM_NEON && __aarch64__)
