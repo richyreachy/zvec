@@ -1,7 +1,15 @@
 cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0077 NEW)
 project(zvec)
-set(CC_CXX_STANDARD 17)
+#TODO(windows): maybe removed,
+# to handle :
+#zvec\tests\db\index\column\vector_column_indexer_test.cc(127,43): error C7555: use of designated initializers requires at least '/std:c++20'
+# right now
+if(MSVC)
+    set(CC_CXX_STANDARD 20)
+else()
+    set(CC_CXX_STANDARD 17)
+endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror=return-type")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror=return-type")
