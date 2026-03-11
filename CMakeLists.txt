@@ -11,8 +11,16 @@ else()
     set(CC_CXX_STANDARD 17)
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror=return-type")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror=return-type")
+if(MSVC)
+    set(INTTYPES_FORMAT VC7)
+    add_compile_options(/FS) #handle .pdb
+    add_compile_options(/EHsc) # def c++ exception behavior
+    add_compile_options(/Zc:preprocessor)
+    add_compile_options(/we4716) # -Werror=return-type
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror=return-type")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror=return-type")
+endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-as-needed")
