@@ -43,10 +43,6 @@ class HnswRabitqAlgorithm {
   //! return 0 on success, or errCode in failure
   int add_node(node_id_t id, level_t level, HnswRabitqContext *ctx);
 
-  //! do knn search in graph
-  //! return 0 on success, or errCode in failure. results saved in ctx
-  int search(HnswRabitqContext *ctx) const;
-
   //! Initiate HnswRabitqAlgorithm
   int init() {
     level_probas_.clear();
@@ -105,9 +101,6 @@ class HnswRabitqAlgorithm {
   void reverse_update_neighbors(HnswRabitqAddDistCalculator &dc, node_id_t id,
                                 level_t level, node_id_t link_id,
                                 ResultRecord dist, TopkHeap &update_heap);
-
-  //! expand neighbors until group nums are reached
-  void expand_neighbors_by_group(TopkHeap &topk, HnswRabitqContext *ctx) const;
 
  private:
   HnswRabitqAlgorithm(const HnswRabitqAlgorithm &) = delete;

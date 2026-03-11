@@ -13,8 +13,6 @@
 // limitations under the License.
 #include "hnsw_rabitq_algorithm.h"
 #include <chrono>
-#include <iostream>
-#include <ailego/internal/cpu_features.h>
 #include "hnsw_rabitq_entity.h"
 
 namespace zvec {
@@ -82,32 +80,6 @@ int HnswRabitqAlgorithm::add_node(node_id_t id, level_t level,
   return 0;
 }
 
-int HnswRabitqAlgorithm::search(HnswRabitqContext *ctx) const {
-  spin_lock_.lock();
-  auto maxLevel = entity_.cur_max_level();
-  auto entry_point = entity_.entry_point();
-  spin_lock_.unlock();
-
-  if (ailego_unlikely(entry_point == kInvalidNodeId)) {
-    return 0;
-  }
-
-  ResultRecord dist = ctx->dist_calculator().dist(entry_point);
-  for (level_t cur_level = maxLevel; cur_level >= 1; --cur_level) {
-    select_entry_point(cur_level, &entry_point, &dist, ctx);
-  }
-
-  auto &topk_heap = ctx->topk_heap();
-  topk_heap.clear();
-  search_neighbors(0, &entry_point, &dist, topk_heap, ctx);
-
-  if (ctx->group_by_search()) {
-    expand_neighbors_by_group(topk_heap, ctx);
-  }
-
-  return 0;
-}
-
 //! select_entry_point on hnsw level, ef = 1
 void HnswRabitqAlgorithm::select_entry_point(level_t level,
                                              node_id_t *entry_point,
@@ -136,13 +108,13 @@ void HnswRabitqAlgorithm::select_entry_point(level_t level,
 
     bool find_closer = false;
 
-    float dists[size];
-    const void *neighbor_vecs[size];
+    std::vector<float> dists(size);
+    std::vector<const void *> neighbor_vecs(size);
     for (uint32_t i = 0; i < size; ++i) {
       neighbor_vecs[i] = neighbor_vec_blocks[i].data();
     }
 
-    dc.batch_dist(neighbor_vecs, size, dists);
+    dc.batch_dist(neighbor_vecs.data(), size, dists.data());
 
     for (uint32_t i = 0; i < size; ++i) {
       ResultRecord cur_dist = dists[i];
@@ -219,7 +191,7 @@ void HnswRabitqAlgorithm::search_neighbors(level_t level,
       (*ctx->mutable_stats_get_neighbors())++;
     }
 
-    node_id_t neighbor_ids[neighbors.size()];
+    std::vector<node_id_t> neighbor_ids(neighbors.size());
     uint32_t size = 0;
     for (uint32_t i = 0; i < neighbors.size(); ++i) {
       node_id_t node = neighbors[i];
@@ -237,7 +209,7 @@ void HnswRabitqAlgorithm::search_neighbors(level_t level,
     }
 
     std::vector<IndexStorage::MemoryBlock> neighbor_vec_blocks;
-    int ret = dc.get_vector(neighbor_ids, size, neighbor_vec_blocks);
+    int ret = dc.get_vector(neighbor_ids.data(), size, neighbor_vec_blocks);
     if (ailego_unlikely(ctx->debugging())) {
       (*ctx->mutable_stats_get_vector())++;
     }
@@ -253,14 +225,14 @@ void HnswRabitqAlgorithm::search_neighbors(level_t level,
     }
     // done
 
-    float dists[size];
-    const void *neighbor_vecs[size];
+    std::vector<float> dists(size);
+    std::vector<const void *> neighbor_vecs(size);
 
     for (uint32_t i = 0; i < size; ++i) {
       neighbor_vecs[i] = neighbor_vec_blocks[i].data();
     }
 
-    dc.batch_dist(neighbor_vecs, size, dists);
+    dc.batch_dist(neighbor_vecs.data(), size, dists.data());
 
     for (uint32_t i = 0; i < size; ++i) {
       node_id_t node = neighbor_ids[i];
@@ -281,121 +253,6 @@ void HnswRabitqAlgorithm::search_neighbors(level_t level,
   }  // while
 
   return;
-}
-
-void HnswRabitqAlgorithm::expand_neighbors_by_group(
-    TopkHeap &topk, HnswRabitqContext *ctx) const {
-  // if (!ctx->group_by().is_valid()) {
-  //   return;
-  // }
-
-  // const auto &entity = ctx->get_entity();
-  // std::function<std::string(node_id_t)> group_by = [&](node_id_t id) {
-  //   return ctx->group_by()(entity.get_key(id));
-  // };
-
-  // // devide into groups
-  // std::map<std::string, TopkHeap> &group_topk_heaps =
-  // ctx->group_topk_heaps(); for (uint32_t i = 0; i < topk.size(); ++i) {
-  //   node_id_t id = topk[i].first;
-  //   auto score = topk[i].second;
-
-  //   std::string group_id = group_by(id);
-
-  //   auto &topk_heap = group_topk_heaps[group_id];
-  //   if (topk_heap.empty()) {
-  //     topk_heap.limit(ctx->group_topk());
-  //   }
-  //   topk_heap.emplace_back(id, score);
-  // }
-
-  // // stage 2, expand to reach group num as possible
-  // if (group_topk_heaps.size() < ctx->group_num()) {
-  //   VisitFilter &visit = ctx->visit_filter();
-  //   CandidateHeap &candidates = ctx->candidates();
-  //   HnswRabitqAddDistCalculator &dc = ctx->dist_calculator();
-
-  //   std::function<bool(node_id_t)> filter = [](node_id_t) { return false; };
-  //   if (ctx->filter().is_valid()) {
-  //     filter = [&](node_id_t id) { return ctx->filter()(entity.get_key(id));
-  //     };
-  //   }
-
-  //   // refill to get enough groups
-  //   candidates.clear();
-  //   visit.clear();
-  //   for (uint32_t i = 0; i < topk.size(); ++i) {
-  //     node_id_t id = topk[i].first;
-  //     ResultRecord score = topk[i].second;
-
-  //     visit.set_visited(id);
-  //     candidates.emplace_back(id, score);
-  //   }
-
-  //   // do expand
-  //   while (!candidates.empty() && !ctx->reach_scan_limit()) {
-  //     auto top = candidates.begin();
-  //     node_id_t main_node = top->first;
-
-  //     candidates.pop();
-  //     const Neighbors neighbors = entity.get_neighbors(0, main_node);
-  //     if (ailego_unlikely(ctx->debugging())) {
-  //       (*ctx->mutable_stats_get_neighbors())++;
-  //     }
-
-  //     node_id_t neighbor_ids[neighbors.size()];
-  //     uint32_t size = 0;
-  //     for (uint32_t i = 0; i < neighbors.size(); ++i) {
-  //       node_id_t node = neighbors[i];
-  //       if (visit.visited(node)) {
-  //         if (ailego_unlikely(ctx->debugging())) {
-  //           (*ctx->mutable_stats_visit_dup_cnt())++;
-  //         }
-  //         continue;
-  //       }
-  //       visit.set_visited(node);
-  //       neighbor_ids[size++] = node;
-  //     }
-  //     if (size == 0) {
-  //       continue;
-  //     }
-
-  //     std::vector<IndexStorage::MemoryBlock> neighbor_vec_blocks;
-  //     int ret = entity.get_vector(neighbor_ids, size, neighbor_vec_blocks);
-  //     if (ailego_unlikely(ctx->debugging())) {
-  //       (*ctx->mutable_stats_get_vector())++;
-  //     }
-  //     if (ailego_unlikely(ret != 0)) {
-  //       break;
-  //     }
-
-  //     static constexpr node_id_t PREFETCH_STEP = 2;
-  //     for (uint32_t i = 0; i < size; ++i) {
-  //       node_id_t node = neighbor_ids[i];
-  //       node_id_t prefetch_id = i + PREFETCH_STEP;
-  //       if (prefetch_id < size) {
-  //         ailego_prefetch(neighbor_vec_blocks[prefetch_id].data());
-  //       }
-  //       ResultRecord cur_dist = dc.dist(neighbor_vec_blocks[i].data());
-
-  //       if (!filter(node)) {
-  //         std::string group_id = group_by(node);
-
-  //         auto &topk_heap = group_topk_heaps[group_id];
-  //         if (topk_heap.empty()) {
-  //           topk_heap.limit(ctx->group_topk());
-  //         }
-  //         topk_heap.emplace_back(node, cur_dist);
-
-  //         if (group_topk_heaps.size() >= ctx->group_num()) {
-  //           break;
-  //         }
-  //       }
-
-  //       candidates.emplace(node, cur_dist);
-  //     }  // end for
-  //   }    // end while
-  // }      // end if
 }
 
 void HnswRabitqAlgorithm::update_neighbors(HnswRabitqAddDistCalculator &dc,

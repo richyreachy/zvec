@@ -66,7 +66,7 @@ int HnswRabitqQueryAlgorithm::search(HnswRabitqQueryEntity *entity,
   search_neighbors(0, &entry_point, &curest, topk_heap, ctx, entity);
 
   if (ctx->group_by_search()) {
-    expand_neighbors_by_group(topk_heap, ctx);
+    expand_neighbors_by_group(topk_heap, ctx, entity);
   }
 
   return 0;
@@ -88,18 +88,6 @@ void HnswRabitqQueryAlgorithm::select_entry_point(
     if (size == 0) {
       break;
     }
-
-    // TODO: use MemoryBlock
-    //
-    // std::vector<IndexStorage::MemoryBlock> neighbor_vec_blocks;
-    // // 需要调用provider来获取
-    // int ret = entity.get_vector(&neighbors[0], size, neighbor_vec_blocks);
-    // if (ailego_unlikely(ctx->debugging())) {
-    //   (*ctx->mutable_stats_get_vector())++;
-    // }
-    // if (ailego_unlikely(ret != 0)) {
-    //   break;
-    // }
 
     bool find_closer = false;
     for (uint32_t i = 0; i < size; ++i) {
@@ -156,7 +144,7 @@ void HnswRabitqQueryAlgorithm::search_neighbors(
       (*ctx->mutable_stats_get_neighbors())++;
     }
 
-    node_id_t neighbor_ids[neighbors.size()];
+    std::vector<node_id_t> neighbor_ids(neighbors.size());
     uint32_t size = 0;
     for (uint32_t i = 0; i < neighbors.size(); ++i) {
       node_id_t node = neighbors[i];
@@ -172,33 +160,6 @@ void HnswRabitqQueryAlgorithm::search_neighbors(
     if (size == 0) {
       continue;
     }
-
-    // std::vector<IndexStorage::MemoryBlock> neighbor_vec_blocks;
-    // int ret = entity.get_vector(neighbor_ids, size, neighbor_vec_blocks);
-    // if (ailego_unlikely(ctx->debugging())) {
-    //   (*ctx->mutable_stats_get_vector())++;
-    // }
-    // if (ailego_unlikely(ret != 0)) {
-    //   break;
-    // }
-
-    // // do prefetch
-    // static constexpr node_id_t BATCH_SIZE = 12;
-    // static constexpr node_id_t PREFETCH_STEP = 2;
-    // for (uint32_t i = 0; i < std::min(BATCH_SIZE * PREFETCH_STEP, size); ++i)
-    // {
-    //   ailego_prefetch(neighbor_vec_blocks[i].data());
-    // }
-    // // done
-
-    // float dists[size];
-    // const void *neighbor_vecs[size];
-
-    // for (uint32_t i = 0; i < size; ++i) {
-    //   neighbor_vecs[i] = neighbor_vec_blocks[i].data();
-    // }
-
-    // dc.batch_dist(neighbor_vecs, size, dists);
 
     for (uint32_t i = 0; i < size; ++i) {
       node_id_t node = neighbor_ids[i];
@@ -218,10 +179,6 @@ void HnswRabitqQueryAlgorithm::search_neighbors(
         } else {
           continue;
         }
-      } else {
-        // Candidate cand{ResultRecord(candest.est_dist, candest.low_dist),
-        //                static_cast<PID>(candidate_id)};
-        // boundedKNN.insert(cand);
       }
       candidates.emplace(node, ResultRecord(candest));
       // update entry_point for next level scan
@@ -232,22 +189,6 @@ void HnswRabitqQueryAlgorithm::search_neighbors(
       if (!filter(node)) {
         topk.emplace(node, ResultRecord(candest));
       }
-
-
-      // TODO: check loop type
-
-      // if ((!topk.full()) || cur_dist < topk[0].second) {
-      //   candidates.emplace(node, cur_dist);
-      //   // update entry_point for next level scan
-      //   if (cur_dist < *dist) {
-      //     *entry_point = node;
-      //     *dist = cur_dist;
-      //   }
-      //   if (!filter(node)) {
-      //     topk.emplace(node, cur_dist);
-      //   }
-      // }  // end if
-
     }  // end for
   }  // while
 
@@ -255,118 +196,106 @@ void HnswRabitqQueryAlgorithm::search_neighbors(
 }
 
 void HnswRabitqQueryAlgorithm::expand_neighbors_by_group(
-    TopkHeap &topk, HnswRabitqContext *ctx) const {
-  // if (!ctx->group_by().is_valid()) {
-  //   return;
-  // }
+    TopkHeap &topk, HnswRabitqContext *ctx,
+    HnswRabitqQueryEntity *query_entity) const {
+  if (!ctx->group_by().is_valid()) {
+    return;
+  }
 
-  // const auto &entity = ctx->get_entity();
-  // std::function<std::string(node_id_t)> group_by = [&](node_id_t id) {
-  //   return ctx->group_by()(entity.get_key(id));
-  // };
+  const auto &entity = ctx->get_entity();
+  std::function<std::string(node_id_t)> group_by = [&](node_id_t id) {
+    return ctx->group_by()(entity.get_key(id));
+  };
 
-  // // devide into groups
-  // std::map<std::string, TopkHeap> &group_topk_heaps =
-  // ctx->group_topk_heaps(); for (uint32_t i = 0; i < topk.size(); ++i) {
-  //   node_id_t id = topk[i].first;
-  //   auto score = topk[i].second;
+  // devide into groups
+  std::map<std::string, TopkHeap> &group_topk_heaps = ctx->group_topk_heaps();
+  for (uint32_t i = 0; i < topk.size(); ++i) {
+    node_id_t id = topk[i].first;
+    auto score = topk[i].second;
 
-  //   std::string group_id = group_by(id);
+    std::string group_id = group_by(id);
 
-  //   auto &topk_heap = group_topk_heaps[group_id];
-  //   if (topk_heap.empty()) {
-  //     topk_heap.limit(ctx->group_topk());
-  //   }
-  //   topk_heap.emplace_back(id, score);
-  // }
+    auto &topk_heap = group_topk_heaps[group_id];
+    if (topk_heap.empty()) {
+      topk_heap.limit(ctx->group_topk());
+    }
+    topk_heap.emplace_back(id, score);
+  }
 
-  // // stage 2, expand to reach group num as possible
-  // if (group_topk_heaps.size() < ctx->group_num()) {
-  //   VisitFilter &visit = ctx->visit_filter();
-  //   CandidateHeap &candidates = ctx->candidates();
-  //   HnswRabitqDistCalculator &dc = ctx->dist_calculator();
+  // stage 2, expand to reach group num as possible
+  if (group_topk_heaps.size() < ctx->group_num()) {
+    VisitFilter &visit = ctx->visit_filter();
+    CandidateHeap &candidates = ctx->candidates();
 
-  //   std::function<bool(node_id_t)> filter = [](node_id_t) { return false; };
-  //   if (ctx->filter().is_valid()) {
-  //     filter = [&](node_id_t id) { return ctx->filter()(entity.get_key(id));
-  //     };
-  //   }
+    std::function<bool(node_id_t)> filter = [](node_id_t) { return false; };
+    if (ctx->filter().is_valid()) {
+      filter = [&](node_id_t id) { return ctx->filter()(entity.get_key(id)); };
+    }
 
-  //   // refill to get enough groups
-  //   candidates.clear();
-  //   visit.clear();
-  //   for (uint32_t i = 0; i < topk.size(); ++i) {
-  //     node_id_t id = topk[i].first;
-  //     auto score = topk[i].second;
+    // refill to get enough groups
+    candidates.clear();
+    visit.clear();
+    for (uint32_t i = 0; i < topk.size(); ++i) {
+      node_id_t id = topk[i].first;
+      auto score = topk[i].second;
 
-  //     visit.set_visited(id);
-  //     candidates.emplace_back(id, score);
-  //   }
+      visit.set_visited(id);
+      candidates.emplace_back(id, score);
+    }
 
-  //   // do expand
-  //   while (!candidates.empty() && !ctx->reach_scan_limit()) {
-  //     auto top = candidates.begin();
-  //     node_id_t main_node = top->first;
+    // do expand
+    while (!candidates.empty() && !ctx->reach_scan_limit()) {
+      auto top = candidates.begin();
+      node_id_t main_node = top->first;
 
-  //     candidates.pop();
-  //     const Neighbors neighbors = entity.get_neighbors(0, main_node);
-  //     if (ailego_unlikely(ctx->debugging())) {
-  //       (*ctx->mutable_stats_get_neighbors())++;
-  //     }
+      candidates.pop();
+      const Neighbors neighbors = entity.get_neighbors(0, main_node);
+      ailego_prefetch(neighbors.data);
+      if (ailego_unlikely(ctx->debugging())) {
+        (*ctx->mutable_stats_get_neighbors())++;
+      }
 
-  //     node_id_t neighbor_ids[neighbors.size()];
-  //     uint32_t size = 0;
-  //     for (uint32_t i = 0; i < neighbors.size(); ++i) {
-  //       node_id_t node = neighbors[i];
-  //       if (visit.visited(node)) {
-  //         if (ailego_unlikely(ctx->debugging())) {
-  //           (*ctx->mutable_stats_visit_dup_cnt())++;
-  //         }
-  //         continue;
-  //       }
-  //       visit.set_visited(node);
-  //       neighbor_ids[size++] = node;
-  //     }
-  //     if (size == 0) {
-  //       continue;
-  //     }
+      std::vector<node_id_t> neighbor_ids(neighbors.size());
+      uint32_t size = 0;
+      for (uint32_t i = 0; i < neighbors.size(); ++i) {
+        node_id_t node = neighbors[i];
+        if (visit.visited(node)) {
+          if (ailego_unlikely(ctx->debugging())) {
+            (*ctx->mutable_stats_visit_dup_cnt())++;
+          }
+          continue;
+        }
+        visit.set_visited(node);
+        neighbor_ids[size++] = node;
+      }
+      if (size == 0) {
+        continue;
+      }
 
-  //     std::vector<IndexStorage::MemoryBlock> neighbor_vec_blocks;
-  //     int ret = entity.get_vector(neighbor_ids, size, neighbor_vec_blocks);
-  //     if (ailego_unlikely(ctx->debugging())) {
-  //       (*ctx->mutable_stats_get_vector())++;
-  //     }
-  //     if (ailego_unlikely(ret != 0)) {
-  //       break;
-  //     }
+      for (uint32_t i = 0; i < size; ++i) {
+        node_id_t node = neighbor_ids[i];
+        EstimateRecord candest;
+        auto *cand_vector = entity_.get_vector(node);
+        ailego_prefetch(cand_vector);
+        get_full_est(cand_vector, candest, *query_entity);
 
-  //     static constexpr node_id_t PREFETCH_STEP = 2;
-  //     for (uint32_t i = 0; i < size; ++i) {
-  //       node_id_t node = neighbor_ids[i];
-  //       node_id_t prefetch_id = i + PREFETCH_STEP;
-  //       if (prefetch_id < size) {
-  //         ailego_prefetch(neighbor_vec_blocks[prefetch_id].data());
-  //       }
-  //       dist_t cur_dist = dc.dist(neighbor_vec_blocks[i].data());
+        if (!filter(node)) {
+          std::string group_id = group_by(node);
 
-  //       if (!filter(node)) {
-  //         std::string group_id = group_by(node);
+          auto &topk_heap = group_topk_heaps[group_id];
+          if (topk_heap.empty()) {
+            topk_heap.limit(ctx->group_topk());
+          }
+          topk_heap.emplace_back(node, ResultRecord(candest));
 
-  //         auto &topk_heap = group_topk_heaps[group_id];
-  //         if (topk_heap.empty()) {
-  //           topk_heap.limit(ctx->group_topk());
-  //         }
-  //         topk_heap.emplace_back(node, cur_dist);
-
-  //         if (group_topk_heaps.size() >= ctx->group_num()) {
-  //           break;
-  //         }
-  //       }
-
-  //       candidates.emplace(node, cur_dist);
-  //     }  // end for
-  //   }    // end while
-  // }      // end if
+          if (group_topk_heaps.size() >= ctx->group_num()) {
+            break;
+          }
+        }
+        candidates.emplace(node, ResultRecord(candest));
+      }  // end for
+    }  // end while
+  }  // end if
 }
 
 void HnswRabitqQueryAlgorithm::get_bin_est(
@@ -389,22 +318,6 @@ void HnswRabitqQueryAlgorithm::get_bin_est(
                                     res.ip_x0_qr, res.est_dist, res.low_dist,
                                     norm * norm, norm);
   }
-}
-
-void HnswRabitqQueryAlgorithm::get_ex_est(const void *vector,
-                                          EstimateRecord &res,
-                                          HnswRabitqQueryEntity &entity) const {
-  const auto &q_to_centroids = entity.q_to_centroids;
-  auto &query_wrapper = *entity.query_wrapper;
-  uint32_t cluster_id = entity_.get_cluster_id(vector);
-  const char *ex_data = entity_.get_ex_data(vector);
-  query_wrapper.set_g_add(q_to_centroids[cluster_id]);
-  float est_dist = rabitqlib::split_distance_boosting(
-      ex_data, ip_func_, query_wrapper, padded_dim_, ex_bits_, res.ip_x0_qr);
-  float low_dist = est_dist - (res.est_dist - res.low_dist) / (1 << ex_bits_);
-  res.est_dist = est_dist;
-  res.low_dist = low_dist;
-  // Note that res.ip_x0_qr becomes invalid after this function.
 }
 
 void HnswRabitqQueryAlgorithm::get_full_est(

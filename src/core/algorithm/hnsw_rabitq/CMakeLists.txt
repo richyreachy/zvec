@@ -4,8 +4,8 @@ include(${PROJECT_ROOT_DIR}/cmake/option.cmake)
 cc_library(
     NAME core_knn_hnsw_rabitq
     STATIC SHARED STRICT ALWAYS_LINK
-    SRCS *.cc rabitq/*.cc
-    LIBS core_framework sparsehash rabitqlib
+    SRCS *.cc
+    LIBS core_framework rabitqlib sparsehash
     INCS . ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm
     VERSION "${PROXIMA_ZVEC_VERSION}"
   )

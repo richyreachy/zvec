@@ -177,67 +177,66 @@ class HnswRabitqContext : public IndexContext {
 
   //! Construct result from topk heap, result will be normalized
   inline void topk_to_group_result(uint32_t idx) {
-    // ailego_assert_with(idx < group_results_.size(), "invalid idx");
+    ailego_assert_with(idx < group_results_.size(), "invalid idx");
 
-    // group_results_[idx].clear();
+    group_results_[idx].clear();
 
-    // std::vector<std::pair<std::string, TopkHeap>> group_topk_list;
-    // std::vector<std::pair<std::string, float>> best_score_in_groups;
-    // for (auto itr = group_topk_heaps_.begin(); itr !=
-    // group_topk_heaps_.end();
-    //      itr++) {
-    //   const std::string &group_id = (*itr).first;
-    //   auto &heap = (*itr).second;
-    //   heap.sort();
+    std::vector<std::pair<std::string, TopkHeap>> group_topk_list;
+    std::vector<std::pair<std::string, ResultRecord>> best_score_in_groups;
+    for (auto itr = group_topk_heaps_.begin(); itr != group_topk_heaps_.end();
+         itr++) {
+      const std::string &group_id = (*itr).first;
+      auto &heap = (*itr).second;
+      heap.sort();
 
-    //   if (heap.size() > 0) {
-    //     float best_score = heap[0].second;
-    //     best_score_in_groups.push_back(std::make_pair(group_id, best_score));
-    //   }
-    // }
+      if (heap.size() > 0) {
+        ResultRecord best_score = heap[0].second;
+        best_score_in_groups.push_back(std::make_pair(group_id, best_score));
+      }
+    }
 
-    // std::sort(best_score_in_groups.begin(), best_score_in_groups.end(),
-    //           [](const std::pair<std::string, float> &a,
-    //              const std::pair<std::string, float> &b) -> int {
-    //             return a.second < b.second;
-    //           });
+    std::sort(best_score_in_groups.begin(), best_score_in_groups.end(),
+              [](const std::pair<std::string, ResultRecord> &a,
+                 const std::pair<std::string, ResultRecord> &b) -> int {
+                return a.second < b.second;
+              });
 
-    // // truncate to group num
-    // for (uint32_t i = 0; i < group_num() && i < best_score_in_groups.size();
-    //      ++i) {
-    //   const std::string &group_id = best_score_in_groups[i].first;
+    // truncate to group num
+    for (uint32_t i = 0; i < group_num() && i < best_score_in_groups.size();
+         ++i) {
+      const std::string &group_id = best_score_in_groups[i].first;
 
-    //   group_topk_list.emplace_back(
-    //       std::make_pair(group_id, group_topk_heaps_[group_id]));
-    // }
+      group_topk_list.emplace_back(
+          std::make_pair(group_id, group_topk_heaps_[group_id]));
+    }
 
-    // group_results_[idx].resize(group_topk_list.size());
+    group_results_[idx].resize(group_topk_list.size());
 
-    // for (uint32_t i = 0; i < group_topk_list.size(); ++i) {
-    //   const std::string &group_id = group_topk_list[i].first;
-    //   group_results_[idx][i].set_group_id(group_id);
+    for (uint32_t i = 0; i < group_topk_list.size(); ++i) {
+      const std::string &group_id = group_topk_list[i].first;
+      group_results_[idx][i].set_group_id(group_id);
 
-    //   uint32_t size = std::min(
-    //       group_topk_,
-    //       static_cast<uint32_t>(group_topk_list[i].second.size()));
+      uint32_t size = std::min(
+          group_topk_, static_cast<uint32_t>(group_topk_list[i].second.size()));
 
-    //   for (uint32_t j = 0; j < size; ++j) {
-    //     auto score = group_topk_list[i].second[j].second;
-    //     if (score > this->threshold()) {
-    //       break;
-    //     }
+      for (uint32_t j = 0; j < size; ++j) {
+        auto score = group_topk_list[i].second[j].second;
+        if (score > this->threshold()) {
+          break;
+        }
 
-    //     node_id_t id = group_topk_list[i].second[j].first;
+        node_id_t id = group_topk_list[i].second[j].first;
 
-    //     if (fetch_vector_) {
-    //       group_results_[idx][i].mutable_docs()->emplace_back(
-    //           entity_->get_key(id), score, id, entity_->get_vector(id));
-    //     } else {
-    //       group_results_[idx][i].mutable_docs()->emplace_back(
-    //           entity_->get_key(id), score, id);
-    //     }
-    //   }
-    // }
+        if (fetch_vector_) {
+          group_results_[idx][i].mutable_docs()->emplace_back(
+              entity_->get_key(id), score.est_dist, id,
+              entity_->get_vector(id));
+        } else {
+          group_results_[idx][i].mutable_docs()->emplace_back(
+              entity_->get_key(id), score.est_dist, id);
+        }
+      }
+    }
   }
 
   inline void reset_query(const void *query) {

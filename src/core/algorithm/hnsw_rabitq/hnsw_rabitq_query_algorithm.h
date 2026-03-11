@@ -97,15 +97,13 @@ class HnswRabitqQueryAlgorithm {
 
 
   //! expand neighbors until group nums are reached
-  void expand_neighbors_by_group(TopkHeap &topk, HnswRabitqContext *ctx) const;
+  void expand_neighbors_by_group(TopkHeap &topk, HnswRabitqContext *ctx,
+                                 HnswRabitqQueryEntity *query_entity) const;
 
   void get_full_est(const void *vector, EstimateRecord &res,
                     HnswRabitqQueryEntity &entity) const;
   void get_bin_est(const void *vector, EstimateRecord &res,
                    HnswRabitqQueryEntity &entity) const;
-
-  void get_ex_est(const void *vector, EstimateRecord &res,
-                  HnswRabitqQueryEntity &entity) const;
 
  private:
   HnswRabitqQueryAlgorithm(const HnswRabitqQueryAlgorithm &) = delete;
