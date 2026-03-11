@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <future>
+#include <numeric>
 #include <string>
 #include <vector>
 #include <ailego/math/norm2_matrix.h>

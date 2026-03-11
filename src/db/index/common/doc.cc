@@ -16,6 +16,9 @@
 #include <cstring>
 #include <regex>
 #include <stdexcept>
+#ifdef _MSC_VER
+#include <stdlib.h>
+#endif
 #include <zvec/db/doc.h>
 #include "db/common/constants.h"
 #include "db/index/common/type_helper.h"
@@ -116,16 +119,29 @@ template <typename T>
 T byte_swap(T value) {
   if constexpr (std::is_same_v<T, float16_t>) {
     uint16_t val = *reinterpret_cast<uint16_t *>(&value);
+#ifdef _MSC_VER
+    val = _byteswap_ushort(val);
+#else
     val = __builtin_bswap16(val);
+#endif
     return *reinterpret_cast<float16_t *>(&val);
   } else if constexpr (sizeof(T) == 1) {
     return value;
   } else if constexpr (sizeof(T) == 2) {
     return (value << 8) | ((value >> 8) & 0xFF);
   } else if constexpr (sizeof(T) == 4) {
+#ifdef _MSC_VER
+    return static_cast<T>(_byteswap_ulong(static_cast<unsigned long>(value)));
+#else
     return __builtin_bswap32(value);
+#endif
   } else if constexpr (sizeof(T) == 8) {
+#ifdef _MSC_VER
+    return static_cast<T>(
+        _byteswap_uint64(static_cast<unsigned __int64>(value)));
+#else
     return __builtin_bswap64(value);
+#endif
   } else {
     T result = 0;
     for (size_t i = 0; i < sizeof(T); ++i) {

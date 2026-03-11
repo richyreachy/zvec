@@ -253,6 +253,8 @@ uint64_t CgroupUtil::getCurrentMemoryUsage() {
   return readMemoryUsageProc();
 #elif defined(PLATFORM_MACOS)
   return getMacOSMemoryUsage();
+#else
+  return 0;
 #endif
 }
 

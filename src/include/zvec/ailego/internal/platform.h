@@ -45,10 +45,19 @@
 #endif
 
 //! Add 'ssize_t' for MSVC (before extern "C" so it's available in C++)
-#if defined(_MSC_VER) && !defined(_SSIZE_T_DEFINED)
+#if defined(_MSC_VER)
+
+#if !defined(S_ISDIR)
+#define S_ISDIR(mode) (((mode)&S_IFMT) == S_IFDIR)
+#endif
+
+#if !defined(_SSIZE_T_DEFINED)
 #define _SSIZE_T_DEFINED
 typedef intptr_t ssize_t;
 #endif
+
+#endif
+
 
 #if defined(__cplusplus)
 extern "C" {

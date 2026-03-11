@@ -14,7 +14,19 @@
 #include "hnsw_sparse_streamer.h"
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifndef _MSC_VER
 #include <fcntl.h>
+#include <unistd.h>
+#else
+#include <chrono>
+#include <thread>
+inline void sleep(unsigned int seconds) {
+  std::this_thread::sleep_for(std::chrono::seconds(seconds));
+}
+inline void usleep(unsigned int microseconds) {
+  std::this_thread::sleep_for(std::chrono::microseconds(microseconds));
+}
+#endif
 #include <future>
 #include <iostream>
 #include <memory>

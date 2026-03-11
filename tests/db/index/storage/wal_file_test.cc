@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef _MSC_VER
+#define _ALLOW_KEYWORD_MACROS
+#endif
 #define private public
 #define protected public
 #include "db/index/storage/wal/wal_file.h"
@@ -22,6 +25,16 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <stdio.h>
+#ifdef _MSC_VER
+#include <io.h>
+inline int truncate(const char *path, long length) {
+  int fd = _open(path, _O_RDWR);
+  if (fd < 0) return -1;
+  int ret = _chsize(fd, length);
+  _close(fd);
+  return ret;
+}
+#endif
 #include <gtest/gtest.h>
 #include <zvec/ailego/parallel/thread_pool.h>
 #include <zvec/ailego/utility/string_helper.h>
