@@ -121,8 +121,8 @@ TEST(MultiThreadListTest, ConsumeStopResume) {
   ailego::ThreadPool producer_pool;
   ailego::ThreadPool consumer_pool;
 
-  uint32_t num_of_consumer = 100;
-  uint32_t num_of_producer = 100;
+  constexpr uint32_t num_of_consumer = 100;
+  constexpr uint32_t num_of_producer = 100;
 
   std::vector<uint32_t> consumer_results(2 * num_of_consumer);
   std::fill(consumer_results.begin(), consumer_results.end(), 0);
