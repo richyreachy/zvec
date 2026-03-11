@@ -17,6 +17,25 @@ if(MSVC)
     add_compile_options(/EHsc) # def c++ exception behavior
     add_compile_options(/Zc:preprocessor)
     add_compile_options(/we4716) # -Werror=return-type
+
+
+    ###### reduce output length to make vibe coding work better :), which should be removed or solved later
+    add_compile_options(/wd4267 /wd4244)
+    add_compile_options(/wd4146) # unary minus operator applied to unsigned type #usage: uint32_t seg_id_{-1U};
+    add_compile_options(/wd4310) # warning C4310: cast truncates constant value
+    add_compile_options(/wd4530) #  warning C4530: C++ exception handler used, but unwind semantics are not enabled. Specify /EHsc
+    add_compile_options(/wd4251) #protobuf
+    add_compile_options(/wd4245 /wd4334 /wd4702  /wd4305)
+
+    # //warning C4334: '<<': result of 32-bit shift implicitly converted to 64 bits (was 64-bit shift intended?)
+    # keeps |= (1 << k);
+    add_compile_options(/wd4334)
+    ######
+
+    #TODO(windows): to be verified
+    add_definitions(-DARROW_STATIC -DPARQUET_STATIC -DARROW_ACERO_STATIC -DARROW_DS_STATIC -DARROW_COMPUTE_STATIC)
+
+
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror=return-type")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror=return-type")
