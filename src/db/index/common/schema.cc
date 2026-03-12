@@ -28,6 +28,12 @@
 
 namespace zvec {
 
+#if defined(RABITQ_COMPILED_AVX512)
+constexpr const int kRabitqCompiledAvx512 = RABITQ_COMPILED_AVX512;
+#else
+constexpr const int kRabitqCompiledAvx512 = 0;
+#endif
+
 std::unordered_map<DataType, std::set<QuantizeType>> quantize_type_map = {
     {DataType::VECTOR_FP32,
      {QuantizeType::FP16, QuantizeType::INT4, QuantizeType::INT8,
@@ -156,7 +162,14 @@ Status FieldSchema::validate() const {
           return Status::NotSupported(
               "RabitQ requires AVX2/AVX512F to be supported");
         }
+
+        LOG_ERROR("RabitQ compiled with AVX512F: %d", kRabitqCompiledAvx512);
+        if (kRabitqCompiledAvx512 && !flags.AVX512F) {
+          return Status::NotSupported(
+              "RabitQ compiled with AVX512F while runtime does not support");
+        }
       }
+
 
       if (vector_index_params->quantize_type() != QuantizeType::UNDEFINED) {
         auto iter = quantize_type_map.find(data_type_);

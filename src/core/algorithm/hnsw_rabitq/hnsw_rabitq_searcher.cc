@@ -493,7 +493,5 @@ const void *HnswRabitqSearcher::get_vector(uint64_t key) const {
   return entity_.get_vector_by_key(key);
 }
 
-INDEX_FACTORY_REGISTER_SEARCHER(HnswRabitqSearcher);
-
 }  // namespace core
 }  // namespace zvec

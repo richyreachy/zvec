@@ -462,7 +462,6 @@ int RabitqReformer::dump(const IndexStorage::Pointer &storage) {
   return 0;
 }
 
-INDEX_FACTORY_REGISTER_REFORMER_ALIAS(RabitqReformer, RabitqReformer);
 
 }  // namespace core
 }  // namespace zvec

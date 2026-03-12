@@ -299,7 +299,6 @@ int RabitqConverter::to_reformer(IndexReformer::Pointer *reformer) {
   return 0;
 }
 
-INDEX_FACTORY_REGISTER_CONVERTER_ALIAS(RabitqConverter, RabitqConverter);
 
 }  // namespace core
 }  // namespace zvec

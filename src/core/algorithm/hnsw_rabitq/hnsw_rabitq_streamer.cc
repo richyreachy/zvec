@@ -967,7 +967,5 @@ int HnswRabitqStreamer::search_bf_by_p_keys_impl(
 }
 
 
-INDEX_FACTORY_REGISTER_STREAMER(HnswRabitqStreamer);
-
 }  // namespace core
 }  // namespace zvec

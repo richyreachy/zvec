@@ -1,6 +1,25 @@
 include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
 include(${PROJECT_ROOT_DIR}/cmake/option.cmake)
 
+if(RABITQ_SUPPORTED)
+  set(HNSW_RABITQ_FILES
+      hnsw_rabitq_query_algorithm.cc
+      hnsw_rabitq_streamer.cc
+      hnsw_rabitq_searcher.cc
+      hnsw_rabitq_entity.cc
+      rabitq_reformer.cc
+  )
+  set(HNSW_RABITQ_FILES_FULL ${HNSW_RABITQ_FILES})
+  list(TRANSFORM HNSW_RABITQ_FILES_FULL PREPEND "algorithm/hnsw_rabitq/")
+  foreach(FILE ${HNSW_RABITQ_FILES_FULL})
+      set_source_files_properties(
+          ${FILE}
+          PROPERTIES
+          COMPILE_FLAGS "${MATH_MARCH_FLAG_AVX512}"
+      )
+  endforeach()
+endif()
+
 cc_directory(framework)
 cc_directory(algorithm)
 cc_directory(metric)
@@ -17,16 +36,6 @@ file(GLOB_RECURSE ALL_CORE_SRCS *.cc *.c *.h)
 # for HNSWRabitqIndex and guards rabitqlib usage with #if RABITQ_SUPPORTED.
 if(NOT RABITQ_SUPPORTED)
   list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/hnsw_rabitq/.*")
-else()
-  file(GLOB_RECURSE HNSW_RABITQ_FILES
-      ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/hnsw_rabitq/*.cc)
-  foreach(FILE ${HNSW_RABITQ_FILES})
-      set_source_files_properties(
-          ${FILE}
-          PROPERTIES
-          COMPILE_FLAGS "${MATH_MARCH_FLAG_AVX512}"
-      )
-  endforeach()
 endif()
 
 cc_library(
