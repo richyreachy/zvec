@@ -24,7 +24,5 @@ add_subdirectory(rocksdb rocksdb EXCLUDE_FROM_ALL)
 add_subdirectory(CRoaring CRoaring EXCLUDE_FROM_ALL)
 add_subdirectory(arrow arrow EXCLUDE_FROM_ALL)
 add_subdirectory(magic_enum magic_enum EXCLUDE_FROM_ALL)
-if(RABITQ_SUPPORTED)
 add_subdirectory(RaBitQ-Library RaBitQ-Library EXCLUDE_FROM_ALL)
-endif()
 
