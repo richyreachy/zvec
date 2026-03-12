@@ -1048,13 +1048,28 @@ void test_doc_primary_key(void) {
   TEST_END();
 }
 
+void test_doc_basic_operations(void);
+void test_doc_get_field_value_basic(void);
+void test_doc_get_field_value_copy(void);
+void test_doc_get_field_value_pointer(void);
+void test_doc_field_operations(void);
+void test_doc_error_conditions(void);
+void test_doc_serialization(void);
+
 void test_doc_functions(void) {
+  test_doc_basic_operations();
+  test_doc_get_field_value_basic();
+  test_doc_get_field_value_copy();
+  test_doc_get_field_value_pointer();
+  test_doc_field_operations();
+  test_doc_error_conditions();
+  test_doc_serialization();
+}
+
+void test_doc_basic_operations(void) {
   TEST_START();
 
-  // Create test document using utility function
-  ZVecCollectionSchema *schema = zvec_test_create_temp_schema();
-  TEST_ASSERT(schema != NULL);
-
+  // Create test document
   ZVecDoc *doc = zvec_doc_create();
   TEST_ASSERT(doc != NULL);
 
@@ -1078,15 +1093,23 @@ void test_doc_functions(void) {
   ZVecDocOperator op = zvec_doc_get_operator(doc);
   TEST_ASSERT(op == ZVEC_DOC_OP_INSERT);
 
-  ZVecErrorCode err;
+  zvec_doc_destroy(doc);
 
-  // ==================== COMPREHENSIVE DATA TYPE TESTING ====================
+  TEST_END();
+}
+
+void test_doc_get_field_value_basic(void) {
+  TEST_START();
+
+  ZVecDoc *doc = zvec_doc_create();
+  TEST_ASSERT(doc != NULL);
+
+  ZVecErrorCode err;
 
   printf(
       "=== Testing zvec_doc_get_field_value_basic with all supported types "
       "===\n");
 
-  // Test all basic numeric types that zvec_doc_get_field_value_basic supports
   // BOOL type
   ZVecDocField bool_field;
   bool_field.name.data = "bool_field";
@@ -1195,11 +1218,133 @@ void test_doc_functions(void) {
   TEST_ASSERT(err == ZVEC_OK);
   TEST_ASSERT(fabs(double_result - 2.71828182845904523536) < 1e-15);
 
+  zvec_doc_destroy(doc);
+
+  TEST_END();
+}
+
+void test_doc_get_field_value_copy(void) {
+  TEST_START();
+
+  ZVecDoc *doc = zvec_doc_create();
+  TEST_ASSERT(doc != NULL);
+
+  ZVecErrorCode err;
+
   printf(
       "=== Testing zvec_doc_get_field_value_copy with all supported types "
       "===\n");
 
-  // Test STRING type with zvec_doc_get_field_value_copy
+  // Basic scalar types first
+  bool bool_val = true;
+  err = zvec_doc_add_field_by_value(doc, "bool_field2", ZVEC_DATA_TYPE_BOOL,
+                                    &bool_val, sizeof(bool_val));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *bool_copy_result;
+  size_t bool_copy_size;
+  err = zvec_doc_get_field_value_copy(doc, "bool_field2", ZVEC_DATA_TYPE_BOOL,
+                                      &bool_copy_result, &bool_copy_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(bool_copy_result != NULL);
+  TEST_ASSERT(bool_copy_size == sizeof(bool));
+  TEST_ASSERT(*(bool *)bool_copy_result == true);
+  free(bool_copy_result);
+
+  int32_t int32_val = -12345;
+  err = zvec_doc_add_field_by_value(doc, "int32_field2", ZVEC_DATA_TYPE_INT32,
+                                    &int32_val, sizeof(int32_val));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *int32_copy_result;
+  size_t int32_copy_size;
+  err = zvec_doc_get_field_value_copy(doc, "int32_field2", ZVEC_DATA_TYPE_INT32,
+                                      &int32_copy_result, &int32_copy_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(int32_copy_result != NULL);
+  TEST_ASSERT(int32_copy_size == sizeof(int32_t));
+  TEST_ASSERT(*(int32_t *)int32_copy_result == -12345);
+  free(int32_copy_result);
+
+  int64_t int64_val = -9223372036854775807LL;
+  err = zvec_doc_add_field_by_value(doc, "int64_field2", ZVEC_DATA_TYPE_INT64,
+                                    &int64_val, sizeof(int64_val));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *int64_copy_result;
+  size_t int64_copy_size;
+  err = zvec_doc_get_field_value_copy(doc, "int64_field2", ZVEC_DATA_TYPE_INT64,
+                                      &int64_copy_result, &int64_copy_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(int64_copy_result != NULL);
+  TEST_ASSERT(int64_copy_size == sizeof(int64_t));
+  TEST_ASSERT(*(int64_t *)int64_copy_result == -9223372036854775807LL);
+  free(int64_copy_result);
+
+  uint32_t uint32_val = 4000000000U;
+  err = zvec_doc_add_field_by_value(doc, "uint32_field2", ZVEC_DATA_TYPE_UINT32,
+                                    &uint32_val, sizeof(uint32_val));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *uint32_copy_result;
+  size_t uint32_copy_size;
+  err =
+      zvec_doc_get_field_value_copy(doc, "uint32_field2", ZVEC_DATA_TYPE_UINT32,
+                                    &uint32_copy_result, &uint32_copy_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(uint32_copy_result != NULL);
+  TEST_ASSERT(uint32_copy_size == sizeof(uint32_t));
+  TEST_ASSERT(*(uint32_t *)uint32_copy_result == 4000000000U);
+  free(uint32_copy_result);
+
+  uint64_t uint64_val = 18000000000000000000ULL;
+  err = zvec_doc_add_field_by_value(doc, "uint64_field2", ZVEC_DATA_TYPE_UINT64,
+                                    &uint64_val, sizeof(uint64_val));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *uint64_copy_result;
+  size_t uint64_copy_size;
+  err =
+      zvec_doc_get_field_value_copy(doc, "uint64_field2", ZVEC_DATA_TYPE_UINT64,
+                                    &uint64_copy_result, &uint64_copy_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(uint64_copy_result != NULL);
+  TEST_ASSERT(uint64_copy_size == sizeof(uint64_t));
+  TEST_ASSERT(*(uint64_t *)uint64_copy_result == 18000000000000000000ULL);
+  free(uint64_copy_result);
+
+  float float_val = 3.14159265f;
+  err = zvec_doc_add_field_by_value(doc, "float_field2", ZVEC_DATA_TYPE_FLOAT,
+                                    &float_val, sizeof(float_val));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *float_copy_result;
+  size_t float_copy_size;
+  err = zvec_doc_get_field_value_copy(doc, "float_field2", ZVEC_DATA_TYPE_FLOAT,
+                                      &float_copy_result, &float_copy_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(float_copy_result != NULL);
+  TEST_ASSERT(float_copy_size == sizeof(float));
+  TEST_ASSERT(fabs(*(float *)float_copy_result - 3.14159265f) < 1e-6f);
+  free(float_copy_result);
+
+  double double_val = 2.718281828459045;
+  err = zvec_doc_add_field_by_value(doc, "double_field2", ZVEC_DATA_TYPE_DOUBLE,
+                                    &double_val, sizeof(double_val));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *double_copy_result;
+  size_t double_copy_size;
+  err =
+      zvec_doc_get_field_value_copy(doc, "double_field2", ZVEC_DATA_TYPE_DOUBLE,
+                                    &double_copy_result, &double_copy_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(double_copy_result != NULL);
+  TEST_ASSERT(double_copy_size == sizeof(double));
+  TEST_ASSERT(fabs(*(double *)double_copy_result - 2.718281828459045) < 1e-15);
+  free(double_copy_result);
+
+  // String and binary types
   ZVecDocField string_field;
   string_field.name.data = "string_field";
   string_field.name.length = strlen("string_field");
@@ -1218,7 +1363,6 @@ void test_doc_functions(void) {
   TEST_ASSERT(memcmp(string_result, "Hello, 世界!", string_size) == 0);
   free(string_result);
 
-  // Test BINARY type with zvec_doc_get_field_value_copy
   ZVecDocField binary_field;
   binary_field.name.data = "binary_field";
   binary_field.name.length = strlen("binary_field");
@@ -1240,7 +1384,7 @@ void test_doc_functions(void) {
               0);
   free(binary_result);
 
-  // Test VECTOR_FP32 type with zvec_doc_get_field_value_copy
+  // VECTOR_FP32 type
   float test_vector[] = {1.1f, 2.2f, 3.3f, 4.4f, 5.5f};
   ZVecDocField fp32_vec_field;
   fp32_vec_field.name.data = "fp32_vec_field";
@@ -1262,12 +1406,586 @@ void test_doc_functions(void) {
   TEST_ASSERT(memcmp(fp32_vec_result, test_vector, fp32_vec_size) == 0);
   free(fp32_vec_result);
 
+  // VECTOR_FP16 type (16-bit float vector)
+  uint16_t fp16_data[] = {0x3C00, 0x4000, 0x4200,
+                          0x4400};  // FP16: 1.0, 2.0, 3.0, 4.0
+  err = zvec_doc_add_field_by_value(doc, "fp16_vec_field",
+                                    ZVEC_DATA_TYPE_VECTOR_FP16, fp16_data,
+                                    sizeof(fp16_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *fp16_result;
+  size_t fp16_size;
+  err = zvec_doc_get_field_value_copy(doc, "fp16_vec_field",
+                                      ZVEC_DATA_TYPE_VECTOR_FP16, &fp16_result,
+                                      &fp16_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(fp16_result != NULL);
+  TEST_ASSERT(fp16_size == sizeof(fp16_data));
+  TEST_ASSERT(memcmp(fp16_result, fp16_data, fp16_size) == 0);
+  free(fp16_result);
+
+  // VECTOR_INT8 type
+  int8_t int8_data[] = {-128, -1, 0, 1, 127};
+  err = zvec_doc_add_field_by_value(doc, "int8_vec_field",
+                                    ZVEC_DATA_TYPE_VECTOR_INT8, int8_data,
+                                    sizeof(int8_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *int8_result;
+  size_t int8_size;
+  err = zvec_doc_get_field_value_copy(doc, "int8_vec_field",
+                                      ZVEC_DATA_TYPE_VECTOR_INT8, &int8_result,
+                                      &int8_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(int8_result != NULL);
+  TEST_ASSERT(int8_size == sizeof(int8_data));
+  TEST_ASSERT(memcmp(int8_result, int8_data, int8_size) == 0);
+  free(int8_result);
+
+  // VECTOR_BINARY32 type (32-bit aligned binary vector)
+  uint8_t bin32_data[] = {0xAA, 0x55, 0xAA, 0x55};
+  err = zvec_doc_add_field_by_value(doc, "bin32_vec_field",
+                                    ZVEC_DATA_TYPE_VECTOR_BINARY32, bin32_data,
+                                    sizeof(bin32_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *bin32_result;
+  size_t bin32_size;
+  err = zvec_doc_get_field_value_copy(doc, "bin32_vec_field",
+                                      ZVEC_DATA_TYPE_VECTOR_BINARY32,
+                                      &bin32_result, &bin32_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(bin32_result != NULL);
+  TEST_ASSERT(bin32_size == sizeof(bin32_data));
+  TEST_ASSERT(memcmp(bin32_result, bin32_data, bin32_size) == 0);
+  free(bin32_result);
+
+  // VECTOR_BINARY64 type (64-bit aligned binary vector)
+  uint64_t bin64_data[] = {0xAA55AA55AA55AA55ULL, 0x55AA55AA55AA55AAULL};
+  err = zvec_doc_add_field_by_value(doc, "bin64_vec_field",
+                                    ZVEC_DATA_TYPE_VECTOR_BINARY64, bin64_data,
+                                    sizeof(bin64_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *bin64_result;
+  size_t bin64_size;
+  err = zvec_doc_get_field_value_copy(doc, "bin64_vec_field",
+                                      ZVEC_DATA_TYPE_VECTOR_BINARY64,
+                                      &bin64_result, &bin64_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(bin64_result != NULL);
+  TEST_ASSERT(bin64_size == sizeof(bin64_data));
+  TEST_ASSERT(memcmp(bin64_result, bin64_data, bin64_size) == 0);
+  free(bin64_result);
+
+  // VECTOR_FP64 type (double precision vector)
+  double fp64_data[] = {1.1, 2.2, 3.3, 4.4};
+  err = zvec_doc_add_field_by_value(doc, "fp64_vec_field",
+                                    ZVEC_DATA_TYPE_VECTOR_FP64, fp64_data,
+                                    sizeof(fp64_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *fp64_result;
+  size_t fp64_size;
+  err = zvec_doc_get_field_value_copy(doc, "fp64_vec_field",
+                                      ZVEC_DATA_TYPE_VECTOR_FP64, &fp64_result,
+                                      &fp64_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(fp64_result != NULL);
+  TEST_ASSERT(fp64_size == sizeof(fp64_data));
+  TEST_ASSERT(memcmp(fp64_result, fp64_data, fp64_size) == 0);
+  free(fp64_result);
+
+  // VECTOR_INT16 type
+  int16_t int16_data[] = {-32768, -1, 0, 1, 32767};
+  err = zvec_doc_add_field_by_value(doc, "int16_vec_field",
+                                    ZVEC_DATA_TYPE_VECTOR_INT16, int16_data,
+                                    sizeof(int16_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *int16_result;
+  size_t int16_size;
+  err = zvec_doc_get_field_value_copy(doc, "int16_vec_field",
+                                      ZVEC_DATA_TYPE_VECTOR_INT16,
+                                      &int16_result, &int16_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(int16_result != NULL);
+  TEST_ASSERT(int16_size == sizeof(int16_data));
+  TEST_ASSERT(memcmp(int16_result, int16_data, int16_size) == 0);
+  free(int16_result);
+
+  // SPARSE_VECTOR_FP16 type - format: [nnz(uint32_t)][indices...][values...]
+  uint32_t sparse_fp16_nnz = 3;
+  size_t sparse_fp16_size_input =
+      sizeof(uint32_t) +
+      sparse_fp16_nnz * (sizeof(uint32_t) + sizeof(uint16_t));
+  void *sparse_fp16_input = malloc(sparse_fp16_size_input);
+  uint32_t *fp16_nnz_ptr = (uint32_t *)sparse_fp16_input;
+  *fp16_nnz_ptr = sparse_fp16_nnz;
+  uint32_t *fp16_indices =
+      (uint32_t *)((char *)sparse_fp16_input + sizeof(uint32_t));
+  uint16_t *fp16_values =
+      (uint16_t *)((char *)sparse_fp16_input + sizeof(uint32_t) +
+                   sparse_fp16_nnz * sizeof(uint32_t));
+  fp16_indices[0] = 0;
+  fp16_indices[1] = 5;
+  fp16_indices[2] = 10;
+  fp16_values[0] = 0x3C00;
+  fp16_values[1] = 0x4000;
+  fp16_values[2] = 0x4200;  // FP16: 1.0, 2.0, 3.0
+  err = zvec_doc_add_field_by_value(doc, "sparse_fp16_field",
+                                    ZVEC_DATA_TYPE_SPARSE_VECTOR_FP16,
+                                    sparse_fp16_input, sparse_fp16_size_input);
+  TEST_ASSERT(err == ZVEC_OK);
+  free(sparse_fp16_input);
+
+  void *sparse_fp16_result;
+  size_t sparse_fp16_result_size;
+  err = zvec_doc_get_field_value_copy(
+      doc, "sparse_fp16_field", ZVEC_DATA_TYPE_SPARSE_VECTOR_FP16,
+      &sparse_fp16_result, &sparse_fp16_result_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(sparse_fp16_result != NULL);
+  // Sparse vector format: [nnz(size_t)][indices...][values...]
+  size_t retrieved_nnz = *(size_t *)sparse_fp16_result;
+  TEST_ASSERT(retrieved_nnz == 3);
+  uint32_t *retrieved_fp16_indices =
+      (uint32_t *)((char *)sparse_fp16_result + sizeof(size_t));
+  uint16_t *retrieved_fp16_vals =
+      (uint16_t *)((char *)sparse_fp16_result + sizeof(size_t) +
+                   retrieved_nnz * sizeof(uint32_t));
+  TEST_ASSERT(retrieved_fp16_indices[0] == 0);
+  TEST_ASSERT(retrieved_fp16_indices[1] == 5);
+  TEST_ASSERT(retrieved_fp16_indices[2] == 10);
+  TEST_ASSERT(retrieved_fp16_vals[0] == 0x3C00);
+  TEST_ASSERT(retrieved_fp16_vals[1] == 0x4000);
+  TEST_ASSERT(retrieved_fp16_vals[2] == 0x4200);
+  free(sparse_fp16_result);
+
+  // SPARSE_VECTOR_FP32 type - format: [nnz(uint32_t)][indices...][values...]
+  uint32_t sparse_fp32_nnz = 4;
+  size_t sparse_fp32_size_input =
+      sizeof(uint32_t) + sparse_fp32_nnz * (sizeof(uint32_t) + sizeof(float));
+  void *sparse_fp32_input = malloc(sparse_fp32_size_input);
+  uint32_t *fp32_nnz_ptr = (uint32_t *)sparse_fp32_input;
+  *fp32_nnz_ptr = sparse_fp32_nnz;
+  uint32_t *fp32_indices =
+      (uint32_t *)((char *)sparse_fp32_input + sizeof(uint32_t));
+  float *fp32_values = (float *)((char *)sparse_fp32_input + sizeof(uint32_t) +
+                                 sparse_fp32_nnz * sizeof(uint32_t));
+  fp32_indices[0] = 2;
+  fp32_indices[1] = 7;
+  fp32_indices[2] = 15;
+  fp32_indices[3] = 20;
+  fp32_values[0] = 1.5f;
+  fp32_values[1] = 2.5f;
+  fp32_values[2] = 3.5f;
+  fp32_values[3] = 4.5f;
+  err = zvec_doc_add_field_by_value(doc, "sparse_fp32_field",
+                                    ZVEC_DATA_TYPE_SPARSE_VECTOR_FP32,
+                                    sparse_fp32_input, sparse_fp32_size_input);
+  TEST_ASSERT(err == ZVEC_OK);
+  free(sparse_fp32_input);
+
+  void *sparse_fp32_result;
+  size_t sparse_fp32_result_size;
+  err = zvec_doc_get_field_value_copy(
+      doc, "sparse_fp32_field", ZVEC_DATA_TYPE_SPARSE_VECTOR_FP32,
+      &sparse_fp32_result, &sparse_fp32_result_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(sparse_fp32_result != NULL);
+  retrieved_nnz = *(size_t *)sparse_fp32_result;
+  TEST_ASSERT(retrieved_nnz == 4);
+  uint32_t *retrieved_fp32_indices =
+      (uint32_t *)((char *)sparse_fp32_result + sizeof(size_t));
+  float *retrieved_fp32_vals =
+      (float *)((char *)sparse_fp32_result + sizeof(size_t) +
+                retrieved_nnz * sizeof(uint32_t));
+  TEST_ASSERT(retrieved_fp32_indices[0] == 2);
+  TEST_ASSERT(retrieved_fp32_indices[1] == 7);
+  TEST_ASSERT(retrieved_fp32_indices[2] == 15);
+  TEST_ASSERT(retrieved_fp32_indices[3] == 20);
+  TEST_ASSERT(fabs(retrieved_fp32_vals[0] - 1.5f) < 1e-5f);
+  TEST_ASSERT(fabs(retrieved_fp32_vals[1] - 2.5f) < 1e-5f);
+  TEST_ASSERT(fabs(retrieved_fp32_vals[2] - 3.5f) < 1e-5f);
+  TEST_ASSERT(fabs(retrieved_fp32_vals[3] - 4.5f) < 1e-5f);
+  free(sparse_fp32_result);
+
+  // ARRAY_BINARY type
+  // Format: [length(uint32_t)][data][length][data]...
+  uint8_t array_bin_data[] = {
+      1, 0, 0, 0, 0x01,        // length=1, data=0x01
+      2, 0, 0, 0, 0x02, 0x03,  // length=2, data=0x02,0x03
+      2, 0, 0, 0, 0x04, 0x05   // length=2, data=0x04,0x05
+  };
+  err = zvec_doc_add_field_by_value(doc, "array_binary_field",
+                                    ZVEC_DATA_TYPE_ARRAY_BINARY, array_bin_data,
+                                    sizeof(array_bin_data));
+  TEST_ASSERT(err == ZVEC_OK);
+  void *array_binary_result;
+  size_t array_binary_size;
+  err = zvec_doc_get_field_value_copy(doc, "array_binary_field",
+                                      ZVEC_DATA_TYPE_ARRAY_BINARY,
+                                      &array_binary_result, &array_binary_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_binary_result != NULL);
+  // The result is a contiguous buffer of binary data without length prefixes
+  TEST_ASSERT(array_binary_size == 5);  // 1 + 2 + 2 bytes
+  const uint8_t *result_bytes = (const uint8_t *)array_binary_result;
+  TEST_ASSERT(result_bytes[0] == 0x01);
+  TEST_ASSERT(result_bytes[1] == 0x02);
+  TEST_ASSERT(result_bytes[2] == 0x03);
+  TEST_ASSERT(result_bytes[3] == 0x04);
+  TEST_ASSERT(result_bytes[4] == 0x05);
+  free(array_binary_result);
+
+
+  // ARRAY_STRING type
+  const char *array_str_data[] = {"str1", "str2", "str3"};
+  ZVecString *array_zvec_str[3];
+  for (int i = 0; i < 3; i++) {
+    array_zvec_str[i] = zvec_string_create(array_str_data[i]);
+  }
+  err = zvec_doc_add_field_by_value(doc, "array_string_field",
+                                    ZVEC_DATA_TYPE_ARRAY_STRING, array_zvec_str,
+                                    sizeof(array_zvec_str));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *array_string_result;
+  size_t array_string_size;
+  err = zvec_doc_get_field_value_copy(doc, "array_string_field",
+                                      ZVEC_DATA_TYPE_ARRAY_STRING,
+                                      &array_string_result, &array_string_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_string_result != NULL);
+  free(array_string_result);
+  for (int i = 0; i < 3; i++) {
+    zvec_free_string(array_zvec_str[i]);
+  }
+
+  zvec_free_str(string_field.value.string_value.data);
+
+  // ARRAY_BOOL type
+  bool array_bool_data[] = {true, false, true, false, true};
+  err = zvec_doc_add_field_by_value(doc, "array_bool_field",
+                                    ZVEC_DATA_TYPE_ARRAY_BOOL, array_bool_data,
+                                    sizeof(array_bool_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *array_bool_result;
+  size_t array_bool_size;
+  err = zvec_doc_get_field_value_copy(doc, "array_bool_field",
+                                      ZVEC_DATA_TYPE_ARRAY_BOOL,
+                                      &array_bool_result, &array_bool_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_bool_result != NULL);
+  // Verify the bit-packed bool array
+  uint8_t *bool_bytes = (uint8_t *)array_bool_result;
+  TEST_ASSERT((bool_bytes[0] & 0x01) != 0);  // index 0: true
+  TEST_ASSERT((bool_bytes[0] & 0x02) == 0);  // index 1: false
+  TEST_ASSERT((bool_bytes[0] & 0x04) != 0);  // index 2: true
+  TEST_ASSERT((bool_bytes[0] & 0x08) == 0);  // index 3: false
+  TEST_ASSERT((bool_bytes[0] & 0x10) != 0);  // index 4: true
+  free(array_bool_result);
+
+  // ARRAY_INT32 type
+  int32_t array_int32_data[] = {100, 200, 300};
+  err = zvec_doc_add_field_by_value(doc, "array_int32_field",
+                                    ZVEC_DATA_TYPE_ARRAY_INT32,
+                                    array_int32_data, sizeof(array_int32_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *array_int32_result;
+  size_t array_int32_size;
+  err = zvec_doc_get_field_value_copy(doc, "array_int32_field",
+                                      ZVEC_DATA_TYPE_ARRAY_INT32,
+                                      &array_int32_result, &array_int32_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_int32_result != NULL);
+  TEST_ASSERT(array_int32_size == sizeof(array_int32_data));
+  TEST_ASSERT(((int32_t *)array_int32_result)[0] == 100);
+  TEST_ASSERT(((int32_t *)array_int32_result)[1] == 200);
+  TEST_ASSERT(((int32_t *)array_int32_result)[2] == 300);
+  free(array_int32_result);
+
+  // ARRAY_INT64 type
+  int64_t array_int64_data[] = {-9223372036854775807LL, 0,
+                                9223372036854775807LL};
+  err = zvec_doc_add_field_by_value(doc, "array_int64_field",
+                                    ZVEC_DATA_TYPE_ARRAY_INT64,
+                                    array_int64_data, sizeof(array_int64_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *array_int64_result;
+  size_t array_int64_size;
+  err = zvec_doc_get_field_value_copy(doc, "array_int64_field",
+                                      ZVEC_DATA_TYPE_ARRAY_INT64,
+                                      &array_int64_result, &array_int64_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_int64_result != NULL);
+  TEST_ASSERT(array_int64_size == sizeof(array_int64_data));
+  TEST_ASSERT(((int64_t *)array_int64_result)[0] == -9223372036854775807LL);
+  TEST_ASSERT(((int64_t *)array_int64_result)[1] == 0);
+  TEST_ASSERT(((int64_t *)array_int64_result)[2] == 9223372036854775807LL);
+  free(array_int64_result);
+
+  // ARRAY_UINT32 type
+  uint32_t array_uint32_data[] = {0U, 1000000U, 4000000000U};
+  err = zvec_doc_add_field_by_value(
+      doc, "array_uint32_field", ZVEC_DATA_TYPE_ARRAY_UINT32, array_uint32_data,
+      sizeof(array_uint32_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *array_uint32_result;
+  size_t array_uint32_size;
+  err = zvec_doc_get_field_value_copy(doc, "array_uint32_field",
+                                      ZVEC_DATA_TYPE_ARRAY_UINT32,
+                                      &array_uint32_result, &array_uint32_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_uint32_result != NULL);
+  TEST_ASSERT(array_uint32_size == sizeof(array_uint32_data));
+  TEST_ASSERT(((uint32_t *)array_uint32_result)[0] == 0U);
+  TEST_ASSERT(((uint32_t *)array_uint32_result)[1] == 1000000U);
+  TEST_ASSERT(((uint32_t *)array_uint32_result)[2] == 4000000000U);
+  free(array_uint32_result);
+
+  // ARRAY_UINT64 type
+  uint64_t array_uint64_data[] = {0ULL, 1000000000000ULL,
+                                  18000000000000000000ULL};
+  err = zvec_doc_add_field_by_value(
+      doc, "array_uint64_field", ZVEC_DATA_TYPE_ARRAY_UINT64, array_uint64_data,
+      sizeof(array_uint64_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *array_uint64_result;
+  size_t array_uint64_size;
+  err = zvec_doc_get_field_value_copy(doc, "array_uint64_field",
+                                      ZVEC_DATA_TYPE_ARRAY_UINT64,
+                                      &array_uint64_result, &array_uint64_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_uint64_result != NULL);
+  TEST_ASSERT(array_uint64_size == sizeof(array_uint64_data));
+  TEST_ASSERT(((uint64_t *)array_uint64_result)[0] == 0ULL);
+  TEST_ASSERT(((uint64_t *)array_uint64_result)[1] == 1000000000000ULL);
+  TEST_ASSERT(((uint64_t *)array_uint64_result)[2] == 18000000000000000000ULL);
+  free(array_uint64_result);
+
+  // ARRAY_FLOAT type
+  float array_float_data[] = {1.5f, 2.5f, 3.5f};
+  err = zvec_doc_add_field_by_value(doc, "array_float_field",
+                                    ZVEC_DATA_TYPE_ARRAY_FLOAT,
+                                    array_float_data, sizeof(array_float_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *array_float_result;
+  size_t array_float_size;
+  err = zvec_doc_get_field_value_copy(doc, "array_float_field",
+                                      ZVEC_DATA_TYPE_ARRAY_FLOAT,
+                                      &array_float_result, &array_float_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_float_result != NULL);
+  TEST_ASSERT(array_float_size == sizeof(array_float_data));
+  TEST_ASSERT(((float *)array_float_result)[0] == 1.5f);
+  TEST_ASSERT(((float *)array_float_result)[1] == 2.5f);
+  TEST_ASSERT(((float *)array_float_result)[2] == 3.5f);
+  free(array_float_result);
+
+  // ARRAY_DOUBLE type
+  double array_double_data[] = {1.111111, 2.222222, 3.333333};
+  err = zvec_doc_add_field_by_value(
+      doc, "array_double_field", ZVEC_DATA_TYPE_ARRAY_DOUBLE, array_double_data,
+      sizeof(array_double_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  void *array_double_result;
+  size_t array_double_size;
+  err = zvec_doc_get_field_value_copy(doc, "array_double_field",
+                                      ZVEC_DATA_TYPE_ARRAY_DOUBLE,
+                                      &array_double_result, &array_double_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_double_result != NULL);
+  TEST_ASSERT(array_double_size == sizeof(array_double_data));
+  TEST_ASSERT(fabs(((double *)array_double_result)[0] - 1.111111) < 1e-10);
+  TEST_ASSERT(fabs(((double *)array_double_result)[1] - 2.222222) < 1e-10);
+  TEST_ASSERT(fabs(((double *)array_double_result)[2] - 3.333333) < 1e-10);
+  free(array_double_result);
+
+
+  zvec_free_str(binary_field.value.string_value.data);
+  zvec_doc_destroy(doc);
+
+  TEST_END();
+}
+
+void test_doc_get_field_value_pointer(void) {
+  TEST_START();
+
+  ZVecDoc *doc = zvec_doc_create();
+  TEST_ASSERT(doc != NULL);
+
+  ZVecErrorCode err;
+
+  // Add fields for pointer testing
+  ZVecDocField bool_field;
+  bool_field.name.data = "bool_field";
+  bool_field.name.length = strlen("bool_field");
+  bool_field.data_type = ZVEC_DATA_TYPE_BOOL;
+  bool_field.value.bool_value = true;
+  err = zvec_doc_add_field_by_struct(doc, &bool_field);
+  TEST_ASSERT(err == ZVEC_OK);
+
+  ZVecDocField int32_field;
+  int32_field.name.data = "int32_field";
+  int32_field.name.length = strlen("int32_field");
+  int32_field.data_type = ZVEC_DATA_TYPE_INT32;
+  int32_field.value.int32_value = -2147483648;
+  err = zvec_doc_add_field_by_struct(doc, &int32_field);
+  TEST_ASSERT(err == ZVEC_OK);
+
+  ZVecDocField string_field;
+  string_field.name.data = "string_field";
+  string_field.name.length = strlen("string_field");
+  string_field.data_type = ZVEC_DATA_TYPE_STRING;
+  string_field.value.string_value = *zvec_string_create("Hello, 世界!");
+  err = zvec_doc_add_field_by_struct(doc, &string_field);
+  TEST_ASSERT(err == ZVEC_OK);
+
+  ZVecDocField binary_field;
+  binary_field.name.data = "binary_field";
+  binary_field.name.length = strlen("binary_field");
+  binary_field.data_type = ZVEC_DATA_TYPE_BINARY;
+  uint8_t binary_data[] = {0x00, 0x01, 0x02, 0xFF, 0xFE, 0xFD};
+  binary_field.value.string_value =
+      *zvec_bin_create(binary_data, sizeof(binary_data));
+  err = zvec_doc_add_field_by_struct(doc, &binary_field);
+  TEST_ASSERT(err == ZVEC_OK);
+
+  float test_vector[] = {1.1f, 2.2f, 3.3f, 4.4f, 5.5f};
+  ZVecDocField fp32_vec_field;
+  fp32_vec_field.name.data = "fp32_vec_field";
+  fp32_vec_field.name.length = strlen("fp32_vec_field");
+  fp32_vec_field.data_type = ZVEC_DATA_TYPE_VECTOR_FP32;
+  fp32_vec_field.value.vector_value.data = test_vector;
+  fp32_vec_field.value.vector_value.length = 5;
+  err = zvec_doc_add_field_by_struct(doc, &fp32_vec_field);
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // Add more fields for comprehensive pointer testing
+  int64_t int64_val = -9223372036854775807LL;
+  err =
+      zvec_doc_add_field_by_value(doc, "int64_field_ptr", ZVEC_DATA_TYPE_INT64,
+                                  &int64_val, sizeof(int64_val));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  uint32_t uint32_val = 4000000000U;
+  err = zvec_doc_add_field_by_value(doc, "uint32_field_ptr",
+                                    ZVEC_DATA_TYPE_UINT32, &uint32_val,
+                                    sizeof(uint32_val));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  uint64_t uint64_val = 18000000000000000000ULL;
+  err = zvec_doc_add_field_by_value(doc, "uint64_field_ptr",
+                                    ZVEC_DATA_TYPE_UINT64, &uint64_val,
+                                    sizeof(uint64_val));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  float float_val = 3.14159265f;
+  err =
+      zvec_doc_add_field_by_value(doc, "float_field_ptr", ZVEC_DATA_TYPE_FLOAT,
+                                  &float_val, sizeof(float_val));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  double double_val = 2.718281828459045;
+  err = zvec_doc_add_field_by_value(doc, "double_field_ptr",
+                                    ZVEC_DATA_TYPE_DOUBLE, &double_val,
+                                    sizeof(double_val));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // VECTOR_BINARY64
+  uint64_t bin64_vec_data[] = {0xAA55AA55AA55AA55ULL, 0x55AA55AA55AA55AAULL};
+  err = zvec_doc_add_field_by_value(doc, "bin64_vec_field_ptr",
+                                    ZVEC_DATA_TYPE_VECTOR_BINARY64,
+                                    bin64_vec_data, sizeof(bin64_vec_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // VECTOR_FP16
+  uint16_t fp16_vec_data[] = {0x3C00, 0x4000, 0x4200, 0x4400};
+  err = zvec_doc_add_field_by_value(doc, "fp16_vec_field_ptr",
+                                    ZVEC_DATA_TYPE_VECTOR_FP16, fp16_vec_data,
+                                    sizeof(fp16_vec_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // VECTOR_FP64
+  double fp64_vec_data[] = {1.1, 2.2, 3.3, 4.4};
+  err = zvec_doc_add_field_by_value(doc, "fp64_vec_field_ptr",
+                                    ZVEC_DATA_TYPE_VECTOR_FP64, fp64_vec_data,
+                                    sizeof(fp64_vec_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // VECTOR_INT8
+  int8_t int8_vec_data[] = {-128, -1, 0, 1, 127};
+  err = zvec_doc_add_field_by_value(doc, "int8_vec_field_ptr",
+                                    ZVEC_DATA_TYPE_VECTOR_INT8, int8_vec_data,
+                                    sizeof(int8_vec_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // VECTOR_INT16
+  int16_t int16_vec_data[] = {-32768, -1, 0, 1, 32767};
+  err = zvec_doc_add_field_by_value(doc, "int16_vec_field_ptr",
+                                    ZVEC_DATA_TYPE_VECTOR_INT16, int16_vec_data,
+                                    sizeof(int16_vec_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // ARRAY_INT32
+  int32_t array_int32_data[] = {100, 200, 300};
+  err = zvec_doc_add_field_by_value(doc, "array_int32_field_ptr",
+                                    ZVEC_DATA_TYPE_ARRAY_INT32,
+                                    array_int32_data, sizeof(array_int32_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // ARRAY_INT64
+  int64_t array_int64_data[] = {-9223372036854775807LL, 0,
+                                9223372036854775807LL};
+  err = zvec_doc_add_field_by_value(doc, "array_int64_field_ptr",
+                                    ZVEC_DATA_TYPE_ARRAY_INT64,
+                                    array_int64_data, sizeof(array_int64_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // ARRAY_UINT32
+  uint32_t array_uint32_data[] = {0U, 1000000U, 4000000000U};
+  err = zvec_doc_add_field_by_value(
+      doc, "array_uint32_field_ptr", ZVEC_DATA_TYPE_ARRAY_UINT32,
+      array_uint32_data, sizeof(array_uint32_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // ARRAY_UINT64
+  uint64_t array_uint64_data[] = {0ULL, 1000000000000ULL,
+                                  18000000000000000000ULL};
+  err = zvec_doc_add_field_by_value(
+      doc, "array_uint64_field_ptr", ZVEC_DATA_TYPE_ARRAY_UINT64,
+      array_uint64_data, sizeof(array_uint64_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // ARRAY_FLOAT
+  float array_float_data[] = {1.5f, 2.5f, 3.5f};
+  err = zvec_doc_add_field_by_value(doc, "array_float_field_ptr",
+                                    ZVEC_DATA_TYPE_ARRAY_FLOAT,
+                                    array_float_data, sizeof(array_float_data));
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // ARRAY_DOUBLE
+  double array_double_data[] = {1.111111, 2.222222, 3.333333};
+  err = zvec_doc_add_field_by_value(
+      doc, "array_double_field_ptr", ZVEC_DATA_TYPE_ARRAY_DOUBLE,
+      array_double_data, sizeof(array_double_data));
+  TEST_ASSERT(err == ZVEC_OK);
 
   printf(
       "=== Testing zvec_doc_get_field_value_pointer with all supported types "
       "===\n");
 
-  // Test pointer access to basic types
+  // Test pointer access to BOOL
   const void *bool_ptr;
   size_t bool_ptr_size;
   err = zvec_doc_get_field_value_pointer(doc, "bool_field", ZVEC_DATA_TYPE_BOOL,
@@ -1277,6 +1995,7 @@ void test_doc_functions(void) {
   TEST_ASSERT(bool_ptr_size == sizeof(bool));
   TEST_ASSERT(*(const bool *)bool_ptr == true);
 
+  // Test pointer access to INT32
   const void *int32_ptr;
   size_t int32_ptr_size;
   err = zvec_doc_get_field_value_pointer(
@@ -1286,7 +2005,7 @@ void test_doc_functions(void) {
   TEST_ASSERT(int32_ptr_size == sizeof(int32_t));
   TEST_ASSERT(*(const int32_t *)int32_ptr == -2147483648);
 
-  // Test pointer access to STRING (should return null-terminated C string)
+  // Test pointer access to STRING
   const void *string_ptr;
   size_t string_ptr_size;
   err = zvec_doc_get_field_value_pointer(doc, "string_field",
@@ -1320,15 +2039,238 @@ void test_doc_functions(void) {
   TEST_ASSERT(fp32_vec_ptr_size == 5 * sizeof(float));
   TEST_ASSERT(memcmp(fp32_vec_ptr, test_vector, fp32_vec_ptr_size) == 0);
 
-  // Declare dummy variables for error testing
-  const void *dummy_ptr;
-  size_t dummy_ptr_size;
+  // Test pointer access to INT64
+  const void *int64_ptr;
+  size_t int64_ptr_size;
+  err = zvec_doc_get_field_value_pointer(doc, "int64_field_ptr",
+                                         ZVEC_DATA_TYPE_INT64, &int64_ptr,
+                                         &int64_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(int64_ptr != NULL);
+  TEST_ASSERT(int64_ptr_size == sizeof(int64_t));
+  TEST_ASSERT(*(const int64_t *)int64_ptr == -9223372036854775807LL);
 
-  // ==================== FIELD OPERATIONS TESTING ====================
+  // Test pointer access to UINT32
+  const void *uint32_ptr;
+  size_t uint32_ptr_size;
+  err = zvec_doc_get_field_value_pointer(doc, "uint32_field_ptr",
+                                         ZVEC_DATA_TYPE_UINT32, &uint32_ptr,
+                                         &uint32_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(uint32_ptr != NULL);
+  TEST_ASSERT(uint32_ptr_size == sizeof(uint32_t));
+  TEST_ASSERT(*(const uint32_t *)uint32_ptr == 4000000000U);
 
-  // Test field operations
+  // Test pointer access to UINT64
+  const void *uint64_ptr;
+  size_t uint64_ptr_size;
+  err = zvec_doc_get_field_value_pointer(doc, "uint64_field_ptr",
+                                         ZVEC_DATA_TYPE_UINT64, &uint64_ptr,
+                                         &uint64_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(uint64_ptr != NULL);
+  TEST_ASSERT(uint64_ptr_size == sizeof(uint64_t));
+  TEST_ASSERT(*(const uint64_t *)uint64_ptr == 18000000000000000000ULL);
+
+  // Test pointer access to FLOAT
+  const void *float_ptr;
+  size_t float_ptr_size;
+  err = zvec_doc_get_field_value_pointer(doc, "float_field_ptr",
+                                         ZVEC_DATA_TYPE_FLOAT, &float_ptr,
+                                         &float_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(float_ptr != NULL);
+  TEST_ASSERT(float_ptr_size == sizeof(float));
+  TEST_ASSERT(fabs(*(const float *)float_ptr - 3.14159265f) < 1e-6f);
+
+  // Test pointer access to DOUBLE
+  const void *double_ptr;
+  size_t double_ptr_size;
+  err = zvec_doc_get_field_value_pointer(doc, "double_field_ptr",
+                                         ZVEC_DATA_TYPE_DOUBLE, &double_ptr,
+                                         &double_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(double_ptr != NULL);
+  TEST_ASSERT(double_ptr_size == sizeof(double));
+  TEST_ASSERT(fabs(*(const double *)double_ptr - 2.718281828459045) < 1e-15);
+
+  // Test pointer access to VECTOR_BINARY64
+  const void *bin64_vec_ptr;
+  size_t bin64_vec_ptr_size;
+  err = zvec_doc_get_field_value_pointer(doc, "bin64_vec_field_ptr",
+                                         ZVEC_DATA_TYPE_VECTOR_BINARY64,
+                                         &bin64_vec_ptr, &bin64_vec_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(bin64_vec_ptr != NULL);
+  TEST_ASSERT(bin64_vec_ptr_size == sizeof(bin64_vec_data));
+  TEST_ASSERT(memcmp(bin64_vec_ptr, bin64_vec_data, bin64_vec_ptr_size) == 0);
+
+  // Test pointer access to VECTOR_FP16
+  const void *fp16_vec_ptr;
+  size_t fp16_vec_ptr_size;
+  err = zvec_doc_get_field_value_pointer(doc, "fp16_vec_field_ptr",
+                                         ZVEC_DATA_TYPE_VECTOR_FP16,
+                                         &fp16_vec_ptr, &fp16_vec_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(fp16_vec_ptr != NULL);
+  TEST_ASSERT(fp16_vec_ptr_size == sizeof(fp16_vec_data));
+  TEST_ASSERT(memcmp(fp16_vec_ptr, fp16_vec_data, fp16_vec_ptr_size) == 0);
+
+  // Test pointer access to VECTOR_FP64
+  const void *fp64_vec_ptr;
+  size_t fp64_vec_ptr_size;
+  err = zvec_doc_get_field_value_pointer(doc, "fp64_vec_field_ptr",
+                                         ZVEC_DATA_TYPE_VECTOR_FP64,
+                                         &fp64_vec_ptr, &fp64_vec_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(fp64_vec_ptr != NULL);
+  TEST_ASSERT(fp64_vec_ptr_size == sizeof(fp64_vec_data));
+  TEST_ASSERT(memcmp(fp64_vec_ptr, fp64_vec_data, fp64_vec_ptr_size) == 0);
+
+  // Test pointer access to VECTOR_INT8
+  const void *int8_vec_ptr;
+  size_t int8_vec_ptr_size;
+  err = zvec_doc_get_field_value_pointer(doc, "int8_vec_field_ptr",
+                                         ZVEC_DATA_TYPE_VECTOR_INT8,
+                                         &int8_vec_ptr, &int8_vec_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(int8_vec_ptr != NULL);
+  TEST_ASSERT(int8_vec_ptr_size == sizeof(int8_vec_data));
+  TEST_ASSERT(memcmp(int8_vec_ptr, int8_vec_data, int8_vec_ptr_size) == 0);
+
+  // Test pointer access to VECTOR_INT16
+  const void *int16_vec_ptr;
+  size_t int16_vec_ptr_size;
+  err = zvec_doc_get_field_value_pointer(doc, "int16_vec_field_ptr",
+                                         ZVEC_DATA_TYPE_VECTOR_INT16,
+                                         &int16_vec_ptr, &int16_vec_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(int16_vec_ptr != NULL);
+  TEST_ASSERT(int16_vec_ptr_size == sizeof(int16_vec_data));
+  TEST_ASSERT(memcmp(int16_vec_ptr, int16_vec_data, int16_vec_ptr_size) == 0);
+
+  // Test pointer access to ARRAY_INT32
+  const void *array_int32_ptr;
+  size_t array_int32_ptr_size;
+  err = zvec_doc_get_field_value_pointer(
+      doc, "array_int32_field_ptr", ZVEC_DATA_TYPE_ARRAY_INT32,
+      &array_int32_ptr, &array_int32_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_int32_ptr != NULL);
+  TEST_ASSERT(array_int32_ptr_size == sizeof(array_int32_data));
+  TEST_ASSERT(((const int32_t *)array_int32_ptr)[0] == 100);
+  TEST_ASSERT(((const int32_t *)array_int32_ptr)[1] == 200);
+  TEST_ASSERT(((const int32_t *)array_int32_ptr)[2] == 300);
+
+  // Test pointer access to ARRAY_INT64
+  const void *array_int64_ptr;
+  size_t array_int64_ptr_size;
+  err = zvec_doc_get_field_value_pointer(
+      doc, "array_int64_field_ptr", ZVEC_DATA_TYPE_ARRAY_INT64,
+      &array_int64_ptr, &array_int64_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_int64_ptr != NULL);
+  TEST_ASSERT(array_int64_ptr_size == sizeof(array_int64_data));
+  TEST_ASSERT(((const int64_t *)array_int64_ptr)[0] == -9223372036854775807LL);
+  TEST_ASSERT(((const int64_t *)array_int64_ptr)[1] == 0);
+  TEST_ASSERT(((const int64_t *)array_int64_ptr)[2] == 9223372036854775807LL);
+
+  // Test pointer access to ARRAY_UINT32
+  const void *array_uint32_ptr;
+  size_t array_uint32_ptr_size;
+  err = zvec_doc_get_field_value_pointer(
+      doc, "array_uint32_field_ptr", ZVEC_DATA_TYPE_ARRAY_UINT32,
+      &array_uint32_ptr, &array_uint32_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_uint32_ptr != NULL);
+  TEST_ASSERT(array_uint32_ptr_size == sizeof(array_uint32_data));
+  TEST_ASSERT(((const uint32_t *)array_uint32_ptr)[0] == 0U);
+  TEST_ASSERT(((const uint32_t *)array_uint32_ptr)[1] == 1000000U);
+  TEST_ASSERT(((const uint32_t *)array_uint32_ptr)[2] == 4000000000U);
+
+  // Test pointer access to ARRAY_UINT64
+  const void *array_uint64_ptr;
+  size_t array_uint64_ptr_size;
+  err = zvec_doc_get_field_value_pointer(
+      doc, "array_uint64_field_ptr", ZVEC_DATA_TYPE_ARRAY_UINT64,
+      &array_uint64_ptr, &array_uint64_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_uint64_ptr != NULL);
+  TEST_ASSERT(array_uint64_ptr_size == sizeof(array_uint64_data));
+  TEST_ASSERT(((const uint64_t *)array_uint64_ptr)[0] == 0ULL);
+  TEST_ASSERT(((const uint64_t *)array_uint64_ptr)[1] == 1000000000000ULL);
+  TEST_ASSERT(((const uint64_t *)array_uint64_ptr)[2] ==
+              18000000000000000000ULL);
+
+  // Test pointer access to ARRAY_FLOAT
+  const void *array_float_ptr;
+  size_t array_float_ptr_size;
+  err = zvec_doc_get_field_value_pointer(
+      doc, "array_float_field_ptr", ZVEC_DATA_TYPE_ARRAY_FLOAT,
+      &array_float_ptr, &array_float_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_float_ptr != NULL);
+  TEST_ASSERT(array_float_ptr_size == sizeof(array_float_data));
+  TEST_ASSERT(((const float *)array_float_ptr)[0] == 1.5f);
+  TEST_ASSERT(((const float *)array_float_ptr)[1] == 2.5f);
+  TEST_ASSERT(((const float *)array_float_ptr)[2] == 3.5f);
+
+  // Test pointer access to ARRAY_DOUBLE
+  const void *array_double_ptr;
+  size_t array_double_ptr_size;
+  err = zvec_doc_get_field_value_pointer(
+      doc, "array_double_field_ptr", ZVEC_DATA_TYPE_ARRAY_DOUBLE,
+      &array_double_ptr, &array_double_ptr_size);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(array_double_ptr != NULL);
+  TEST_ASSERT(array_double_ptr_size == sizeof(array_double_data));
+  TEST_ASSERT(fabs(((const double *)array_double_ptr)[0] - 1.111111) < 1e-10);
+  TEST_ASSERT(fabs(((const double *)array_double_ptr)[1] - 2.222222) < 1e-10);
+  TEST_ASSERT(fabs(((const double *)array_double_ptr)[2] - 3.333333) < 1e-10);
+
+  zvec_free_str(string_field.value.string_value.data);
+  zvec_free_str(binary_field.value.string_value.data);
+  zvec_doc_destroy(doc);
+
+  TEST_END();
+}
+
+void test_doc_field_operations(void) {
+  TEST_START();
+
+  ZVecDoc *doc = zvec_doc_create();
+  TEST_ASSERT(doc != NULL);
+
+  ZVecErrorCode err;
+
+  // Add some fields
+  ZVecDocField bool_field;
+  bool_field.name.data = "bool_field";
+  bool_field.name.length = strlen("bool_field");
+  bool_field.data_type = ZVEC_DATA_TYPE_BOOL;
+  bool_field.value.bool_value = true;
+  err = zvec_doc_add_field_by_struct(doc, &bool_field);
+  TEST_ASSERT(err == ZVEC_OK);
+
+  ZVecDocField int32_field;
+  int32_field.name.data = "int32_field";
+  int32_field.name.length = strlen("int32_field");
+  int32_field.data_type = ZVEC_DATA_TYPE_INT32;
+  int32_field.value.int32_value = -2147483648;
+  err = zvec_doc_add_field_by_struct(doc, &int32_field);
+  TEST_ASSERT(err == ZVEC_OK);
+
+  ZVecDocField string_field;
+  string_field.name.data = "string_field";
+  string_field.name.length = strlen("string_field");
+  string_field.data_type = ZVEC_DATA_TYPE_STRING;
+  string_field.value.string_value = *zvec_string_create("Hello");
+  err = zvec_doc_add_field_by_struct(doc, &string_field);
+  TEST_ASSERT(err == ZVEC_OK);
+
+  // Test field count
   size_t field_count = zvec_doc_get_field_count(doc);
-  TEST_ASSERT(field_count >= 10);  // All the fields we've added
+  TEST_ASSERT(field_count >= 3);
 
   // Test field existence checks
   TEST_ASSERT(zvec_doc_has_field(doc, "bool_field") == true);
@@ -1345,7 +2287,7 @@ void test_doc_functions(void) {
   size_t name_count;
   err = zvec_doc_get_field_names(doc, &field_names, &name_count);
   TEST_ASSERT(err == ZVEC_OK);
-  TEST_ASSERT(name_count >= 10);
+  TEST_ASSERT(name_count >= 3);
   TEST_ASSERT(field_names != NULL);
 
   // Verify some expected fields are present
@@ -1361,8 +2303,32 @@ void test_doc_functions(void) {
   TEST_ASSERT(found_key_fields == true);
 
   zvec_free_str_array(field_names, name_count);
+  zvec_free_str(string_field.value.string_value.data);
+  zvec_doc_destroy(doc);
 
-  // ==================== ERROR CONDITION TESTING ====================
+  TEST_END();
+}
+
+void test_doc_error_conditions(void) {
+  TEST_START();
+
+  ZVecDoc *doc = zvec_doc_create();
+  TEST_ASSERT(doc != NULL);
+
+  // Add a field for error testing
+  ZVecDocField bool_field;
+  bool_field.name.data = "bool_field";
+  bool_field.name.length = strlen("bool_field");
+  bool_field.data_type = ZVEC_DATA_TYPE_BOOL;
+  bool_field.value.bool_value = true;
+  zvec_doc_add_field_by_struct(doc, &bool_field);
+
+  ZVecErrorCode err;
+  const void *dummy_ptr;
+  size_t dummy_ptr_size;
+  int32_t int32_result;
+  void *string_result;
+  size_t string_size;
 
   printf("=== Testing error conditions ===\n");
 
@@ -1382,12 +2348,11 @@ void test_doc_functions(void) {
   TEST_ASSERT(err != ZVEC_OK);
 
   // Test wrong data type access
-  err =
-      zvec_doc_get_field_value_basic(doc, "string_field", ZVEC_DATA_TYPE_INT32,
-                                     &int32_result, sizeof(int32_result));
+  err = zvec_doc_get_field_value_basic(doc, "bool_field", ZVEC_DATA_TYPE_INT32,
+                                       &int32_result, sizeof(int32_result));
   TEST_ASSERT(err != ZVEC_OK);
 
-  err = zvec_doc_get_field_value_copy(doc, "int32_field", ZVEC_DATA_TYPE_STRING,
+  err = zvec_doc_get_field_value_copy(doc, "bool_field", ZVEC_DATA_TYPE_STRING,
                                       &string_result, &string_size);
   TEST_ASSERT(err != ZVEC_OK);
 
@@ -1395,7 +2360,35 @@ void test_doc_functions(void) {
       doc, "bool_field", ZVEC_DATA_TYPE_FLOAT, &dummy_ptr, &dummy_ptr_size);
   TEST_ASSERT(err != ZVEC_OK);
 
-  // ==================== DOCUMENT SERIALIZATION TESTING ====================
+  zvec_doc_destroy(doc);
+
+  TEST_END();
+}
+
+void test_doc_serialization(void) {
+  TEST_START();
+
+  ZVecDoc *doc = zvec_doc_create();
+  TEST_ASSERT(doc != NULL);
+
+  ZVecErrorCode err;
+
+  // Add fields for serialization testing
+  ZVecDocField int32_field;
+  int32_field.name.data = "int32_field";
+  int32_field.name.length = strlen("int32_field");
+  int32_field.data_type = ZVEC_DATA_TYPE_INT32;
+  int32_field.value.int32_value = -2147483648;
+  err = zvec_doc_add_field_by_struct(doc, &int32_field);
+  TEST_ASSERT(err == ZVEC_OK);
+
+  ZVecDocField string_field;
+  string_field.name.data = "string_field";
+  string_field.name.length = strlen("string_field");
+  string_field.data_type = ZVEC_DATA_TYPE_STRING;
+  string_field.value.string_value = *zvec_string_create("Serialization Test");
+  err = zvec_doc_add_field_by_struct(doc, &string_field);
+  TEST_ASSERT(err == ZVEC_OK);
 
   printf("=== Testing document serialization ===\n");
 
@@ -1412,6 +2405,7 @@ void test_doc_functions(void) {
   TEST_ASSERT(deserialized_doc != NULL);
 
   // Verify deserialized document has same field count
+  size_t field_count = zvec_doc_get_field_count(doc);
   size_t deserialized_field_count = zvec_doc_get_field_count(deserialized_doc);
   TEST_ASSERT(deserialized_field_count == field_count);
 
@@ -1423,14 +2417,10 @@ void test_doc_functions(void) {
   TEST_ASSERT(err == ZVEC_OK);
   TEST_ASSERT(deserialized_int32 == -2147483648);
 
-  // ==================== CLEANUP ====================
-
-  zvec_doc_destroy(deserialized_doc);
   zvec_free_uint8_array(serialized_data);
   zvec_free_str(string_field.value.string_value.data);
-  zvec_free_str(binary_field.value.string_value.data);
+  zvec_doc_destroy(deserialized_doc);
   zvec_doc_destroy(doc);
-  zvec_collection_schema_destroy(schema);
 
   TEST_END();
 }
@@ -1994,8 +2984,7 @@ void test_index_creation_and_management(void) {
           ZVEC_METRIC_TYPE_COSINE, ZVEC_QUANTIZE_TYPE_UNDEFINED, 16, 100, 50);
       TEST_ASSERT(hnsw_params != NULL);
 
-      err = zvec_collection_create_hnsw_index(
-          collection, &(ZVecString){.data = "dense", .length = 5}, hnsw_params);
+      err = zvec_collection_create_hnsw_index(collection, "dense", hnsw_params);
       TEST_ASSERT(err == ZVEC_OK);
 
       // Test 2: Create scalar index
@@ -2003,14 +2992,12 @@ void test_index_creation_and_management(void) {
           zvec_index_params_invert_create(true, false);
       TEST_ASSERT(invert_params != NULL);
 
-      err = zvec_collection_create_invert_index(
-          collection, &(ZVecString){.data = "name", .length = 4},
-          invert_params);
+      err = zvec_collection_create_invert_index(collection, "name",
+                                                invert_params);
       TEST_ASSERT(err == ZVEC_OK);
 
-      // Note: Index statistics and drop functionality not yet implemented in C
-      // API These would require zvec_collection_get_index_stats() and
-      // zvec_collection_drop_index()
+      err = zvec_collection_drop_index(collection, "name");
+      TEST_ASSERT(err == ZVEC_OK);
 
       // Test 3: Optimize collection
       err = zvec_collection_optimize(collection);
@@ -2040,6 +3027,8 @@ void test_collection_ddl_operations(void) {
   ZVecCollectionSchema *schema = zvec_test_create_temp_schema();
   TEST_ASSERT(schema != NULL);
 
+  size_t field_count = zvec_collection_schema_get_field_count(schema);
+
   if (schema) {
     ZVecCollection *collection = NULL;
     ZVecErrorCode err =
@@ -2048,25 +3037,47 @@ void test_collection_ddl_operations(void) {
     TEST_ASSERT(collection != NULL);
 
     if (collection) {
-      // Test 1: Add new field (using schema modification before opening)
+      // Test 1: Add new column
       ZVecFieldSchema *new_field =
-          zvec_field_schema_create("new_field", ZVEC_DATA_TYPE_STRING, true, 0);
+          zvec_field_schema_create("new_int32", ZVEC_DATA_TYPE_INT32, true, 0);
       TEST_ASSERT(new_field != NULL);
 
-      // Note: Runtime field addition not yet implemented in C API
-      // This would require zvec_collection_add_field() which is not implemented
+      err = zvec_collection_add_column(collection, new_field, NULL);
+      TEST_ASSERT(err == ZVEC_OK);
 
-      // Test 2: Get collection schema
+      // Test 2: Get collection schema and verify field count
       ZVecCollectionSchema *retrieved_schema = NULL;
       err = zvec_collection_get_schema(collection, &retrieved_schema);
       TEST_ASSERT(err == ZVEC_OK);
       TEST_ASSERT(retrieved_schema != NULL);
 
-      size_t field_count =
+      size_t new_field_count =
           zvec_collection_schema_get_field_count(retrieved_schema);
-      TEST_ASSERT(field_count > 0);
+      TEST_ASSERT((field_count + 1) == new_field_count);
+
+      // Test 3: Alter column
+      ZVecFieldSchema *alter_field =
+          zvec_field_schema_create("new_float", ZVEC_DATA_TYPE_FLOAT, true, 0);
+      TEST_ASSERT(alter_field != NULL);
+
+      err = zvec_collection_alter_column(collection, "new_int32", "",
+                                         alter_field);
+      TEST_ASSERT(err == ZVEC_OK);
+
+      // Test 4: Drop column
+      err = zvec_collection_drop_column(collection, "new_float");
+      TEST_ASSERT(err == ZVEC_OK);
+
+      // Test 5: Verify field count after drop
+      err = zvec_collection_get_schema(collection, &retrieved_schema);
+      TEST_ASSERT(err == ZVEC_OK);
+      new_field_count =
+          zvec_collection_schema_get_field_count(retrieved_schema);
+      TEST_ASSERT(new_field_count == field_count);
 
       zvec_collection_schema_destroy(retrieved_schema);
+      zvec_field_schema_destroy(new_field);
+      zvec_field_schema_destroy(alter_field);
 
       zvec_collection_destroy(collection);
     }
@@ -2109,9 +3120,6 @@ void test_field_ddl_operations(void) {
   ZVecErrorCode err = zvec_field_schema_set_index_params(
       field2, (ZVecIndexParams *)hnsw_params);
   TEST_ASSERT(err == ZVEC_OK);
-
-  // Test field operations
-  // (Field validation function doesn't exist in current API)
 
   // Cleanup
   zvec_field_schema_destroy(field1);
@@ -2323,7 +3331,13 @@ int main(void) {
   // Doc-related tests
   test_doc_creation();
   test_doc_primary_key();
-  test_doc_functions();
+  test_doc_basic_operations();
+  test_doc_get_field_value_basic();
+  test_doc_get_field_value_copy();
+  test_doc_get_field_value_pointer();
+  test_doc_field_operations();
+  test_doc_error_conditions();
+  test_doc_serialization();
 
   // Index tests
   test_index_params();

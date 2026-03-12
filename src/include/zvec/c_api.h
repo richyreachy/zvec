@@ -1492,13 +1492,13 @@ zvec_free_field_schema(ZVecFieldSchema *field_schema);
  * @brief Create index
  *
  * @param collection Collection handle
- * @param column_name Column name
+ * @param field_name Field name
  * @param index_params Index parameters
  * @return ZVecErrorCode Error code
  */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_create_index(
-    ZVecCollection *collection, const char *column_name,
-    const ZVecIndexParams *index_params);
+ZVEC_EXPORT ZVecErrorCode ZVEC_CALL
+zvec_collection_create_index(ZVecCollection *collection, const char *field_name,
+                             const ZVecIndexParams *index_params);
 
 /**
  * @brief Create index for collection field (using specific type parameters)
@@ -1509,7 +1509,7 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_create_index(
  * @return Error code
  */
 ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_create_index_with_params(
-    ZVecCollection *collection, const ZVecString *field_name,
+    ZVecCollection *collection, const char *field_name,
     const void
         *index_params);  // Determine specific type based on index_type field
 
@@ -1521,7 +1521,7 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_create_index_with_params(
  * @return Error code
  */
 ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_create_hnsw_index(
-    ZVecCollection *collection, const ZVecString *field_name,
+    ZVecCollection *collection, const char *field_name,
     const ZVecHnswIndexParams *hnsw_params);
 
 /**
@@ -1532,7 +1532,7 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_create_hnsw_index(
  * @return Error code
  */
 ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_create_flat_index(
-    ZVecCollection *collection, const ZVecString *field_name,
+    ZVecCollection *collection, const char *field_name,
     const ZVecFlatIndexParams *flat_params);
 
 /**
@@ -1543,7 +1543,7 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_create_flat_index(
  * @return Error code
  */
 ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_create_ivf_index(
-    ZVecCollection *collection, const ZVecString *field_name,
+    ZVecCollection *collection, const char *field_name,
     const ZVecIVFIndexParams *ivf_params);
 
 /**
@@ -1554,7 +1554,7 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_create_ivf_index(
  * @return Error code
  */
 ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_create_invert_index(
-    ZVecCollection *collection, const ZVecString *field_name,
+    ZVecCollection *collection, const char *field_name,
     const ZVecInvertIndexParams *invert_params);
 
 /**
@@ -1573,18 +1573,6 @@ zvec_collection_drop_index(ZVecCollection *collection, const char *field_name);
  */
 ZVEC_EXPORT ZVecErrorCode ZVEC_CALL
 zvec_collection_optimize(ZVecCollection *collection);
-
-/**
- * @brief Get index statistics
- * @param collection Collection handle
- * @param field_name Field name
- * @param[out] completeness Index completeness (0.0-1.0)
- * @return ZVecErrorCode Error code
- */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL
-zvec_collection_get_index_stats(const ZVecCollection *collection,
-                                const char *field_name, float *completeness);
-
 
 /**
  * @brief Compact collection (reclaim space)
@@ -1606,31 +1594,31 @@ ZVEC_EXPORT void ZVEC_CALL zvec_clear_error(void);
 
 
 // =============================================================================
-// Field Management Interface (DDL)
+// Column Management Interface (DDL)
 // =============================================================================
 
 /**
- * @brief Add field
+ * @brief Add column
  * @param collection Collection handle
  * @param field_schema Field schema pointer
  * @param default_expression Default value expression (can be NULL)
  * @return ZVecErrorCode Error code
  */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_add_field(
+ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_add_column(
     ZVecCollection *collection, const ZVecFieldSchema *field_schema,
     const char *default_expression);
 
 /**
- * @brief Drop field
+ * @brief Drop column
  * @param collection Collection handle
  * @param field_name Field name
  * @return ZVecErrorCode Error code
  */
 ZVEC_EXPORT ZVecErrorCode ZVEC_CALL
-zvec_collection_drop_field(ZVecCollection *collection, const char *field_name);
+zvec_collection_drop_column(ZVecCollection *collection, const char *field_name);
 
 /**
- * @brief Alter field
+ * @brief Alter column
  * @param collection Collection handle
  * @param old_name Original field name
  * @param new_name New field name (can be NULL to indicate no renaming)
@@ -1638,7 +1626,7 @@ zvec_collection_drop_field(ZVecCollection *collection, const char *field_name);
  * modification)
  * @return ZVecErrorCode Error code
  */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_alter_field(
+ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_alter_column(
     ZVecCollection *collection, const char *old_name, const char *new_name,
     const ZVecFieldSchema *new_schema);
 

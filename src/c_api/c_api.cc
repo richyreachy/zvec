@@ -2150,7 +2150,7 @@ std::pair<std::vector<uint32_t>, std::vector<T>> extract_sparse_vector(
   return std::make_pair(std::move(index_vec), std::move(value_vec));
 }
 
-// Helper function to extract string array from raw data
+// Helper function to extract string array from raw data (C-string array)
 std::vector<std::string> extract_string_array(const void *value,
                                               size_t value_size) {
   std::vector<std::string> string_array;
@@ -2165,6 +2165,23 @@ std::vector<std::string> extract_string_array(const void *value,
     string_array.emplace_back(data + pos, str_len);
     pos += str_len + 1;
   }
+  return string_array;
+}
+
+// Helper function to extract string array from ZVecString** array
+std::vector<std::string> extract_string_array_from_zvec(
+    ZVecString **zvec_strings, size_t count) {
+  std::vector<std::string> string_array;
+  string_array.reserve(count);
+
+  for (size_t i = 0; i < count; ++i) {
+    if (zvec_strings[i] && zvec_strings[i]->data) {
+      string_array.emplace_back(zvec_strings[i]->data, zvec_strings[i]->length);
+    } else {
+      string_array.emplace_back("", 0);
+    }
+  }
+
   return string_array;
 }
 
@@ -2336,6 +2353,12 @@ ZVecErrorCode zvec_doc_add_field_by_value(ZVecDoc *doc, const char *field_name,
 
     switch (data_type) {
       // Scalar types
+      case ZVEC_DATA_TYPE_BINARY:
+      case ZVEC_DATA_TYPE_STRING: {
+        std::string val(static_cast<const char *>(value), value_size);
+        (*doc_ptr)->set(name, val);
+        break;
+      }
       case ZVEC_DATA_TYPE_BOOL: {
         bool val = extract_scalar_value<bool>(value, value_size, &error_code);
         if (error_code != ZVEC_OK) {
@@ -2405,15 +2428,27 @@ ZVecErrorCode zvec_doc_add_field_by_value(ZVecDoc *doc, const char *field_name,
         break;
       }
 
-      // String and binary types
-      case ZVEC_DATA_TYPE_STRING:
-      case ZVEC_DATA_TYPE_BINARY: {
-        std::string val(static_cast<const char *>(value), value_size);
-        (*doc_ptr)->set(name, val);
+      // Vector types
+      case ZVEC_DATA_TYPE_VECTOR_BINARY32: {
+        auto vec =
+            extract_vector_values<uint32_t>(value, value_size, &error_code);
+        if (error_code != ZVEC_OK) {
+          set_last_error("Invalid value size for vector_binary32 type");
+          return error_code;
+        }
+        (*doc_ptr)->set(name, vec);
         break;
       }
-
-      // Vector types
+      case ZVEC_DATA_TYPE_VECTOR_BINARY64: {
+        auto vec =
+            extract_vector_values<uint64_t>(value, value_size, &error_code);
+        if (error_code != ZVEC_OK) {
+          set_last_error("Invalid value size for vector_binary64 type");
+          return error_code;
+        }
+        (*doc_ptr)->set(name, vec);
+        break;
+      }
       case ZVEC_DATA_TYPE_VECTOR_FP32: {
         auto vec = extract_vector_values<float>(value, value_size, &error_code);
         if (error_code != ZVEC_OK) {
@@ -2481,38 +2516,8 @@ ZVecErrorCode zvec_doc_add_field_by_value(ZVecDoc *doc, const char *field_name,
         (*doc_ptr)->set(name, vec);
         break;
       }
-      case ZVEC_DATA_TYPE_VECTOR_BINARY32: {
-        auto vec =
-            extract_vector_values<uint32_t>(value, value_size, &error_code);
-        if (error_code != ZVEC_OK) {
-          set_last_error("Invalid value size for vector_binary32 type");
-          return error_code;
-        }
-        (*doc_ptr)->set(name, vec);
-        break;
-      }
-      case ZVEC_DATA_TYPE_VECTOR_BINARY64: {
-        auto vec =
-            extract_vector_values<uint64_t>(value, value_size, &error_code);
-        if (error_code != ZVEC_OK) {
-          set_last_error("Invalid value size for vector_binary64 type");
-          return error_code;
-        }
-        (*doc_ptr)->set(name, vec);
-        break;
-      }
 
       // Sparse vector types
-      case ZVEC_DATA_TYPE_SPARSE_VECTOR_FP32: {
-        auto sparse_vec =
-            extract_sparse_vector<float>(value, value_size, &error_code);
-        if (error_code != ZVEC_OK) {
-          set_last_error("Invalid sparse vector data size");
-          return error_code;
-        }
-        (*doc_ptr)->set(name, sparse_vec);
-        break;
-      }
       case ZVEC_DATA_TYPE_SPARSE_VECTOR_FP16: {
         auto sparse_vec = extract_sparse_vector<zvec::float16_t>(
             value, value_size, &error_code);
@@ -2523,8 +2528,42 @@ ZVecErrorCode zvec_doc_add_field_by_value(ZVecDoc *doc, const char *field_name,
         (*doc_ptr)->set(name, sparse_vec);
         break;
       }
+      case ZVEC_DATA_TYPE_SPARSE_VECTOR_FP32: {
+        auto sparse_vec =
+            extract_sparse_vector<float>(value, value_size, &error_code);
+        if (error_code != ZVEC_OK) {
+          set_last_error("Invalid sparse vector data size");
+          return error_code;
+        }
+        (*doc_ptr)->set(name, sparse_vec);
+        break;
+      }
 
       // Array types
+      case ZVEC_DATA_TYPE_ARRAY_BINARY: {
+        auto binary_array = extract_binary_array(value, value_size);
+        (*doc_ptr)->set(name, binary_array);
+        break;
+      }
+      case ZVEC_DATA_TYPE_ARRAY_STRING: {
+        // Check if this is a ZVecString** array or a C-string array
+        // ZVecString** array has pointer-sized elements
+        constexpr size_t ptr_size = sizeof(void *);
+        if (value_size % ptr_size == 0) {
+          // Likely a ZVecString** array
+          size_t count = value_size / ptr_size;
+          ZVecString **zvec_str_array =
+              reinterpret_cast<ZVecString **>(const_cast<void *>(value));
+          auto string_array =
+              extract_string_array_from_zvec(zvec_str_array, count);
+          (*doc_ptr)->set(name, string_array);
+        } else {
+          // C-string array (null-terminated strings)
+          auto string_array = extract_string_array(value, value_size);
+          (*doc_ptr)->set(name, string_array);
+        }
+        break;
+      }
       case ZVEC_DATA_TYPE_ARRAY_BOOL: {
         auto vec = extract_array_values<bool>(value, value_size, &error_code);
         if (error_code != ZVEC_OK) {
@@ -2592,16 +2631,6 @@ ZVecErrorCode zvec_doc_add_field_by_value(ZVecDoc *doc, const char *field_name,
         (*doc_ptr)->set(name, vec);
         break;
       }
-      case ZVEC_DATA_TYPE_ARRAY_STRING: {
-        auto string_array = extract_string_array(value, value_size);
-        (*doc_ptr)->set(name, string_array);
-        break;
-      }
-      case ZVEC_DATA_TYPE_ARRAY_BINARY: {
-        auto binary_array = extract_binary_array(value, value_size);
-        (*doc_ptr)->set(name, binary_array);
-        break;
-      }
 
       default:
         set_last_error("Unsupported data type: " + std::to_string(data_type));
@@ -2628,7 +2657,21 @@ ZVecErrorCode zvec_doc_add_field_by_struct(ZVecDoc *doc,
     std::string name(field->name.data, field->name.length);
 
     switch (field->data_type) {
-      // Scalar basic types
+      // Scalar types (in ZVecDataType order: BINARY, STRING, BOOL, INT32,
+      // INT64, UINT32, UINT64, FLOAT, DOUBLE)
+      case ZVEC_DATA_TYPE_BINARY: {
+        std::string val(
+            reinterpret_cast<const char *>(field->value.binary_value.data),
+            field->value.binary_value.length);
+        (*doc_ptr)->set(name, val);
+        break;
+      }
+      case ZVEC_DATA_TYPE_STRING: {
+        std::string val(field->value.string_value.data,
+                        field->value.string_value.length);
+        (*doc_ptr)->set(name, val);
+        break;
+      }
       case ZVEC_DATA_TYPE_BOOL: {
         (*doc_ptr)->set(name, field->value.bool_value);
         break;
@@ -2658,22 +2701,8 @@ ZVecErrorCode zvec_doc_add_field_by_struct(ZVecDoc *doc,
         break;
       }
 
-      // String and binary types
-      case ZVEC_DATA_TYPE_STRING: {
-        std::string val(field->value.string_value.data,
-                        field->value.string_value.length);
-        (*doc_ptr)->set(name, val);
-        break;
-      }
-      case ZVEC_DATA_TYPE_BINARY: {
-        std::string val(
-            reinterpret_cast<const char *>(field->value.binary_value.data),
-            field->value.binary_value.length);
-        (*doc_ptr)->set(name, val);
-        break;
-      }
-
-      // Vector types
+      // Vector types (in ZVecDataType order: BINARY32, BINARY64, FP16, FP32,
+      // FP64, INT4, INT8, INT16)
       case ZVEC_DATA_TYPE_VECTOR_BINARY32: {
         std::vector<uint32_t> vec(
             reinterpret_cast<const uint32_t *>(field->value.vector_value.data),
@@ -2753,7 +2782,7 @@ ZVecErrorCode zvec_doc_add_field_by_struct(ZVecDoc *doc,
         break;
       }
 
-      // Sparse vector types
+      // Sparse vector types (in ZVecDataType order: FP16, FP32)
       case ZVEC_DATA_TYPE_SPARSE_VECTOR_FP16: {
         std::vector<zvec::float16_t> vec(
             reinterpret_cast<const zvec::float16_t *>(
@@ -2772,7 +2801,8 @@ ZVecErrorCode zvec_doc_add_field_by_struct(ZVecDoc *doc,
         break;
       }
 
-      // Array types
+      // Array types (in ZVecDataType order: BINARY, STRING, BOOL, INT32, INT64,
+      // UINT32, UINT64, FLOAT, DOUBLE)
       case ZVEC_DATA_TYPE_ARRAY_BINARY: {
         std::vector<std::string> array_values;
         const uint8_t *data_ptr = field->value.binary_value.data;
@@ -3569,7 +3599,7 @@ ZVecErrorCode zvec_doc_get_field_value_pointer(const ZVecDoc *doc,
         break;
       }
       case ZVEC_DATA_TYPE_UINT32: {
-        const uint32_t val = (*doc_ptr)->get_ref<uint32_t>(field_name);
+        const uint32_t &val = (*doc_ptr)->get_ref<uint32_t>(field_name);
         *value = &val;
         *value_size = sizeof(uint32_t);
         break;
@@ -4797,7 +4827,7 @@ ZVecErrorCode zvec_collection_create_index(
 }
 
 ZVecErrorCode zvec_collection_create_index_with_params(
-    ZVecCollection *collection, const ZVecString *field_name,
+    ZVecCollection *collection, const char *field_name,
     const void *index_params) {
   if (!collection || !field_name || !index_params) {
     set_last_error("Invalid arguments");
@@ -4806,7 +4836,7 @@ ZVecErrorCode zvec_collection_create_index_with_params(
 
   auto coll_ptr =
       reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
-  std::string field_name_str(field_name->data, field_name->length);
+  std::string field_name_str(field_name);
 
   const ZVecBaseIndexParams *base_params =
       static_cast<const ZVecBaseIndexParams *>(index_params);
@@ -4869,7 +4899,7 @@ ZVecErrorCode zvec_collection_create_index_with_params(
 }
 
 ZVecErrorCode zvec_collection_create_hnsw_index(
-    ZVecCollection *collection, const ZVecString *field_name,
+    ZVecCollection *collection, const char *field_name,
     const ZVecHnswIndexParams *hnsw_params) {
   if (!hnsw_params) {
     set_last_error("Invalid HNSW parameters");
@@ -4881,7 +4911,7 @@ ZVecErrorCode zvec_collection_create_hnsw_index(
 }
 
 ZVecErrorCode zvec_collection_create_flat_index(
-    ZVecCollection *collection, const ZVecString *field_name,
+    ZVecCollection *collection, const char *field_name,
     const ZVecFlatIndexParams *flat_params) {
   if (!flat_params) {
     set_last_error("Invalid Flat parameters");
@@ -4893,7 +4923,7 @@ ZVecErrorCode zvec_collection_create_flat_index(
 }
 
 ZVecErrorCode zvec_collection_create_ivf_index(
-    ZVecCollection *collection, const ZVecString *field_name,
+    ZVecCollection *collection, const char *field_name,
     const ZVecIVFIndexParams *ivf_params) {
   if (!ivf_params) {
     set_last_error("Invalid IVF parameters");
@@ -4905,7 +4935,7 @@ ZVecErrorCode zvec_collection_create_ivf_index(
 }
 
 ZVecErrorCode zvec_collection_create_invert_index(
-    ZVecCollection *collection, const ZVecString *field_name,
+    ZVecCollection *collection, const char *field_name,
     const ZVecInvertIndexParams *invert_params) {
   if (!invert_params) {
     set_last_error("Invalid Invert parameters");
