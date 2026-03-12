@@ -20,6 +20,8 @@ jobs:
   build_publish_test:
     name: Build / publish / smoke-test on ${{ inputs.runner }}
     runs-on: ${{ inputs.runner }}
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout code
