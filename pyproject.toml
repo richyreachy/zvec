@@ -167,7 +167,7 @@ build = [
     "cp314-*",
 ]
 build-frontend = "build"
-before-build = "python -m pip install ninja==1.13"
+before-build = "python -m pip install ninja==1.13 cmake==3.30"
 test-requires = ["pytest", "numpy"]
 build-verbosity = 1
 
