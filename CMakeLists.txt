@@ -34,16 +34,6 @@ message(STATUS "USE_OSS_MIRROR:${USE_OSS_MIRROR}")
 option(BUILD_EXAMPLES "Build examples" ON)
 message(STATUS "BUILD_EXAMPLES:${BUILD_EXAMPLES}")
 
-# Option to enable RPM packaging
-option(ENABLE_RPM_PACKAGING "Enable RPM packaging support" OFF)
-message(STATUS "ENABLE_RPM_PACKAGING:${ENABLE_RPM_PACKAGING}")
-
-# Option to build fat libraries (all-in-one with static-linked third-party deps)
-# When ON: libzvec_c_api.so and libzvec_c_api_static.a include all third-party libs
-# When OFF: Libraries depend on external .so files for third-party deps
-option(BUILD_FAT_LIBS "Build fat libraries with all dependencies statically linked" ON)
-message(STATUS "BUILD_FAT_LIBS:${BUILD_FAT_LIBS}")
-
 cc_directory(thirdparty)
 cc_directories(src)
 cc_directories(tests)
@@ -58,118 +48,6 @@ endif()
 git_version(GIT_SRCS_VER ${PROJECT_ROOT_DIR})
 set(CPACK_PACKAGE_VERSION ${GIT_SRCS_VER})
 set(CPACK_PACKAGE_NAME zvec)
-
-# =============================================================================
-# RPM Packaging Configuration
-# =============================================================================
-if(ENABLE_RPM_PACKAGING)
-    include(GNUInstallDirs)
-    include(CMakePackageConfigHelpers)
-
-    # Generate version helpers
-    write_basic_package_version_file(
-        "${CMAKE_CURRENT_BINARY_DIR}/zvecConfigVersion.cmake"
-        VERSION ${PROJECT_VERSION}
-        COMPATIBILITY SameMajorVersion
-    )
-
-    # Configure CMake config file
-    configure_package_config_file(
-        "${PROJECT_ROOT_DIR}/cmake/zvec_config.cmake.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/zvecConfig.cmake"
-        INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/zvec"
-    )
-
-    # Configure pkg-config file
-    configure_file(
-        "${PROJECT_ROOT_DIR}/cmake/zvec.pc.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/zvec.pc"
-        @ONLY
-    )
-
-    # Install CMake configuration files
-    install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/zvecConfig.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/zvecConfigVersion.cmake"
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/zvec"
-    )
-
-    # Install pkg-config file
-    install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/zvec.pc"
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
-    )
-
-    # Install documentation
-    install(FILES
-        "${PROJECT_ROOT_DIR}/README.md"
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/zvec"
-    )
-
-    # Create a simple CMake targets file
-    # Since we can't export complex target hierarchies with all dependencies,
-    # we create a simplified import file
-    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/zvecTargets.cmake"
-"# Zvec CMake Targets File
-
-# Import target: zvec::zvec_c_api
-if(NOT TARGET zvec::zvec_c_api)
-    add_library(zvec::zvec_c_api SHARED IMPORTED)
-    set_target_properties(zvec::zvec_c_api PROPERTIES
-        IMPORTED_LOCATION \"\${CMAKE_CURRENT_LIST_DIR}/../../../${CMAKE_INSTALL_LIBDIR}/libzvec_c_api.so\"
-        INTERFACE_INCLUDE_DIRECTORIES \"\${CMAKE_CURRENT_LIST_DIR}/../../../${CMAKE_INSTALL_INCLUDEDIR}\"
-        INTERFACE_LINK_LIBRARIES \"Threads::Threads\"
-    )
-endif()
-
-# Import target: zvec::zvec_c_api_static (if available)
-# This is a 'fat' static library that includes all zvec code (core, db, ailego)
-# But you still need to link third-party dependencies separately
-if(ENABLE_RPM_PACKAGING AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/../../../${CMAKE_INSTALL_LIBDIR}/libzvec_c_api_static.a")
-    if(NOT TARGET zvec::zvec_c_api_static)
-        add_library(zvec::zvec_c_api_static STATIC IMPORTED)
-        set_target_properties(zvec::zvec_c_api_static PROPERTIES
-            IMPORTED_LOCATION \"\${CMAKE_CURRENT_LIST_DIR}/../../../${CMAKE_INSTALL_LIBDIR}/libzvec_c_api_static.a\"
-            INTERFACE_INCLUDE_DIRECTORIES \"\${CMAKE_CURRENT_LIST_DIR}/../../../${CMAKE_INSTALL_INCLUDEDIR}\"
-            # Note: Third-party dependencies (Arrow, RocksDB, etc.) must be linked by the user
-            INTERFACE_LINK_LIBRARIES \"Threads::Threads\"
-        )
-    endif()
-endif()
-")
-
-    # Install the targets file
-    install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/zvecTargets.cmake"
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/zvec"
-        COMPONENT devel
-    )
-
-    # Include RPM-specific installation rules
-    include(${PROJECT_ROOT_DIR}/cmake/rpm_install.cmake)
-endif()
-
-# Configure CPack for RPM generation
-if(ENABLE_RPM_PACKAGING)
-    set(CPACK_GENERATOR "RPM" CACHE STRING "Generators to support")
-    set(CPACK_PACKAGE_VERSION ${GIT_SRCS_VER})
-    set(CPACK_PACKAGE_NAME zvec)
-    set(CPACK_RPM_PACKAGE_LICENSE "Apache-2.0")
-    set(CPACK_RPM_PACKAGE_URL "https://github.com/alibaba/zvec")
-    set(CPACK_RPM_PACKAGE_DESCRIPTION "Zvec - High-performance in-process vector database library with self-contained shared library")
-    set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
-    set(CPACK_RPM_PACKAGE_VENDOR "Alibaba")
-    set(CPACK_RPM_PACKAGE_SUMMARY "High-performance in-process vector database library")
-
-    # RPM specific settings
-    set(CPACK_PACKAGE_FILE_NAME "zvec-${CPACK_PACKAGE_VERSION}-1")
-
-    # Single RPM package - no components
-    # Only the self-contained shared library (fat lib)
-    set(CPACK_RPM_COMPONENT_INSTALL OFF)
-
-    include(CPack)
-endif()
 
 if(BUILD_PYTHON_BINDINGS)
     if(APPLE)

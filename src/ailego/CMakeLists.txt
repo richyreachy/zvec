@@ -18,10 +18,8 @@ if(UNIX AND NOT APPLE)
     list(APPEND EXTRA_LIBS ${LIB_RT})
 endif()
 
-# Build both OBJECT and STATIC library
-# OBJECT library allows other targets to extract object files
 cc_library(
-    NAME zvec_ailego SHARED STATIC STRICT PACKED
+    NAME zvec_ailego STATIC STRICT PACKED
     SRCS    ${ALL_SRCS}
     LIBS    ${EXTRA_LIBS}
             Arrow::arrow_static

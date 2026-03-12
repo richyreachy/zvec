@@ -1159,7 +1159,7 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_field_schema_set_index_params(
  * @param field_schema Field schema pointer
  * @param invert_params Inverted index parameters pointer
  */
-void zvec_field_schema_set_invert_index(
+ZVEC_EXPORT void ZVEC_CALL zvec_field_schema_set_invert_index(
     ZVecFieldSchema *field_schema, const ZVecInvertIndexParams *invert_params);
 
 /**
@@ -1167,24 +1167,24 @@ void zvec_field_schema_set_invert_index(
  * @param field_schema Field schema pointer
  * @param hnsw_params HNSW index parameters pointer
  */
-void zvec_field_schema_set_hnsw_index(ZVecFieldSchema *field_schema,
-                                      const ZVecHnswIndexParams *hnsw_params);
+ZVEC_EXPORT void ZVEC_CALL zvec_field_schema_set_hnsw_index(
+    ZVecFieldSchema *field_schema, const ZVecHnswIndexParams *hnsw_params);
 
 /**
  * @brief Set Flat index parameters for field schema
  * @param field_schema Field schema pointer
  * @param flat_params Flat index parameters pointer
  */
-void zvec_field_schema_set_flat_index(ZVecFieldSchema *field_schema,
-                                      const ZVecFlatIndexParams *flat_params);
+ZVEC_EXPORT void ZVEC_CALL zvec_field_schema_set_flat_index(
+    ZVecFieldSchema *field_schema, const ZVecFlatIndexParams *flat_params);
 
 /**
  * @brief Set IVF index parameters for field schema
  * @param field_schema Field schema pointer
  * @param ivf_params IVF index parameters pointer
  */
-void zvec_field_schema_set_ivf_index(ZVecFieldSchema *field_schema,
-                                     const ZVecIVFIndexParams *ivf_params);
+ZVEC_EXPORT void ZVEC_CALL zvec_field_schema_set_ivf_index(
+    ZVecFieldSchema *field_schema, const ZVecIVFIndexParams *ivf_params);
 
 
 // =============================================================================

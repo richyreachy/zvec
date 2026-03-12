@@ -18,57 +18,42 @@ set(SRC_LISTS
 
 pybind11_add_module(_zvec ${SRC_LISTS})
 
-
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(_zvec PRIVATE
-            # Link all zvec internal objects (includes all algorithms)
-            "$<TARGET_OBJECTS:zvec_ailego_objects>"
-            "$<TARGET_OBJECTS:zvec_core_objects>"
-            "$<TARGET_OBJECTS:zvec_db_objects>"
-            # Link third-party static libraries
-            Arrow::arrow_static
-            Arrow::arrow_compute
-            Arrow::arrow_dataset
-            Arrow::arrow_acero
-            Arrow::parquet_static
-            rocksdb
-            glog
-            libprotobuf
-            antlr4
-            roaring
-            sparsehash
-            magic_enum
+            -Wl,--whole-archive
+            $<TARGET_FILE:core_knn_flat_static>
+            $<TARGET_FILE:core_knn_flat_sparse_static>
+            $<TARGET_FILE:core_knn_hnsw_static>
+            $<TARGET_FILE:core_knn_hnsw_sparse_static>
+            $<TARGET_FILE:core_knn_ivf_static>
+            $<TARGET_FILE:core_knn_cluster_static>
+            $<TARGET_FILE:core_mix_reducer_static>
+            $<TARGET_FILE:core_metric_static>
+            $<TARGET_FILE:core_utility_static>
+            $<TARGET_FILE:core_quantizer_static>
+            -Wl,--no-whole-archive
+            zvec_db
     )
     target_link_options(_zvec PRIVATE
             "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
     )
-elseif(APPLE)
-    # Link all zvec internal objects (includes all algorithms)
-  set(ZVEC_PYTHON_STATIC_DEPS
-        "$<TARGET_OBJECTS:zvec_ailego_objects>"
-        "$<TARGET_OBJECTS:zvec_core_objects>"
-        "$<TARGET_OBJECTS:zvec_db_objects>"
-    )
-    
+elseif (APPLE)
     target_link_libraries(_zvec PRIVATE
-            ${ZVEC_PYTHON_STATIC_DEPS}
-            # Link third-party static libraries
-            Arrow::arrow_static
-            Arrow::arrow_compute
-            Arrow::arrow_dataset
-            Arrow::arrow_acero
-            Arrow::parquet_static
-            rocksdb
-            glog
-            libprotobuf
-            antlr4
-            roaring
-            sparsehash
-            magic_enum
+            -Wl,-force_load,$<TARGET_FILE:core_knn_flat_static>
+            -Wl,-force_load,$<TARGET_FILE:core_knn_flat_sparse_static>
+            -Wl,-force_load,$<TARGET_FILE:core_knn_hnsw_static>
+            -Wl,-force_load,$<TARGET_FILE:core_knn_hnsw_sparse_static>
+            -Wl,-force_load,$<TARGET_FILE:core_knn_ivf_static>
+            -Wl,-force_load,$<TARGET_FILE:core_knn_cluster_static>
+            -Wl,-force_load,$<TARGET_FILE:core_mix_reducer_static>
+            -Wl,-force_load,$<TARGET_FILE:core_metric_static>
+            -Wl,-force_load,$<TARGET_FILE:core_utility_static>
+            -Wl,-force_load,$<TARGET_FILE:core_quantizer_static>
+            zvec_db
     )
-    target_link_options(_zvec PRIVATE
-            "-Wl,-exported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/exports.mac"
+    target_link_libraries(_zvec PRIVATE
+            -Wl,-exported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/exports.mac
     )
-endif()
+endif ()
 
 target_include_directories(_zvec PRIVATE ${PYBIND11_INCLUDE_DIR} ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/binding/python/include)
