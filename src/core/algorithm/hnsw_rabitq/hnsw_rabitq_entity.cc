@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "hnsw_rabitq_entity.h"
+#include <rabitqlib/index/query.hpp>
 #include "utility/sparse_utility.h"
 #include "zvec/core/framework/index_stats.h"
 
@@ -28,6 +29,21 @@ const std::string HnswRabitqEntity::kGraphMappingSegmentId = "graph.mapping";
 const std::string HnswRabitqEntity::kHnswHeaderSegmentId = "hnsw.header";
 const std::string HnswRabitqEntity::kHnswNeighborsSegmentId = "hnsw.neighbors";
 const std::string HnswRabitqEntity::kHnswOffsetsSegmentId = "hnsw.offsets";
+
+void HnswRabitqEntity::update_rabitq_params_and_vector_size(
+    uint32_t dimension) {
+  uint32_t padded_dim = ((dimension + 63) / 64) * 64;
+  header_.graph.padded_dim = padded_dim;
+  // BinDataMap layout: bin_code (padded_dim/8) + f_add + f_rescale + f_error
+  header_.graph.size_bin_data =
+      rabitqlib::BinDataMap<float>::data_bytes(padded_dim);
+  // ExDataMap layout: ex_code (padded_dim*ex_bits/8) + f_add_ex + f_rescale_ex
+  header_.graph.size_ex_data = rabitqlib::ExDataMap<float>::data_bytes(
+      padded_dim, header_.graph.ex_bits);
+  // quantized vector format: cluster_id + bin_data + ex_data
+  header_.graph.vector_size =
+      sizeof(uint32_t) + size_bin_data() + size_ex_data();
+}
 
 int HnswRabitqEntity::CalcAndAddPadding(const IndexDumper::Pointer &dumper,
                                         size_t data_size,

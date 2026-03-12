@@ -18,10 +18,12 @@
 #include "hnsw_rabitq_context.h"
 #include "hnsw_rabitq_dist_calculator.h"
 #include "hnsw_rabitq_entity.h"
-#include "hnsw_rabitq_query_entity.h"
+#include "rabitq_params.h"
 
 namespace zvec {
 namespace core {
+
+class HnswRabitqQueryEntity;
 
 //! hnsw graph algorithm implement
 class HnswRabitqQueryAlgorithm {
@@ -32,7 +34,7 @@ class HnswRabitqQueryAlgorithm {
   //! Constructor
   explicit HnswRabitqQueryAlgorithm(HnswRabitqEntity &entity,
                                     size_t num_clusters,
-                                    rabitqlib::MetricType metric_type);
+                                    RabitqMetricType metric_type);
 
   //! Destructor
   ~HnswRabitqQueryAlgorithm() = default;
@@ -124,7 +126,7 @@ class HnswRabitqQueryAlgorithm {
   // TODO: spin lock?
   std::vector<std::mutex> lock_pool_{};
   size_t num_clusters_{0};
-  rabitqlib::MetricType metric_type_{rabitqlib::METRIC_L2};
+  RabitqMetricType metric_type_{RabitqMetricType::kL2};
   size_t padded_dim_{0};
   size_t ex_bits_{0};
   float (*ip_func_)(const float *, const uint8_t *, size_t);

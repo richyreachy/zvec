@@ -17,6 +17,16 @@ file(GLOB_RECURSE ALL_CORE_SRCS *.cc *.c *.h)
 # for HNSWRabitqIndex and guards rabitqlib usage with #if RABITQ_SUPPORTED.
 if(NOT RABITQ_SUPPORTED)
   list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/hnsw_rabitq/.*")
+else()
+  file(GLOB_RECURSE HNSW_RABITQ_FILES
+      ${CMAKE_CURRENT_SOURCE_DIR}/algorithm/hnsw_rabitq/*.cc)
+  foreach(FILE ${HNSW_RABITQ_FILES})
+      set_source_files_properties(
+          ${FILE}
+          PROPERTIES
+          COMPILE_FLAGS "${MATH_MARCH_FLAG_AVX512}"
+      )
+  endforeach()
 endif()
 
 cc_library(

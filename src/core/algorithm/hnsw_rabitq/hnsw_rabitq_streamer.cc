@@ -25,6 +25,7 @@
 #include "hnsw_rabitq_context.h"
 #include "hnsw_rabitq_dist_calculator.h"
 #include "hnsw_rabitq_index_provider.h"
+#include "hnsw_rabitq_query_entity.h"
 #include "rabitq_params.h"
 #include "rabitq_utils.h"
 

@@ -14,10 +14,16 @@
 #pragma once
 
 #include <string>
-#include <rabitqlib/utils/rotator.hpp>
 
 namespace zvec {
 namespace core {
+
+// Local metric type enum that mirrors rabitqlib::MetricType,
+// without exposing rabitqlib headers to consumers of this file.
+enum class RabitqMetricType {
+  kL2 = 0,
+  kIP = 1,
+};
 
 // RaBitQ Converter parameters
 static const std::string PARAM_RABITQ_NUM_CLUSTERS(

@@ -23,9 +23,9 @@
 namespace zvec {
 namespace core {
 
-HnswRabitqQueryAlgorithm::HnswRabitqQueryAlgorithm(
-    HnswRabitqEntity &entity, size_t num_clusters,
-    rabitqlib::MetricType metric_type)
+HnswRabitqQueryAlgorithm::HnswRabitqQueryAlgorithm(HnswRabitqEntity &entity,
+                                                   size_t num_clusters,
+                                                   RabitqMetricType metric_type)
     : entity_(entity),
       mt_(std::chrono::system_clock::now().time_since_epoch().count()),
       lock_pool_(kLockCnt),
@@ -305,7 +305,7 @@ void HnswRabitqQueryAlgorithm::get_bin_est(
   auto &query_wrapper = *entity.query_wrapper;
   uint32_t cluster_id = entity_.get_cluster_id(vector);
   const char *bin_data = entity_.get_bin_data(vector);
-  if (metric_type_ == rabitqlib::METRIC_IP) {
+  if (metric_type_ == RabitqMetricType::kIP) {
     float norm = q_to_centroids[cluster_id];
     float error = q_to_centroids[cluster_id + num_clusters_];
     rabitqlib::split_single_estdist(bin_data, query_wrapper, padded_dim_,
@@ -329,7 +329,7 @@ void HnswRabitqQueryAlgorithm::get_full_est(
   const char *bin_data = entity_.get_bin_data(vector);
   const char *ex_data = entity_.get_ex_data(vector);
 
-  if (metric_type_ == rabitqlib::METRIC_IP) {
+  if (metric_type_ == RabitqMetricType::kIP) {
     float norm = q_to_centroids[cluster_id];
     float error = q_to_centroids[cluster_id + num_clusters_];
     rabitqlib::split_single_fulldist(bin_data, ex_data, ip_func_, query_wrapper,

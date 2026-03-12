@@ -19,7 +19,6 @@
 #include <string.h>
 #include <string>
 #include <ailego/utility/memory_helper.h>
-#include <rabitqlib/index/query.hpp>
 #include <zvec/ailego/container/heap.h>
 #include <zvec/ailego/logger/logger.h>
 #include "zvec/core/framework/index_dumper.h"
@@ -325,35 +324,7 @@ class HnswRabitqEntity {
     return header_.graph.size_ex_data;
   }
 
-  void update_rabitq_params_and_vector_size(uint32_t dimension) {
-    uint32_t padded_dim = ((dimension + 63) / 64) * 64;
-    header_.graph.padded_dim = padded_dim;
-    // return (padded_dim / 8) + (sizeof(T) * 3);
-    /*
-  +------------------+----------+-------------+----------+
-  |    bin_code_     |  f_add_  | f_rescale_  | f_error_ |
-  | (padded_dim/8)   | (4 bytes)| (4 bytes)   | (4 bytes)|
-  +------------------+----------+-------------+----------+
-  |<----- 量化码 ---->|<------- 3个float参数 (12字节) --->|
-    */
-    header_.graph.size_bin_data =
-        rabitqlib::BinDataMap<float>::data_bytes(padded_dim);
-    // return ex_bits > 0 ? (padded_dim * ex_bits / 8) + (sizeof(T) * 2) : 0;
-    /*
-    +-------------------------+-------------+-----------------+
-    |       ex_code_          |  f_add_ex_  | f_rescale_ex_   |
-    | (padded_dim*ex_bits/8)  |  (4 bytes)  |   (4 bytes)     |
-    +-------------------------+-------------+-----------------+
-    |<----- 扩展量化码 ------->|<---- 2个float参数 (8字节) ---->|
-    */
-
-    header_.graph.size_ex_data = rabitqlib::ExDataMap<float>::data_bytes(
-        padded_dim, header_.graph.ex_bits);
-
-    // cluster_id + bin_data + ex_data
-    header_.graph.vector_size =
-        sizeof(uint32_t) + size_bin_data() + size_ex_data();
-  }
+  void update_rabitq_params_and_vector_size(uint32_t dimension);
 
   void set_ex_bits(uint8_t ex_bits) {
     header_.graph.ex_bits = ex_bits;

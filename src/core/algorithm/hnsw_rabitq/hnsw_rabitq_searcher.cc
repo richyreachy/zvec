@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "hnsw_rabitq_searcher.h"
+#include <rabitqlib/utils/rotator.hpp>
 #include "hnsw_rabitq_algorithm.h"
 #include "hnsw_rabitq_entity.h"
 #include "hnsw_rabitq_index_provider.h"
 #include "hnsw_rabitq_params.h"
+#include "hnsw_rabitq_query_entity.h"
 #include "hnsw_rabitq_searcher_entity.h"
+#include "rabitq_params.h"
 
 namespace zvec {
 namespace core {
