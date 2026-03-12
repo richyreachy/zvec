@@ -12,9 +12,11 @@ cc_directory(mixed_reducer)
 git_version(GIT_SRCS_VER ${CMAKE_CURRENT_SOURCE_DIR})
 file(GLOB_RECURSE ALL_CORE_SRCS *.cc *.c *.h)
 
-# Remove hnsw_rabitq files if not supported
+# Remove algorithm/hnsw_rabitq implementation files if not supported.
+# interface/indexes/hnsw_rabitq_index.cc is kept because it provides the vtable
+# for HNSWRabitqIndex and guards rabitqlib usage with #if RABITQ_SUPPORTED.
 if(NOT RABITQ_SUPPORTED)
-  list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*hnsw_rabitq.*")
+  list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/hnsw_rabitq/.*")
 endif()
 
 cc_library(
