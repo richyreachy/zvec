@@ -167,13 +167,16 @@ build = [
     "cp314-*",
 ]
 build-frontend = "build"
-before-build = "python -m pip install ninja==1.13 cmake==3.30"
+# Force Make generator so all ExternalProject sub-builds (e.g. Arrow) inherit
+# the same generator instead of defaulting to Xcode on macOS or Ninja elsewhere
+# CMAKE_BUILD_PARALLEL_LEVEL=0 tells CMake to use all available CPU cores
+environment = { CMAKE_GENERATOR = "Unix Makefiles", CMAKE_BUILD_PARALLEL_LEVEL = "0" }
 test-requires = ["pytest", "numpy"]
+test-command = "cd {project} && pytest python/tests -v --tb=short"
 build-verbosity = 1
 
 [tool.cibuildwheel.linux]
 archs = ["auto"]
-test-command = "cd {project} && pytest python/tests -v --tb=short"
 manylinux-x86_64-image = "manylinux_2_28"
 manylinux-aarch64-image = "manylinux_2_28"
 # Skip 32-bit builds and musllinux
