@@ -1,13 +1,15 @@
 include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
 include(${PROJECT_ROOT_DIR}/cmake/option.cmake)
 
-foreach(FILE ${HNSW_RABITQ_FILES})
-    set_source_files_properties(
-        ${FILE}
-        PROPERTIES
-        COMPILE_FLAGS "${MATH_MARCH_FLAG_AVX512}"
-    )
-endforeach()
+if(AUTO_DETECT_ARCH)
+  foreach(FILE ${HNSW_RABITQ_FILES})
+      set_source_files_properties(
+          ${FILE}
+          PROPERTIES
+          COMPILE_FLAGS "${MATH_MARCH_FLAG_AVX512}"
+      )
+  endforeach()
+endif()
 
 cc_library(
     NAME core_knn_hnsw_rabitq

@@ -1,7 +1,7 @@
 include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
 include(${PROJECT_ROOT_DIR}/cmake/option.cmake)
 
-if(RABITQ_SUPPORTED)
+if(RABITQ_SUPPORTED AND AUTO_DETECT_ARCH)
   set(HNSW_RABITQ_FILES
       hnsw_rabitq_query_algorithm.cc
       hnsw_rabitq_streamer.cc

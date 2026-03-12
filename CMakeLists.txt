@@ -20,8 +20,10 @@ message(STATUS "PROJECT_ROOT_DIR = ${PROJECT_ROOT_DIR}")
 include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
 include(${PROJECT_ROOT_DIR}/cmake/option.cmake)
 
-setup_compiler_march_for_x86(MATH_MARCH_FLAG_SSE MATH_MARCH_FLAG_AVX2 MATH_MARCH_FLAG_AVX512)
-message(STATUS "best compiler march, sse: " ${MATH_MARCH_FLAG_SSE} ", avx2: " ${MATH_MARCH_FLAG_AVX2} ", avx512: " ${MATH_MARCH_FLAG_AVX512})
+if(NOT ANDROID AND AUTO_DETECT_ARCH AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
+  setup_compiler_march_for_x86(MATH_MARCH_FLAG_SSE MATH_MARCH_FLAG_AVX2 MATH_MARCH_FLAG_AVX512)
+  message(STATUS "best compiler march, sse: " ${MATH_MARCH_FLAG_SSE} ", avx2: " ${MATH_MARCH_FLAG_AVX2} ", avx512: " ${MATH_MARCH_FLAG_AVX512})
+endif()
 
 include_directories(${PROJECT_ROOT_DIR}/src/include)
 include_directories(${PROJECT_ROOT_DIR}/src)
@@ -32,7 +34,7 @@ message(STATUS "BUILD_PYTHON_BINDINGS:${BUILD_PYTHON_BINDINGS}")
 option(BUILD_TOOLS "Build tools" ON)
 message(STATUS "BUILD_TOOLS:${BUILD_TOOLS}")
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64" AND NOT ANDROID)
   include(CheckCCompilerFlag)
 
   check_c_compiler_flag("-mavx2" COMPILER_SUPPORTS_AVX2)
