@@ -8,8 +8,8 @@ permissions:
 
 jobs:
   build_wheels_linux_x64:
-    name: Build wheels on self-hosted manylinux_2_28_x64 for TestPyPi
-    runs-on: linux_x64
+    name: Build wheels on ubuntu-24.04 (x64) for TestPyPi
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout code
@@ -41,23 +41,44 @@ jobs:
         run: |
           pip install twine
           twine upload --skip-existing --verbose wheelhouse/*.whl
-      - name: (Optional) Install and test from TestPyPI
+      - name: Smoke test from TestPyPI
         if: success() && github.event_name == 'workflow_dispatch'
         run: |
-          # Create a clean venv
+          # Extract version from wheel filename (e.g. zvec-0.2.1.dev24-cp311-...whl -> 0.2.1.dev24)
+          WHEEL_FILE=$(ls wheelhouse/zvec-*.whl | head -1)
+          ZVEC_VERSION=$(basename "$WHEEL_FILE" | sed 's/zvec-\([^-]*\)-.*/\1/')
+          echo "Waiting for zvec==$ZVEC_VERSION to become available on TestPyPI..."
+
+          # Poll TestPyPI until the version is available (max 5 minutes)
+          for i in $(seq 1 30); do
+            if pip install \
+              --index-url https://test.pypi.org/simple/ \
+              --extra-index-url https://pypi.org/simple/ \
+              --dry-run \
+              "zvec==$ZVEC_VERSION" > /dev/null 2>&1; then
+              echo "Version $ZVEC_VERSION is available on TestPyPI."
+              break
+            fi
+            echo "Attempt $i/30: not yet available, retrying in 10s..."
+            sleep 10
+          done
+
+          # Create a clean venv and install from TestPyPI
           python -m venv test_env
           source test_env/bin/activate
           pip install --upgrade pip
-          # Install from TestPyPI (must allow pre-releases if version has dev/alpha)
           pip install numpy
-          pip install --index-url https://test.pypi.org/simple/ zvec
+          pip install \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            "zvec==$ZVEC_VERSION"
           # Run a simple smoke test
           python -c "import zvec; print('Import OK:', zvec.__version__)"
         shell: bash
 
   build_wheels_linux_arm64:
-    name: Build wheels on self-hosted manylinux_2_28_arm64 for TestPyPi
-    runs-on: linux_arm64
+    name: Build wheels on ubuntu-24.04-arm (arm64) for TestPyPi
+    runs-on: ubuntu-24.04-arm
 
     steps:
       - name: Checkout code
@@ -89,16 +110,106 @@ jobs:
         run: |
           pip install twine
           twine upload --skip-existing --verbose wheelhouse/*.whl
-      - name: (Optional) Install and test from TestPyPI
+      - name: Smoke test from TestPyPI
         if: success() && github.event_name == 'workflow_dispatch'
         run: |
-          # Create a clean venv
+          # Extract version from wheel filename (e.g. zvec-0.2.1.dev24-cp311-...whl -> 0.2.1.dev24)
+          WHEEL_FILE=$(ls wheelhouse/zvec-*.whl | head -1)
+          ZVEC_VERSION=$(basename "$WHEEL_FILE" | sed 's/zvec-\([^-]*\)-.*/\1/')
+          echo "Waiting for zvec==$ZVEC_VERSION to become available on TestPyPI..."
+
+          # Poll TestPyPI until the version is available (max 5 minutes)
+          for i in $(seq 1 30); do
+            if pip install \
+              --index-url https://test.pypi.org/simple/ \
+              --extra-index-url https://pypi.org/simple/ \
+              --dry-run \
+              "zvec==$ZVEC_VERSION" > /dev/null 2>&1; then
+              echo "Version $ZVEC_VERSION is available on TestPyPI."
+              break
+            fi
+            echo "Attempt $i/30: not yet available, retrying in 10s..."
+            sleep 10
+          done
+
+          # Create a clean venv and install from TestPyPI
           python -m venv test_env
           source test_env/bin/activate
           pip install --upgrade pip
-          # Install from TestPyPI (must allow pre-releases if version has dev/alpha)
           pip install numpy
-          pip install --index-url https://test.pypi.org/simple/ zvec
+          pip install \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            "zvec==$ZVEC_VERSION"
+          # Run a simple smoke test
+          python -c "import zvec; print('Import OK:', zvec.__version__)"
+        shell: bash
+
+  build_wheels_macos_arm64:
+    name: Build wheels on macos-15 (arm64) for TestPyPi
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Set up Python (for cibuildwheel controller)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install cibuildwheel
+        run: |
+          pip install --upgrade pip
+          pip install cibuildwheel==2.17.0
+      - name: Build wheels using cibuildwheel
+        run: |
+          python -m cibuildwheel --output-dir wheelhouse
+          # Save list of built wheels for publishing
+          ls wheelhouse/*.whl | tee $GITHUB_STEP_SUMMARY
+          echo "wheels=$(ls wheelhouse/*.whl | tr '\n' ' ')" >> $GITHUB_ENV
+      - name: Publish to TestPyPI
+        if: success() && github.event_name == 'workflow_dispatch'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
+        run: |
+          pip install twine
+          twine upload --skip-existing --verbose wheelhouse/*.whl
+      - name: Smoke test from TestPyPI
+        if: success() && github.event_name == 'workflow_dispatch'
+        run: |
+          # Extract version from wheel filename (e.g. zvec-0.2.1.dev24-cp311-...whl -> 0.2.1.dev24)
+          WHEEL_FILE=$(ls wheelhouse/zvec-*.whl | head -1)
+          ZVEC_VERSION=$(basename "$WHEEL_FILE" | sed 's/zvec-\([^-]*\)-.*/\1/')
+          echo "Waiting for zvec==$ZVEC_VERSION to become available on TestPyPI..."
+
+          # Poll TestPyPI until the version is available (max 5 minutes)
+          for i in $(seq 1 30); do
+            if pip install \
+              --index-url https://test.pypi.org/simple/ \
+              --extra-index-url https://pypi.org/simple/ \
+              --dry-run \
+              "zvec==$ZVEC_VERSION" > /dev/null 2>&1; then
+              echo "Version $ZVEC_VERSION is available on TestPyPI."
+              break
+            fi
+            echo "Attempt $i/30: not yet available, retrying in 10s..."
+            sleep 10
+          done
+
+          # Create a clean venv and install from TestPyPI
+          python -m venv test_env
+          source test_env/bin/activate
+          pip install --upgrade pip
+          pip install numpy
+          pip install \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            "zvec==$ZVEC_VERSION"
           # Run a simple smoke test
           python -c "import zvec; print('Import OK:', zvec.__version__)"
         shell: bash
