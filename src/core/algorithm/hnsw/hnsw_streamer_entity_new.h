@@ -456,7 +456,7 @@ class HnswStreamerEntityNew {
                         std::vector<Chunk::Pointer> &&node_chunks,
                         std::vector<Chunk::Pointer> &&upper_neighbor_chunks,
                         const ChunkBroker::Pointer &broker,
-                        std::string vector_value)
+                        std::shared_ptr<std::string> vector_value_ptr)
       : stats_(stats),
         chunk_size_(chunk_size),
         node_index_mask_bits_(node_index_mask_bits),
@@ -473,7 +473,7 @@ class HnswStreamerEntityNew {
         node_chunks_(std::move(node_chunks)),
         upper_neighbor_chunks_(std::move(upper_neighbor_chunks)),
         broker_(broker),
-        vector_value_(vector_value) {
+        vector_value_ptr_(vector_value_ptr) {
     *mutable_header() = hd;
 
     neighbor_size_ = neighbors_size();
@@ -743,7 +743,7 @@ class HnswStreamerEntityNew {
 
   ChunkBroker::Pointer broker_{};  // chunk broker
 
-  std::string vector_value_{};
+  std::shared_ptr<std::string> vector_value_ptr_{};
 };
 
 }  // namespace core

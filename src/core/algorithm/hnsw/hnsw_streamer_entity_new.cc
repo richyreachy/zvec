@@ -215,7 +215,7 @@ const void *HnswStreamerEntityNew::get_vector(node_id_t id) const {
 }
 
 const void *HnswStreamerEntityNew::get_vector_new(node_id_t id) const {
-  return vector_value_.data() + vector_size() * id;
+  return vector_value_ptr_->data() + vector_size() * id;
   // return get_vector(id);
 }
 
@@ -259,22 +259,22 @@ int HnswStreamerEntityNew::get_vector(const node_id_t id,
 
 int HnswStreamerEntityNew::get_vector_new(
     const node_id_t id, IndexStorage::MemoryBlock &block) const {
-  // const void *data = vector_value_.data() + vector_size() * id;
-  // block.reset((void *)data);
-  // return 0;
-  return get_vector(id, block);
+  const void *data = vector_value_ptr_->data() + vector_size() * id;
+  block.reset((void *)data);
+  return 0;
+  // return get_vector(id, block);
 }
 
 int HnswStreamerEntityNew::get_vector_new(
     const node_id_t *ids, uint32_t count,
     std::vector<IndexStorage::MemoryBlock> &vec_blocks) const {
-  // vec_blocks.resize(count);
-  // for (int i = 0; i < count; i++) {
-  //   const void *data = vector_value_.data() + vector_size() * ids[i];
-  //   vec_blocks[i].reset((void *)data);
-  // }
-  // return 0;
-  return get_vector(ids, count, vec_blocks);
+  vec_blocks.resize(count);
+  for (int i = 0; i < count; i++) {
+    const void *data = vector_value_ptr_->data() + vector_size() * ids[i];
+    vec_blocks[i].reset((void *)data);
+  }
+  return 0;
+  // return get_vector(ids, count, vec_blocks);
 }
 
 int HnswStreamerEntityNew::get_vector(
@@ -468,10 +468,10 @@ int HnswStreamerEntityNew::open(IndexStorage::Pointer stg,
       }
     }
   }
-  vector_value_.clear();
-  vector_value_.reserve(vector_size() * doc_cnt());
+  vector_value_ptr_ = std::make_shared<std::string>();
+  vector_value_ptr_->reserve(vector_size() * doc_cnt());
   for (int i = 0; i < doc_cnt(); i++) {
-    vector_value_.append((const char *)get_vector(i), vector_size());
+    vector_value_ptr_->append((const char *)get_vector(i), vector_size());
   }
   stats_.set_loaded_count(doc_cnt());
 
@@ -786,7 +786,7 @@ const HnswStreamerEntityNew::Pointer HnswStreamerEntityNew::clone() const {
       upper_neighbor_mask_bits_, filter_same_key_, get_vector_enabled_,
       upper_neighbor_index_, keys_map_lock_, keys_map_, use_key_info_map_,
       std::move(node_chunks), std::move(upper_neighbor_chunks), broker_,
-      vector_value_);
+      vector_value_ptr_);
   if (ailego_unlikely(!entity)) {
     LOG_ERROR("HnswStreamerEntityNew new failed");
   }
