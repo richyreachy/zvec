@@ -86,8 +86,6 @@ requires = [
     "scikit-build-core >=0.11",
     "pybind11 >=3.0",
     "setuptools_scm>=8.0",
-    "cmake>=3.26,<4.0",
-    "ninja>=1.11",
 ]
 build-backend = "scikit_build_core.build"
 
@@ -169,6 +167,7 @@ build = [
     "cp314-*",
 ]
 build-frontend = "build"
+before-build = "python -m pip install ninja"
 test-requires = ["pytest", "numpy"]
 build-verbosity = 1
 
