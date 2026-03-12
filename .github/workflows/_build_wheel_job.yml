@@ -74,20 +74,28 @@ jobs:
             INDEX_FLAGS=""
             echo "Waiting for zvec==$ZVEC_VERSION to become available on PyPI..."
           fi
-
           # Poll until the version is available (max 5 minutes)
+          FOUND=0
           for i in $(seq 1 30); do
             if pip install $INDEX_FLAGS --dry-run "zvec==$ZVEC_VERSION" > /dev/null 2>&1; then
               echo "Version $ZVEC_VERSION is available."
+              FOUND=1
               break
             fi
             echo "Attempt $i/30: not yet available, retrying in 10s..."
             sleep 10
           done
 
+          if [ "$FOUND" -eq 0 ]; then
+            echo "ERROR: Timed out (5 min) waiting for zvec==$ZVEC_VERSION on PyPI. Aborting smoke test."
+            exit 1
+          fi
+
           # Create a clean venv and install
           python -m venv test_env
           source test_env/bin/activate
+          pip install --upgrade pip
+          pip install $INDEX_FLAGS "zvec==$ZVEC_VERSION"
           pip install --upgrade pip
           pip install $INDEX_FLAGS "zvec==$ZVEC_VERSION"
           # Run a simple smoke test
