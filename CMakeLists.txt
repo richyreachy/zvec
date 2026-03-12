@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0077 NEW)
-project(zvec VERSION 0.3.0)
+project(zvec)
 set(CC_CXX_STANDARD 17)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror=return-type")
@@ -48,6 +48,7 @@ endif()
 git_version(GIT_SRCS_VER ${PROJECT_ROOT_DIR})
 set(CPACK_PACKAGE_VERSION ${GIT_SRCS_VER})
 set(CPACK_PACKAGE_NAME zvec)
+include(CPack)
 
 if(BUILD_PYTHON_BINDINGS)
     if(APPLE)

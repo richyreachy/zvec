@@ -50,8 +50,6 @@ add_library(zvec_c_api SHARED
 
 # Set library properties
 set_target_properties(zvec_c_api PROPERTIES
-    VERSION ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
     OUTPUT_NAME "zvec_c_api"
     POSITION_INDEPENDENT_CODE ON
     # Hide all symbols by default, only export C API
