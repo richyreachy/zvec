@@ -608,6 +608,11 @@ function(_target_link_libraries _NAME)
       get_target_property(ALWAYS_LINK ${LIB} ALWAYS_LINK)
       if(ALWAYS_LINK)
         list(APPEND LOCAL_RESULT ${LIB})
+      elseif(MSVC AND TARGET ${LIB}_static)
+        get_target_property(_SIBLING_AL ${LIB}_static ALWAYS_LINK)
+        if(_SIBLING_AL)
+          list(APPEND LOCAL_RESULT ${LIB}_static)
+        endif()
       endif()
       
       get_target_property(DEP_LIBS ${LIB} INTERFACE_LINK_LIBRARIES)
@@ -638,7 +643,31 @@ function(_target_link_libraries _NAME)
   endforeach()
   
   list(REMOVE_DUPLICATES ALL_LIBS_TO_PROCESS)
-  
+
+  # On MSVC, each DLL has its own copy of template statics (e.g. Factory
+  # singletons), so registrations inside a DLL are invisible to the exe.
+  # Substitute SHARED libs with their ALWAYS_LINK _static counterparts and
+  # use /WHOLEARCHIVE so all registration code lives in the same module.
+  if(MSVC)
+    set(_SUBSTITUTED_LIBS "")
+    foreach(LIB ${ALL_LIBS_TO_PROCESS})
+      if(TARGET ${LIB} AND TARGET ${LIB}_static)
+        get_target_property(_LIB_TYPE ${LIB} TYPE)
+        get_target_property(_STATIC_AL ${LIB}_static ALWAYS_LINK)
+        if("${_LIB_TYPE}" STREQUAL "SHARED_LIBRARY" AND _STATIC_AL)
+          list(APPEND _SUBSTITUTED_LIBS ${LIB}_static)
+          list(APPEND ALL_ALWAYS_LINK_LIBS ${LIB}_static)
+          continue()
+        endif()
+      endif()
+      list(APPEND _SUBSTITUTED_LIBS ${LIB})
+    endforeach()
+    set(ALL_LIBS_TO_PROCESS ${_SUBSTITUTED_LIBS})
+    if(ALL_ALWAYS_LINK_LIBS)
+      list(REMOVE_DUPLICATES ALL_ALWAYS_LINK_LIBS)
+    endif()
+  endif()
+
   foreach(LIB ${ALL_LIBS_TO_PROCESS})
     if(NOT TARGET ${LIB})
       list(APPEND LINK_LIBS ${LIB})
