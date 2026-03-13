@@ -25,7 +25,8 @@ if(MSVC)
     add_compile_options(/wd4310) # warning C4310: cast truncates constant value
     add_compile_options(/wd4530) #  warning C4530: C++ exception handler used, but unwind semantics are not enabled. Specify /EHsc
     add_compile_options(/wd4251) #protobuf
-    add_compile_options(/wd4245 /wd4334 /wd4702  /wd4305)
+    add_compile_options(/wd4245 /wd4334 /wd4702  /wd4305 /wd4099)
+    add_compile_options(/wd4200) # flexible structure
 
     # //warning C4334: '<<': result of 32-bit shift implicitly converted to 64 bits (was 64-bit shift intended?)
     # keeps |= (1 << k);
