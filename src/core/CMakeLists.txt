@@ -16,7 +16,7 @@ if(RABITQ_SUPPORTED AND AUTO_DETECT_ARCH)
       set_source_files_properties(
           ${FILE}
           PROPERTIES
-          COMPILE_FLAGS "${MATH_MARCH_FLAG_AVX512}"
+          COMPILE_FLAGS "${RABITQ_ARCH_FLAG}"
       )
   endforeach()
 endif()
