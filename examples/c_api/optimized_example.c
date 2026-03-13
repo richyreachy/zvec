@@ -240,7 +240,8 @@ int main() {
   query.filter = (ZVecString){.data = "", .length = 0};
   query.include_vector = false;
   query.include_doc_id = true;
-  query.output_fields = NULL;
+  query.output_fields.strings = NULL;
+  query.output_fields.count = 0;
 
   const int QUERY_COUNT = 100;
   start_time = clock();

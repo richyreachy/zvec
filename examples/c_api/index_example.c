@@ -266,7 +266,8 @@ int main() {
   hnsw_query.filter = (ZVecString){.data = "", .length = 0};
   hnsw_query.include_vector = false;
   hnsw_query.include_doc_id = true;
-  hnsw_query.output_fields = NULL;
+  hnsw_query.output_fields.strings = NULL;
+  hnsw_query.output_fields.count = 0;
 
   ZVecDoc **hnsw_results = NULL;
   size_t hnsw_result_count = 0;
@@ -287,7 +288,8 @@ int main() {
   flat_query.filter = (ZVecString){.data = "", .length = 0};
   flat_query.include_vector = false;
   flat_query.include_doc_id = true;
-  flat_query.output_fields = NULL;
+  flat_query.output_fields.strings = NULL;
+  flat_query.output_fields.count = 0;
 
   ZVecDoc **flat_results = NULL;
   size_t flat_result_count = 0;

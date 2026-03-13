@@ -301,6 +301,93 @@ ZVEC_EXPORT size_t ZVEC_CALL zvec_string_length(const ZVecString *str);
 ZVEC_EXPORT int ZVEC_CALL zvec_string_compare(const ZVecString *str1,
                                               const ZVecString *str2);
 
+/**
+ * @brief Free string memory
+ * @param str String pointer to free
+ */
+ZVEC_EXPORT void ZVEC_CALL zvec_free_string(ZVecString *str);
+
+/**
+ * @brief Free string memory
+ * @param str String pointer to free
+ */
+ZVEC_EXPORT void ZVEC_CALL zvec_free_str(char *str);
+
+
+// =============================================================================
+// Array Memory management functions
+// =============================================================================
+
+/**
+ * @brief Create a new string array
+ * @param count Initial number of strings to allocate space for
+ * @return Pointer to the newly created string array, or NULL on failure
+ */
+ZVEC_EXPORT ZVecStringArray *ZVEC_CALL zvec_string_array_create(size_t count);
+
+/**
+ * @brief Add a string to the string array at specified index
+ * @param array String array pointer
+ * @param idx Index position where the string should be added
+ * @param str Null-terminated C string to add
+ */
+ZVEC_EXPORT void ZVEC_CALL zvec_string_array_add(ZVecStringArray *array,
+                                                 size_t idx, const char *str);
+
+/**
+ * @brief Destroy string array and free all associated memory
+ * @param array String array pointer to destroy
+ */
+ZVEC_EXPORT void ZVEC_CALL zvec_string_array_destroy(ZVecStringArray *array);
+
+/**
+ * @brief Create a new mutable byte array
+ * @param capacity Initial capacity in bytes
+ * @return Pointer to the newly created byte array, or NULL on failure
+ */
+ZVEC_EXPORT ZVecMutableByteArray *ZVEC_CALL
+zvec_byte_array_create(size_t capacity);
+
+
+/**
+ * @brief Destroy byte array and free all associated memory
+ * @param array Byte array pointer to destroy
+ */
+ZVEC_EXPORT void ZVEC_CALL zvec_byte_array_destroy(ZVecMutableByteArray *array);
+
+/**
+ * @brief Create a new float array
+ * @param count Number of floats to allocate space for
+ * @return Pointer to the newly created float array, or NULL on failure
+ */
+ZVEC_EXPORT ZVecFloatArray *ZVEC_CALL zvec_float_array_create(size_t count);
+
+/**
+ * @brief Destroy float array and free all associated memory
+ * @param array Float array pointer to destroy
+ */
+ZVEC_EXPORT void ZVEC_CALL zvec_float_array_destroy(ZVecFloatArray *array);
+
+/**
+ * @brief Create a new int64 array
+ * @param count Number of int64 values to allocate space for
+ * @return Pointer to the newly created int64 array, or NULL on failure
+ */
+ZVEC_EXPORT ZVecInt64Array *ZVEC_CALL zvec_int64_array_create(size_t count);
+
+/**
+ * @brief Destroy int64 array and free all associated memory
+ * @param array Int64 array pointer to destroy
+ */
+ZVEC_EXPORT void ZVEC_CALL zvec_int64_array_destroy(ZVecInt64Array *array);
+
+/**
+ * @brief Release uint8_t array memory
+ *
+ * @param array uint8_t array pointer
+ */
+ZVEC_EXPORT void ZVEC_CALL zvec_free_uint8_array(uint8_t *array);
+
 
 // =============================================================================
 // Configuration and Options Structures
@@ -922,7 +1009,7 @@ typedef struct {
   ZVecString filter;                 /**< Filter expression */
   bool include_vector;               /**< Whether to include vector data */
   bool include_doc_id;               /**< Whether to include document ID */
-  ZVecStringArray *output_fields;    /**< Output field list (NULL means all) */
+  ZVecStringArray output_fields;     /**< Output field list (NULL means all) */
   ZVecQueryParamsUnion *query_params; /**< Query parameters (optional, NULL
                                          means using default parameters) */
 } ZVecVectorQuery;
@@ -939,7 +1026,7 @@ typedef struct {
   ZVecByteArray query_sparse_values; /**< Sparse vector values (binary data) */
   ZVecString filter;                 /**< Filter expression */
   bool include_vector;               /**< Whether to include vector data */
-  ZVecStringArray *output_fields;    /**< Output field list */
+  ZVecStringArray output_fields;     /**< Output field list */
   ZVecString group_by_field_name;    /**< Group by field name */
   uint32_t group_count;              /**< Number of groups */
   uint32_t group_topk; /**< Number of results to return per group */
@@ -1374,27 +1461,6 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL
 zvec_collection_flush(ZVecCollection *collection);
 
 /**
- * @brief Get collection path
- * @param collection Collection handle
- * @param[out] path Returned path string (needs to be freed by calling
- * zvec_free_string)
- * @return ZVecErrorCode Error code
- */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL
-zvec_collection_get_path(const ZVecCollection *collection, ZVecString **path);
-
-
-/**
- * @brief Get collection name
- * @param collection Collection handle
- * @param[out] name Returned collection name (needs to be freed by calling
- * zvec_free_string)
- * @return ZVecErrorCode Error code
- */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL
-zvec_collection_get_name(const ZVecCollection *collection, ZVecString **name);
-
-/**
  * @brief Get collection schema
  * @param collection Collection handle
  * @param[out] schema
@@ -1441,39 +1507,6 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_get_stats(
  */
 ZVEC_EXPORT void ZVEC_CALL
 zvec_collection_stats_destroy(ZVecCollectionStats *stats);
-
-
-/**
- * @brief Free field schema array memory
- *
- * @param array Field schema array pointer
- * @param count Array element count
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_free_field_schema_array(ZVecFieldSchema **array,
-                                                        size_t count);
-
-/**
- * @brief Check if collection has specified field
- * @param collection Collection handle
- * @param field_name Field name
- * @param[out] exists Whether exists
- * @return ZVecErrorCode Error code
- */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_has_field(
-    const ZVecCollection *collection, const char *field_name, bool *exists);
-
-/**
- * @brief Get field information
- * @param collection Collection handle
- * @param field_name Field name
- * @param[out] field_schema
- * Returned field schema pointer (needs to be freed by calling
- * zvec_field_schema_destroy)
- * @return ZVecErrorCode Error code
- */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_get_field_info(
-    const ZVecCollection *collection, const char *field_name,
-    ZVecFieldSchema **field_schema);
 
 /**
  * @brief Free field schema memory
@@ -1728,7 +1761,7 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_query(
  * @param[out] results Returned document array (needs to be freed by calling
  * zvec_docs_free)
  * @param[out] group_by_values Returned group by field values array (needs to be
- * freed by calling zvec_free_string_array)
+ * freed by calling zvec_string_array_destroy)
  * @param[out] result_count Number of returned results
  * @return ZVecErrorCode Error code
  */
@@ -1737,7 +1770,7 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_query_by_group(
     ZVecDoc ***results, ZVecString ***group_by_values, size_t *result_count);
 
 /**
- * @brief Get documents by primary keys
+ * @brief Fetch documents by primary keys
  * @param collection Collection handle
  * @param primary_keys Primary key array
  * @param count Number of primary keys
@@ -1746,23 +1779,9 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_query_by_group(
  * @param[out] found_count Number of found documents
  * @return ZVecErrorCode Error code
  */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_get_by_primary_keys(
+ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_fetch(
     ZVecCollection *collection, const char *const *primary_keys, size_t count,
     ZVecDoc ***documents, size_t *found_count);
-
-/**
- * @brief Query documents by filter condition
- * @param collection Collection handle
- * @param filter_expression Filter expression
- * @param limit Result limit
- * @param offset Offset
- * @param[out] documents Returned document array
- * @param[out] result_count Number of returned results
- * @return ZVecErrorCode Error code
- */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_collection_query_by_filter(
-    const ZVecCollection *collection, const char *filter_expression,
-    size_t limit, size_t offset, ZVecDoc ***documents, size_t *result_count);
 
 // =============================================================================
 // Document Related Structures
@@ -2160,77 +2179,6 @@ ZVEC_EXPORT void ZVEC_CALL zvec_docs_free(ZVecDoc **docs, size_t count);
 
 
 // =============================================================================
-// Query Parameter Constructor Functions
-// =============================================================================
-
-/**
- * @brief Create vector query parameters
- * @param field_name Query field name
- * @param query_data Query vector data
- * @param query_length Query vector length
- * @param top_k Number of results to return
- * @return ZVecVectorQuery* Pointer to the newly created query parameters
- */
-ZVEC_EXPORT ZVecVectorQuery *ZVEC_CALL
-zvec_vector_query_create(const char *field_name, const float *query_data,
-                         size_t query_length, int top_k);
-
-/**
- * @brief Destroy vector query parameters
- * @param query Query parameters pointer
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_vector_query_destroy(ZVecVectorQuery *query);
-
-/**
- * @brief Set query filter condition
- * @param query Query parameters pointer
- * @param filter_expression Filter expression
- * @return ZVecErrorCode Error code
- */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_vector_query_set_filter(
-    ZVecVectorQuery *query, const char *filter_expression);
-
-/**
- * @brief Set output fields
- * @param query Query parameters pointer
- * @param field_names Field name array
- * @param count Field count
- * @return ZVecErrorCode Error code
- */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_vector_query_set_output_fields(
-    ZVecVectorQuery *query, const char *const *field_names, size_t count);
-
-/**
- * @brief Set timeout
- * @param query Query parameters pointer
- * @param timeout_ms Timeout in milliseconds
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_vector_query_set_timeout(ZVecVectorQuery *query,
-                                                         int timeout_ms);
-
-/**
- * @brief Create grouped vector query parameters
- * @param field_name Query field name
- * @param query_data Query vector data
- * @param query_length Query vector length
- * @param group_by_field Group by field name
- * @param group_count Number of groups
- * @param group_top_k Number of results to return per group
- * @return ZVecGroupByVectorQuery* Pointer to the newly created query parameters
- */
-ZVEC_EXPORT ZVecGroupByVectorQuery *ZVEC_CALL zvec_grouped_vector_query_create(
-    const char *field_name, const float *query_data, size_t query_length,
-    const char *group_by_field, uint32_t group_count, uint32_t group_top_k);
-
-/**
- * @brief Destroy grouped vector query parameters
- * @param query Query parameters pointer
- */
-ZVEC_EXPORT void ZVEC_CALL
-zvec_grouped_vector_query_destroy(ZVecGroupByVectorQuery *query);
-
-
-// =============================================================================
 // Utility Functions
 // =============================================================================
 
@@ -2264,70 +2212,6 @@ zvec_index_type_to_string(ZVecIndexType index_type);
  * @return const char* Metric type string
  */
 const char *zvec_metric_type_to_string(ZVecMetricType metric_type);
-
-/**
- * @brief Get system information
- * @param[out] info_json System information JSON string (needs to be freed by
- * calling zvec_free_string)
- * @return ZVecErrorCode Error code
- */
-ZVecErrorCode zvec_get_system_info(ZVecString **info_json);
-
-// =============================================================================
-// Memory Management Interface
-// =============================================================================
-
-/**
- * @brief Allocate memory
- * @param size Number of bytes to allocate
- * @return void* Allocated memory pointer, returns NULL on failure
- */
-ZVEC_EXPORT void *ZVEC_CALL zvec_malloc(size_t size);
-
-/**
- * @brief Reallocate memory
- * @param ptr Original memory pointer
- * @param size New number of bytes
- * @return void* Reallocation memory pointer, returns NULL on failure
- */
-ZVEC_EXPORT void *ZVEC_CALL zvec_realloc(void *ptr, size_t size);
-
-/**
- * @brief Free memory
- * @param ptr Memory pointer to free
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_free(void *ptr);
-
-/**
- * @brief Free string memory
- * @param str String pointer to free
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_free_string(ZVecString *str);
-
-/**
- * @brief Free string array memory
- * @param array String array pointer to free
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_free_string_array(ZVecStringArray *array);
-
-/**
- * @brief Free byte array memory
- * @param array Byte array pointer to free
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_free_byte_array(ZVecMutableByteArray *array);
-
-/**
- * @brief Free string memory
- * @param str String pointer to free
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_free_str(char *str);
-
-/**
- * @brief Release uint8_t array memory
- *
- * @param array uint8_t array pointer
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_free_uint8_array(uint8_t *array);
 
 
 // =============================================================================
@@ -2393,6 +2277,18 @@ ZVEC_EXPORT void ZVEC_CALL zvec_free_uint8_array(uint8_t *array);
     .base.index_type = ZVEC_INDEX_TYPE_IVF, .base.metric_type = metric, \
     .base.quantize_type = quant, .n_list = nlist, .n_iters = niters,    \
     .use_soar = soar, .n_probe = nprobe                                 \
+  }
+
+/**
+ * @brief Simplified string initialization macro
+ * @param str String content
+ *
+ * Usage example:
+ * ZVecString name = ZVEC_STRING_LITERAL("my_collection");
+ */
+#define ZVEC_STRING_LITERAL(str)       \
+  (ZVecString) {                       \
+    .data = str, .length = strlen(str) \
   }
 
 /**

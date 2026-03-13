@@ -411,7 +411,7 @@ int main() {
       .filter = (ZVecString){.data = "", .length = 0},
       .include_vector = true,
       .include_doc_id = true,
-      .output_fields = NULL};
+      .output_fields = {.strings = NULL, .count = 0}};
 
   ZVecDoc **query_results = NULL;
   size_t result_count = 0;

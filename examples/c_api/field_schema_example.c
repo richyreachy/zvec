@@ -256,7 +256,8 @@ int main() {
   query.filter = (ZVecString){.data = "", .length = 0};
   query.include_vector = false;
   query.include_doc_id = true;
-  query.output_fields = NULL;
+  query.output_fields.strings = NULL;
+  query.output_fields.count = 0;
 
   ZVecDoc **results = NULL;
   size_t result_count = 0;

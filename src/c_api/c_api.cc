@@ -744,49 +744,6 @@ static zvec::Status set_field_index_params(zvec::FieldSchema::Ptr &field_schema,
 // Memory Management interface implementation
 // =============================================================================
 
-void *zvec_malloc(size_t size) {
-  if (size == 0) {
-    set_last_error_details(ZVEC_ERROR_INVALID_ARGUMENT,
-                           "Cannot allocate zero bytes", __FILE__, __LINE__,
-                           __FUNCTION__);
-    return nullptr;
-  }
-
-  try {
-    return malloc(size);
-  } catch (const std::bad_alloc &e) {
-    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
-                           std::string("Memory allocation failed: ") + e.what(),
-                           __FILE__, __LINE__, __FUNCTION__);
-    return nullptr;
-  }
-}
-
-void *zvec_realloc(void *ptr, size_t size) {
-  if (size == 0 && ptr == nullptr) {
-    set_last_error_details(ZVEC_ERROR_INVALID_ARGUMENT,
-                           "Cannot reallocate null pointer to zero size",
-                           __FILE__, __LINE__, __FUNCTION__);
-    return nullptr;
-  }
-
-  try {
-    return realloc(ptr, size);
-  } catch (const std::bad_alloc &e) {
-    set_last_error_details(
-        ZVEC_ERROR_RESOURCE_EXHAUSTED,
-        std::string("Memory reallocation failed: ") + e.what(), __FILE__,
-        __LINE__, __FUNCTION__);
-    return nullptr;
-  }
-}
-
-void zvec_free(void *ptr) {
-  if (ptr) {
-    free(ptr);
-  }
-}
-
 void zvec_free_string(ZVecString *str) {
   if (str) {
     if (str->data) {
@@ -796,31 +753,112 @@ void zvec_free_string(ZVecString *str) {
   }
 }
 
-void zvec_free_string_array(ZVecStringArray *array) {
-  if (array) {
-    if (array->strings) {
-      for (size_t i = 0; i < array->count; ++i) {
-        zvec_free_string(&array->strings[i]);
-      }
-      delete[] array->strings;
-    }
-    delete array;
-  }
+ZVecStringArray *zvec_string_array_create(size_t count) {
+  ZVecStringArray *array = (ZVecStringArray *)malloc(sizeof(ZVecStringArray));
+  array->count = count;
+  array->strings = (ZVecString *)malloc(sizeof(ZVecString) * count);
+  memset(array->strings, 0, sizeof(ZVecString) * count);
+  return array;
 }
 
-void zvec_free_byte_array(ZVecMutableByteArray *array) {
-  if (array) {
-    if (array->data) {
-      delete[] array->data;
-    }
-    delete array;
-  }
+void zvec_string_array_add(ZVecStringArray *array, size_t idx,
+                           const char *str) {
+  if (idx >= array->count) return;
+  size_t len = strlen(str);
+  array->strings[idx].data = (char *)malloc(len + 1);
+  memcpy(array->strings[idx].data, str, len + 1);
+  array->strings[idx].length = len;
+  array->strings[idx].capacity = len + 1;
 }
+
+void zvec_string_array_destroy(ZVecStringArray *array) {
+  if (!array) return;
+  for (size_t i = 0; i < array->count; i++) {
+    free((void *)array->strings[i].data);
+  }
+  free(array->strings);
+  free(array);
+}
+
 
 void zvec_free_str(char *str) {
   if (str) {
     free(str);
   }
+}
+
+// Byte array helper functions
+ZVecMutableByteArray *zvec_byte_array_create(size_t capacity) {
+  ZVecMutableByteArray *array =
+      (ZVecMutableByteArray *)malloc(sizeof(ZVecMutableByteArray));
+  if (!array) return nullptr;
+
+  array->data = (uint8_t *)malloc(capacity);
+  if (!array->data) {
+    free(array);
+    return nullptr;
+  }
+
+  array->length = 0;
+  array->capacity = capacity;
+  memset(array->data, 0, capacity);
+  return array;
+}
+
+void zvec_byte_array_destroy(ZVecMutableByteArray *array) {
+  if (!array) return;
+  if (array->data) {
+    free(array->data);
+  }
+  free(array);
+}
+
+// Float array helper functions
+ZVecFloatArray *zvec_float_array_create(size_t count) {
+  ZVecFloatArray *array = (ZVecFloatArray *)malloc(sizeof(ZVecFloatArray));
+  if (!array) return nullptr;
+
+  array->data = (const float *)malloc(sizeof(float) * count);
+  if (!array->data) {
+    free(array);
+    return nullptr;
+  }
+
+  array->length = count;
+  memset((void *)array->data, 0, sizeof(float) * count);
+  return array;
+}
+
+void zvec_float_array_destroy(ZVecFloatArray *array) {
+  if (!array) return;
+  if (array->data) {
+    free((void *)array->data);
+  }
+  free(array);
+}
+
+// Int64 array helper functions
+ZVecInt64Array *zvec_int64_array_create(size_t count) {
+  ZVecInt64Array *array = (ZVecInt64Array *)malloc(sizeof(ZVecInt64Array));
+  if (!array) return nullptr;
+
+  array->data = (const int64_t *)malloc(sizeof(int64_t) * count);
+  if (!array->data) {
+    free(array);
+    return nullptr;
+  }
+
+  array->length = count;
+  memset((void *)array->data, 0, sizeof(int64_t) * count);
+  return array;
+}
+
+void zvec_int64_array_destroy(ZVecInt64Array *array) {
+  if (!array) return;
+  if (array->data) {
+    free((void *)array->data);
+  }
+  free(array);
 }
 
 void zvec_free_float_array(float *array) {
@@ -861,15 +899,6 @@ void zvec_free_uint8_array(uint8_t *array) {
   if (array) {
     free(array);
   }
-}
-
-void zvec_free_field_schema_array(ZVecFieldSchema **array, size_t count) {
-  if (!array) return;
-
-  for (size_t i = 0; i < count; ++i) {
-    zvec_free_field_schema(array[i]);
-  }
-  free(array);
 }
 
 void zvec_free_field_schema(ZVecFieldSchema *field_schema) {
@@ -1900,71 +1929,6 @@ const char *zvec_metric_type_to_string(ZVecMetricType metric_type) {
       return "MIPSL2";
     default:
       return "UNKNOWN_METRIC_TYPE";
-  }
-}
-
-ZVecErrorCode zvec_get_system_info(ZVecString **info_json) {
-  if (!info_json) {
-    set_last_error_details(ZVEC_ERROR_INVALID_ARGUMENT,
-                           "Info JSON pointer cannot be null", __FILE__,
-                           __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_INVALID_ARGUMENT;
-  }
-
-  try {
-    std::ostringstream oss;
-    oss << "{";
-    oss << "\"version\":\"" << ZVEC_VERSION_STRING << "\",";
-    oss << "\"platform\":\""
-        <<
-#ifdef _WIN32
-        "Windows"
-#elif __APPLE__
-        "macOS"
-#elif __linux__
-        "Linux"
-#else
-        "Unknown"
-#endif
-        << "\",";
-    oss << "\"architecture\":\""
-        <<
-#ifdef __x86_64__
-        "x86_64"
-#elif __aarch64__
-        "ARM64"
-#elif __arm__
-        "ARM"
-#else
-        "Unknown"
-#endif
-        << "\",";
-    oss << "\"compiler\":\""
-        <<
-#ifdef __GNUC__
-        "GCC " << __GNUC__ << "." << __GNUC_MINOR__
-#elif _MSC_VER
-        "MSVC " << _MSC_VER
-#elif __clang__
-        "Clang " << __clang_major__ << "." << __clang_minor__
-#else
-        "Unknown"
-#endif
-        << "\"";
-    oss << "}";
-
-    *info_json = zvec_string_create(oss.str().c_str());
-    if (!*info_json) {
-      return ZVEC_ERROR_RESOURCE_EXHAUSTED;
-    }
-
-    return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error_details(
-        ZVEC_ERROR_INTERNAL_ERROR,
-        std::string("Failed to get system info: ") + e.what(), __FILE__,
-        __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_INTERNAL_ERROR;
   }
 }
 
@@ -4140,54 +4104,6 @@ ZVecErrorCode zvec_collection_flush(ZVecCollection *collection) {
   }
 }
 
-ZVecErrorCode zvec_collection_get_path(const ZVecCollection *collection,
-                                       char **path) {
-  if (!collection || !path) {
-    set_last_error("Invalid arguments: collection and path cannot be null");
-    return ZVEC_ERROR_INVALID_ARGUMENT;
-  }
-
-  try {
-    auto &coll = *reinterpret_cast<const std::shared_ptr<zvec::Collection> *>(
-        collection);
-    auto result = coll->Path();
-
-    ZVecErrorCode error_code = handle_expected_result(result);
-    if (error_code == ZVEC_OK) {
-      *path = copy_string(result.value());
-    }
-
-    return error_code;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
-}
-
-ZVecErrorCode zvec_collection_get_name(const ZVecCollection *collection,
-                                       char **name) {
-  if (!collection || !name) {
-    set_last_error("Invalid arguments: collection and name cannot be null");
-    return ZVEC_ERROR_INVALID_ARGUMENT;
-  }
-
-  try {
-    auto &coll = *reinterpret_cast<const std::shared_ptr<zvec::Collection> *>(
-        collection);
-    auto result = coll->Schema();
-
-    ZVecErrorCode error_code = handle_expected_result(result);
-    if (error_code == ZVEC_OK) {
-      *name = copy_string(result.value().name());
-    }
-
-    return error_code;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
-}
-
 ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
                                          ZVecCollectionSchema **schema) {
   if (!collection || !schema) {
@@ -5343,12 +5259,12 @@ void convert_common_query_params(zvec::VectorQuery &internal_query,
   }
 
   // Output fields conversion
-  if (query->output_fields && query->output_fields->count > 0) {
+  if (query->output_fields.count > 0) {
     internal_query.output_fields_ = std::vector<std::string>();
-    for (size_t i = 0; i < query->output_fields->count; ++i) {
+    for (size_t i = 0; i < query->output_fields.count; ++i) {
       internal_query.output_fields_->emplace_back(
-          query->output_fields->strings[i].data,
-          query->output_fields->strings[i].length);
+          query->output_fields.strings[i].data,
+          query->output_fields.strings[i].length);
     }
   }
 }
@@ -5435,14 +5351,14 @@ void convert_groupby_query_params(zvec::GroupByVectorQuery &internal_query,
         query->query_sparse_values.length);
   }
 
-  if (query->output_fields && query->output_fields->count > 0) {
+  if (query->output_fields.count > 0) {
     if (!internal_query.output_fields_.has_value()) {
       internal_query.output_fields_ = std::vector<std::string>();
     }
-    for (size_t i = 0; i < query->output_fields->count; ++i) {
+    for (size_t i = 0; i < query->output_fields.count; ++i) {
       internal_query.output_fields_->push_back(
-          std::string(query->output_fields->strings[i].data,
-                      query->output_fields->strings[i].length));
+          std::string(query->output_fields.strings[i].data,
+                      query->output_fields.strings[i].length));
     }
   }
 
