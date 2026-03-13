@@ -1148,7 +1148,8 @@ TEST_F(FlatStreamerTest, TestAddAndSearchWithID2) {
   }
   write_streamer->flush(0UL);
   write_streamer->close();
-  write_streamer.reset();  //
+  write_streamer.reset();
+  write_storage->close();
 
   IndexStreamer::Pointer read_streamer =
       IndexFactory::CreateStreamer("FlatStreamer");

@@ -204,6 +204,7 @@ TEST_F(HnswStreamerTest, TestHnswSearchMMap) {
   write_streamer->flush(0UL);
   write_streamer->close();
   write_streamer.reset();
+  storage->close();
 
   ElapsedTime elapsed_time;
   IndexStreamer::Pointer read_streamer =

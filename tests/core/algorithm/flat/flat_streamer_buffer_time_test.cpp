@@ -79,6 +79,7 @@ TEST_F(FlatStreamerTest, TestLinearSearchMMap) {
   write_streamer->flush(0UL);
   write_streamer->close();
   write_streamer.reset();
+  storage->close();
 
   IndexStreamer::Pointer read_streamer =
       IndexFactory::CreateStreamer("FlatStreamer");

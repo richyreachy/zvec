@@ -137,6 +137,8 @@ TEST_F(FlatSparseStreamerTest, TestGeneral) {
   write_streamer->flush(0UL);
   write_streamer->close();
   write_streamer.reset();
+  write_storage->close();
+  write_storage.reset();
 
   IndexStreamer::Pointer read_streamer =
       IndexFactory::CreateStreamer("FlatSparseStreamer");
