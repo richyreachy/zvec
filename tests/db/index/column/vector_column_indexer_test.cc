@@ -121,15 +121,14 @@ TEST(VectorColumnIndexerTest, General) {
     ASSERT_NEAR(dense_vector[3], 0, 0.1);
 
     // 4. search
-    // https://stackoverflow.com/questions/69009389/how-to-get-away-with-using-designated-initializers-in-c17-or-why-is-it-seemi
     auto query_vector = std::vector<float>{1.0f, 2.0f, 3.0f, 0};
     auto query = vector_column_params::VectorData{
-        vector_column_params::DenseVector{.data = query_vector.data()}};
-    auto indexer_query_params =
-        vector_column_params::QueryParams{.topk = 10,
-                                          .filter = nullptr,
-                                          .fetch_vector = true,
-                                          .query_params = query_params};
+        vector_column_params::DenseVector{query_vector.data()}};
+    vector_column_params::QueryParams indexer_query_params;
+    indexer_query_params.topk = 10;
+    indexer_query_params.filter = nullptr;
+    indexer_query_params.fetch_vector = true;
+    indexer_query_params.query_params = query_params;
     auto results = indexer->Search(query, indexer_query_params);
     ASSERT_TRUE(results.has_value());
 
@@ -307,12 +306,12 @@ TEST(VectorColumnIndexerTest, DenseDataTypeFP16) {
                                 buffer.data());
     auto query_vector = buffer;
     auto query = vector_column_params::VectorData{
-        vector_column_params::DenseVector{.data = query_vector.data()}};
-    auto indexer_query_params =
-        vector_column_params::QueryParams{.topk = 10,
-                                          .filter = nullptr,
-                                          .fetch_vector = true,
-                                          .query_params = query_params};
+        vector_column_params::DenseVector{query_vector.data()}};
+    vector_column_params::QueryParams indexer_query_params;
+    indexer_query_params.topk = 10;
+    indexer_query_params.filter = nullptr;
+    indexer_query_params.fetch_vector = true;
+    indexer_query_params.query_params = query_params;
     auto results = indexer->Search(query, indexer_query_params);
     ASSERT_TRUE(results.has_value());
 
@@ -445,15 +444,14 @@ TEST(VectorColumnIndexerTest, DenseDataTypeINT8) {
     }
 
     // 4. search
-    // https://stackoverflow.com/questions/69009389/how-to-get-away-with-using-designated-initializers-in-c17-or-why-is-it-seemi
     auto query_vector = std::vector<uint8_t>{1, 2, 3, 0};
     auto query = vector_column_params::VectorData{
-        vector_column_params::DenseVector{.data = query_vector.data()}};
-    auto indexer_query_params =
-        vector_column_params::QueryParams{.topk = 10,
-                                          .filter = nullptr,
-                                          .fetch_vector = true,
-                                          .query_params = query_params};
+        vector_column_params::DenseVector{query_vector.data()}};
+    vector_column_params::QueryParams indexer_query_params;
+    indexer_query_params.topk = 10;
+    indexer_query_params.filter = nullptr;
+    indexer_query_params.fetch_vector = true;
+    indexer_query_params.query_params = query_params;
     auto results = indexer->Search(query, indexer_query_params);
     ASSERT_TRUE(results.has_value());
 
@@ -560,8 +558,10 @@ TEST(VectorColumnIndexerTest, SparseGeneral) {
     auto query =
         vector_column_params::VectorData{vector_column_params::SparseVector{
             kSparseCount, indices.data(), values.data()}};
-    auto query_params = vector_column_params::QueryParams{
-        .topk = 10, .filter = nullptr, .fetch_vector = true};
+    vector_column_params::QueryParams query_params;
+    query_params.topk = 10;
+    query_params.filter = nullptr;
+    query_params.fetch_vector = true;
     auto results = indexer->Search(query, query_params);
     ASSERT_TRUE(results.has_value());
 
@@ -674,8 +674,10 @@ TEST(VectorColumnIndexerTest, SparseDataTypeFP16) {
     auto query =
         vector_column_params::VectorData{vector_column_params::SparseVector{
             kSparseCount, indices.data(), values.data()}};
-    auto query_params = vector_column_params::QueryParams{
-        .topk = 10, .filter = nullptr, .fetch_vector = true};
+    vector_column_params::QueryParams query_params;
+    query_params.topk = 10;
+    query_params.filter = nullptr;
+    query_params.fetch_vector = true;
     auto results = indexer->Search(query, query_params);
     ASSERT_TRUE(results.has_value());
 
@@ -853,8 +855,10 @@ TEST(VectorColumnIndexerTest, Merge) {
         // search with fetch vector
         auto query = vector_column_params::VectorData{
             vector_column_params::DenseVector{vector.data()}};
-        auto query_params = vector_column_params::QueryParams{
-            .topk = 10, .filter = nullptr, .fetch_vector = true};
+        vector_column_params::QueryParams query_params;
+        query_params.topk = 10;
+        query_params.filter = nullptr;
+        query_params.fetch_vector = true;
         auto results = indexer2->Search(query, query_params);
         ASSERT_TRUE(results.has_value());
         auto vector_results =
@@ -1305,14 +1309,15 @@ TEST(VectorColumnIndexerTest, BfPks) {
 
     {
       auto bf_pks = std::vector<uint64_t>{1};
+      auto query_vec = std::vector<float>{1.0f, 2.0f, 3.0f};
       auto query =
           vector_column_params::VectorData{vector_column_params::DenseVector{
-              .data = std::vector<float>{1.0f, 2.0f, 3.0f}.data()}};
-      auto query_params =
-          vector_column_params::QueryParams{.topk = 10,
-                                            .filter = nullptr,
-                                            .fetch_vector = true,
-                                            .bf_pks = {bf_pks}};
+              query_vec.data()}};
+      vector_column_params::QueryParams query_params;
+      query_params.topk = 10;
+      query_params.filter = nullptr;
+      query_params.fetch_vector = true;
+      query_params.bf_pks = {bf_pks};
       auto results = indexer->Search(query, query_params);
       ASSERT_TRUE(results.has_value());
 
@@ -1334,14 +1339,15 @@ TEST(VectorColumnIndexerTest, BfPks) {
 
     {
       auto bf_pks = std::vector<uint64_t>{1, 2};
+      auto query_vec = std::vector<float>{1.0f, 2.0f, 3.0f};
       auto query =
           vector_column_params::VectorData{vector_column_params::DenseVector{
-              .data = std::vector<float>{1.0f, 2.0f, 3.0f}.data()}};
-      auto query_params =
-          vector_column_params::QueryParams{.topk = 10,
-                                            .filter = nullptr,
-                                            .fetch_vector = true,
-                                            .bf_pks = {bf_pks}};
+              query_vec.data()}};
+      vector_column_params::QueryParams query_params;
+      query_params.topk = 10;
+      query_params.filter = nullptr;
+      query_params.fetch_vector = true;
+      query_params.bf_pks = {bf_pks};
       auto results = indexer->Search(query, query_params);
       ASSERT_TRUE(results.has_value());
 
@@ -1363,14 +1369,15 @@ TEST(VectorColumnIndexerTest, BfPks) {
 
     {
       auto bf_pks = std::vector<uint64_t>{2};
+      auto query_vec = std::vector<float>{1.0f, 2.0f, 3.0f};
       auto query =
           vector_column_params::VectorData{vector_column_params::DenseVector{
-              .data = std::vector<float>{1.0f, 2.0f, 3.0f}.data()}};
-      auto query_params =
-          vector_column_params::QueryParams{.topk = 10,
-                                            .filter = nullptr,
-                                            .fetch_vector = true,
-                                            .bf_pks = {bf_pks}};
+              query_vec.data()}};
+      vector_column_params::QueryParams query_params;
+      query_params.topk = 10;
+      query_params.filter = nullptr;
+      query_params.fetch_vector = true;
+      query_params.bf_pks = {bf_pks};
       auto results = indexer->Search(query, query_params);
       ASSERT_TRUE(results.has_value());
 
@@ -1623,11 +1630,11 @@ TEST(VectorColumnIndexerTest, CosineGeneral) {
           vector_column_params::DenseVector{buffer.data.data()}};
       auto _t = std::make_shared<zvec::HnswQueryParams>(100);
       _t->set_is_linear(true);
-      auto query_params =
-          vector_column_params::QueryParams{.topk = kTopk,
-                                            .filter = nullptr,
-                                            .fetch_vector = true,
-                                            .query_params = _t};
+      vector_column_params::QueryParams query_params;
+      query_params.topk = kTopk;
+      query_params.filter = nullptr;
+      query_params.fetch_vector = true;
+      query_params.query_params = _t;
       auto results = indexer->Search(data, query_params);
       ASSERT_TRUE(results.has_value());
       auto vector_results =
@@ -1833,9 +1840,11 @@ TEST(VectorColumnIndexerTest, Score) {
                     .ok());
 
     auto query = vector_column_params::VectorData{
-        vector_column_params::DenseVector{.data = query_vector.data()}};
-    auto query_params = vector_column_params::QueryParams{
-        .topk = kTopk, .filter = nullptr, .fetch_vector = true};
+        vector_column_params::DenseVector{query_vector.data()}};
+    vector_column_params::QueryParams query_params;
+    query_params.topk = kTopk;
+    query_params.filter = nullptr;
+    query_params.fetch_vector = true;
     auto results = indexer->Search(query, query_params);
     ASSERT_TRUE(results.has_value());
 
@@ -1884,8 +1893,10 @@ TEST(VectorColumnIndexerTest, Score) {
         vector_column_params::VectorData{vector_column_params::SparseVector{
             3, reinterpret_cast<const void *>(sparse_indices.data()),
             query_vector.data()}};
-    auto query_params = vector_column_params::QueryParams{
-        .topk = 10, .filter = nullptr, .fetch_vector = true};
+    vector_column_params::QueryParams query_params;
+    query_params.topk = 10;
+    query_params.filter = nullptr;
+    query_params.fetch_vector = true;
     auto results = indexer->Search(query, query_params);
     ASSERT_TRUE(results.has_value());
 
@@ -1978,9 +1989,11 @@ TEST(VectorColumnIndexerTest, Failure) {
 
     // Test Search on unopened indexer
     auto query = vector_column_params::VectorData{
-        vector_column_params::DenseVector{.data = vector.data()}};
-    auto query_params = vector_column_params::QueryParams{
-        .topk = 10, .filter = nullptr, .fetch_vector = false};
+        vector_column_params::DenseVector{vector.data()}};
+    vector_column_params::QueryParams query_params;
+    query_params.topk = 10;
+    query_params.filter = nullptr;
+    query_params.fetch_vector = false;
     auto search_result = indexer->Search(query, query_params);
     ASSERT_FALSE(search_result.has_value());
     ASSERT_EQ(search_result.error().message(), "Index not opened");
@@ -2115,14 +2128,14 @@ TEST(VectorColumnIndexerTest, Failure) {
 
     // Test search with bf_pks size > 1
     auto query = vector_column_params::VectorData{
-        vector_column_params::DenseVector{.data = vector.data()}};
+        vector_column_params::DenseVector{vector.data()}};
     auto bf_pks1 = std::vector<uint64_t>{1, 2};
     auto bf_pks2 = std::vector<uint64_t>{3, 4};
-    auto query_params =
-        vector_column_params::QueryParams{.topk = 10,
-                                          .filter = nullptr,
-                                          .fetch_vector = false,
-                                          .bf_pks = {bf_pks1, bf_pks2}};
+    vector_column_params::QueryParams query_params;
+    query_params.topk = 10;
+    query_params.filter = nullptr;
+    query_params.fetch_vector = false;
+    query_params.bf_pks = {bf_pks1, bf_pks2};
 
     auto search_result = indexer->Search(query, query_params);
     ASSERT_FALSE(search_result.has_value());
@@ -2305,9 +2318,11 @@ TEST(VectorColumnIndexerTest, Failure) {
   //
   //   // Test search with unsupported index type
   //   auto query = vector_column_params::VectorData{
-  //       vector_column_params::DenseVector{.data = vector.data()}};
-  //   auto query_params = vector_column_params::QueryParams{
-  //       .topk = 10, .filter = nullptr, .fetch_vector = false};
+  //       vector_column_params::DenseVector{vector.data()}};
+  //   vector_column_params::QueryParams query_params;
+  //   query_params.topk = 10;
+  //   query_params.filter = nullptr;
+  //   query_params.fetch_vector = false;
   //
   //   auto search_result = indexer->Search(query, query_params);
   //   ASSERT_FALSE(search_result.has_value());
@@ -2465,8 +2480,10 @@ TEST(VectorColumnIndexerTest, CosineMerge) {
         // search with fetch vector
         auto query = vector_column_params::VectorData{
             vector_column_params::DenseVector{vector.data()}};
-        auto query_params = vector_column_params::QueryParams{
-            .topk = 10, .filter = nullptr, .fetch_vector = true};
+        vector_column_params::QueryParams query_params;
+        query_params.topk = 10;
+        query_params.filter = nullptr;
+        query_params.fetch_vector = true;
         auto results = indexer2->Search(query, query_params);
         ASSERT_TRUE(results.has_value());
         auto vector_results =
@@ -2624,15 +2641,14 @@ TEST(VectorColumnIndexerTest, Refiner) {
       auto data = vector_column_params::VectorData{
           vector_column_params::DenseVector{buffer.data.data()}};
       ;
-      auto query_params = vector_column_params::QueryParams{
-          .topk = kTopk,
-          .filter = nullptr,
-          .fetch_vector = true,
-          .query_params = std::make_shared<zvec::HnswQueryParams>(100),
-          .refiner_param = std::make_shared<vector_column_params::RefinerParam>(
-              vector_column_params::RefinerParam{
-                  .scale_factor_ = 10,
-                  .reference_indexer = reference_indexer})};
+      vector_column_params::QueryParams query_params;
+      query_params.topk = kTopk;
+      query_params.filter = nullptr;
+      query_params.fetch_vector = true;
+      query_params.query_params = std::make_shared<zvec::HnswQueryParams>(100);
+      query_params.refiner_param =
+          std::make_shared<vector_column_params::RefinerParam>(
+              vector_column_params::RefinerParam{10, reference_indexer});
       auto results = indexer->Search(data, query_params);
       ASSERT_TRUE(results.has_value());
       auto vector_results =
