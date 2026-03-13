@@ -138,8 +138,8 @@ class VecBufferPool {
 
 class VecBufferPoolHandle {
  public:
-  VecBufferPoolHandle(VecBufferPool &pool) : pool(pool) {}
-  VecBufferPoolHandle(VecBufferPoolHandle &&other) : pool(other.pool) {}
+  VecBufferPoolHandle(VecBufferPool &pool) : pool_(pool) {}
+  VecBufferPoolHandle(VecBufferPoolHandle &&other) : pool_(other.pool_) {}
 
   ~VecBufferPoolHandle() = default;
 
@@ -154,7 +154,7 @@ class VecBufferPoolHandle {
   void acquire_one(block_id_t block_id);
 
  private:
-  VecBufferPool &pool;
+  VecBufferPool &pool_;
 };
 
 }  // namespace ailego

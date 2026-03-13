@@ -212,15 +212,13 @@ class BufferStorage : public IndexStorage {
   }
 
   int ParseHeader(size_t offset) {
-    char *buffer = new char[sizeof(header_)];
-    if (get_meta(offset, sizeof(header_), buffer) != 0) {
+    std::unique_ptr<char[]> buffer(new char[sizeof(header_)]);
+    if (get_meta(offset, sizeof(header_), buffer.get()) != 0) {
       LOG_ERROR("Get segment header failed.");
-      delete[] buffer;
       return IndexError_Runtime;
     }
-    uint8_t *header_ptr = reinterpret_cast<uint8_t *>(buffer);
+    uint8_t *header_ptr = reinterpret_cast<uint8_t *>(buffer.get());
     memcpy(&header_, header_ptr, sizeof(header_));
-    delete[] buffer;
     if (header_.meta_header_size != sizeof(IndexFormat::MetaHeader)) {
       LOG_ERROR("Header meta size is invalid.");
       return IndexError_InvalidLength;
@@ -234,15 +232,13 @@ class BufferStorage : public IndexStorage {
   }
 
   int ParseFooter(size_t offset) {
-    char *buffer = new char[sizeof(footer_)];
-    if (get_meta(offset, sizeof(footer_), buffer) != 0) {
+    std::unique_ptr<char[]> buffer(new char[sizeof(footer_)]);
+    if (get_meta(offset, sizeof(footer_), buffer.get()) != 0) {
       LOG_ERROR("Get segment footer failed.");
-      delete[] buffer;
       return IndexError_Runtime;
     }
-    uint8_t *footer_ptr = reinterpret_cast<uint8_t *>(buffer);
+    uint8_t *footer_ptr = reinterpret_cast<uint8_t *>(buffer.get());
     memcpy(&footer_, footer_ptr, sizeof(footer_));
-    delete[] buffer;
     if (offset < (size_t)footer_.segments_meta_size) {
       LOG_ERROR("Footer meta size is invalid.");
       return IndexError_InvalidLength;
@@ -504,8 +500,8 @@ class BufferStorage : public IndexStorage {
   std::string file_name_;
   IndexFormat::MetaHeader header_{};
   IndexFormat::MetaFooter footer_{};
-  std::map<std::string, IndexMapping::SegmentInfo> segments_{};
-  std::map<std::string, size_t> id_hash_{};
+  std::unordered_map<std::string, IndexMapping::SegmentInfo> segments_{};
+  std::unordered_map<std::string, size_t> id_hash_{};
   uint64_t max_segment_size_{0};
   std::vector<std::unique_ptr<char[]>> buffer_pool_buffers_{};
 

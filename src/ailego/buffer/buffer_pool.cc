@@ -112,138 +112,152 @@ char *LPMap::evict_block(block_id_t block_id) {
 char *LPMap::set_block_acquired(block_id_t block_id, char *buffer) {
   assert(block_id < entry_num_);
   Entry &entry = entries_[block_id];
-  if (entry.ref_count.load(std::memory_order_relaxed) >= 0) {
-    entry.ref_count.fetch_add(1, std::memory_order_relaxed);
-    return entry.buffer;
-  }
-  entry.buffer = buffer;
-  entry.ref_count.store(1, std::memory_order_relaxed);
-  entry.load_count.fetch_add(1, std::memory_order_relaxed);
-  return buffer;
-}
-
-void LPMap::recycle(moodycamel::ConcurrentQueue<char *> &free_buffers) {
-  LRUCache::BlockType block;
-  do {
-    bool ok = cache_.evict_single_block(block);
-    if (!ok) {
-      return;
-    }
-  } while (isDeadBlock(block));
-  char *buffer = evict_block(block.first);
-  if (buffer) {
-    free_buffers.try_enqueue(buffer);
-  }
-}
-
-VecBufferPool::VecBufferPool(const std::string &filename) {
-  fd_ = open(filename.c_str(), O_RDONLY);
-  if (fd_ < 0) {
-    throw std::runtime_error("Failed to open file: " + filename);
-  }
-  struct stat st;
-  if (fstat(fd_, &st) < 0) {
-    ::close(fd_);
-    throw std::runtime_error("Failed to stat file: " + filename);
-  }
-  file_size_ = st.st_size;
-}
-
-int VecBufferPool::init(size_t pool_capacity, size_t block_size,
-                        size_t segment_count) {
-  if (block_size == 0) {
-    LOG_ERROR("block_size must not be 0");
-    return -1;
-  }
-  pool_capacity_ = pool_capacity;
-  size_t buffer_num = pool_capacity_ / block_size + 10;
-  size_t block_num = segment_count + 10;
-  lp_map_.init(block_num);
-  for (size_t i = 0; i < buffer_num; i++) {
-    char *buffer = (char *)ailego_malloc(block_size);
-    if (buffer != nullptr) {
-      free_buffers_.try_enqueue(buffer);
+  while (true) {
+    int current_count = entry.ref_count.load(std::memory_order_relaxed);
+    if (current_count >= 0) {
+      int expected = current_count;
+      if (entry.ref_count.compare_exchange_weak(expected, current_count + 1,
+                                                std::memory_order_acq_rel,
+                                                std::memory_order_acquire)) {
+        return entry.buffer;
+      }
+      continue;
     } else {
-      LOG_ERROR("aligned_alloc %zu(size: %zu) failed", i, block_size);
-      return -1;
-    }
-  }
-  LOG_DEBUG("Buffer pool num: %zu, entry num: %zu", buffer_num,
-            lp_map_.entry_num());
-  return 0;
-}
-
-VecBufferPoolHandle VecBufferPool::get_handle() {
-  return VecBufferPoolHandle(*this);
-}
-
-char *VecBufferPool::acquire_buffer(block_id_t block_id, size_t offset,
-                                    size_t size, int retry) {
-  char *buffer = lp_map_.acquire_block(block_id);
-  if (buffer) {
-    return buffer;
-  }
-  {
-    bool found = free_buffers_.try_dequeue(buffer);
-    if (!found) {
-      for (int i = 0; i < retry; i++) {
-        lp_map_.recycle(free_buffers_);
-        found = free_buffers_.try_dequeue(buffer);
-        if (found) {
-          break;
-        }
+      int expected = current_count;
+      if (entry.ref_count.compare_exchange_weak(expected, 1,
+                                                std::memory_order_acq_rel,
+                                                std::memory_order_acquire)) {
+        entry.buffer = buffer;
+        entry.load_count.fetch_add(1, std::memory_order_relaxed);
+        return entry.buffer;
       }
     }
-    if (!found) {
-      LOG_ERROR("Buffer pool failed to get free buffer");
-      return nullptr;
+  }
+}
+
+  void LPMap::recycle(moodycamel::ConcurrentQueue<char *> & free_buffers) {
+    LRUCache::BlockType block;
+    do {
+      bool ok = cache_.evict_single_block(block);
+      if (!ok) {
+        return;
+      }
+    } while (isDeadBlock(block));
+    char *buffer = evict_block(block.first);
+    if (buffer) {
+      free_buffers.try_enqueue(buffer);
     }
   }
 
-  ssize_t read_bytes = pread(fd_, buffer, size, offset);
-  if (read_bytes != static_cast<ssize_t>(size)) {
-    LOG_ERROR("Buffer pool failed to read file at offset: %zu", offset);
-    free_buffers_.try_enqueue(buffer);
-    return nullptr;
+  VecBufferPool::VecBufferPool(const std::string &filename) {
+    fd_ = open(filename.c_str(), O_RDONLY);
+    if (fd_ < 0) {
+      throw std::runtime_error("Failed to open file: " + filename);
+    }
+    struct stat st;
+    if (fstat(fd_, &st) < 0) {
+      ::close(fd_);
+      throw std::runtime_error("Failed to stat file: " + filename);
+    }
+    file_size_ = st.st_size;
   }
-  char *placed_buffer = nullptr;
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    placed_buffer = lp_map_.set_block_acquired(block_id, buffer);
+
+  int VecBufferPool::init(size_t pool_capacity, size_t block_size,
+                          size_t segment_count) {
+    if (block_size == 0) {
+      LOG_ERROR("block_size must not be 0");
+      return -1;
+    }
+    pool_capacity_ = pool_capacity;
+    size_t buffer_num = pool_capacity_ / block_size + 10;
+    size_t block_num = segment_count + 10;
+    lp_map_.init(block_num);
+    for (size_t i = 0; i < buffer_num; i++) {
+      char *buffer = (char *)ailego_malloc(block_size);
+      if (buffer != nullptr) {
+        free_buffers_.try_enqueue(buffer);
+      } else {
+        LOG_ERROR("aligned_alloc %zu(size: %zu) failed", i, block_size);
+        return -1;
+      }
+    }
+    LOG_DEBUG("Buffer pool num: %zu, entry num: %zu", buffer_num,
+              lp_map_.entry_num());
+    return 0;
   }
-  if (placed_buffer != buffer) {
-    // another thread has set the block
-    free_buffers_.try_enqueue(buffer);
+
+  VecBufferPoolHandle VecBufferPool::get_handle() {
+    return VecBufferPoolHandle(*this);
   }
-  return placed_buffer;
-}
 
-int VecBufferPool::get_meta(size_t offset, size_t length, char *buffer) {
-  ssize_t read_bytes = pread(fd_, buffer, length, offset);
-  if (read_bytes != static_cast<ssize_t>(length)) {
-    LOG_ERROR("Buffer pool failed to read file at offset: %zu", offset);
-    return -1;
+  char *VecBufferPool::acquire_buffer(block_id_t block_id, size_t offset,
+                                      size_t size, int retry) {
+    char *buffer = lp_map_.acquire_block(block_id);
+    if (buffer) {
+      return buffer;
+    }
+    {
+      bool found = free_buffers_.try_dequeue(buffer);
+      if (!found) {
+        for (int i = 0; i < retry; i++) {
+          lp_map_.recycle(free_buffers_);
+          found = free_buffers_.try_dequeue(buffer);
+          if (found) {
+            break;
+          }
+        }
+      }
+      if (!found) {
+        LOG_ERROR("Buffer pool failed to get free buffer");
+        return nullptr;
+      }
+    }
+
+    ssize_t read_bytes = pread(fd_, buffer, size, offset);
+    if (read_bytes != static_cast<ssize_t>(size)) {
+      LOG_ERROR("Buffer pool failed to read file at offset: %zu", offset);
+      free_buffers_.try_enqueue(buffer);
+      return nullptr;
+    }
+    char *placed_buffer = nullptr;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      placed_buffer = lp_map_.set_block_acquired(block_id, buffer);
+    }
+    if (placed_buffer != buffer) {
+      // another thread has set the block
+      free_buffers_.try_enqueue(buffer);
+    }
+    return placed_buffer;
   }
-  return 0;
-}
 
-char *VecBufferPoolHandle::get_block(size_t offset, size_t size,
-                                     size_t block_id) {
-  char *buffer = pool.acquire_buffer(block_id, offset, size, 5);
-  return buffer;
-}
+  int VecBufferPool::get_meta(size_t offset, size_t length, char *buffer) {
+    ssize_t read_bytes = pread(fd_, buffer, length, offset);
+    if (read_bytes != static_cast<ssize_t>(length)) {
+      LOG_ERROR("Buffer pool failed to read file at offset: %zu", offset);
+      return -1;
+    }
+    return 0;
+  }
 
-int VecBufferPoolHandle::get_meta(size_t offset, size_t length, char *buffer) {
-  return pool.get_meta(offset, length, buffer);
-}
+  char *VecBufferPoolHandle::get_block(size_t offset, size_t size,
+                                       size_t block_id) {
+    char *buffer = pool_.acquire_buffer(block_id, offset, size, 5);
+    return buffer;
+  }
 
-void VecBufferPoolHandle::release_one(block_id_t block_id) {
-  pool.lp_map_.release_block(block_id);
-}
+  int VecBufferPoolHandle::get_meta(size_t offset, size_t length,
+                                    char *buffer) {
+    return pool_.get_meta(offset, length, buffer);
+  }
 
-void VecBufferPoolHandle::acquire_one(block_id_t block_id) {
-  pool.lp_map_.acquire_block(block_id);
-}
+  void VecBufferPoolHandle::release_one(block_id_t block_id) {
+    pool_.lp_map_.release_block(block_id);
+  }
+
+  void VecBufferPoolHandle::acquire_one(block_id_t block_id) {
+    pool_.lp_map_.acquire_block(block_id);
+  }
 
 }  // namespace ailego
 }  // namespace zvec
