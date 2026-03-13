@@ -1651,10 +1651,12 @@ TEST_F(HnswStreamerTest, TestDumpIndexAndAdd) {
   IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dim);
   ASSERT_NE(nullptr, ctx);
   int code = 0;
-  std::mutex mutex;
-  auto addVector = [&](int a, int b) {
+  std::atomic<bool> async_started{false};
+  auto addVector = [&](int a, int b, bool signal_start) {
     int success = 0;
-    mutex.unlock();
+    if (signal_start) {
+      async_started.store(true, std::memory_order_release);
+    }
     for (int i = a; i < b; i++) {
       for (size_t j = 0; j < dim; ++j) {
         vec[j] = i;
@@ -1671,18 +1673,17 @@ TEST_F(HnswStreamerTest, TestDumpIndexAndAdd) {
     }
     std::cout << "addVector: " << success << " success" << std::endl;
   };
-  mutex.lock();
-  addVector(0, 2000);
-  mutex.lock();
-  auto t2 = std::async(std::launch::async, addVector, 2000, 3000);
+  addVector(0, 2000, false);
+  auto t2 = std::async(std::launch::async, addVector, 2000, 3000, true);
   auto path1 = dir_ + "/dumpIndex1";
   auto dumper1 = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper1, nullptr);
   ASSERT_EQ(0, dumper1->create(path1));
-  mutex.lock();  // sync: wait addVector start and release lock
+  while (!async_started.load(std::memory_order_acquire)) {
+    std::this_thread::yield();
+  }
   auto test_dumper = std::make_shared<TestDumper>();
   ASSERT_EQ(0, streamer->dump(test_dumper));
-  mutex.unlock();
   ASSERT_EQ(0, streamer->dump(dumper1));
   ASSERT_EQ(0, dumper1->close());
   t2.get();
