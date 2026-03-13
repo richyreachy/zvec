@@ -187,7 +187,7 @@ skip = ["*-manylinux_i686", "*-musllinux*"]
 
 [tool.cibuildwheel.macos]
 archs = ["arm64"]
-environment = { MACOSX_DEPLOYMENT_TARGET = "11.0" }
+environment = { CMAKE_GENERATOR = "Unix Makefiles", CMAKE_BUILD_PARALLEL_LEVEL = "32", MACOSX_DEPLOYMENT_TARGET = "11.0" }
 ######################################################################################################
 # CODE QUALITY & FORMATTING (Ruff)
 ######################################################################################################
