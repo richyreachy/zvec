@@ -22,6 +22,7 @@
 #include <zvec/ailego/container/vector.h>
 #include "zvec/core/framework/index_factory.h"
 #include "zvec/core/framework/index_meta.h"
+#include "zvec/ailego/utility/file_helper.h"
 
 using namespace zvec::core;
 using namespace zvec::ailego;
@@ -47,7 +48,7 @@ class FlatSparseSearcherTest : public testing::Test {
   static std::shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string FlatSparseSearcherTest::dir_("searcher_test/");
+std::string FlatSparseSearcherTest::dir_("searcher_test");
 std::shared_ptr<IndexMeta> FlatSparseSearcherTest::index_meta_ptr_;
 
 void FlatSparseSearcherTest::generate_sparse_data(
@@ -87,15 +88,11 @@ void FlatSparseSearcherTest::SetUp(void) {
                                       IndexMeta::DataType::DT_FP32));
   index_meta_ptr_->set_metric("InnerProductSparse", 0, Params());
 
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  zvec::ailego::FileHelper::RemovePath(dir_.c_str());
 }
 
 void FlatSparseSearcherTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  zvec::ailego::FileHelper::RemovePath(dir_.c_str());
 }
 
 TEST_F(FlatSparseSearcherTest, TestGeneral) {
@@ -662,7 +659,7 @@ TEST_F(FlatSparseSearcherTest, TestMultiThread) {
   ASSERT_NE(nullptr, storage);
   Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TessKnnMultiThread", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TessKnnMultiThread", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   auto addVector = [&streamer](int baseKey, size_t addCnt) {

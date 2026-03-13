@@ -21,6 +21,7 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
 #include "zvec/core/framework/index_framework.h"
+#include "zvec/ailego/utility/file_helper.h"
 #include "hnsw_sparse_params.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
@@ -50,7 +51,7 @@ class HnswSparseSearcherTest : public testing::Test {
   static shared_ptr<IndexMeta> _index_meta_ptr;
 };
 
-std::string HnswSparseSearcherTest::dir_("HnswSparseSearcherTest/");
+std::string HnswSparseSearcherTest::dir_("HnswSparseSearcherTest");
 shared_ptr<IndexMeta> HnswSparseSearcherTest::_index_meta_ptr;
 
 void HnswSparseSearcherTest::generate_sparse_data(
@@ -90,9 +91,7 @@ void HnswSparseSearcherTest::SetUp(void) {
 }
 
 void HnswSparseSearcherTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  zvec::ailego::FileHelper::RemovePath(dir_.c_str());
 }
 
 TEST_F(HnswSparseSearcherTest, TestGeneral) {

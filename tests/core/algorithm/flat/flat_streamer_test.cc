@@ -24,6 +24,7 @@
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_streamer.h>
 #include "algorithm/flat/flat_utility.h"
+#include "zvec/ailego/utility/file_helper.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -47,7 +48,7 @@ class FlatStreamerTest : public testing::Test {
   static std::shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string FlatStreamerTest::dir_("streamer_test/");
+std::string FlatStreamerTest::dir_("flat_streamer_test_dir");
 std::shared_ptr<IndexMeta> FlatStreamerTest::index_meta_ptr_;
 
 void FlatStreamerTest::SetUp(void) {
@@ -55,15 +56,19 @@ void FlatStreamerTest::SetUp(void) {
                             IndexMeta(IndexMeta::DataType::DT_FP32, dim));
   index_meta_ptr_->set_metric("SquaredEuclidean", 0, Params());
 
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
+#endif
+  }
 }
 
 void FlatStreamerTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
+#endif
+  }
 }
 
 TEST_F(FlatStreamerTest, TestAddVector) {
@@ -362,9 +367,9 @@ TEST_F(FlatStreamerTest, TestOpenClose) {
   ASSERT_NE(nullptr, storage2);
   Params stg_params;
   ASSERT_EQ(0, storage1->init(stg_params));
-  ASSERT_EQ(0, storage1->open(dir_ + "TestOpenAndClose1", true));
+  ASSERT_EQ(0, storage1->open(dir_ + "/TestOpenAndClose1", true));
   ASSERT_EQ(0, storage2->init(stg_params));
-  ASSERT_EQ(0, storage2->open(dir_ + "TestOpenAndClose2", true));
+  ASSERT_EQ(0, storage2->open(dir_ + "/TestOpenAndClose2", true));
   ASSERT_EQ(0, streamer->init(meta, params));
   auto checkIter = [](size_t base, size_t total,
                       IndexStreamer::Pointer &streamer) {
@@ -520,7 +525,7 @@ TEST_F(FlatStreamerTest, TestMultiThread) {
   ASSERT_NE(nullptr, storage);
   Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TessKnnMultiThread", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TessKnnMultiThread", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   auto addVector = [&streamer](int baseKey, size_t addCnt) {
@@ -633,7 +638,7 @@ TEST_F(FlatStreamerTest, TestConcurrentAddAndSearch) {
   ASSERT_NE(nullptr, storage);
   Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TessKnnConcurrentAddAndSearch", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TessKnnConcurrentAddAndSearch", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   auto addVector = [&streamer](int baseKey, size_t addCnt) {
@@ -739,7 +744,7 @@ TEST_F(FlatStreamerTest, TestFilter) {
   ASSERT_NE(nullptr, storage);
   Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TessFilter", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TessFilter", true));
   ASSERT_EQ(0, streamer->open(storage));
 
 
@@ -814,7 +819,7 @@ TEST_F(FlatStreamerTest, TestMaxIndexSize) {
   ASSERT_NE(nullptr, storage);
   Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TessMaxIndexSize", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TessMaxIndexSize", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   size_t vsz0 = 0;
@@ -863,7 +868,7 @@ TEST_F(FlatStreamerTest, TestCleanUp) {
   ASSERT_NE(nullptr, storage1);
   Params stg_params;
   ASSERT_EQ(0, storage1->init(stg_params));
-  ASSERT_EQ(0, storage1->open(dir_ + "TessKnnCluenUp1", true));
+  ASSERT_EQ(0, storage1->open(dir_ + "/TessKnnCluenUp1", true));
   Params params;
   constexpr size_t static dim1 = 32;
   IndexMeta meta1(IndexMeta::DataType::DT_FP32, dim1);
@@ -880,7 +885,7 @@ TEST_F(FlatStreamerTest, TestCleanUp) {
   auto storage2 = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_NE(nullptr, storage2);
   ASSERT_EQ(0, storage2->init(stg_params));
-  ASSERT_EQ(0, storage2->open(dir_ + "TessKnnCluenUp2", true));
+  ASSERT_EQ(0, storage2->open(dir_ + "/TessKnnCluenUp2", true));
   constexpr size_t static dim2 = 64;
   IndexMeta meta2(IndexMeta::DataType::DT_FP32, dim2);
   meta2.set_metric("SquaredEuclidean", 0, Params());
@@ -903,7 +908,7 @@ TEST_F(FlatStreamerTest, TestBloomFilter) {
   ASSERT_NE(nullptr, storage);
   Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestBloomFilter", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestBloomFilter", true));
   Params params;
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));

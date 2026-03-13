@@ -52,9 +52,11 @@ using SegmentID = uint32_t;
 class WalFileTest : public testing::Test {
  protected:
   void SetUp() {
-    char cmd_buf[100];
-    snprintf(cmd_buf, 100, "rm -rf ./data.wal.*");
-    system(cmd_buf);
+#ifdef _WIN32
+    system("del /f /q .\\data.wal.*");
+#else
+    system("rm -rf ./data.wal.*");
+#endif
   }
 
   void TearDown() {}

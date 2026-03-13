@@ -17,6 +17,7 @@
 #include <iostream>
 #include <vector>
 #include <gtest/gtest.h>
+#include "zvec/ailego/utility/file_helper.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -54,9 +55,7 @@ void FlatBuilderTest::SetUp(void) {
 
 //! self-check column-major and row-major search.
 void FlatBuilderTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  zvec::ailego::FileHelper::RemovePath(dir_.c_str());
 }
 
 void build_process(IndexBuilder::Pointer &builder,

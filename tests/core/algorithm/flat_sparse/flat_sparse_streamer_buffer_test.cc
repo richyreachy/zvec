@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstdlib>
 #include <string>
 #include <vector>
 #include <ailego/math/norm2_matrix.h>
@@ -22,6 +23,7 @@
 #include <zvec/ailego/buffer/buffer_manager.h>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_streamer.h>
+#include "zvec/ailego/utility/file_helper.h"
 
 using namespace std;
 using namespace testing;
@@ -48,7 +50,7 @@ class FlatSparseStreamerTest : public testing::Test {
   static shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string FlatSparseStreamerTest::dir_("FlatSparseStreamerTest/");
+std::string FlatSparseStreamerTest::dir_("FlatSparseStreamerTest");
 shared_ptr<IndexMeta> FlatSparseStreamerTest::index_meta_ptr_;
 
 void FlatSparseStreamerTest::generate_sparse_data(
@@ -86,15 +88,19 @@ void FlatSparseStreamerTest::SetUp(void) {
                                                 IndexMeta::DataType::DT_FP32));
   index_meta_ptr_->set_metric("InnerProductSparse", 0, ailego::Params());
 
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
+#endif
+  }
 }
 
 void FlatSparseStreamerTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
+#endif
+  }
 }
 
 TEST_F(FlatSparseStreamerTest, TestGeneral) {

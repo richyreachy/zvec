@@ -19,6 +19,7 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
 #include "zvec/core/framework/index_framework.h"
+#include "zvec/ailego/utility/file_helper.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -52,9 +53,7 @@ void HnswBuilderTest::SetUp(void) {
 }
 
 void HnswBuilderTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", _dir.c_str());
-  system(cmdBuf);
+  zvec::ailego::FileHelper::RemovePath(_dir.c_str());
 }
 
 TEST_F(HnswBuilderTest, TestGeneral) {

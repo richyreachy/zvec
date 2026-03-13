@@ -17,6 +17,7 @@
 #include <iostream>
 #include <vector>
 #include <gtest/gtest.h>
+#include "zvec/ailego/utility/file_helper.h"
 
 using namespace zvec::core;
 using namespace zvec::ailego;
@@ -46,9 +47,7 @@ void FlatSparseBuilderTest::SetUp(void) {
 }
 
 void FlatSparseBuilderTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", _dir.c_str());
-  system(cmdBuf);
+  zvec::ailego::FileHelper::RemovePath(_dir.c_str());
 }
 
 TEST_F(FlatSparseBuilderTest, TestGeneral) {

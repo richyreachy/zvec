@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <future>
 #include <string>
 #include <vector>
@@ -7,6 +8,7 @@
 #include <zvec/ailego/buffer/buffer_manager.h>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_streamer.h>
+#include "zvec/ailego/utility/file_helper.h"
 
 using namespace zvec::core;
 using namespace zvec::ailego;
@@ -30,7 +32,7 @@ class FlatStreamerTest : public testing::Test {
   static std::shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string FlatStreamerTest::dir_("streamer_test/");
+std::string FlatStreamerTest::dir_("flat_streamer_buffer_time_test_dir");
 std::shared_ptr<IndexMeta> FlatStreamerTest::index_meta_ptr_;
 
 void FlatStreamerTest::SetUp(void) {
@@ -38,15 +40,19 @@ void FlatStreamerTest::SetUp(void) {
                             IndexMeta(IndexMeta::DataType::DT_FP32, dim));
   index_meta_ptr_->set_metric("SquaredEuclidean", 0, Params());
 
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
+#endif
+  }
 }
 
 void FlatStreamerTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
+#endif
+  }
 }
 
 TEST_F(FlatStreamerTest, TestLinearSearchMMap) {

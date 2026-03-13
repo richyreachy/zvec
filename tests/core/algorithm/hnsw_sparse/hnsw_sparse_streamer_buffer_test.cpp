@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include <cstdlib>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -21,6 +22,7 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
 #include "hnsw_sparse_streamer.h"
+#include "zvec/ailego/utility/file_helper.h"
 
 using namespace std;
 using namespace testing;
@@ -47,7 +49,7 @@ class HnswSparseStreamerTest : public testing::Test {
   static shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string HnswSparseStreamerTest::dir_("HnswSparseStreamerTest/");
+std::string HnswSparseStreamerTest::dir_("hnsw_sparse_streamer_buffer_test_dir");
 shared_ptr<IndexMeta> HnswSparseStreamerTest::index_meta_ptr_;
 
 void HnswSparseStreamerTest::generate_sparse_data(
@@ -85,15 +87,19 @@ void HnswSparseStreamerTest::SetUp(void) {
                                                 IndexMeta::DataType::DT_FP32));
   index_meta_ptr_->set_metric("InnerProductSparse", 0, ailego::Params());
 
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
+#endif
+  }
 }
 
 void HnswSparseStreamerTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
+#endif
+  }
 }
 
 TEST_F(HnswSparseStreamerTest, TestGeneral) {

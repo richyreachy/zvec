@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <future>
 #include <string>
 #include <vector>
@@ -8,6 +9,7 @@
 #include <zvec/ailego/buffer/buffer_manager.h>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_streamer.h>
+#include "zvec/ailego/utility/file_helper.h"
 
 using namespace zvec::core;
 using namespace zvec::ailego;
@@ -31,7 +33,7 @@ class HnswStreamerTest : public testing::Test {
   static std::shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string HnswStreamerTest::dir_("streamer_test/");
+std::string HnswStreamerTest::dir_("hnsw_streamer_buffer_test_dir");
 std::shared_ptr<IndexMeta> HnswStreamerTest::index_meta_ptr_;
 
 void HnswStreamerTest::SetUp(void) {
@@ -39,15 +41,19 @@ void HnswStreamerTest::SetUp(void) {
                             IndexMeta(IndexMeta::DataType::DT_FP32, dim));
   index_meta_ptr_->set_metric("SquaredEuclidean", 0, Params());
 
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
+#endif
+  }
 }
 
 void HnswStreamerTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
+#endif
+  }
 }
 
 TEST_F(HnswStreamerTest, TestHnswSearch) {
@@ -82,6 +88,7 @@ TEST_F(HnswStreamerTest, TestHnswSearch) {
   write_streamer->flush(0UL);
   write_streamer->close();
   write_streamer.reset();
+  storage->close();
 
   IndexStreamer::Pointer read_streamer =
       IndexFactory::CreateStreamer("HnswStreamer");

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "hnsw_sparse_builder.h"
+#include <cstdlib>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -19,6 +20,7 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
 #include "zvec/core/framework/index_framework.h"
+#include "zvec/ailego/utility/file_helper.h"
 #include "hnsw_sparse_params.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
@@ -52,9 +54,11 @@ void HnswSparseBuilderTest::SetUp(void) {
 }
 
 void HnswSparseBuilderTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", _dir.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(_dir.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + _dir + " 2>NUL").c_str());
+#endif
+  }
 }
 
 TEST_F(HnswSparseBuilderTest, TestGeneral) {

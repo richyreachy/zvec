@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "hnsw_streamer.h"
+#include <atomic>
 #include <sys/stat.h>
 #include <sys/types.h>
 #ifndef _MSC_VER
@@ -27,11 +28,13 @@ inline void usleep(unsigned int microseconds) {
   std::this_thread::sleep_for(std::chrono::microseconds(microseconds));
 }
 #endif
+#include <cstdlib>
 #include <future>
 #include <iostream>
 #include <memory>
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
+#include "zvec/ailego/utility/file_helper.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -56,7 +59,7 @@ class HnswStreamerTest : public testing::Test {
   static shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string HnswStreamerTest::dir_("streamer_test/");
+std::string HnswStreamerTest::dir_("hnsw_streamer_test_dir");
 shared_ptr<IndexMeta> HnswStreamerTest::index_meta_ptr_;
 
 void HnswStreamerTest::SetUp(void) {
@@ -64,15 +67,19 @@ void HnswStreamerTest::SetUp(void) {
                             IndexMeta(IndexMeta::DataType::DT_FP32, dim));
   index_meta_ptr_->set_metric("SquaredEuclidean", 0, ailego::Params());
 
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
+#endif
+  }
 }
 
 void HnswStreamerTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
-  system(cmdBuf);
+  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
+#ifdef _WIN32
+    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
+#endif
+  }
 }
 
 TEST_F(HnswStreamerTest, TestAddVector) {
@@ -573,9 +580,9 @@ TEST_F(HnswStreamerTest, TestOpenClose) {
   ASSERT_NE(nullptr, storage2);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage1->init(stg_params));
-  ASSERT_EQ(0, storage1->open(dir_ + "TessOpenAndClose1", true));
+  ASSERT_EQ(0, storage1->open(dir_ + "/TessOpenAndClose1", true));
   ASSERT_EQ(0, storage2->init(stg_params));
-  ASSERT_EQ(0, storage2->open(dir_ + "TessOpenAndClose2", true));
+  ASSERT_EQ(0, storage2->open(dir_ + "/TessOpenAndClose2", true));
   ASSERT_EQ(0, streamer->init(meta, params));
   auto checkIter = [](size_t base, size_t total,
                       IndexStreamer::Pointer &streamer) {
@@ -806,7 +813,7 @@ TEST_F(HnswStreamerTest, TestKnnMultiThread) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TessKnnMultiThread", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TessKnnMultiThread", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   auto addVector = [&streamer](int baseKey, size_t addCnt) {
@@ -932,7 +939,7 @@ TEST_F(HnswStreamerTest, TestKnnConcurrentAddAndSearch) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TessKnnConcurrentAddAndSearch", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TessKnnConcurrentAddAndSearch", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   auto addVector = [&streamer](int baseKey, size_t addCnt) {
@@ -1043,7 +1050,7 @@ TEST_F(HnswStreamerTest, TestBfThreshold) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TessBfThreshold", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TessBfThreshold", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   NumericalVector<float> vec(dim);
@@ -1120,7 +1127,7 @@ TEST_F(HnswStreamerTest, TestFilter) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TessFilter", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TessFilter", true));
   ASSERT_EQ(0, streamer->open(storage));
 
 
@@ -1199,7 +1206,7 @@ TEST_F(HnswStreamerTest, TestMaxIndexSize) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TessMaxIndexSize", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TessMaxIndexSize", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   size_t vsz0 = 0;
@@ -1243,7 +1250,7 @@ TEST_F(HnswStreamerTest, TestKnnCleanUp) {
   ASSERT_NE(nullptr, storage1);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage1->init(stg_params));
-  ASSERT_EQ(0, storage1->open(dir_ + "TessKnnCluenUp1", true));
+  ASSERT_EQ(0, storage1->open(dir_ + "/TessKnnCluenUp1", true));
   ailego::Params params;
   constexpr size_t static dim1 = 32;
   IndexMeta meta1(IndexMeta::DataType::DT_FP32, dim1);
@@ -1260,7 +1267,7 @@ TEST_F(HnswStreamerTest, TestKnnCleanUp) {
   auto storage2 = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_NE(nullptr, storage2);
   ASSERT_EQ(0, storage2->init(stg_params));
-  ASSERT_EQ(0, storage2->open(dir_ + "TessKnnCluenUp2", true));
+  ASSERT_EQ(0, storage2->open(dir_ + "/TessKnnCluenUp2", true));
   constexpr size_t static dim2 = 64;
   IndexMeta meta2(IndexMeta::DataType::DT_FP32, dim2);
   meta2.set_metric("SquaredEuclidean", 0, ailego::Params());
@@ -1283,7 +1290,7 @@ TEST_F(HnswStreamerTest, TestIndexSizeQuota) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestIndexSizeQuota", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestIndexSizeQuota", true));
   ailego::Params params;
   constexpr size_t static dim = 512;
   IndexMeta meta(IndexMeta::DataType::DT_FP32, dim);
@@ -1320,7 +1327,7 @@ TEST_F(HnswStreamerTest, TestBloomFilter) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestBloomFilter", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestBloomFilter", true));
   ailego::Params params;
   params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 10);
   params.set(PARAM_HNSW_STREAMER_SCALING_FACTOR, 16);
@@ -1359,7 +1366,7 @@ TEST_F(HnswStreamerTest, TestStreamerParams) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestStreamerParams", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestStreamerParams", true));
   ailego::Params params;
   params.set("proxima.hnsw.streamer.docs_hard_limit", 5);
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
@@ -1388,7 +1395,7 @@ TEST_F(HnswStreamerTest, TestCheckCrc)
     ASSERT_NE(nullptr, storage);
     ailego::Params stg_params;
     ASSERT_EQ(0, storage->init(stg_params));
-    std::string path = dir_ + "TestCheckCrc";
+    std::string path = dir_ + "/TestCheckCrc";
     ASSERT_EQ(0, storage->open(path, true));
     ailego::Params params;
     params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 10);
@@ -1566,7 +1573,7 @@ TEST_F(HnswStreamerTest, TestCheckDuplicateAndGetVector) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestCheckDuplicateAndGetVec", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestCheckDuplicateAndGetVec", true));
   ailego::Params params;
   params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 10);
   params.set(PARAM_HNSW_STREAMER_SCALING_FACTOR, 5);
@@ -1639,7 +1646,7 @@ TEST_F(HnswStreamerTest, TestDumpIndexAndAdd) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestDumpIndexAndAdd", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestDumpIndexAndAdd", true));
   ailego::Params params;
   params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 10);
   params.set(PARAM_HNSW_STREAMER_SCALING_FACTOR, 5);
@@ -1738,7 +1745,7 @@ TEST_F(HnswStreamerTest, TestProvider) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestGetVector", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestGetVector", true));
   ailego::Params params;
   params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 10);
   params.set(PARAM_HNSW_STREAMER_SCALING_FACTOR, 5);
@@ -1863,9 +1870,9 @@ TEST_F(HnswStreamerTest, TestSharedContext) {
     streamer->open(storage);
     return streamer;
   };
-  auto streamer1 = create_streamer(dir_ + "TestSharedContext.index1");
-  auto streamer2 = create_streamer(dir_ + "TestSharedContext.index2");
-  auto streamer3 = create_streamer(dir_ + "TestSharedContext.index3");
+  auto streamer1 = create_streamer(dir_ + "/TestSharedContext.index1");
+  auto streamer2 = create_streamer(dir_ + "/TestSharedContext.index2");
+  auto streamer3 = create_streamer(dir_ + "/TestSharedContext.index3");
 
   srand(ailego::Realtime::MilliSeconds());
   IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dim);
@@ -1948,7 +1955,7 @@ TEST_F(HnswStreamerTest, TestMipsEuclideanMetric) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestMipsSquaredEuclidean", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestMipsSquaredEuclidean", true));
   const size_t COUNT = 10000;
   IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dim);
   {

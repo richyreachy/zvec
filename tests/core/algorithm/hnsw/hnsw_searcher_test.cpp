@@ -24,6 +24,7 @@
 #include "zvec/core/framework/index_factory.h"
 #include "zvec/core/framework/index_meta.h"
 #include "hnsw_params.h"
+#include "zvec/ailego/utility/file_helper.h"
 
 using namespace std;
 using namespace testing;
@@ -48,7 +49,7 @@ class HnswSearcherTest : public testing::Test {
   static shared_ptr<IndexMeta> _index_meta_ptr;
 };
 
-std::string HnswSearcherTest::_dir("HnswSearcherTest/");
+std::string HnswSearcherTest::_dir("HnswSearcherTest");
 shared_ptr<IndexMeta> HnswSearcherTest::_index_meta_ptr;
 
 void HnswSearcherTest::SetUp(void) {
@@ -58,9 +59,7 @@ void HnswSearcherTest::SetUp(void) {
 }
 
 void HnswSearcherTest::TearDown(void) {
-  char cmdBuf[100];
-  snprintf(cmdBuf, 100, "rm -rf %s", _dir.c_str());
-  system(cmdBuf);
+  zvec::ailego::FileHelper::RemovePath(_dir.c_str());
 }
 
 TEST_F(HnswSearcherTest, TestRnnSearch) {
