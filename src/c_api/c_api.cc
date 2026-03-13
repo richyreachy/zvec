@@ -16,7 +16,9 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <map>
 #include <memory>
@@ -30,6 +32,150 @@
 #include <zvec/db/doc.h>
 #include <zvec/db/index_params.h>
 #include <zvec/db/schema.h>
+
+// =============================================================================
+// RAII Helpers and Error Handling Macros
+// =============================================================================
+
+namespace {
+
+// RAII guard for malloc-allocated memory
+template <typename T>
+struct MallocGuard {
+  T* ptr;
+  explicit MallocGuard(T* p = nullptr) : ptr(p) {}
+  ~MallocGuard() { if (ptr) std::free(ptr); }
+  MallocGuard(const MallocGuard&) = delete;
+  MallocGuard& operator=(const MallocGuard&) = delete;
+  MallocGuard(MallocGuard&& other) noexcept : ptr(other.ptr) { other.ptr = nullptr; }
+  MallocGuard& operator=(MallocGuard&& other) noexcept {
+    if (this != &other) {
+      if (ptr) std::free(ptr);
+      ptr = other.ptr;
+      other.ptr = nullptr;
+    }
+    return *this;
+  }
+  T* get() const { return ptr; }
+  T* release() { T* p = ptr; ptr = nullptr; return p; }
+  T** ptr_ptr() { return &ptr; }
+};
+
+// RAII guard for C++ objects allocated with new
+template <typename T>
+struct DeleteGuard {
+  T* ptr;
+  explicit DeleteGuard(T* p = nullptr) : ptr(p) {}
+  ~DeleteGuard() { delete ptr; }
+  DeleteGuard(const DeleteGuard&) = delete;
+  DeleteGuard& operator=(const DeleteGuard&) = delete;
+  DeleteGuard(DeleteGuard&& other) noexcept : ptr(other.ptr) { other.ptr = nullptr; }
+  T* get() const { return ptr; }
+  T* release() { T* p = ptr; ptr = nullptr; return p; }
+};
+
+// RAII guard for array allocated with new[]
+template <typename T>
+struct DeleteArrayGuard {
+  T* ptr;
+  explicit DeleteArrayGuard(T* p = nullptr) : ptr(p) {}
+  ~DeleteArrayGuard() { delete[] ptr; }
+  DeleteArrayGuard(const DeleteArrayGuard&) = delete;
+  DeleteArrayGuard& operator=(const DeleteArrayGuard&) = delete;
+  DeleteArrayGuard(DeleteArrayGuard&& other) noexcept : ptr(other.ptr) { other.ptr = nullptr; }
+  T* get() const { return ptr; }
+  T* release() { T* p = ptr; ptr = nullptr; return p; }
+};
+
+} // namespace
+
+// Error checking macros - these preserve __LINE__ accuracy
+#define ZVEC_CHECK_NOTNULL(ptr, error_code, msg) \
+  if (!(ptr)) { \
+    set_last_error_details(error_code, msg, __FILE__, __LINE__, __FUNCTION__); \
+    return nullptr; \
+  }
+
+#define ZVEC_CHECK_NOTNULL_ERRCODE(ptr, error_code, msg) \
+  if (!(ptr)) { \
+    set_last_error_details(error_code, msg, __FILE__, __LINE__, __FUNCTION__); \
+    return (error_code); \
+  }
+
+#define ZVEC_CHECK_COND(cond, error_code, msg) \
+  if (cond) { \
+    set_last_error_details(error_code, msg, __FILE__, __LINE__, __FUNCTION__); \
+    return nullptr; \
+  }
+
+#define ZVEC_CHECK_COND_ERRCODE(cond, error_code, msg) \
+  if (cond) { \
+    set_last_error_details(error_code, msg, __FILE__, __LINE__, __FUNCTION__); \
+    return (error_code); \
+  }
+
+// For void functions (no return value):
+#define ZVEC_TRY_BEGIN_VOID \
+  try {
+#define ZVEC_CATCH_END_VOID \
+  } \
+  catch (const std::exception &e) { \
+    set_last_error(std::string("Exception: ") + e.what()); \
+  }
+
+// For functions returning pointer - complete try-catch wrapper
+// Usage: ZVEC_TRY_RETURN_NULL("error msg", code...)
+// Note: Use variadic macro to handle commas in template arguments
+#define ZVEC_TRY_RETURN_NULL(msg, ...) \
+  try { { __VA_ARGS__ } } \
+  catch (const std::bad_alloc &e) { \
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED, \
+                           std::string(msg) + ": " + e.what(), \
+                           __FILE__, __LINE__, __FUNCTION__); \
+    return nullptr; \
+  } \
+  catch (const std::exception &e) { \
+    set_last_error_details(ZVEC_ERROR_INTERNAL_ERROR, \
+                           std::string(msg) + ": " + e.what(), \
+                           __FILE__, __LINE__, __FUNCTION__); \
+    return nullptr; \
+  }
+
+// For functions returning ErrorCode
+// Usage: ZVEC_TRY_RETURN_ERROR("error msg", code...)
+// Note: Use variadic macro to handle commas in template arguments
+#define ZVEC_TRY_RETURN_ERROR(msg, ...) \
+  try { { __VA_ARGS__ } } \
+  catch (const std::bad_alloc &e) { \
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED, \
+                           std::string(msg) + ": " + e.what(), \
+                           __FILE__, __LINE__, __FUNCTION__); \
+    return ZVEC_ERROR_RESOURCE_EXHAUSTED; \
+  } \
+  catch (const std::exception &e) { \
+    set_last_error_details(ZVEC_ERROR_INTERNAL_ERROR, \
+                           std::string(msg) + ": " + e.what(), \
+                           __FILE__, __LINE__, __FUNCTION__); \
+    return ZVEC_ERROR_INTERNAL_ERROR; \
+  }
+
+// For functions returning scalar values (int, float, size_t, etc.)
+// Usage: ZVEC_TRY_RETURN_SCALAR("error msg", error_value, code...)
+// Note: Use variadic macro to handle commas in template arguments
+#define ZVEC_TRY_RETURN_SCALAR(msg, error_val, ...) \
+  try { { __VA_ARGS__ } } \
+  catch (const std::bad_alloc &e) { \
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED, \
+                           std::string(msg) + ": " + e.what(), \
+                           __FILE__, __LINE__, __FUNCTION__); \
+    return (error_val); \
+  } \
+  catch (const std::exception &e) { \
+    set_last_error_details(ZVEC_ERROR_INTERNAL_ERROR, \
+                           std::string(msg) + ": " + e.what(), \
+                           __FILE__, __LINE__, __FUNCTION__); \
+    return (error_val); \
+  }
 
 // Global status flags
 static std::atomic<bool> g_initialized{false};
@@ -74,7 +220,7 @@ const char *zvec_get_version(void) {
   std::lock_guard<std::mutex> lock(g_version_mutex);
 
   if (g_version_info.empty()) {
-    try {
+    ZVEC_TRY_BEGIN_VOID
       std::string version = ZVEC_VERSION_STRING;
 
       // Try to get Git information
@@ -93,10 +239,7 @@ const char *zvec_get_version(void) {
                  std::string(__TIME__) + ")";
 
       g_version_info = version;
-    } catch (const std::exception &e) {
-      // If getting version information fails, fall back to basic version
-      g_version_info = ZVEC_VERSION_STRING;
-    }
+    ZVEC_CATCH_END_VOID
   }
 
   return g_version_info.c_str();
@@ -142,29 +285,30 @@ ZVecString *zvec_string_create(const char *str) {
                            __FUNCTION__);
     return nullptr;
   }
-  ZVecString *zstr = nullptr;
-  char *data_buffer = nullptr;
-  try {
-    size_t len = strlen(str);
-    zstr = new ZVecString();
-    data_buffer = static_cast<char *>(malloc(len + 1));
-    strcpy(data_buffer, str);
-    zstr->data = data_buffer;
-    zstr->length = len;
-    zstr->capacity = len + 1;
-    return zstr;
-  } catch (const std::exception &e) {
-    if (data_buffer) {
-      free(data_buffer);
-    }
-    if (zstr) {
-      delete zstr;
-    }
-    set_last_error_details(ZVEC_ERROR_INTERNAL_ERROR,
-                           std::string("String creation failed: ") + e.what(),
+
+  size_t len = strlen(str);
+  ZVecString *zstr = static_cast<ZVecString *>(malloc(sizeof(ZVecString)));
+  if (!zstr) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecString",
                            __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+
+  char *data_buffer = static_cast<char *>(malloc(len + 1));
+  if (!data_buffer) {
+    free(zstr);
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for string data",
+                           __FILE__, __LINE__, __FUNCTION__);
+    return nullptr;
+  }
+
+  memcpy(data_buffer, str, len + 1);
+  zstr->data = data_buffer;
+  zstr->length = len;
+  zstr->capacity = len + 1;
+  return zstr;
 }
 
 ZVecString *zvec_string_create_from_view(const ZVecStringView *view) {
@@ -175,29 +319,30 @@ ZVecString *zvec_string_create_from_view(const ZVecStringView *view) {
     return nullptr;
   }
 
-  try {
-    auto zstr = new ZVecString();
-
-    zstr->data = new char[view->length + 1];
-    memcpy(const_cast<char *>(zstr->data), view->data, view->length);
-    const_cast<char *>(zstr->data)[view->length] = '\0';
-    zstr->length = view->length;
-    zstr->capacity = view->length + 1;
-
-    return zstr;
-  } catch (const std::bad_alloc &e) {
-    set_last_error_details(
-        ZVEC_ERROR_RESOURCE_EXHAUSTED,
-        std::string("String creation from view failed: ") + e.what(), __FILE__,
-        __LINE__, __FUNCTION__);
-    return nullptr;
-  } catch (const std::exception &e) {
-    set_last_error_details(
-        ZVEC_ERROR_INTERNAL_ERROR,
-        std::string("String creation from view failed: ") + e.what(), __FILE__,
-        __LINE__, __FUNCTION__);
+  ZVecString *zstr = static_cast<ZVecString *>(malloc(sizeof(ZVecString)));
+  if (!zstr) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecString",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+
+  char *data_buffer = static_cast<char *>(malloc(view->length + 1));
+  if (!data_buffer) {
+    free(zstr);
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for string data",
+                           __FILE__, __LINE__, __FUNCTION__);
+    return nullptr;
+  }
+
+  memcpy(data_buffer, view->data, view->length);
+  data_buffer[view->length] = '\0';
+  zstr->data = data_buffer;
+  zstr->length = view->length;
+  zstr->capacity = view->length + 1;
+
+  return zstr;
 }
 
 ZVecString *zvec_bin_create(const uint8_t *data, size_t length) {
@@ -208,29 +353,30 @@ ZVecString *zvec_bin_create(const uint8_t *data, size_t length) {
     return nullptr;
   }
 
-  try {
-    auto zstr = new ZVecString();
-
-    zstr->data = new char[length + 1];
-    memcpy(const_cast<char *>(zstr->data), data, length);
-    const_cast<char *>(zstr->data)[length] = '\0';  // Null terminate for safety
-    zstr->length = length;
-    zstr->capacity = length + 1;
-
-    return zstr;
-  } catch (const std::bad_alloc &e) {
-    set_last_error_details(
-        ZVEC_ERROR_RESOURCE_EXHAUSTED,
-        std::string("Binary string creation failed: ") + e.what(), __FILE__,
-        __LINE__, __FUNCTION__);
-    return nullptr;
-  } catch (const std::exception &e) {
-    set_last_error_details(
-        ZVEC_ERROR_INTERNAL_ERROR,
-        std::string("Binary string creation failed: ") + e.what(), __FILE__,
-        __LINE__, __FUNCTION__);
+  ZVecString *zstr = static_cast<ZVecString *>(malloc(sizeof(ZVecString)));
+  if (!zstr) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecString",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+
+  char *data_buffer = static_cast<char *>(malloc(length + 1));
+  if (!data_buffer) {
+    free(zstr);
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for binary data",
+                           __FILE__, __LINE__, __FUNCTION__);
+    return nullptr;
+  }
+
+  memcpy(data_buffer, data, length);
+  data_buffer[length] = '\0';
+  zstr->data = data_buffer;
+  zstr->length = length;
+  zstr->capacity = length + 1;
+
+  return zstr;
 }
 
 ZVecString *zvec_string_copy(const ZVecString *str) {
@@ -284,21 +430,21 @@ int zvec_string_compare(const ZVecString *str1, const ZVecString *str2) {
   return strcmp(str1->data, str2->data);
 }
 
-
 // =============================================================================
 // Configuration-related functions implementation
 // =============================================================================
 
 ZVecConsoleLogConfig *zvec_config_console_log_create(ZVecLogLevel level) {
-  try {
-    auto config = new ZVecConsoleLogConfig();
-    config->level = level;
-    return config;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create console log config: ") +
-                   e.what());
+  ZVecConsoleLogConfig *config = static_cast<ZVecConsoleLogConfig *>(
+      malloc(sizeof(ZVecConsoleLogConfig)));
+  if (!config) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecConsoleLogConfig",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+  config->level = level;
+  return config;
 }
 
 ZVecFileLogConfig *zvec_config_file_log_create(ZVecLogLevel level,
@@ -306,136 +452,104 @@ ZVecFileLogConfig *zvec_config_file_log_create(ZVecLogLevel level,
                                                const char *basename,
                                                uint32_t file_size,
                                                uint32_t overdue_days) {
-  try {
-    auto config = new ZVecFileLogConfig();
-    config->level = level;
-    config->dir = *(zvec_string_create(dir));
-    config->basename = *(zvec_string_create(basename));
-    config->file_size = file_size;
-    config->overdue_days = overdue_days;
-    return config;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create file log config: ") +
-                   e.what());
+  if (!dir || !basename) {
+    set_last_error_details(ZVEC_ERROR_INVALID_ARGUMENT,
+                           "Directory or basename cannot be null", __FILE__,
+                           __LINE__, __FUNCTION__);
     return nullptr;
   }
-}
 
-ZVecLogConfig *zvec_config_log_create(ZVecLogType type, void *config_data) {
-  try {
-    auto log_config = new ZVecLogConfig();
-    log_config->type = type;
-
-    switch (type) {
-      case ZVEC_LOG_TYPE_CONSOLE: {
-        if (config_data) {
-          auto console_config =
-              reinterpret_cast<ZVecConsoleLogConfig *>(config_data);
-          log_config->config.console_config = *console_config;
-        } else {
-          log_config->config.console_config.level = ZVEC_LOG_LEVEL_WARN;
-        }
-        break;
-      }
-      case ZVEC_LOG_TYPE_FILE: {
-        if (config_data) {
-          auto file_config = reinterpret_cast<ZVecFileLogConfig *>(config_data);
-          log_config->config.file_config = *file_config;
-        } else {
-          log_config->config.file_config.level = ZVEC_LOG_LEVEL_WARN;
-          log_config->config.file_config.dir = *zvec_string_create("./log");
-          log_config->config.file_config.basename = *zvec_string_create("zvec");
-          log_config->config.file_config.file_size = 100;
-          log_config->config.file_config.overdue_days = 7;
-        }
-        break;
-      }
-      default:
-        set_last_error("Invalid log type");
-        delete log_config;
-        return nullptr;
-    }
-
-    return log_config;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create log config: ") + e.what());
+  ZVecFileLogConfig *config = static_cast<ZVecFileLogConfig *>(
+      malloc(sizeof(ZVecFileLogConfig)));
+  if (!config) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecFileLogConfig",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+
+  config->level = level;
+  ZVecString *dir_str = zvec_string_create(dir);
+  ZVecString *basename_str = zvec_string_create(basename);
+
+  if (!dir_str || !basename_str) {
+    if (dir_str) zvec_free_string(dir_str);
+    if (basename_str) zvec_free_string(basename_str);
+    free(config);
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to create strings for file log config",
+                           __FILE__, __LINE__, __FUNCTION__);
+    return nullptr;
+  }
+
+  config->dir = *dir_str;
+  config->basename = *basename_str;
+  config->file_size = file_size;
+  config->overdue_days = overdue_days;
+
+  // Free the temporary string wrappers (data is copied by value)
+  free(dir_str);
+  free(basename_str);
+
+  return config;
 }
 
 ZVecConfigData *zvec_config_data_create(void) {
-  ZVecConfigData *config = nullptr;
-  ZVecConsoleLogConfig *log_config = nullptr;
-  ZVecLogConfig *final_log_config = nullptr;
-
-  try {
-    config = new ZVecConfigData();
-
-    log_config = zvec_config_console_log_create(ZVEC_LOG_LEVEL_WARN);
-    if (!log_config) {
-      throw std::runtime_error("Failed to create console log config");
-    }
-
-    final_log_config =
-        zvec_config_log_create(ZVEC_LOG_TYPE_CONSOLE, log_config);
-    if (!final_log_config) {
-      throw std::runtime_error("Failed to create log config");
-    }
-
-    config->log_config = final_log_config;
-
-    // Set default values from C++ ConfigData
-    zvec::GlobalConfig::ConfigData config_data;
-    config->memory_limit_bytes = config_data.memory_limit_bytes;
-    config->query_thread_count = config_data.query_thread_count;
-    config->invert_to_forward_scan_ratio =
-        config_data.invert_to_forward_scan_ratio;
-    config->brute_force_by_keys_ratio = config_data.brute_force_by_keys_ratio;
-    config->optimize_thread_count = config_data.optimize_thread_count;
-
-    zvec_config_console_log_destroy(log_config);
-    return config;
-
-  } catch (const std::exception &e) {
-    if (final_log_config) {
-      zvec_config_log_destroy(final_log_config);
-    }
-    if (log_config) {
-      zvec_config_console_log_destroy(log_config);
-    }
-    if (config) {
-      delete config;
-    }
-
-    set_last_error(std::string("Failed to create config data: ") + e.what());
+  ZVecConfigData *config = static_cast<ZVecConfigData *>(
+      malloc(sizeof(ZVecConfigData)));
+  if (!config) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecConfigData",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+
+  ZVecConsoleLogConfig *log_config = zvec_config_console_log_create(ZVEC_LOG_LEVEL_WARN);
+  if (!log_config) {
+    free(config);
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to create console log config",
+                           __FILE__, __LINE__, __FUNCTION__);
+    return nullptr;
+  }
+  config->log_config = log_config;
+  config->log_type = ZVEC_LOG_TYPE_CONSOLE;
+
+  // Set default values from C++ ConfigData
+  zvec::GlobalConfig::ConfigData config_data;
+  config->memory_limit_bytes = config_data.memory_limit_bytes;
+  config->query_thread_count = config_data.query_thread_count;
+  config->invert_to_forward_scan_ratio =
+      config_data.invert_to_forward_scan_ratio;
+  config->brute_force_by_keys_ratio = config_data.brute_force_by_keys_ratio;
+  config->optimize_thread_count = config_data.optimize_thread_count;
+
+  return config;
 }
 
 void zvec_config_console_log_destroy(ZVecConsoleLogConfig *config) {
   if (config) {
-    delete config;
+    free(config);
   }
 }
 
 void zvec_config_file_log_destroy(ZVecFileLogConfig *config) {
   if (config) {
-    if (config->dir.data) free(config->dir.data);
-    if (config->basename.data) free(config->basename.data);
-    delete config;
-  }
-}
-
-void zvec_config_log_destroy(ZVecLogConfig *config) {
-  if (config) {
-    delete config;
+    if (config->dir.data) free((void *)config->dir.data);
+    if (config->basename.data) free((void *)config->basename.data);
+    free(config);
   }
 }
 
 void zvec_config_data_destroy(ZVecConfigData *config) {
-  if (config) {
-    delete config;
+  if (config->log_config) {
+    if (config->log_type == ZVEC_LOG_TYPE_CONSOLE) {
+      zvec_config_console_log_destroy((ZVecConsoleLogConfig*)config->log_config);
+    } else {
+      zvec_config_file_log_destroy((ZVecFileLogConfig*)config->log_config);
+    }
   }
+  free(config);
 }
 
 ZVecErrorCode zvec_config_data_set_memory_limit(ZVecConfigData *config,
@@ -450,12 +564,22 @@ ZVecErrorCode zvec_config_data_set_memory_limit(ZVecConfigData *config,
 }
 
 ZVecErrorCode zvec_config_data_set_log_config(ZVecConfigData *config,
-                                              ZVecLogConfig *log_config) {
-  if (!config) {
+                                              ZVecLogType log_type,
+                                              void *log_config) {
+  if (!config || !log_config) {
     set_last_error("Config data pointer is null");
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
+  if (config->log_config) {
+    if (config->log_type == ZVEC_LOG_TYPE_CONSOLE) {
+      zvec_config_console_log_destroy((ZVecConsoleLogConfig*)config->log_config);
+    } else {
+      zvec_config_file_log_destroy((ZVecFileLogConfig*)config->log_config);
+    }
+  }
+
+  config->log_type = log_type;
   config->log_config = log_config;
   return ZVEC_OK;
 }
@@ -496,7 +620,7 @@ ZVecErrorCode zvec_initialize(const ZVecConfigData *config) {
     return ZVEC_ERROR_ALREADY_EXISTS;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Initialization failed",
     // Convert to C++ configuration object
     if (config) {
       zvec::GlobalConfig::ConfigData cpp_config{};
@@ -511,22 +635,24 @@ ZVecErrorCode zvec_initialize(const ZVecConfigData *config) {
       if (config->log_config) {
         std::shared_ptr<zvec::GlobalConfig::LogConfig> log_config;
 
-        switch (config->log_config->type) {
+        switch (config->log_type) {
           case ZVEC_LOG_TYPE_CONSOLE: {
+            ZVecConsoleLogConfig *console_config = (ZVecConsoleLogConfig*)config->log_config;
             auto console_level = static_cast<zvec::GlobalConfig::LogLevel>(
-                config->log_config->config.console_config.level);
+                console_config->level);
             log_config = std::make_shared<zvec::GlobalConfig::ConsoleLogConfig>(
                 console_level);
             break;
           }
           case ZVEC_LOG_TYPE_FILE: {
+            ZVecFileLogConfig *file_config = (ZVecFileLogConfig*)config->log_config;
             auto file_level = static_cast<zvec::GlobalConfig::LogLevel>(
-                config->log_config->config.file_config.level);
-            std::string dir(config->log_config->config.file_config.dir.data,
-                            config->log_config->config.file_config.dir.length);
+                file_config->level);
+            std::string dir(file_config->dir.data,
+                            file_config->dir.length);
             std::string basename(
-                config->log_config->config.file_config.basename.data,
-                config->log_config->config.file_config.basename.length);
+                file_config->basename.data,
+                file_config->basename.length);
             log_config = std::make_shared<zvec::GlobalConfig::FileLogConfig>(
                 file_level, dir, basename);
             break;
@@ -553,12 +679,7 @@ ZVecErrorCode zvec_initialize(const ZVecConfigData *config) {
     }
     g_initialized.store(true);
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error_details(ZVEC_ERROR_INTERNAL_ERROR,
-                           std::string("Initialization failed: ") + e.what(),
-                           __FILE__, __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_shutdown(void) {
@@ -570,15 +691,10 @@ ZVecErrorCode zvec_shutdown(void) {
     return ZVEC_ERROR_FAILED_PRECONDITION;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Shutdown failed",
     g_initialized.store(false);
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error_details(ZVEC_ERROR_INTERNAL_ERROR,
-                           std::string("Shutdown failed: ") + e.what(),
-                           __FILE__, __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_is_initialized(bool *initialized) {
@@ -747,9 +863,9 @@ static zvec::Status set_field_index_params(zvec::FieldSchema::Ptr &field_schema,
 void zvec_free_string(ZVecString *str) {
   if (str) {
     if (str->data) {
-      delete[] str->data;
+      free((void *)str->data);
     }
-    delete str;
+    free(str);
   }
 }
 
@@ -900,7 +1016,7 @@ void zvec_free_field_schema(ZVecFieldSchema *field_schema) {
     if (field_schema->index_params) {
       zvec_index_params_destroy(field_schema->index_params);
     }
-    delete field_schema;
+    free(field_schema);
   }
 }
 
@@ -1014,120 +1130,125 @@ void zvec_index_params_init_default(ZVecIndexParams *params,
 
 void zvec_index_params_destroy(ZVecIndexParams *params) {
   if (params) {
-    delete params;
+    free(params);
   }
 }
 
 ZVecInvertIndexParams *zvec_index_params_invert_create(bool enable_range_opt,
                                                        bool enable_wildcard) {
-  try {
-    auto params = new ZVecInvertIndexParams();
-    zvec_index_params_base_init(&params->base, ZVEC_INDEX_TYPE_INVERT);
-    params->enable_range_optimization = enable_range_opt;
-    params->enable_extended_wildcard = enable_wildcard;
-    return params;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create invert index params: ") +
-                   e.what());
+  ZVecInvertIndexParams *params = static_cast<ZVecInvertIndexParams *>(
+      malloc(sizeof(ZVecInvertIndexParams)));
+  if (!params) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecInvertIndexParams",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+  zvec_index_params_base_init(&params->base, ZVEC_INDEX_TYPE_INVERT);
+  params->enable_range_optimization = enable_range_opt;
+  params->enable_extended_wildcard = enable_wildcard;
+  return params;
 }
 
 ZVecVectorIndexParams *zvec_index_params_vector_create(
     ZVecIndexType index_type, ZVecMetricType metric_type,
     ZVecQuantizeType quantize_type) {
-  try {
-    auto params = new ZVecVectorIndexParams();
-    zvec_index_params_base_init(&params->base, index_type);
-    params->metric_type = metric_type;
-    params->quantize_type = quantize_type;
-    return params;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create vector index params: ") +
-                   e.what());
+  ZVecVectorIndexParams *params = static_cast<ZVecVectorIndexParams *>(
+      malloc(sizeof(ZVecVectorIndexParams)));
+  if (!params) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecVectorIndexParams",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+  zvec_index_params_base_init(&params->base, index_type);
+  params->metric_type = metric_type;
+  params->quantize_type = quantize_type;
+  return params;
 }
 
 ZVecHnswIndexParams *zvec_index_params_hnsw_create(
     ZVecMetricType metric_type, ZVecQuantizeType quantize_type, int m,
     int ef_construction, int ef_search) {
-  try {
-    auto params = new ZVecHnswIndexParams();
-    zvec_index_params_vector_init(&params->base, ZVEC_INDEX_TYPE_HNSW,
-                                  metric_type, quantize_type);
-    params->m = m;
-    params->ef_construction = ef_construction;
-    params->ef_search = ef_search;
-    return params;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create HNSW index params: ") +
-                   e.what());
+  ZVecHnswIndexParams *params = static_cast<ZVecHnswIndexParams *>(
+      malloc(sizeof(ZVecHnswIndexParams)));
+  if (!params) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecHnswIndexParams",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+  zvec_index_params_vector_init(&params->base, ZVEC_INDEX_TYPE_HNSW,
+                                metric_type, quantize_type);
+  params->m = m;
+  params->ef_construction = ef_construction;
+  params->ef_search = ef_search;
+  return params;
 }
 
 ZVecFlatIndexParams *zvec_index_params_flat_create(
     ZVecMetricType metric_type, ZVecQuantizeType quantize_type) {
-  try {
-    auto params = new ZVecFlatIndexParams();
-    zvec_index_params_vector_init(&params->base, ZVEC_INDEX_TYPE_FLAT,
-                                  metric_type, quantize_type);
-    return params;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create Flat index params: ") +
-                   e.what());
+  ZVecFlatIndexParams *params = static_cast<ZVecFlatIndexParams *>(
+      malloc(sizeof(ZVecFlatIndexParams)));
+  if (!params) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecFlatIndexParams",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+  zvec_index_params_vector_init(&params->base, ZVEC_INDEX_TYPE_FLAT,
+                                metric_type, quantize_type);
+  return params;
 }
 
 ZVecIVFIndexParams *zvec_index_params_ivf_create(ZVecMetricType metric_type,
                                                  ZVecQuantizeType quantize_type,
                                                  int n_list, int n_iters,
                                                  bool use_soar, int n_probe) {
-  try {
-    auto params = new ZVecIVFIndexParams();
-    zvec_index_params_vector_init(&params->base, ZVEC_INDEX_TYPE_IVF,
-                                  metric_type, quantize_type);
-    params->n_list = n_list;
-    params->n_iters = n_iters;
-    params->use_soar = use_soar;
-    params->n_probe = n_probe;
-    return params;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create IVF index params: ") +
-                   e.what());
+  ZVecIVFIndexParams *params = static_cast<ZVecIVFIndexParams *>(
+      malloc(sizeof(ZVecIVFIndexParams)));
+  if (!params) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecIVFIndexParams",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+  zvec_index_params_vector_init(&params->base, ZVEC_INDEX_TYPE_IVF,
+                                metric_type, quantize_type);
+  params->n_list = n_list;
+  params->n_iters = n_iters;
+  params->use_soar = use_soar;
+  params->n_probe = n_probe;
+  return params;
 }
 
 void zvec_index_params_invert_destroy(ZVecInvertIndexParams *params) {
   if (params) {
-    delete params;
+    free(params);
   }
 }
 
 void zvec_index_params_vector_destroy(ZVecVectorIndexParams *params) {
   if (params) {
-    delete params;
+    free(params);
   }
 }
 
 void zvec_index_params_hnsw_destroy(ZVecHnswIndexParams *params) {
   if (params) {
-    delete params;
+    free(params);
   }
 }
 
 void zvec_index_params_flat_destroy(ZVecFlatIndexParams *params) {
   if (params) {
-    delete params;
+    free(params);
   }
 }
 
 void zvec_index_params_ivf_destroy(ZVecIVFIndexParams *params) {
   if (params) {
-    delete params;
+    free(params);
   }
 }
 
@@ -1145,34 +1266,30 @@ ZVecFieldSchema *zvec_field_schema_create(const char *name,
     return nullptr;
   }
 
-  try {
-    auto schema = new ZVecFieldSchema();
-
-    schema->name = zvec_string_create(name);
-    if (!schema->name) {
-      delete schema;
-      return nullptr;
-    }
-
-    schema->data_type = data_type;
-    schema->nullable = nullable;
-    schema->dimension = dimension;
-    schema->index_params = nullptr;
-
-    return schema;
-  } catch (const std::bad_alloc &e) {
-    set_last_error_details(
-        ZVEC_ERROR_RESOURCE_EXHAUSTED,
-        std::string("Field schema creation failed: ") + e.what(), __FILE__,
-        __LINE__, __FUNCTION__);
-    return nullptr;
-  } catch (const std::exception &e) {
-    set_last_error_details(
-        ZVEC_ERROR_INTERNAL_ERROR,
-        std::string("Field schema creation failed: ") + e.what(), __FILE__,
-        __LINE__, __FUNCTION__);
+  ZVecFieldSchema *schema = static_cast<ZVecFieldSchema *>(
+      malloc(sizeof(ZVecFieldSchema)));
+  if (!schema) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecFieldSchema",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+
+  schema->name = zvec_string_create(name);
+  if (!schema->name) {
+    free(schema);
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to create string for field name",
+                           __FILE__, __LINE__, __FUNCTION__);
+    return nullptr;
+  }
+
+  schema->data_type = data_type;
+  schema->nullable = nullable;
+  schema->dimension = dimension;
+  schema->index_params = nullptr;
+
+  return schema;
 }
 
 void zvec_field_schema_destroy(ZVecFieldSchema *schema) {
@@ -1182,7 +1299,7 @@ void zvec_field_schema_destroy(ZVecFieldSchema *schema) {
       zvec_index_params_destroy(schema->index_params);
       schema->index_params = nullptr;
     }
-    delete schema;
+    free(schema);
   }
 }
 
@@ -1198,40 +1315,40 @@ ZVecErrorCode zvec_field_schema_set_index_params(
   if (!index_params) {
     if (schema->index_params) {
       zvec_index_params_destroy(schema->index_params);
-      delete schema->index_params;
+      free(schema->index_params);
       schema->index_params = nullptr;
     }
     return ZVEC_OK;
   }
 
-  try {
+  if (!schema->index_params) {
+    schema->index_params = static_cast<ZVecIndexParams *>(
+        malloc(sizeof(ZVecIndexParams)));
     if (!schema->index_params) {
-      schema->index_params = new ZVecIndexParams();
+      set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                             "Failed to allocate memory for ZVecIndexParams",
+                             __FILE__, __LINE__, __FUNCTION__);
+      return ZVEC_ERROR_RESOURCE_EXHAUSTED;
     }
-
-    *schema->index_params = *index_params;
-
-    return ZVEC_OK;
-  } catch (const std::bad_alloc &e) {
-    set_last_error_details(
-        ZVEC_ERROR_RESOURCE_EXHAUSTED,
-        std::string("Failed to set index params: ") + e.what(), __FILE__,
-        __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_RESOURCE_EXHAUSTED;
-  } catch (const std::exception &e) {
-    set_last_error_details(
-        ZVEC_ERROR_INTERNAL_ERROR,
-        std::string("Failed to set index params: ") + e.what(), __FILE__,
-        __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_INTERNAL_ERROR;
   }
+
+  *schema->index_params = *index_params;
+
+  return ZVEC_OK;
 }
 
 void zvec_field_schema_set_invert_index(
     ZVecFieldSchema *field_schema, const ZVecInvertIndexParams *invert_params) {
   if (field_schema && invert_params) {
     if (!field_schema->index_params) {
-      field_schema->index_params = new ZVecIndexParams();
+      field_schema->index_params = static_cast<ZVecIndexParams *>(
+          malloc(sizeof(ZVecIndexParams)));
+      if (!field_schema->index_params) {
+        set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                               "Failed to allocate memory for ZVecIndexParams",
+                               __FILE__, __LINE__, __FUNCTION__);
+        return;
+      }
     }
 
     field_schema->index_params->index_type = ZVEC_INDEX_TYPE_INVERT;
@@ -1243,7 +1360,14 @@ void zvec_field_schema_set_hnsw_index(ZVecFieldSchema *field_schema,
                                       const ZVecHnswIndexParams *hnsw_params) {
   if (field_schema && hnsw_params) {
     if (!field_schema->index_params) {
-      field_schema->index_params = new ZVecIndexParams();
+      field_schema->index_params = static_cast<ZVecIndexParams *>(
+          malloc(sizeof(ZVecIndexParams)));
+      if (!field_schema->index_params) {
+        set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                               "Failed to allocate memory for ZVecIndexParams",
+                               __FILE__, __LINE__, __FUNCTION__);
+        return;
+      }
     }
 
     field_schema->index_params->index_type = ZVEC_INDEX_TYPE_HNSW;
@@ -1255,7 +1379,14 @@ void zvec_field_schema_set_flat_index(ZVecFieldSchema *field_schema,
                                       const ZVecFlatIndexParams *flat_params) {
   if (field_schema && flat_params) {
     if (!field_schema->index_params) {
-      field_schema->index_params = new ZVecIndexParams();
+      field_schema->index_params = static_cast<ZVecIndexParams *>(
+          malloc(sizeof(ZVecIndexParams)));
+      if (!field_schema->index_params) {
+        set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                               "Failed to allocate memory for ZVecIndexParams",
+                               __FILE__, __LINE__, __FUNCTION__);
+        return;
+      }
     }
 
     field_schema->index_params->index_type = ZVEC_INDEX_TYPE_FLAT;
@@ -1267,7 +1398,14 @@ void zvec_field_schema_set_ivf_index(ZVecFieldSchema *field_schema,
                                      const ZVecIVFIndexParams *ivf_params) {
   if (field_schema && ivf_params) {
     if (!field_schema->index_params) {
-      field_schema->index_params = new ZVecIndexParams();
+      field_schema->index_params = static_cast<ZVecIndexParams *>(
+          malloc(sizeof(ZVecIndexParams)));
+      if (!field_schema->index_params) {
+        set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                               "Failed to allocate memory for ZVecIndexParams",
+                               __FILE__, __LINE__, __FUNCTION__);
+        return;
+      }
     }
 
     field_schema->index_params->index_type = ZVEC_INDEX_TYPE_IVF;
@@ -1280,7 +1418,7 @@ static void zvec_field_schema_cleanup(ZVecFieldSchema *field_schema) {
 
   if (field_schema->index_params) {
     zvec_index_params_destroy(field_schema->index_params);
-    delete field_schema->index_params;
+    free(field_schema->index_params);
     field_schema->index_params = nullptr;
   }
 
@@ -1318,34 +1456,30 @@ ZVecCollectionSchema *zvec_collection_schema_create(const char *name) {
     return nullptr;
   }
 
-  try {
-    auto schema = new ZVecCollectionSchema();
-
-    schema->name = zvec_string_create(name);
-    if (!schema->name) {
-      delete schema;
-      return nullptr;
-    }
-
-    schema->fields = nullptr;
-    schema->field_count = 0;
-    schema->field_capacity = 0;
-    schema->max_doc_count_per_segment = zvec::MAX_DOC_COUNT_PER_SEGMENT;
-
-    return schema;
-  } catch (const std::bad_alloc &e) {
-    set_last_error_details(
-        ZVEC_ERROR_RESOURCE_EXHAUSTED,
-        std::string("Collection schema creation failed: ") + e.what(), __FILE__,
-        __LINE__, __FUNCTION__);
-    return nullptr;
-  } catch (const std::exception &e) {
-    set_last_error_details(
-        ZVEC_ERROR_INTERNAL_ERROR,
-        std::string("Collection schema creation failed: ") + e.what(), __FILE__,
-        __LINE__, __FUNCTION__);
+  ZVecCollectionSchema *schema = static_cast<ZVecCollectionSchema *>(
+      malloc(sizeof(ZVecCollectionSchema)));
+  if (!schema) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecCollectionSchema",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+
+  schema->name = zvec_string_create(name);
+  if (!schema->name) {
+    free(schema);
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to create string for collection name",
+                           __FILE__, __LINE__, __FUNCTION__);
+    return nullptr;
+  }
+
+  schema->fields = nullptr;
+  schema->field_count = 0;
+  schema->field_capacity = 0;
+  schema->max_doc_count_per_segment = zvec::MAX_DOC_COUNT_PER_SEGMENT;
+
+  return schema;
 }
 
 void zvec_collection_schema_destroy(ZVecCollectionSchema *schema) {
@@ -1356,10 +1490,10 @@ void zvec_collection_schema_destroy(ZVecCollectionSchema *schema) {
       for (size_t i = 0; i < schema->field_count; ++i) {
         zvec_field_schema_destroy(schema->fields[i]);
       }
-      delete[] schema->fields;
+      free(schema->fields);
     }
 
-    delete schema;
+    free(schema);
   }
 }
 
@@ -1379,47 +1513,42 @@ ZVecErrorCode zvec_collection_schema_add_field(ZVecCollectionSchema *schema,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
-    for (size_t i = 0; i < schema->field_count; ++i) {
-      if (schema->fields[i]->name && field->name &&
-          zvec_string_compare(schema->fields[i]->name, field->name) == 0) {
-        set_last_error_details(
-            ZVEC_ERROR_ALREADY_EXISTS,
-            std::string("Field '") + field->name->data + "' already exists",
-            __FILE__, __LINE__, __FUNCTION__);
-        return ZVEC_ERROR_ALREADY_EXISTS;
-      }
+  for (size_t i = 0; i < schema->field_count; ++i) {
+    if (schema->fields[i]->name && field->name &&
+        zvec_string_compare(schema->fields[i]->name, field->name) == 0) {
+      set_last_error_details(
+          ZVEC_ERROR_ALREADY_EXISTS,
+          std::string("Field '") + field->name->data + "' already exists",
+          __FILE__, __LINE__, __FUNCTION__);
+      return ZVEC_ERROR_ALREADY_EXISTS;
     }
-
-    if (schema->field_count >= schema->field_capacity) {
-      size_t new_capacity =
-          schema->field_capacity == 0 ? 8 : schema->field_capacity * 2;
-      auto new_fields = new ZVecFieldSchema *[new_capacity];
-
-      for (size_t i = 0; i < schema->field_count; ++i) {
-        new_fields[i] = schema->fields[i];
-      }
-
-      delete[] schema->fields;
-      schema->fields = new_fields;
-      schema->field_capacity = new_capacity;
-    }
-
-    schema->fields[schema->field_count] = field;
-    schema->field_count++;
-
-    return ZVEC_OK;
-  } catch (const std::bad_alloc &e) {
-    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
-                           std::string("Failed to add field: ") + e.what(),
-                           __FILE__, __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_RESOURCE_EXHAUSTED;
-  } catch (const std::exception &e) {
-    set_last_error_details(ZVEC_ERROR_INTERNAL_ERROR,
-                           std::string("Failed to add field: ") + e.what(),
-                           __FILE__, __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_INTERNAL_ERROR;
   }
+
+  if (schema->field_count >= schema->field_capacity) {
+    size_t new_capacity =
+        schema->field_capacity == 0 ? 8 : schema->field_capacity * 2;
+    ZVecFieldSchema **new_fields = static_cast<ZVecFieldSchema **>(
+        malloc(new_capacity * sizeof(ZVecFieldSchema *)));
+    if (!new_fields) {
+      set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                             "Failed to allocate memory for fields",
+                             __FILE__, __LINE__, __FUNCTION__);
+      return ZVEC_ERROR_RESOURCE_EXHAUSTED;
+    }
+
+    for (size_t i = 0; i < schema->field_count; ++i) {
+      new_fields[i] = schema->fields[i];
+    }
+
+    free(schema->fields);
+    schema->fields = new_fields;
+    schema->field_capacity = new_capacity;
+  }
+
+  schema->fields[schema->field_count] = field;
+  schema->field_count++;
+
+  return ZVEC_OK;
 }
 
 ZVecErrorCode zvec_collection_schema_add_fields(ZVecCollectionSchema *schema,
@@ -1443,70 +1572,88 @@ ZVecErrorCode zvec_collection_schema_add_fields(ZVecCollectionSchema *schema,
     return ZVEC_OK;
   }
 
-  try {
-    for (size_t i = 0; i < field_count; ++i) {
-      const ZVecFieldSchema &field = fields[i];
-      if (!field.name || !field.name->data || field.name->length == 0) {
-        set_last_error_details(ZVEC_ERROR_INVALID_ARGUMENT,
-                               std::string("Field at index ") +
-                                   std::to_string(i) + " has invalid name",
-                               __FILE__, __LINE__, __FUNCTION__);
-        return ZVEC_ERROR_INVALID_ARGUMENT;
-      }
+  for (size_t i = 0; i < field_count; ++i) {
+    const ZVecFieldSchema &field = fields[i];
+    if (!field.name || !field.name->data || field.name->length == 0) {
+      set_last_error_details(ZVEC_ERROR_INVALID_ARGUMENT,
+                             std::string("Field at index ") +
+                                 std::to_string(i) + " has invalid name",
+                             __FILE__, __LINE__, __FUNCTION__);
+      return ZVEC_ERROR_INVALID_ARGUMENT;
     }
-
-    size_t total_needed = schema->field_count + field_count;
-    if (total_needed > schema->field_capacity) {
-      size_t new_capacity = schema->field_capacity;
-      while (new_capacity < total_needed) {
-        new_capacity = new_capacity == 0 ? 8 : new_capacity * 2;
-      }
-
-      auto new_fields = new ZVecFieldSchema *[new_capacity];
-
-      for (size_t i = 0; i < schema->field_count; ++i) {
-        new_fields[i] = schema->fields[i];
-      }
-
-      delete[] schema->fields;
-      schema->fields = new_fields;
-      schema->field_capacity = new_capacity;
-    }
-
-    for (size_t i = 0; i < field_count; ++i) {
-      const ZVecFieldSchema &src_field = fields[i];
-
-      ZVecFieldSchema *new_field = new ZVecFieldSchema();
-
-      new_field->name = zvec_string_copy(src_field.name);
-
-      new_field->data_type = src_field.data_type;
-      new_field->nullable = src_field.nullable;
-      new_field->dimension = src_field.dimension;
-
-      if (src_field.index_params) {
-        new_field->index_params = new ZVecIndexParams();
-        *(new_field->index_params) = *(src_field.index_params);
-      } else {
-        new_field->index_params = nullptr;
-      }
-
-      schema->fields[schema->field_count] = new_field;
-      schema->field_count++;
-    }
-
-    return ZVEC_OK;
-  } catch (const std::bad_alloc &e) {
-    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
-                           std::string("Failed to add fields: ") + e.what(),
-                           __FILE__, __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_RESOURCE_EXHAUSTED;
-  } catch (const std::exception &e) {
-    set_last_error_details(ZVEC_ERROR_INTERNAL_ERROR,
-                           std::string("Failed to add fields: ") + e.what(),
-                           __FILE__, __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_INTERNAL_ERROR;
   }
+
+  size_t total_needed = schema->field_count + field_count;
+  if (total_needed > schema->field_capacity) {
+    size_t new_capacity = schema->field_capacity;
+    while (new_capacity < total_needed) {
+      new_capacity = new_capacity == 0 ? 8 : new_capacity * 2;
+    }
+
+    ZVecFieldSchema **new_fields = static_cast<ZVecFieldSchema **>(
+        malloc(new_capacity * sizeof(ZVecFieldSchema *)));
+    if (!new_fields) {
+      set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                             "Failed to allocate memory for fields",
+                             __FILE__, __LINE__, __FUNCTION__);
+      return ZVEC_ERROR_RESOURCE_EXHAUSTED;
+    }
+
+    for (size_t i = 0; i < schema->field_count; ++i) {
+      new_fields[i] = schema->fields[i];
+    }
+
+    free(schema->fields);
+    schema->fields = new_fields;
+    schema->field_capacity = new_capacity;
+  }
+
+  for (size_t i = 0; i < field_count; ++i) {
+    const ZVecFieldSchema &src_field = fields[i];
+
+    ZVecFieldSchema *new_field = static_cast<ZVecFieldSchema *>(
+        malloc(sizeof(ZVecFieldSchema)));
+    if (!new_field) {
+      set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                             "Failed to allocate memory for new field",
+                             __FILE__, __LINE__, __FUNCTION__);
+      return ZVEC_ERROR_RESOURCE_EXHAUSTED;
+    }
+
+    new_field->name = zvec_string_copy(src_field.name);
+    if (!new_field->name) {
+      free(new_field);
+      set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                             "Failed to copy field name",
+                             __FILE__, __LINE__, __FUNCTION__);
+      return ZVEC_ERROR_RESOURCE_EXHAUSTED;
+    }
+
+    new_field->data_type = src_field.data_type;
+    new_field->nullable = src_field.nullable;
+    new_field->dimension = src_field.dimension;
+
+    if (src_field.index_params) {
+      new_field->index_params = static_cast<ZVecIndexParams *>(
+          malloc(sizeof(ZVecIndexParams)));
+      if (!new_field->index_params) {
+        zvec_free_string(new_field->name);
+        free(new_field);
+        set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                               "Failed to allocate memory for index params",
+                               __FILE__, __LINE__, __FUNCTION__);
+        return ZVEC_ERROR_RESOURCE_EXHAUSTED;
+      }
+      *(new_field->index_params) = *(src_field.index_params);
+    } else {
+      new_field->index_params = nullptr;
+    }
+
+    schema->fields[schema->field_count] = new_field;
+    schema->field_count++;
+  }
+
+  return ZVEC_OK;
 }
 
 ZVecErrorCode zvec_collection_schema_remove_field(ZVecCollectionSchema *schema,
@@ -1525,31 +1672,24 @@ ZVecErrorCode zvec_collection_schema_remove_field(ZVecCollectionSchema *schema,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
-    for (size_t i = 0; i < schema->field_count; ++i) {
-      if (schema->fields[i]->name &&
-          strcmp(schema->fields[i]->name->data, field_name) == 0) {
-        zvec_field_schema_destroy(schema->fields[i]);
+  for (size_t i = 0; i < schema->field_count; ++i) {
+    if (schema->fields[i]->name &&
+        strcmp(schema->fields[i]->name->data, field_name) == 0) {
+      zvec_field_schema_destroy(schema->fields[i]);
 
-        for (size_t j = i; j < schema->field_count - 1; ++j) {
-          schema->fields[j] = schema->fields[j + 1];
-        }
-
-        schema->field_count--;
-        return ZVEC_OK;
+      for (size_t j = i; j < schema->field_count - 1; ++j) {
+        schema->fields[j] = schema->fields[j + 1];
       }
-    }
 
-    set_last_error_details(ZVEC_ERROR_NOT_FOUND,
-                           std::string("Field '") + field_name + "' not found",
-                           __FILE__, __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_NOT_FOUND;
-  } catch (const std::exception &e) {
-    set_last_error_details(ZVEC_ERROR_INTERNAL_ERROR,
-                           std::string("Failed to remove field: ") + e.what(),
-                           __FILE__, __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_INTERNAL_ERROR;
+      schema->field_count--;
+      return ZVEC_OK;
+    }
   }
+
+  set_last_error_details(ZVEC_ERROR_NOT_FOUND,
+                         std::string("Field '") + field_name + "' not found",
+                         __FILE__, __LINE__, __FUNCTION__);
+  return ZVEC_ERROR_NOT_FOUND;
 }
 
 ZVecErrorCode zvec_collection_schema_remove_fields(
@@ -1574,16 +1714,15 @@ ZVecErrorCode zvec_collection_schema_remove_fields(
     return ZVEC_OK;
   }
 
-  try {
-    for (size_t i = 0; i < field_count; ++i) {
-      if (!field_names[i]) {
-        set_last_error_details(ZVEC_ERROR_INVALID_ARGUMENT,
-                               std::string("Field name at index ") +
-                                   std::to_string(i) + " is null",
-                               __FILE__, __LINE__, __FUNCTION__);
-        return ZVEC_ERROR_INVALID_ARGUMENT;
-      }
+  for (size_t i = 0; i < field_count; ++i) {
+    if (!field_names[i]) {
+      set_last_error_details(ZVEC_ERROR_INVALID_ARGUMENT,
+                             std::string("Field name at index ") +
+                                 std::to_string(i) + " is null",
+                             __FILE__, __LINE__, __FUNCTION__);
+      return ZVEC_ERROR_INVALID_ARGUMENT;
     }
+  }
 
     std::vector<size_t> remove_indices;
     std::vector<std::string> not_found_fields;
@@ -1605,6 +1744,7 @@ ZVecErrorCode zvec_collection_schema_remove_fields(
         not_found_fields.push_back(target_name);
       }
     }
+
 
     if (!not_found_fields.empty()) {
       std::string error_msg = "Fields not found: ";
@@ -1633,12 +1773,6 @@ ZVecErrorCode zvec_collection_schema_remove_fields(
     }
 
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error_details(ZVEC_ERROR_INTERNAL_ERROR,
-                           std::string("Failed to remove fields: ") + e.what(),
-                           __FILE__, __LINE__, __FUNCTION__);
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
 }
 
 ZVecFieldSchema *zvec_collection_schema_find_field(
@@ -1768,7 +1902,7 @@ ZVecErrorCode zvec_collection_schema_validate(
 void zvec_collection_schema_cleanup(ZVecCollectionSchema *schema) {
   if (!schema) return;
 
-  try {
+  ZVEC_TRY_BEGIN_VOID
     if (schema->name) {
       zvec_free_string(schema->name);
     }
@@ -1783,11 +1917,7 @@ void zvec_collection_schema_cleanup(ZVecCollectionSchema *schema) {
     }
 
     schema->max_doc_count_per_segment = 0;
-  } catch (const std::exception &e) {
-    fprintf(stderr,
-            "Warning: Exception in zvec_collection_schema_cleanup: %s\n",
-            e.what());
-  }
+  ZVEC_CATCH_END_VOID
 }
 
 // =============================================================================
@@ -1942,15 +2072,10 @@ bool check_is_vector_field(const ZVecFieldSchema &zvec_field) {
 // =============================================================================
 
 ZVecDoc *zvec_doc_create(void) {
-  try {
-    auto doc_ptr =
-        new std::shared_ptr<zvec::Doc>(std::make_shared<zvec::Doc>());
+  ZVEC_TRY_RETURN_NULL("Failed to create document", {
+    auto doc_ptr = new std::shared_ptr<zvec::Doc>(std::make_shared<zvec::Doc>());
     return reinterpret_cast<ZVecDoc *>(doc_ptr);
-
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create document: ") + e.what());
-    return nullptr;
-  }
+  })
 }
 
 void zvec_doc_destroy(ZVecDoc *doc) {
@@ -1960,14 +2085,12 @@ void zvec_doc_destroy(ZVecDoc *doc) {
 }
 
 void zvec_doc_clear(ZVecDoc *doc) {
-  if (doc) {
-    try {
-      auto doc_ptr = reinterpret_cast<std::shared_ptr<zvec::Doc> *>(doc);
-      (*doc_ptr)->clear();
-    } catch (const std::exception &e) {
-      set_last_error(std::string("Failed to cleanup document: ") + e.what());
-    }
-  }
+  if (!doc) return;
+
+  ZVEC_TRY_BEGIN_VOID
+    auto doc_ptr = reinterpret_cast<std::shared_ptr<zvec::Doc> *>(doc);
+    (*doc_ptr)->clear();
+  ZVEC_CATCH_END_VOID
 }
 
 void zvec_docs_free(ZVecDoc **docs, size_t count) {
@@ -1983,45 +2106,37 @@ void zvec_docs_free(ZVecDoc **docs, size_t count) {
 void zvec_doc_set_pk(ZVecDoc *doc, const char *pk) {
   if (!doc || !pk) return;
 
-  try {
+  ZVEC_TRY_BEGIN_VOID
     auto doc_ptr = reinterpret_cast<std::shared_ptr<zvec::Doc> *>(doc);
     (*doc_ptr)->set_pk(std::string(pk));
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to set document PK: ") + e.what());
-  }
+  ZVEC_CATCH_END_VOID
 }
 
 void zvec_doc_set_doc_id(ZVecDoc *doc, uint64_t doc_id) {
   if (!doc) return;
 
-  try {
+  ZVEC_TRY_BEGIN_VOID
     auto doc_ptr = reinterpret_cast<std::shared_ptr<zvec::Doc> *>(doc);
     (*doc_ptr)->set_doc_id(doc_id);
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to set document id: ") + e.what());
-  }
+  ZVEC_CATCH_END_VOID
 }
 
 void zvec_doc_set_score(ZVecDoc *doc, float score) {
   if (!doc) return;
 
-  try {
+  ZVEC_TRY_BEGIN_VOID
     auto doc_ptr = reinterpret_cast<std::shared_ptr<zvec::Doc> *>(doc);
     (*doc_ptr)->set_score(score);
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to set document score: ") + e.what());
-  }
+  ZVEC_CATCH_END_VOID
 }
 
 void zvec_doc_set_operator(ZVecDoc *doc, ZVecDocOperator op) {
   if (!doc) return;
 
-  try {
+  ZVEC_TRY_BEGIN_VOID
     auto doc_ptr = reinterpret_cast<std::shared_ptr<zvec::Doc> *>(doc);
     (*doc_ptr)->set_operator(static_cast<zvec::Operator>(op));
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to set document operator: ") + e.what());
-  }
+  ZVEC_CATCH_END_VOID
 }
 
 // =============================================================================
@@ -2299,7 +2414,7 @@ ZVecErrorCode zvec_doc_add_field_by_value(ZVecDoc *doc, const char *field_name,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to add field",
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     std::string name(field_name);
     ZVecErrorCode error_code = ZVEC_OK;
@@ -2591,10 +2706,7 @@ ZVecErrorCode zvec_doc_add_field_by_value(ZVecDoc *doc, const char *field_name,
     }
 
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to add field: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_doc_add_field_by_struct(ZVecDoc *doc,
@@ -2604,7 +2716,7 @@ ZVecErrorCode zvec_doc_add_field_by_struct(ZVecDoc *doc,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to add field",
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
 
     std::string name(field->name.data, field->name.length);
@@ -2860,10 +2972,7 @@ ZVecErrorCode zvec_doc_add_field_by_struct(ZVecDoc *doc,
     }
 
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to add field: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 const char *zvec_doc_get_pk_pointer(const ZVecDoc *doc) {
@@ -2886,49 +2995,37 @@ const char *zvec_doc_get_pk_copy(const ZVecDoc *doc) {
 uint64_t zvec_doc_get_doc_id(const ZVecDoc *doc) {
   if (!doc) return 0;
 
-  try {
+  ZVEC_TRY_RETURN_SCALAR("Failed to get document ID", 0,
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     return (*doc_ptr)->doc_id();
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to get document ID: ") + e.what());
-    return 0;
-  }
+  )
 }
 
 float zvec_doc_get_score(const ZVecDoc *doc) {
   if (!doc) return 0.0f;
 
-  try {
+  ZVEC_TRY_RETURN_SCALAR("Failed to get document score", 0.0f,
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     return (*doc_ptr)->score();
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to get document score: ") + e.what());
-    return 0.0f;
-  }
+  )
 }
 
 ZVecDocOperator zvec_doc_get_operator(const ZVecDoc *doc) {
   if (!doc) return ZVEC_DOC_OP_INSERT;  // default
-  try {
+  ZVEC_TRY_RETURN_SCALAR("Failed to get document operator", ZVEC_DOC_OP_INSERT,
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     zvec::Operator op = (*doc_ptr)->get_operator();
     return static_cast<ZVecDocOperator>(op);
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to get document operator: ") + e.what());
-    return ZVEC_DOC_OP_INSERT;
-  }
+  )
 }
 
 size_t zvec_doc_get_field_count(const ZVecDoc *doc) {
   if (!doc) return 0;
 
-  try {
+  ZVEC_TRY_RETURN_SCALAR("Failed to get field count", 0,
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     return (*doc_ptr)->field_names().size();
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to get field count: ") + e.what());
-    return 0;
-  }
+  )
 }
 
 ZVecErrorCode zvec_doc_get_field_value_basic(const ZVecDoc *doc,
@@ -2941,7 +3038,7 @@ ZVecErrorCode zvec_doc_get_field_value_basic(const ZVecDoc *doc,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to get field value",
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
 
     // Check if field exists
@@ -3022,10 +3119,7 @@ ZVecErrorCode zvec_doc_get_field_value_basic(const ZVecDoc *doc,
     }
 
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_doc_get_field_value_copy(const ZVecDoc *doc,
@@ -3037,7 +3131,7 @@ ZVecErrorCode zvec_doc_get_field_value_copy(const ZVecDoc *doc,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to get field value copy",
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
 
     // Check if field exists
@@ -3494,10 +3588,7 @@ ZVecErrorCode zvec_doc_get_field_value_copy(const ZVecDoc *doc,
     }
 
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_doc_get_field_value_pointer(const ZVecDoc *doc,
@@ -3510,7 +3601,7 @@ ZVecErrorCode zvec_doc_get_field_value_pointer(const ZVecDoc *doc,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to get field value pointer",
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
 
     // Check if field exists
@@ -3680,10 +3771,7 @@ ZVecErrorCode zvec_doc_get_field_value_pointer(const ZVecDoc *doc,
     }
 
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 bool zvec_doc_is_empty(const ZVecDoc *doc) {
@@ -3692,14 +3780,10 @@ bool zvec_doc_is_empty(const ZVecDoc *doc) {
     return true;
   }
 
-  try {
+  ZVEC_TRY_RETURN_SCALAR("Failed to check if document is empty", true,
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     return (*doc_ptr)->is_empty();
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to check if document is empty: ") +
-                   e.what());
-    return true;
-  }
+  )
 }
 
 ZVecErrorCode zvec_doc_remove_field(ZVecDoc *doc, const char *field_name) {
@@ -3708,14 +3792,11 @@ ZVecErrorCode zvec_doc_remove_field(ZVecDoc *doc, const char *field_name) {
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to remove field",
     auto doc_ptr = reinterpret_cast<std::shared_ptr<zvec::Doc> *>(doc);
     (*doc_ptr)->remove(std::string(field_name));
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to remove field: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 
@@ -3725,13 +3806,10 @@ bool zvec_doc_has_field(const ZVecDoc *doc, const char *field_name) {
     return false;
   }
 
-  try {
+  ZVEC_TRY_RETURN_SCALAR("Failed to check field existence", false,
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     return (*doc_ptr)->has(std::string(field_name));
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to check field existence: ") + e.what());
-    return false;
-  }
+  )
 }
 
 bool zvec_doc_has_field_value(const ZVecDoc *doc, const char *field_name) {
@@ -3740,14 +3818,10 @@ bool zvec_doc_has_field_value(const ZVecDoc *doc, const char *field_name) {
     return false;
   }
 
-  try {
+  ZVEC_TRY_RETURN_SCALAR("Failed to check field value existence", false,
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     return (*doc_ptr)->has_value(std::string(field_name));
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to check field value existence: ") +
-                   e.what());
-    return false;
-  }
+  )
 }
 
 bool zvec_doc_is_field_null(const ZVecDoc *doc, const char *field_name) {
@@ -3756,14 +3830,10 @@ bool zvec_doc_is_field_null(const ZVecDoc *doc, const char *field_name) {
     return false;
   }
 
-  try {
+  ZVEC_TRY_RETURN_SCALAR("Failed to check if field is null", false,
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     return (*doc_ptr)->is_null(std::string(field_name));
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to check if field is null: ") +
-                   e.what());
-    return false;
-  }
+  )
 }
 
 ZVecErrorCode zvec_doc_get_field_names(const ZVecDoc *doc, char ***field_names,
@@ -3773,7 +3843,7 @@ ZVecErrorCode zvec_doc_get_field_names(const ZVecDoc *doc, char ***field_names,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to get field names",
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     std::vector<std::string> names = (*doc_ptr)->field_names();
 
@@ -3803,10 +3873,7 @@ ZVecErrorCode zvec_doc_get_field_names(const ZVecDoc *doc, char ***field_names,
     }
 
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to get field names: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_doc_serialize(const ZVecDoc *doc, uint8_t **data,
@@ -3816,7 +3883,7 @@ ZVecErrorCode zvec_doc_serialize(const ZVecDoc *doc, uint8_t **data,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to serialize document",
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     std::vector<uint8_t> serialized_data = (*doc_ptr)->serialize();
 
@@ -3834,10 +3901,7 @@ ZVecErrorCode zvec_doc_serialize(const ZVecDoc *doc, uint8_t **data,
 
     memcpy(*data, serialized_data.data(), *size);
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to serialize document: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_doc_deserialize(const uint8_t *data, size_t size,
@@ -3847,7 +3911,7 @@ ZVecErrorCode zvec_doc_deserialize(const uint8_t *data, size_t size,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to deserialize document",
     auto deserialized_doc = zvec::Doc::deserialize(data, size);
     if (!deserialized_doc) {
       set_last_error("Failed to deserialize document");
@@ -3857,10 +3921,7 @@ ZVecErrorCode zvec_doc_deserialize(const uint8_t *data, size_t size,
     auto doc_ptr = new std::shared_ptr<zvec::Doc>(deserialized_doc);
     *doc = reinterpret_cast<ZVecDoc *>(doc_ptr);
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to deserialize document: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 void zvec_doc_merge(ZVecDoc *doc, const ZVecDoc *other) {
@@ -3869,14 +3930,12 @@ void zvec_doc_merge(ZVecDoc *doc, const ZVecDoc *other) {
     return;
   }
 
-  try {
+  ZVEC_TRY_BEGIN_VOID
     auto doc_ptr = reinterpret_cast<std::shared_ptr<zvec::Doc> *>(doc);
     auto other_ptr =
         reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(other);
     (*doc_ptr)->merge(**other_ptr);
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to merge documents: ") + e.what());
-  }
+  ZVEC_CATCH_END_VOID
 }
 
 size_t zvec_doc_memory_usage(const ZVecDoc *doc) {
@@ -3885,14 +3944,10 @@ size_t zvec_doc_memory_usage(const ZVecDoc *doc) {
     return 0;
   }
 
-  try {
+  ZVEC_TRY_RETURN_SCALAR("Failed to get document memory usage", 0,
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     return (*doc_ptr)->memory_usage();
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to get document memory usage: ") +
-                   e.what());
-    return 0;
-  }
+  )
 }
 
 ZVecErrorCode zvec_doc_validate(const ZVecDoc *doc,
@@ -3903,7 +3958,7 @@ ZVecErrorCode zvec_doc_validate(const ZVecDoc *doc,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to validate document",
     std::shared_ptr<zvec::CollectionSchema> schema_ptr = nullptr;
     auto status =
         convert_zvec_collection_schema_to_internal(schema, schema_ptr);
@@ -3927,10 +3982,7 @@ ZVecErrorCode zvec_doc_validate(const ZVecDoc *doc,
       *error_msg = nullptr;
     }
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to validate document: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_doc_to_detail_string(const ZVecDoc *doc, char **detail_str) {
@@ -3939,7 +3991,7 @@ ZVecErrorCode zvec_doc_to_detail_string(const ZVecDoc *doc, char **detail_str) {
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to get document detail string",
     auto doc_ptr = reinterpret_cast<const std::shared_ptr<zvec::Doc> *>(doc);
     std::string detail = (*doc_ptr)->to_detail_string();
     *detail_str = copy_string(detail);
@@ -3950,11 +4002,7 @@ ZVecErrorCode zvec_doc_to_detail_string(const ZVecDoc *doc, char **detail_str) {
     }
 
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to get document detail string: ") +
-                   e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 // =============================================================================
@@ -3964,7 +4012,7 @@ ZVecErrorCode zvec_doc_to_detail_string(const ZVecDoc *doc, char **detail_str) {
 ZVecErrorCode zvec_collection_create_and_open(
     const char *path, const ZVecCollectionSchema *schema,
     const ZVecCollectionOptions *options, ZVecCollection **collection) {
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception in zvec_collection_create_and_open_with_schema",
     if (!path || !schema || !collection) {
       set_last_error("Path, schema, or collection cannot be null");
       return ZVEC_ERROR_INVALID_ARGUMENT;
@@ -3995,13 +4043,7 @@ ZVecErrorCode zvec_collection_create_and_open(
     }
 
     return error_code;
-  } catch (const std::exception &e) {
-    set_last_error(
-        std::string(
-            "Exception in zvec_collection_create_and_open_with_schema: ") +
-        e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_open(const char *path,
@@ -4012,7 +4054,7 @@ ZVecErrorCode zvec_collection_open(const char *path,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     zvec::CollectionOptions collection_options;
     if (options) {
       collection_options.enable_mmap_ = options->enable_mmap;
@@ -4029,10 +4071,7 @@ ZVecErrorCode zvec_collection_open(const char *path,
     }
 
     return error_code;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_close(ZVecCollection *collection) {
@@ -4041,13 +4080,10 @@ ZVecErrorCode zvec_collection_close(ZVecCollection *collection) {
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     delete reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_destroy(ZVecCollection *collection) {
@@ -4056,7 +4092,7 @@ ZVecErrorCode zvec_collection_destroy(ZVecCollection *collection) {
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto &coll =
         *reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
     zvec::Status status = coll->Destroy();
@@ -4065,10 +4101,7 @@ ZVecErrorCode zvec_collection_destroy(ZVecCollection *collection) {
     }
 
     return status_to_error_code(status);
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_flush(ZVecCollection *collection) {
@@ -4077,7 +4110,7 @@ ZVecErrorCode zvec_collection_flush(ZVecCollection *collection) {
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto &coll =
         *reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
     zvec::Status status = coll->Flush();
@@ -4087,10 +4120,7 @@ ZVecErrorCode zvec_collection_flush(ZVecCollection *collection) {
     }
 
     return status_to_error_code(status);
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
@@ -4100,7 +4130,7 @@ ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto &coll = *reinterpret_cast<const std::shared_ptr<zvec::Collection> *>(
         collection);
     auto result = coll->Schema();
@@ -4110,7 +4140,8 @@ ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
       const auto &cpp_schema = result.value();
 
       // Create new schema structure
-      ZVecCollectionSchema *c_schema = new ZVecCollectionSchema();
+      ZVecCollectionSchema *c_schema = static_cast<ZVecCollectionSchema *>(
+          malloc(sizeof(ZVecCollectionSchema)));
       if (!c_schema) {
         set_last_error("Failed to allocate memory for schema");
         return ZVEC_ERROR_RESOURCE_EXHAUSTED;
@@ -4127,7 +4158,7 @@ ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
       // Set collection name
       c_schema->name = zvec_string_create(cpp_schema.name().c_str());
       if (!c_schema->name) {
-        delete c_schema;
+        free(c_schema);
         set_last_error("Failed to allocate memory for collection name");
         return ZVEC_ERROR_RESOURCE_EXHAUSTED;
       }
@@ -4139,7 +4170,8 @@ ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
 
       if (c_schema->field_count > 0) {
         // Allocate array of field pointers
-        c_schema->fields = new ZVecFieldSchema *[c_schema->field_count];
+        c_schema->fields = static_cast<ZVecFieldSchema **>(
+            malloc(c_schema->field_count * sizeof(ZVecFieldSchema *)));
         if (!c_schema->fields) {
           zvec_collection_schema_destroy(c_schema);
           set_last_error("Failed to allocate memory for fields");
@@ -4155,7 +4187,11 @@ ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
         for (const auto &cpp_field : cpp_fields) {
           try {
             // Create new field schema
-            c_schema->fields[i] = new ZVecFieldSchema();
+            c_schema->fields[i] = static_cast<ZVecFieldSchema *>(
+                malloc(sizeof(ZVecFieldSchema)));
+            if (!c_schema->fields[i]) {
+              throw std::bad_alloc();
+            }
 
             // Copy field name using zvec_string_create
             c_schema->fields[i]->name =
@@ -4187,7 +4223,8 @@ ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
                       std::dynamic_pointer_cast<zvec::HnswIndexParams>(
                           index_params);
                   if (hnsw_params) {
-                    auto c_hnsw_params = new ZVecHnswIndexParams();
+                    auto c_hnsw_params = static_cast<ZVecHnswIndexParams *>(
+                        malloc(sizeof(ZVecHnswIndexParams)));
                     if (!c_hnsw_params) {
                       throw std::bad_alloc();
                     }
@@ -4220,7 +4257,8 @@ ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
                       std::dynamic_pointer_cast<zvec::IVFIndexParams>(
                           index_params);
                   if (ivf_params) {
-                    auto c_ivf_params = new ZVecIVFIndexParams();
+                    auto c_ivf_params = static_cast<ZVecIVFIndexParams *>(
+                        malloc(sizeof(ZVecIVFIndexParams)));
                     if (!c_ivf_params) {
                       throw std::bad_alloc();
                     }
@@ -4253,7 +4291,8 @@ ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
                       std::dynamic_pointer_cast<zvec::FlatIndexParams>(
                           index_params);
                   if (flat_params) {
-                    auto c_flat_params = new ZVecFlatIndexParams();
+                    auto c_flat_params = static_cast<ZVecFlatIndexParams *>(
+                        malloc(sizeof(ZVecFlatIndexParams)));
                     if (!c_flat_params) {
                       throw std::bad_alloc();
                     }
@@ -4283,7 +4322,8 @@ ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
                       std::dynamic_pointer_cast<zvec::InvertIndexParams>(
                           index_params);
                   if (invert_params) {
-                    auto c_invert_params = new ZVecInvertIndexParams();
+                    auto c_invert_params = static_cast<ZVecInvertIndexParams *>(
+                        malloc(sizeof(ZVecInvertIndexParams)));
                     if (!c_invert_params) {
                       throw std::bad_alloc();
                     }
@@ -4324,9 +4364,9 @@ ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
                 zvec_field_schema_destroy(c_schema->fields[j]);
               }
             }
-            delete[] c_schema->fields;
+            free(c_schema->fields);
             zvec_free_string(c_schema->name);
-            delete c_schema;
+            free(c_schema);
             set_last_error("Failed to allocate memory for field");
             return ZVEC_ERROR_RESOURCE_EXHAUSTED;
           }
@@ -4339,10 +4379,7 @@ ZVecErrorCode zvec_collection_get_schema(const ZVecCollection *collection,
     }
 
     return error_code;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_get_options(const ZVecCollection *collection,
@@ -4352,7 +4389,7 @@ ZVecErrorCode zvec_collection_get_options(const ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to get collection options",
     auto collection_ptr =
         reinterpret_cast<const std::shared_ptr<zvec::Collection> *>(collection);
     auto result = (*collection_ptr)->Options();
@@ -4363,8 +4400,13 @@ ZVecErrorCode zvec_collection_get_options(const ZVecCollection *collection,
       return ZVEC_ERROR_INTERNAL_ERROR;
     }
 
-    // 创建并初始化选项结构体
-    *options = new ZVecCollectionOptions();
+    // Create and initialize options structure
+    *options = static_cast<ZVecCollectionOptions *>(
+        malloc(sizeof(ZVecCollectionOptions)));
+    if (!*options) {
+      set_last_error("Failed to allocate memory for options");
+      return ZVEC_ERROR_RESOURCE_EXHAUSTED;
+    }
 
     (*options)->enable_mmap = result.value().enable_mmap_;
     (*options)->max_buffer_size = result.value().max_buffer_size_;
@@ -4372,11 +4414,7 @@ ZVecErrorCode zvec_collection_get_options(const ZVecCollection *collection,
     (*options)->max_doc_count_per_segment = zvec::MAX_DOC_COUNT_PER_SEGMENT;
 
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to get collection options: ") +
-                   e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_get_stats(const ZVecCollection *collection,
@@ -4386,7 +4424,7 @@ ZVecErrorCode zvec_collection_get_stats(const ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Failed to get detailed collection stats",
     auto collection_ptr =
         reinterpret_cast<const std::shared_ptr<zvec::Collection> *>(collection);
     auto result = (*collection_ptr)->Stats();
@@ -4397,7 +4435,13 @@ ZVecErrorCode zvec_collection_get_stats(const ZVecCollection *collection,
       return ZVEC_ERROR_INTERNAL_ERROR;
     }
 
-    *stats = new ZVecCollectionStats();
+    *stats = static_cast<ZVecCollectionStats *>(
+        malloc(sizeof(ZVecCollectionStats)));
+    if (!*stats) {
+      set_last_error("Failed to allocate memory for stats");
+      return ZVEC_ERROR_RESOURCE_EXHAUSTED;
+    }
+
     ZVecErrorCode error_code = handle_expected_result(result);
     if (error_code == ZVEC_OK) {
       (*stats)->doc_count = result.value().doc_count;
@@ -4416,15 +4460,24 @@ ZVecErrorCode zvec_collection_get_stats(const ZVecCollection *collection,
       }
     } else {
       (*stats)->index_completeness = nullptr;
-      *(*stats)->index_names = nullptr;
+      (*stats)->index_names = nullptr;
     }
 
     return error_code;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to get detailed collection stats: ") +
-                   e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
+  )
+}
+
+ZVecCollectionStats *zvec_collection_stats_create(void) {
+  ZVecCollectionStats *stats = static_cast<ZVecCollectionStats *>(
+      malloc(sizeof(ZVecCollectionStats)));
+  if (!stats) {
+    return nullptr;
   }
+  stats->doc_count = 0;
+  stats->index_count = 0;
+  stats->index_completeness = nullptr;
+  stats->index_names = nullptr;
+  return stats;
 }
 
 void zvec_collection_stats_destroy(ZVecCollectionStats *stats) {
@@ -4440,7 +4493,7 @@ void zvec_collection_stats_destroy(ZVecCollectionStats *stats) {
       free(stats->index_completeness);
     }
 
-    delete stats;
+    free(stats);
   }
 }
 
@@ -4449,132 +4502,138 @@ void zvec_collection_stats_destroy(ZVecCollectionStats *stats) {
 // =============================================================================
 
 ZVecQueryParams *zvec_query_params_create(ZVecIndexType index_type) {
-  try {
-    auto params = new ZVecQueryParams();
-    params->index_type = index_type;
-    params->radius = 0.0f;
-    params->is_linear = false;
-    params->is_using_refiner = false;
-    return params;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create query params: ") + e.what());
+  ZVecQueryParams *params = static_cast<ZVecQueryParams *>(
+      malloc(sizeof(ZVecQueryParams)));
+  if (!params) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecQueryParams",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+  params->index_type = index_type;
+  params->radius = 0.0f;
+  params->is_linear = false;
+  params->is_using_refiner = false;
+  return params;
 }
 
 ZVecHnswQueryParams *zvec_query_params_hnsw_create(ZVecIndexType index_type,
                                                    int ef, float radius,
                                                    bool is_linear,
                                                    bool is_using_refiner) {
-  try {
-    auto params = new ZVecHnswQueryParams();
-    params->base.index_type = index_type;
-    params->base.radius = radius;
-    params->base.is_linear = is_linear;
-    params->base.is_using_refiner = is_using_refiner;
-    params->ef = ef;
-    return params;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create HNSW query params: ") +
-                   e.what());
+  ZVecHnswQueryParams *params = static_cast<ZVecHnswQueryParams *>(
+      malloc(sizeof(ZVecHnswQueryParams)));
+  if (!params) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecHnswQueryParams",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+  params->base.index_type = index_type;
+  params->base.radius = radius;
+  params->base.is_linear = is_linear;
+  params->base.is_using_refiner = is_using_refiner;
+  params->ef = ef;
+  return params;
 }
 
 ZVecIVFQueryParams *zvec_query_params_ivf_create(ZVecIndexType index_type,
                                                  int nprobe,
                                                  bool is_using_refiner,
                                                  float scale_factor) {
-  try {
-    auto params = new ZVecIVFQueryParams();
-    params->base.index_type = index_type;
-    params->base.is_using_refiner = is_using_refiner;
-    params->nprobe = nprobe;
-    params->scale_factor = scale_factor;
-    return params;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create IVF query params: ") +
-                   e.what());
+  ZVecIVFQueryParams *params = static_cast<ZVecIVFQueryParams *>(
+      malloc(sizeof(ZVecIVFQueryParams)));
+  if (!params) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecIVFQueryParams",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+  params->base.index_type = index_type;
+  params->base.is_using_refiner = is_using_refiner;
+  params->nprobe = nprobe;
+  params->scale_factor = scale_factor;
+  return params;
 }
 
 ZVecFlatQueryParams *zvec_query_params_flat_create(ZVecIndexType index_type,
                                                    bool is_using_refiner,
                                                    float scale_factor) {
-  try {
-    auto params = new ZVecFlatQueryParams();
-    params->base.index_type = index_type;
-    params->base.is_using_refiner = is_using_refiner;
-    params->scale_factor = scale_factor;
-    return params;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create Flat query params: ") +
-                   e.what());
+  ZVecFlatQueryParams *params = static_cast<ZVecFlatQueryParams *>(
+      malloc(sizeof(ZVecFlatQueryParams)));
+  if (!params) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecFlatQueryParams",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+  params->base.index_type = index_type;
+  params->base.is_using_refiner = is_using_refiner;
+  params->scale_factor = scale_factor;
+  return params;
 }
 
 ZVecQueryParamsUnion *zvec_query_params_union_create(ZVecIndexType index_type) {
-  try {
-    auto params = new ZVecQueryParamsUnion();
-    params->index_type = index_type;
-
-    switch (index_type) {
-      case ZVEC_INDEX_TYPE_HNSW:
-        params->params.hnsw_params.base.index_type = index_type;
-        params->params.hnsw_params.ef =
-            zvec::core_interface::kDefaultHnswEfSearch;
-        break;
-      case ZVEC_INDEX_TYPE_IVF:
-        params->params.ivf_params.base.index_type = index_type;
-        params->params.ivf_params.nprobe = 10;
-        params->params.ivf_params.scale_factor = 10.0f;
-        break;
-      case ZVEC_INDEX_TYPE_FLAT:
-        params->params.flat_params.base.index_type = index_type;
-        params->params.flat_params.scale_factor = 10.0f;
-        break;
-      default:
-        params->params.base_params.index_type = index_type;
-        break;
-    }
-
-    return params;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Failed to create query params union: ") +
-                   e.what());
+  ZVecQueryParamsUnion *params = static_cast<ZVecQueryParamsUnion *>(
+      malloc(sizeof(ZVecQueryParamsUnion)));
+  if (!params) {
+    set_last_error_details(ZVEC_ERROR_RESOURCE_EXHAUSTED,
+                           "Failed to allocate memory for ZVecQueryParamsUnion",
+                           __FILE__, __LINE__, __FUNCTION__);
     return nullptr;
   }
+  params->index_type = index_type;
+
+  switch (index_type) {
+    case ZVEC_INDEX_TYPE_HNSW:
+      params->params.hnsw_params.base.index_type = index_type;
+      params->params.hnsw_params.ef =
+          zvec::core_interface::kDefaultHnswEfSearch;
+      break;
+    case ZVEC_INDEX_TYPE_IVF:
+      params->params.ivf_params.base.index_type = index_type;
+      params->params.ivf_params.nprobe = 10;
+      params->params.ivf_params.scale_factor = 10.0f;
+      break;
+    case ZVEC_INDEX_TYPE_FLAT:
+      params->params.flat_params.base.index_type = index_type;
+      params->params.flat_params.scale_factor = 10.0f;
+      break;
+    default:
+      params->params.base_params.index_type = index_type;
+      break;
+  }
+
+  return params;
 }
 
 void zvec_query_params_destroy(ZVecQueryParams *params) {
   if (params) {
-    delete params;
+    free(params);
   }
 }
 
 void zvec_query_params_hnsw_destroy(ZVecHnswQueryParams *params) {
   if (params) {
-    delete params;
+    free(params);
   }
 }
 
 void zvec_query_params_ivf_destroy(ZVecIVFQueryParams *params) {
   if (params) {
-    delete params;
+    free(params);
   }
 }
 
 void zvec_query_params_flat_destroy(ZVecFlatQueryParams *params) {
   if (params) {
-    delete params;
+    free(params);
   }
 }
 
 void zvec_query_params_union_destroy(ZVecQueryParamsUnion *params) {
   if (params) {
-    delete params;
+    free(params);
   }
 }
 
@@ -4670,7 +4729,7 @@ ZVecErrorCode zvec_collection_create_index(
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception in zvec_collection_create_index",
     auto coll_ptr =
         reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
     std::string field_name_str(column_name);
@@ -4724,11 +4783,7 @@ ZVecErrorCode zvec_collection_create_index(
         return ZVEC_ERROR_INVALID_ARGUMENT;
       }
     }
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception in zvec_collection_create_index: ") +
-                   e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_create_index_with_params(
@@ -4746,7 +4801,7 @@ ZVecErrorCode zvec_collection_create_index_with_params(
   const ZVecBaseIndexParams *base_params =
       static_cast<const ZVecBaseIndexParams *>(index_params);
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     switch (base_params->index_type) {
       case ZVEC_INDEX_TYPE_INVERT: {
         const ZVecInvertIndexParams *invert_params =
@@ -4797,10 +4852,7 @@ ZVecErrorCode zvec_collection_create_index_with_params(
         return ZVEC_ERROR_INVALID_ARGUMENT;
       }
     }
-  } catch (const std::exception &e) {
-    set_last_error(e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_create_hnsw_index(
@@ -4859,7 +4911,7 @@ ZVecErrorCode zvec_collection_drop_index(ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto coll_ptr =
         reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
     zvec::Status status = (*coll_ptr)->DropIndex(column_name);
@@ -4868,10 +4920,7 @@ ZVecErrorCode zvec_collection_drop_index(ZVecCollection *collection,
     }
 
     return status_to_error_code(status);
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_optimize(ZVecCollection *collection) {
@@ -4880,7 +4929,7 @@ ZVecErrorCode zvec_collection_optimize(ZVecCollection *collection) {
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto coll_ptr =
         reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
     zvec::Status status = (*coll_ptr)->Optimize();
@@ -4889,10 +4938,7 @@ ZVecErrorCode zvec_collection_optimize(ZVecCollection *collection) {
     }
 
     return status_to_error_code(status);
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 
@@ -4909,7 +4955,7 @@ ZVecErrorCode zvec_collection_add_column(ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto coll_ptr =
         reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
 
@@ -4940,10 +4986,7 @@ ZVecErrorCode zvec_collection_add_column(ZVecCollection *collection,
     }
 
     return status_to_error_code(status);
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_drop_column(ZVecCollection *collection,
@@ -4954,7 +4997,7 @@ ZVecErrorCode zvec_collection_drop_column(ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto coll_ptr =
         reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
     zvec::Status status = (*coll_ptr)->DropColumn(column_name);
@@ -4964,10 +5007,7 @@ ZVecErrorCode zvec_collection_drop_column(ZVecCollection *collection,
     }
 
     return status_to_error_code(status);
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_alter_column(ZVecCollection *collection,
@@ -4980,7 +5020,7 @@ ZVecErrorCode zvec_collection_alter_column(ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto coll_ptr =
         reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
     std::string rename = new_name ? new_name : "";
@@ -5000,10 +5040,7 @@ ZVecErrorCode zvec_collection_alter_column(ZVecCollection *collection,
     }
 
     return status_to_error_code(status);
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 // =============================================================================
@@ -5022,7 +5059,7 @@ ZVecErrorCode zvec_collection_insert(ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception in zvec_collection_insert_docs",
     auto coll_ptr =
         reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
 
@@ -5048,13 +5085,7 @@ ZVecErrorCode zvec_collection_insert(ZVecCollection *collection,
     }
 
     return error_code;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception in zvec_collection_insert_docs: ") +
-                   e.what());
-    *success_count = 0;
-    *error_count = doc_count;
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_update(ZVecCollection *collection,
@@ -5069,7 +5100,7 @@ ZVecErrorCode zvec_collection_update(ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto coll_ptr =
         reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
 
@@ -5092,10 +5123,7 @@ ZVecErrorCode zvec_collection_update(ZVecCollection *collection,
     }
 
     return error_code;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_upsert(ZVecCollection *collection,
@@ -5110,7 +5138,7 @@ ZVecErrorCode zvec_collection_upsert(ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto coll_ptr =
         reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
 
@@ -5133,10 +5161,7 @@ ZVecErrorCode zvec_collection_upsert(ZVecCollection *collection,
     }
 
     return error_code;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_delete(ZVecCollection *collection,
@@ -5150,7 +5175,7 @@ ZVecErrorCode zvec_collection_delete(ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto coll_ptr =
         reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
 
@@ -5178,10 +5203,7 @@ ZVecErrorCode zvec_collection_delete(ZVecCollection *collection,
     }
 
     return error_code;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_delete_by_filter(ZVecCollection *collection,
@@ -5191,7 +5213,7 @@ ZVecErrorCode zvec_collection_delete_by_filter(ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto coll_ptr =
         reinterpret_cast<std::shared_ptr<zvec::Collection> *>(collection);
 
@@ -5201,10 +5223,7 @@ ZVecErrorCode zvec_collection_delete_by_filter(ZVecCollection *collection,
       return status_to_error_code(status);
     }
     return ZVEC_OK;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 // =============================================================================
@@ -5567,7 +5586,7 @@ ZVecErrorCode zvec_collection_query(const ZVecCollection *collection,
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto coll_ptr =
         reinterpret_cast<const std::shared_ptr<zvec::Collection> *>(collection);
 
@@ -5588,12 +5607,7 @@ ZVecErrorCode zvec_collection_query(const ZVecCollection *collection,
     }
 
     return error_code;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    *results = nullptr;
-    *result_count = 0;
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_query_by_group(
@@ -5607,7 +5621,7 @@ ZVecErrorCode zvec_collection_query_by_group(
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception occurred",
     auto coll_ptr =
         reinterpret_cast<const std::shared_ptr<zvec::Collection> *>(collection);
 
@@ -5628,13 +5642,7 @@ ZVecErrorCode zvec_collection_query_by_group(
     }
 
     return error_code;
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception occurred: ") + e.what());
-    *results = nullptr;
-    *group_by_values = nullptr;
-    *result_count = 0;
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }
 
 ZVecErrorCode zvec_collection_fetch(ZVecCollection *collection,
@@ -5654,7 +5662,7 @@ ZVecErrorCode zvec_collection_fetch(ZVecCollection *collection,
     return ZVEC_OK;
   }
 
-  try {
+  ZVEC_TRY_RETURN_ERROR("Exception in zvec_collection_fetch",
     auto coll_ptr =
         reinterpret_cast<const std::shared_ptr<zvec::Collection> *>(collection);
 
@@ -5679,12 +5687,5 @@ ZVecErrorCode zvec_collection_fetch(ZVecCollection *collection,
 
     const auto &doc_map = result.value();
     return convert_fetched_document_results(doc_map, results, doc_count);
-
-  } catch (const std::exception &e) {
-    set_last_error(std::string("Exception in zvec_collection_fetch: ") +
-                   e.what());
-    *results = nullptr;
-    *doc_count = 0;
-    return ZVEC_ERROR_INTERNAL_ERROR;
-  }
+  )
 }

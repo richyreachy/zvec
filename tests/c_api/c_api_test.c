@@ -152,15 +152,7 @@ void test_zvec_config() {
   // Test 4: Log config creation with console type
   ZVecConsoleLogConfig *temp_console =
       zvec_config_console_log_create(ZVEC_LOG_LEVEL_ERROR);
-  ZVecLogConfig *log_config_console =
-      zvec_config_log_create(ZVEC_LOG_TYPE_CONSOLE, temp_console);
-  TEST_ASSERT(log_config_console != NULL);
-  if (log_config_console) {
-    TEST_ASSERT(log_config_console->type == ZVEC_LOG_TYPE_CONSOLE);
-    TEST_ASSERT(log_config_console->config.console_config.level ==
-                ZVEC_LOG_LEVEL_ERROR);
-    zvec_config_log_destroy(log_config_console);
-  }
+  TEST_ASSERT(temp_console != NULL);
   if (temp_console) {
     zvec_config_console_log_destroy(temp_console);
   }
@@ -168,41 +160,22 @@ void test_zvec_config() {
   // Test 5: Log config creation with file type
   ZVecFileLogConfig *temp_file = zvec_config_file_log_create(
       ZVEC_LOG_LEVEL_DEBUG, "./logs", "app", 50, 30);
-  ZVecLogConfig *log_config_file =
-      zvec_config_log_create(ZVEC_LOG_TYPE_FILE, temp_file);
-  TEST_ASSERT(log_config_file != NULL);
-  if (log_config_file) {
-    TEST_ASSERT(log_config_file->type == ZVEC_LOG_TYPE_FILE);
-    TEST_ASSERT(log_config_file->config.file_config.level ==
-                ZVEC_LOG_LEVEL_DEBUG);
-    TEST_ASSERT(
-        strcmp(log_config_file->config.file_config.dir.data, "./logs") == 0);
-    TEST_ASSERT(
-        strcmp(log_config_file->config.file_config.basename.data, "app") == 0);
-    zvec_config_log_destroy(log_config_file);
-  }
-  if (temp_file) {
-    zvec_config_file_log_destroy(temp_file);
-  }
+  TEST_ASSERT(temp_file != NULL);
+  TEST_ASSERT(temp_file->level == ZVEC_LOG_LEVEL_DEBUG);
+  TEST_ASSERT(strcmp(temp_file->dir.data, "./logs") == 0);
+  TEST_ASSERT(strcmp(temp_file->basename.data, "app") == 0);
+  TEST_ASSERT(temp_file->file_size == 50);
+  TEST_ASSERT(temp_file->overdue_days == 30);
 
-  // Test 6: Log config with NULL config data (should use defaults)
-  ZVecLogConfig *log_config_default =
-      zvec_config_log_create(ZVEC_LOG_TYPE_CONSOLE, NULL);
-  TEST_ASSERT(log_config_default != NULL);
-  if (log_config_default) {
-    TEST_ASSERT(log_config_default->type == ZVEC_LOG_TYPE_CONSOLE);
-    TEST_ASSERT(log_config_default->config.console_config.level ==
-                ZVEC_LOG_LEVEL_WARN);
-    zvec_config_log_destroy(log_config_default);
-  }
-
-  // Test 7: Config data creation and basic operations
+  zvec_config_file_log_destroy(temp_file);
+  
+  // Test 6: Config data creation and basic operations
   ZVecConfigData *config_data = zvec_config_data_create();
   TEST_ASSERT(config_data != NULL);
   if (config_data) {
     // Test initial values
     TEST_ASSERT(config_data->log_config != NULL);
-    TEST_ASSERT(config_data->log_config->type == ZVEC_LOG_TYPE_CONSOLE);
+    TEST_ASSERT(config_data->log_type == ZVEC_LOG_TYPE_CONSOLE);
 
     // Test memory limit setting
     ZVecErrorCode err =
@@ -220,27 +193,25 @@ void test_zvec_config() {
     TEST_ASSERT(config_data->optimize_thread_count == 4);
 
     // Test log config replacement
-    ZVecConsoleLogConfig *new_console =
-        zvec_config_console_log_create(ZVEC_LOG_LEVEL_DEBUG);
-    ZVecLogConfig *new_log_config =
-        zvec_config_log_create(ZVEC_LOG_TYPE_CONSOLE, new_console);
-    if (new_log_config) {
-      err = zvec_config_data_set_log_config(config_data, new_log_config);
-      TEST_ASSERT(err == ZVEC_OK);
-      TEST_ASSERT(config_data->log_config == new_log_config);
-    }
+    TEST_ASSERT(config_data->log_type == ZVEC_LOG_TYPE_CONSOLE);
+    TEST_ASSERT(config_data->log_config != NULL);
 
+    ZVecFileLogConfig *new_file = zvec_config_file_log_create(
+      ZVEC_LOG_LEVEL_DEBUG, "./logs", "app", 50, 30);
+    TEST_ASSERT(new_file != NULL);
+    zvec_config_data_set_log_config(config_data, ZVEC_LOG_TYPE_FILE, new_file);
+    TEST_ASSERT(config_data->log_type == ZVEC_LOG_TYPE_FILE);
+    TEST_ASSERT(config_data->log_config != NULL);
+    
     zvec_config_data_destroy(config_data);
-    if (new_console) zvec_config_console_log_destroy(new_console);
-    if (new_log_config) zvec_config_log_destroy(new_log_config);
   }
 
-  // Test 8: Edge cases and error conditions
+  // Test 7: Edge cases and error conditions
   // Test NULL pointer handling
   ZVecErrorCode err = zvec_config_data_set_memory_limit(NULL, 1024);
   TEST_ASSERT(err == ZVEC_ERROR_INVALID_ARGUMENT);
 
-  err = zvec_config_data_set_log_config(NULL, NULL);
+  err = zvec_config_data_set_log_config(NULL, ZVEC_LOG_TYPE_CONSOLE, NULL);
   TEST_ASSERT(err == ZVEC_ERROR_INVALID_ARGUMENT);
 
   err = zvec_config_data_set_query_thread_count(NULL, 1);
@@ -274,7 +245,7 @@ void test_zvec_config() {
     zvec_config_data_destroy(boundary_config);
   }
 
-  // Test 9: Memory leak prevention - double destroy safety
+  // Test 8: Memory leak prevention - double destroy safety
   ZVecConfigData *double_destroy_test = zvec_config_data_create();
   if (double_destroy_test) {
     zvec_config_data_destroy(double_destroy_test);
@@ -290,7 +261,7 @@ void test_zvec_initialize() {
   TEST_ASSERT(config != NULL);
   if (config) {
     TEST_ASSERT(config->log_config != NULL);
-    TEST_ASSERT(config->log_config->type == ZVEC_LOG_TYPE_CONSOLE);
+    TEST_ASSERT(config->log_type == ZVEC_LOG_TYPE_CONSOLE);
   }
   ZVecErrorCode err = zvec_initialize(config);
   TEST_ASSERT(err == ZVEC_OK);

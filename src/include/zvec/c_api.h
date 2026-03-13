@@ -423,25 +423,14 @@ typedef struct {
 } ZVecFileLogConfig;
 
 /**
- * @brief Log configuration union
- */
-typedef struct {
-  ZVecLogType type; /**< Log type */
-  union {
-    ZVecConsoleLogConfig console_config; /**< Console log configuration */
-    ZVecFileLogConfig file_config;       /**< File log configuration */
-  } config;
-} ZVecLogConfig;
-
-/**
  * @brief ZVec configuration data structure (corresponds to zvec::ConfigData)
  */
 typedef struct {
   uint64_t memory_limit_bytes; /**< Memory limit in bytes */
 
   // log
-  ZVecLogConfig *log_config; /**< Log configuration (optional, NULL means using
-                                default configuration) */
+  ZVecLogType log_type;
+  void *log_config; /**< Log configuration (ZVecConsoleLogConfig or ZVecFileLogConfig) */
 
   // query
   uint32_t query_thread_count;        /**< Query thread count */
@@ -476,15 +465,6 @@ ZVEC_EXPORT ZVecFileLogConfig *ZVEC_CALL zvec_config_file_log_create(
     uint32_t file_size, uint32_t overdue_days);
 
 /**
- * @brief Create log configuration
- * @param type Log type
- * @param config_data Configuration data (specific to log type)
- * @return ZVecLogConfig* Pointer to the newly created log configuration
- */
-ZVEC_EXPORT ZVecLogConfig *ZVEC_CALL zvec_config_log_create(ZVecLogType type,
-                                                            void *config_data);
-
-/**
  * @brief Destroy console log configuration
  * @param config Console log configuration pointer
  */
@@ -498,11 +478,6 @@ zvec_config_console_log_destroy(ZVecConsoleLogConfig *config);
 ZVEC_EXPORT void ZVEC_CALL
 zvec_config_file_log_destroy(ZVecFileLogConfig *config);
 
-/**
- * @brief Destroy log configuration
- * @param config Log configuration pointer
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_config_log_destroy(ZVecLogConfig *config);
 
 /**
  * @brief Create configuration data
@@ -528,11 +503,11 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_config_data_set_memory_limit(
 /**
  * @brief Set log configuration in configuration data
  * @param config Configuration data pointer
- * @param log_config Log configuration pointer
+ * @param log_config Log configuration pointer (ownership is transferred to config, do not free separately)
  * @return ZVecErrorCode Error code
  */
 ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_config_data_set_log_config(
-    ZVecConfigData *config, ZVecLogConfig *log_config);
+    ZVecConfigData *config, ZVecLogType log_type, void *log_config);
 
 /**
  * @brief Set query thread count in configuration data
