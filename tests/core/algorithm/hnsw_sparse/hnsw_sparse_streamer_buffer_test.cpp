@@ -142,6 +142,7 @@ TEST_F(HnswSparseStreamerTest, TestGeneral) {
   write_streamer->flush(0UL);
   write_streamer->close();
   write_streamer.reset();
+  write_storage->close();
 
   IndexStreamer::Pointer read_streamer =
       IndexFactory::CreateStreamer("HnswSparseStreamer");
@@ -270,6 +271,7 @@ TEST_F(HnswSparseStreamerTest, TestHnswSearchMMap) {
   write_streamer->flush(0UL);
   write_streamer->close();
   write_streamer.reset();
+  write_storage->close();
 
   IndexStreamer::Pointer read_streamer =
       IndexFactory::CreateStreamer("HnswSparseStreamer");
