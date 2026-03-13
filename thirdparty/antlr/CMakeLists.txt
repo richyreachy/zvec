@@ -16,6 +16,9 @@ set_target_properties(
   INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/antlr4/runtime/Cpp/runtime/src/"
   IMPORTED_LOCATION "${EXTERNAL_LIB_DIR}/${_antlr4_lib_name}"
   )
+if(WIN32)
+  set_property(TARGET antlr4 PROPERTY INTERFACE_COMPILE_DEFINITIONS "ANTLR4CPP_STATIC")
+endif()
 add_dependencies(antlr4 antlr4_static)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
