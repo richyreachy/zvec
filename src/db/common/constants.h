@@ -24,7 +24,7 @@ const float DEFAULT_MEMORY_LIMIT_RATIO = 0.8f;
 
 const uint32_t MIN_MEMORY_LIMIT_BYTES = 100 * 1024 * 1024;
 
-const uint64_t INVALID_DOC_ID = -1UL;
+const uint64_t INVALID_DOC_ID = UINT64_MAX;
 
 const std::string LOCAL_ROW_ID = "_zvec_row_id_";
 

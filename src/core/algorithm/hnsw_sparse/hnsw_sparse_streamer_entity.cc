@@ -607,8 +607,8 @@ int HnswSparseStreamerEntity::add_vector(level_t level, key_t key,
   SparseChunk::Pointer node_chunk;
   SparseChunk::Pointer sparse_node_chunk;
 
-  size_t chunk_offset = -1UL;
-  size_t sparse_chunk_offset = -1UL;
+  size_t chunk_offset = static_cast<size_t>(-1);
+  size_t sparse_chunk_offset = static_cast<size_t>(-1);
 
   std::lock_guard<std::mutex> lock(mutex_);
   // duplicate check
@@ -744,8 +744,8 @@ int HnswSparseStreamerEntity::add_vector_with_id(level_t level, node_id_t id,
   key_t key = id;
   SparseChunk::Pointer node_chunk;
   SparseChunk::Pointer sparse_node_chunk;
-  size_t chunk_offset = -1UL;
-  size_t sparse_chunk_offset = -1UL;
+  size_t chunk_offset = static_cast<size_t>(-1);
+  size_t sparse_chunk_offset = static_cast<size_t>(-1);
 
   // allocat sparse chunk
   uint32_t sparse_vector_len = sparse_vec.size();
