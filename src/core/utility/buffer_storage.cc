@@ -73,43 +73,12 @@ class BufferStorage : public IndexStorage {
 
     //! Fetch data from segment (with own buffer)
     size_t fetch(size_t offset, void *buf, size_t len) const override {
-      if (ailego_unlikely(offset + len > segment_->meta()->data_size)) {
-        auto meta = segment_->meta();
-        if (offset > meta->data_size) {
-          offset = meta->data_size;
-        }
-        len = meta->data_size - offset;
-      }
-      size_t buffer_offset = segment_header_start_offset_ +
-                             segment_header_->content_offset +
-                             segment_->meta()->data_index;
-      auto *raw = owner_->get_buffer(buffer_offset, capacity_, segment_id_);
-      if (!raw) {
-        return 0;
-      }
-      auto *data = raw + offset;
-      memmove(buf, data, len);
-      return len;
+      return 0;
     }
 
     //! Read data from segment
     size_t read(size_t offset, const void **data, size_t len) override {
-      if (ailego_unlikely(offset + len > segment_->meta()->data_size)) {
-        auto meta = segment_->meta();
-        if (offset > meta->data_size) {
-          offset = meta->data_size;
-        }
-        len = meta->data_size - offset;
-      }
-      size_t buffer_offset = segment_header_start_offset_ +
-                             segment_header_->content_offset +
-                             segment_->meta()->data_index;
-      auto *raw = owner_->get_buffer(buffer_offset, capacity_, segment_id_);
-      if (!raw) {
-        return 0;
-      }
-      *data = raw + offset;
-      return len;
+      return 0;
     }
 
     size_t read(size_t offset, MemoryBlock &data, size_t len) override {

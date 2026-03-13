@@ -25,12 +25,16 @@ bool LRUCache::evict_single_block(BlockType &item) {
 
 bool LRUCache::add_single_block(const LPMap *lp_map, const BlockType &block,
                                 int block_type) {
-  bool ok = queues_[block_type].try_enqueue(block);
+  bool ok = queues_[block_type].enqueue(block);
+  if (!ok) {
+    LOG_ERROR("enqueue failed.");
+    return false;
+  }
   evict_queue_insertions_.fetch_add(1, std::memory_order_relaxed);
   if (evict_queue_insertions_ % block_size_ == 0) {
     this->clear_dead_node(lp_map);
   }
-  return ok;
+  return true;
 }
 
 void LRUCache::clear_dead_node(const LPMap *lp_map) {
@@ -44,12 +48,16 @@ void LRUCache::clear_dead_node(const LPMap *lp_map) {
     BlockType item;
     while (queues_[i].try_dequeue(item) && (clear_count++ < clear_size)) {
       if (!lp_map->isDeadBlock(item)) {
-        tmp.try_enqueue(item);
+        if (!tmp.enqueue(item)) {
+          LOG_ERROR("enqueue failed.");
+        }
       }
     }
     while (tmp.try_dequeue(item)) {
       if (!lp_map->isDeadBlock(item)) {
-        queues_[i].try_enqueue(item);
+        if (!queues_[i].enqueue(item)) {
+          LOG_ERROR("enqueue failed.");
+        }
       }
     }
   }
@@ -72,14 +80,20 @@ void LPMap::init(size_t entry_num) {
 char *LPMap::acquire_block(block_id_t block_id) {
   assert(block_id < entry_num_);
   Entry &entry = entries_[block_id];
-  if (entry.ref_count.load(std::memory_order_relaxed) == 0) {
-    entry.load_count.fetch_add(1, std::memory_order_relaxed);
+  while (true) {
+    int current_count = entry.ref_count.load(std::memory_order_acquire);
+    if (current_count < 0) {
+      return nullptr;
+    }
+    if (entry.ref_count.compare_exchange_weak(current_count, current_count + 1,
+                                              std::memory_order_acq_rel,
+                                              std::memory_order_acquire)) {
+      if (current_count == 0) {
+        entry.load_count.fetch_add(1, std::memory_order_relaxed);
+      }
+      return entry.buffer;
+    }
   }
-  entry.ref_count.fetch_add(1, std::memory_order_relaxed);
-  if (entry.ref_count.load(std::memory_order_relaxed) < 0) {
-    return nullptr;
-  }
-  return entry.buffer;
 }
 
 void LPMap::release_block(block_id_t block_id) {
@@ -115,16 +129,13 @@ char *LPMap::set_block_acquired(block_id_t block_id, char *buffer) {
   while (true) {
     int current_count = entry.ref_count.load(std::memory_order_relaxed);
     if (current_count >= 0) {
-      int expected = current_count;
-      if (entry.ref_count.compare_exchange_weak(expected, current_count + 1,
-                                                std::memory_order_acq_rel,
-                                                std::memory_order_acquire)) {
+      if (entry.ref_count.compare_exchange_weak(
+              current_count, current_count + 1, std::memory_order_acq_rel,
+              std::memory_order_acquire)) {
         return entry.buffer;
       }
-      continue;
     } else {
-      int expected = current_count;
-      if (entry.ref_count.compare_exchange_weak(expected, 1,
+      if (entry.ref_count.compare_exchange_weak(current_count, 1,
                                                 std::memory_order_acq_rel,
                                                 std::memory_order_acquire)) {
         entry.buffer = buffer;
@@ -145,7 +156,10 @@ void LPMap::recycle(moodycamel::ConcurrentQueue<char *> &free_buffers) {
   } while (isDeadBlock(block));
   char *buffer = evict_block(block.first);
   if (buffer) {
-    free_buffers.try_enqueue(buffer);
+    if (!free_buffers.enqueue(buffer)) {
+      LOG_ERROR("recycle buffer enqueue failed.");
+      ailego_free(buffer);
+    }
   }
 }
 
@@ -175,7 +189,11 @@ int VecBufferPool::init(size_t pool_capacity, size_t block_size,
   for (size_t i = 0; i < buffer_num; i++) {
     char *buffer = (char *)ailego_malloc(block_size);
     if (buffer != nullptr) {
-      free_buffers_.try_enqueue(buffer);
+      if (!free_buffers_.enqueue(buffer)) {
+        LOG_ERROR("recycle buffer enqueue failed.");
+        ailego_free(buffer);
+        return -1;
+      }
     } else {
       LOG_ERROR("aligned_alloc %zu(size: %zu) failed", i, block_size);
       return -1;
@@ -216,7 +234,7 @@ char *VecBufferPool::acquire_buffer(block_id_t block_id, size_t offset,
   ssize_t read_bytes = pread(fd_, buffer, size, offset);
   if (read_bytes != static_cast<ssize_t>(size)) {
     LOG_ERROR("Buffer pool failed to read file at offset: %zu", offset);
-    free_buffers_.try_enqueue(buffer);
+    free_buffers_.enqueue(buffer);
     return nullptr;
   }
   char *placed_buffer = nullptr;
@@ -226,7 +244,7 @@ char *VecBufferPool::acquire_buffer(block_id_t block_id, size_t offset,
   }
   if (placed_buffer != buffer) {
     // another thread has set the block
-    free_buffers_.try_enqueue(buffer);
+    free_buffers_.enqueue(buffer);
   }
   return placed_buffer;
 }
