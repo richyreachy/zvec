@@ -28,7 +28,7 @@ static ZVecErrorCode handle_error(ZVecErrorCode error, const char *context) {
     zvec_get_last_error(&error_msg);
     fprintf(stderr, "Error in %s: %d - %s\n", context, error,
             error_msg ? error_msg : "Unknown error");
-    zvec_free_str(error_msg);
+    free(error_msg);
   }
   return error;
 }

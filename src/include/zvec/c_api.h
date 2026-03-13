@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 // =============================================================================
 // API Export Control
@@ -152,7 +153,7 @@ zvec_get_last_error_details(ZVecErrorDetails *error_details);
 /**
  * @brief Get last error message
  * @param[out] error_msg Returned error message string (needs to be freed by
- * calling zvec_free)
+ * calling free)
  * @return ZVecErrorCode Error code
  */
 ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_get_last_error(char **error_msg);
@@ -306,12 +307,6 @@ ZVEC_EXPORT int ZVEC_CALL zvec_string_compare(const ZVecString *str1,
  * @param str String pointer to free
  */
 ZVEC_EXPORT void ZVEC_CALL zvec_free_string(ZVecString *str);
-
-/**
- * @brief Free string memory
- * @param str String pointer to free
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_free_str(char *str);
 
 
 // =============================================================================
@@ -556,12 +551,6 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_config_data_set_query_thread_count(
  */
 ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_config_data_set_optimize_thread_count(
     ZVecConfigData *config, uint32_t thread_count);
-
-/**
- * @brief Destroy log configuration
- * @param config Log configuration structure pointer
- */
-void zvec_config_log_destroy(ZVecLogConfig *config);
 
 // =============================================================================
 // Initialization and Cleanup Interface
@@ -1096,7 +1085,7 @@ zvec_query_params_union_create(ZVecIndexType index_type);
 
 /**
  * @brief Destroy base query parameters
- * @param params HNSW query parameters pointer
+ * @param params query parameters pointer
  */
 ZVEC_EXPORT void ZVEC_CALL zvec_query_params_destroy(ZVecQueryParams *params);
 
@@ -1606,25 +1595,6 @@ zvec_collection_drop_index(ZVecCollection *collection, const char *field_name);
  */
 ZVEC_EXPORT ZVecErrorCode ZVEC_CALL
 zvec_collection_optimize(ZVecCollection *collection);
-
-/**
- * @brief Compact collection (reclaim space)
- * @param collection Collection handle
- * @return ZVecErrorCode Error code */
-
-/**
- * @brief Get detailed information of the last error
- * @param[out] error_details Pointer to error details structure
- * @return ZVecErrorCode Error code
- */
-ZVEC_EXPORT ZVecErrorCode ZVEC_CALL
-zvec_get_last_error_details(ZVecErrorDetails *error_details);
-
-/**
- * @brief Clear error status
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_clear_error(void);
-
 
 // =============================================================================
 // Column Management Interface (DDL)
@@ -2284,9 +2254,9 @@ const char *zvec_metric_type_to_string(ZVecMetricType metric_type);
  * @param str String content
  *
  * Usage example:
- * ZVecString name = ZVEC_STRING_LITERAL("my_collection");
+ * ZVecString name = ZVEC_STRING("my_collection");
  */
-#define ZVEC_STRING_LITERAL(str)       \
+#define ZVEC_STRING(str)               \
   (ZVecString) {                       \
     .data = str, .length = strlen(str) \
   }
@@ -2328,23 +2298,6 @@ const char *zvec_metric_type_to_string(ZVecMetricType metric_type);
   (ZVecInt64Array) {                    \
     .data = data_ptr, .length = len     \
   }
-
-
-/**
- * @brief Simplified inverted index parameters initialization macro
- * @param range_opt Whether to enable range optimization
- * @param wildcard Whether to enable wildcard expansion
- *
- * Usage example:
- * ZVecInvertIndexParams params = ZVEC_INVERT_PARAMS(true, false);
- */
-#define ZVEC_INVERT_PARAMS(range_opt, wildcard) \
-  (ZVecInvertIndexParams) {                     \
-    .base.index_type = ZVEC_INDEX_TYPE_INVERT,  \
-    .enable_range_optimization = range_opt,     \
-    .enable_extended_wildcard = wildcard        \
-  }
-
 
 /**
  * @brief Simplified collection options initialization macro (using default

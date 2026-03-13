@@ -420,8 +420,8 @@ void zvec_config_console_log_destroy(ZVecConsoleLogConfig *config) {
 
 void zvec_config_file_log_destroy(ZVecFileLogConfig *config) {
   if (config) {
-    if (config->dir.data) zvec_free_str(config->dir.data);
-    if (config->basename.data) zvec_free_str(config->basename.data);
+    if (config->dir.data) free(config->dir.data);
+    if (config->basename.data) free(config->basename.data);
     delete config;
   }
 }
@@ -781,12 +781,6 @@ void zvec_string_array_destroy(ZVecStringArray *array) {
 }
 
 
-void zvec_free_str(char *str) {
-  if (str) {
-    free(str);
-  }
-}
-
 // Byte array helper functions
 ZVecMutableByteArray *zvec_byte_array_create(size_t capacity) {
   ZVecMutableByteArray *array =
@@ -909,7 +903,6 @@ void zvec_free_field_schema(ZVecFieldSchema *field_schema) {
     delete field_schema;
   }
 }
-
 
 // =============================================================================
 // Index parameters management interface implementation
@@ -1294,7 +1287,6 @@ static void zvec_field_schema_cleanup(ZVecFieldSchema *field_schema) {
   zvec_free_string(field_schema->name);
   field_schema->name = nullptr;
 }
-
 
 // =============================================================================
 // CollectionOptions management interface implementation
@@ -1715,7 +1707,6 @@ uint64_t zvec_collection_schema_get_max_doc_count_per_segment(
   return schema->max_doc_count_per_segment;
 }
 
-
 ZVecErrorCode zvec_collection_schema_validate(
     const ZVecCollectionSchema *schema, ZVecString **error_msg) {
   if (!schema) {
@@ -1798,7 +1789,6 @@ void zvec_collection_schema_cleanup(ZVecCollectionSchema *schema) {
             e.what());
   }
 }
-
 
 // =============================================================================
 // Helper functions
@@ -2011,7 +2001,6 @@ void zvec_doc_set_doc_id(ZVecDoc *doc, uint64_t doc_id) {
     set_last_error(std::string("Failed to set document id: ") + e.what());
   }
 }
-
 
 void zvec_doc_set_score(ZVecDoc *doc, float score) {
   if (!doc) return;
@@ -5109,7 +5098,6 @@ ZVecErrorCode zvec_collection_update(ZVecCollection *collection,
   }
 }
 
-
 ZVecErrorCode zvec_collection_upsert(ZVecCollection *collection,
                                      const ZVecDoc **docs, size_t doc_count,
                                      size_t *success_count,
@@ -5219,11 +5207,9 @@ ZVecErrorCode zvec_collection_delete_by_filter(ZVecCollection *collection,
   }
 }
 
-
 // =============================================================================
 // Data query interface implementation
 // =============================================================================
-
 
 // Helper function to convert common query parameters
 void convert_common_query_params(zvec::VectorQuery &internal_query,

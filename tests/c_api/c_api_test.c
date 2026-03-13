@@ -97,7 +97,7 @@ void test_error_handling_functions(void) {
   TEST_ASSERT(err == ZVEC_OK);
 
   if (error_msg) {
-    zvec_free_str(error_msg);
+    free(error_msg);
   }
 
   // Test error clearing
@@ -2271,7 +2271,7 @@ void test_doc_get_field_value_copy(void) {
     zvec_free_string(array_zvec_str[i]);
   }
 
-  zvec_free_str(string_field.value.string_value.data);
+  free(string_field.value.string_value.data);
 
   // ARRAY_BOOL type
   bool array_bool_data[] = {true, false, true, false, true};
@@ -2419,7 +2419,7 @@ void test_doc_get_field_value_copy(void) {
   free(array_double_result);
 
 
-  zvec_free_str(binary_field.value.string_value.data);
+  free(binary_field.value.string_value.data);
   zvec_doc_destroy(doc);
 
   TEST_END();
@@ -2835,8 +2835,8 @@ void test_doc_get_field_value_pointer(void) {
   TEST_ASSERT(fabs(((const double *)array_double_ptr)[1] - 2.222222) < 1e-10);
   TEST_ASSERT(fabs(((const double *)array_double_ptr)[2] - 3.333333) < 1e-10);
 
-  zvec_free_str(string_field.value.string_value.data);
-  zvec_free_str(binary_field.value.string_value.data);
+  free(string_field.value.string_value.data);
+  free(binary_field.value.string_value.data);
   zvec_doc_destroy(doc);
 
   TEST_END();
@@ -2910,7 +2910,7 @@ void test_doc_field_operations(void) {
   TEST_ASSERT(found_key_fields == true);
 
   zvec_free_str_array(field_names, name_count);
-  zvec_free_str(string_field.value.string_value.data);
+  free(string_field.value.string_value.data);
   zvec_doc_destroy(doc);
 
   TEST_END();
@@ -3025,7 +3025,7 @@ void test_doc_serialization(void) {
   TEST_ASSERT(deserialized_int32 == -2147483648);
 
   zvec_free_uint8_array(serialized_data);
-  zvec_free_str(string_field.value.string_value.data);
+  free(string_field.value.string_value.data);
   zvec_doc_destroy(deserialized_doc);
   zvec_doc_destroy(doc);
 
@@ -4091,11 +4091,11 @@ void test_collection_query_functions(void) {
 
     // Test zvec_collection_query_by_group
     ZVecGroupByVectorQuery group_query = {0};
-    group_query.field_name = ZVEC_STRING_LITERAL("vec");
+    group_query.field_name = ZVEC_STRING("vec");
     float query_vec[4] = {0.5f, 0.5f, 0.0f, 0.0f};
     group_query.query_vector.data = (uint8_t *)query_vec;
     group_query.query_vector.length = sizeof(query_vec);
-    group_query.group_by_field_name = ZVEC_STRING_LITERAL("name");
+    group_query.group_by_field_name = ZVEC_STRING("name");
     group_query.group_count = 2;
     group_query.group_topk = 1;
     group_query.include_vector = false;
@@ -4104,7 +4104,7 @@ void test_collection_query_functions(void) {
     output_fields.count = 1;
     output_fields.strings =
         (ZVecString *)malloc(sizeof(ZVecString) * output_fields.count);
-    output_fields.strings[0] = ZVEC_STRING_LITERAL("name");
+    output_fields.strings[0] = ZVEC_STRING("name");
     group_query.output_fields = output_fields;
 
     ZVecDoc **group_results = NULL;
@@ -4215,7 +4215,7 @@ void test_doc_advanced_functions(void) {
   ZVecErrorCode err = zvec_doc_validate(val_doc, schema, false, &error_msg);
   TEST_ASSERT(err == ZVEC_OK);
   if (error_msg) {
-    zvec_free_str(error_msg);
+    free(error_msg);
   }
 
   zvec_doc_destroy(val_doc);
@@ -4235,7 +4235,7 @@ void test_doc_advanced_functions(void) {
   TEST_ASSERT(err == ZVEC_OK);
   TEST_ASSERT(detail_str != NULL);
   printf("  Document detail: %s\n", detail_str);
-  zvec_free_str(detail_str);
+  free(detail_str);
 
   zvec_doc_destroy(detail_doc);
 
