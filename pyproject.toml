@@ -169,16 +169,13 @@ build = [
     "cp314-*",
 ]
 build-frontend = "build"
-# Force Make generator so all ExternalProject sub-builds (e.g. Arrow) inherit
-# the same generator instead of defaulting to Xcode on macOS or Ninja elsewhere
-# MAKEFLAGS=-j lets Make auto-detect and use all available CPU cores
-environment = { CMAKE_GENERATOR = "Unix Makefiles", MAKEFLAGS = "-j" }
 test-requires = ["pytest", "numpy"]
 test-command = "cd {project} && pytest python/tests -v --tb=short"
 build-verbosity = 1
 
 [tool.cibuildwheel.linux]
 archs = ["auto"]
+environment = { CMAKE_GENERATOR = "Unix Makefiles", CMAKE_BUILD_PARALLEL_LEVEL = "16" }
 manylinux-x86_64-image = "manylinux_2_28"
 manylinux-aarch64-image = "manylinux_2_28"
 # Skip 32-bit builds and musllinux
@@ -186,8 +183,9 @@ skip = ["*-manylinux_i686", "*-musllinux*"]
 
 [tool.cibuildwheel.macos]
 archs = ["arm64"]
-# Inherits CMAKE_GENERATOR and MAKEFLAGS from [tool.cibuildwheel]
-environment = { MACOSX_DEPLOYMENT_TARGET = "11.0" }
+# Inherits CMAKE_GENERATOR and CMAKE_BUILD_PARALLEL_LEVEL from [tool.cibuildwheel] won't work;
+# platform-level environment overrides the top-level entirely, so all vars must be listed here
+environment = { CMAKE_GENERATOR = "Unix Makefiles", CMAKE_BUILD_PARALLEL_LEVEL = "16", MACOSX_DEPLOYMENT_TARGET = "11.0" }
 ######################################################################################################
 # CODE QUALITY & FORMATTING (Ruff)
 ######################################################################################################
