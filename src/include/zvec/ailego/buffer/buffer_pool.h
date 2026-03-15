@@ -78,7 +78,7 @@ class LPMap {
     return entry_num_;
   }
 
-  bool isDeadBlock(LRUCache::BlockType block) const {
+  inline bool isDeadBlock(LRUCache::BlockType block) const {
     Entry &entry = entries_[block.first];
     return block.second != entry.load_count.load();
   }

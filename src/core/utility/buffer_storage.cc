@@ -438,7 +438,7 @@ class BufferStorage : public IndexStorage {
   }
 
   //! Initialize index file
-  int init_index(const std::string &path) {
+  int init_index(const std::string &/*path*/) {
     // Add index version
     int error_code = this->init_version_segment();
     if (error_code != 0) {
