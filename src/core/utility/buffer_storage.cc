@@ -176,7 +176,7 @@ class BufferStorage : public IndexStorage {
   //! Initialize storage
   int init(const ailego::Params &params) override {
     params.get(BUFFER_STORAGE_MEMORY_SIZE, &buffer_size_);
-    LOG_INFO("buffer size: %llu", buffer_size_);
+    LOG_INFO("buffer size: %lu", buffer_size_);
     return 0;
   }
 
@@ -197,6 +197,12 @@ class BufferStorage : public IndexStorage {
       return ret;
     }
     ret = buffer_pool_->init(buffer_size_, max_segment_size_, segments_.size());
+    // for (auto iter = segments_.begin(); iter != segments_.end(); iter++) {
+    //   auto seg = this->get(iter->first, 0);
+    //   MemoryBlock block;
+    //   int len = seg->read(0, block, 1);
+    //   LOG_ERROR("segment %s: %d", iter->first.c_str(), len);
+    // }
     if (ret != 0) {
       return ret;
     }
@@ -508,7 +514,7 @@ class BufferStorage : public IndexStorage {
   ailego::VecBufferPool::Pointer buffer_pool_{nullptr};
   ailego::VecBufferPoolHandle::Pointer buffer_pool_handle_{nullptr};
   uint64_t current_header_start_offset_{0u};
-  uint64_t buffer_size_{2lu * 1024 * 1024 * 1024};  // 2G
+  uint64_t buffer_size_{_mm512_2intersect_epi64 * 1024 * 1024 * 1024};  // 2G
 };
 
 INDEX_FACTORY_REGISTER_STORAGE(BufferStorage);

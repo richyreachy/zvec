@@ -123,10 +123,15 @@ class VecBufferPool {
     return file_size_;
   }
 
+  bool no_lru_mode() {
+    return no_lru_mode_;
+  }
+
  private:
   int fd_;
   size_t file_size_;
   size_t pool_capacity_;
+  bool no_lru_mode_;
 
  public:
   LPMap lp_map_;

@@ -201,6 +201,10 @@ int VecBufferPool::init(size_t pool_capacity, size_t block_size,
   }
   LOG_DEBUG("Buffer pool num: %zu, entry num: %zu", buffer_num,
             lp_map_.entry_num());
+  no_lru_mode_ = false;
+  if (lp_map_.entry_num() <= buffer_num) {
+    no_lru_mode_ = true;
+  }
   return 0;
 }
 
@@ -216,7 +220,7 @@ char *VecBufferPool::acquire_buffer(block_id_t block_id, size_t offset,
   }
   {
     bool found = free_buffers_.try_dequeue(buffer);
-    if (!found) {
+    if (!found && !no_lru_mode_) {
       for (int i = 0; i < retry; i++) {
         lp_map_.recycle(free_buffers_);
         found = free_buffers_.try_dequeue(buffer);
@@ -269,11 +273,15 @@ int VecBufferPoolHandle::get_meta(size_t offset, size_t length, char *buffer) {
 }
 
 void VecBufferPoolHandle::release_one(block_id_t block_id) {
-  pool_.lp_map_.release_block(block_id);
+  if (!pool_.no_lru_mode()) {
+    pool_.lp_map_.release_block(block_id);
+  }
 }
 
 void VecBufferPoolHandle::acquire_one(block_id_t block_id) {
-  pool_.lp_map_.acquire_block(block_id);
+  if (!pool_.no_lru_mode()) {
+    pool_.lp_map_.acquire_block(block_id);
+  }
 }
 
 }  // namespace ailego
