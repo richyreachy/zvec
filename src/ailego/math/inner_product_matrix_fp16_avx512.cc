@@ -735,7 +735,7 @@ do_scalar:
                                              _mm_loadu_ph(val_start_2 + k)));
     }
 
-    Float16 __attribute__((aligned(16))) tmp_res[8];
+    alignas(16) Float16 tmp_res[8];
     _mm_store_ph(tmp_res, sum128);
     sum += (tmp_res[0] + tmp_res[1] + tmp_res[2] + tmp_res[3] + tmp_res[4] +
             tmp_res[5] + tmp_res[6] + tmp_res[7]);
