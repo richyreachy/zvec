@@ -13,7 +13,7 @@
 // limitations under the License.
 
 
-#include <unistd.h>
+#include <zvec/ailego/internal/platform.h>
 #include <filesystem>
 #include <thread>
 #include <zvec/db/collection.h>
