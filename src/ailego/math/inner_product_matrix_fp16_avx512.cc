@@ -19,10 +19,12 @@
 namespace zvec {
 namespace ailego {
 
+//--------------------------------------------------
+// Dense
+//--------------------------------------------------
 #if defined(__AVX512FP16__)
-//! Inner Product
-float InnerProductAVX512FP16(const Float16 *lhs, const Float16 *rhs,
-                             size_t size) {
+float InnerProductFp16AVX512FP16(const Float16 *lhs, const Float16 *rhs,
+                                 size_t size) {
   const Float16 *last = lhs + size;
   const Float16 *last_aligned = lhs + ((size >> 6) << 6);
 
@@ -75,7 +77,29 @@ float InnerProductAVX512FP16(const Float16 *lhs, const Float16 *rhs,
 
 #endif
 
-// sparse
+#if defined(__AVX512F__)
+float InnerProductFp16AVX512(const Float16 *lhs, const Float16 *rhs,
+                             size_t size) {
+  float score{0.0f};
+
+  ACCUM_FP16_1X1_AVX512(lhs, rhs, size, &score, 0ull, )
+
+  return score;
+}
+
+float MinusInnerProductFp16AVX512(const Float16 *lhs, const Float16 *rhs,
+                                  size_t size) {
+  float score{0.0f};
+
+  ACCUM_FP16_1X1_AVX512(lhs, rhs, size, &score, 0ull, NEGATE_FP32_GENERAL)
+
+  return score;
+}
+#endif  //__AVX512F__
+
+//--------------------------------------------------
+// Sparse
+//--------------------------------------------------
 #if defined(__AVX512FP16__)
 constexpr uint32_t MAX_SPARSE_BUFFER_LENGTH = 65536;
 
@@ -748,18 +772,6 @@ do_scalar:
 }
 
 #endif  // __AVX512FP16__
-
-#if defined(__AVX512F__)
-void InnerProductAVX512(const Float16 *lhs, const Float16 *rhs, size_t size,
-                        float *out) {
-  ACCUM_FP16_1X1_AVX512(lhs, rhs, size, out, 0ull, )
-}
-
-void MinusInnerProductAVX512(const Float16 *lhs, const Float16 *rhs,
-                             size_t size, float *out) {
-  ACCUM_FP16_1X1_AVX512(lhs, rhs, size, out, 0ull, NEGATE_FP32_GENERAL)
-}
-#endif  //__AVX512F__
 
 
 }  // namespace ailego

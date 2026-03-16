@@ -25,6 +25,9 @@
 namespace zvec {
 namespace ailego {
 
+//--------------------------------------------------
+// Dense
+//--------------------------------------------------
 /*! Inner Product Matrix
  */
 template <typename T, size_t M, size_t N, typename = void>
@@ -35,47 +38,52 @@ struct InnerProductMatrix;
 template <typename T, size_t M, size_t N, typename = void>
 struct MinusInnerProductMatrix;
 
+/*! Inner Product Matrix (M=1, N=1)
+ */
+template <typename T>
+struct InnerProductMatrix<
+    T, 1, 1, typename std::enable_if<IsSignedArithmetic<T>::value>::type> {
+  //! Type of value
+  using ValueType = typename std::remove_cv<T>::type;
+
+  //! Compute the distance between matrix and query
+  static inline void Compute(const ValueType *m, const ValueType *q, size_t dim,
+                             float *out) {
+    ailego_assert(m && q && dim && out);
+
+    float sum = 0.0;
+    for (size_t i = 0; i < dim; ++i) {
+      sum += static_cast<float>(m[i] * q[i]);
+    }
+    *out = sum;
+  }
+};
+
+/*! Minus Inner Product Matrix (M=1, N=1)
+ */
+template <typename T>
+struct MinusInnerProductMatrix<
+    T, 1, 1, typename std::enable_if<IsSignedArithmetic<T>::value>::type> {
+  //! Type of value
+  using ValueType = typename std::remove_cv<T>::type;
+
+  //! Compute the distance between matrix and query
+  static inline void Compute(const ValueType *m, const ValueType *q, size_t dim,
+                             float *out) {
+    ailego_assert(m && q && dim && out);
+
+    float sum = 0.0;
+    for (size_t i = 0; i < dim; ++i) {
+      sum += static_cast<float>(m[i] * q[i]);
+    }
+    *out = -sum;
+  }
+};
+
 template <>
 struct InnerProductMatrix<uint8_t, 1, 1> {
-  //! Compute the distance between matrix and query
-  static inline void Compute(const uint8_t *m, const uint8_t *q, size_t dim, float *out);
-};
-
-template <>
-struct InnerProductMatrix<float, 1, 1> {
-  //! Compute the distance between matrix and query
-  static void Compute(const float *m, const float *q, size_t dim, float *out);
-};
-
-template <>
-struct MinusInnerProductMatrix<uint8_t, 1, 1> {
   //! Type of value
   using ValueType = uint8_t;
-
-  //! Compute the distance between matrix and query
-  static inline void Compute(const uint8_t *m, const uint8_t *q, size_t dim, float *out);
-};
-
-template <>
-struct MinusInnerProductMatrix<float, 1, 1> {
-  //! Compute the distance between matrix and query
-  static void Compute(const float *m, const float *q, size_t dim, float *out);
-};
-
-template <>
-struct InnerProductMatrix<Float16, 1, 1> {
-  //! Type of value
-  using ValueType = Float16;
-
-  //! Compute the distance between matrix and query
-  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                      float *out);
-};
-
-template <>
-struct MinusInnerProductMatrix<Float16, 1, 1> {
-  //! Type of value
-  using ValueType = Float16;
 
   //! Compute the distance between matrix and query
   static void Compute(const ValueType *m, const ValueType *q, size_t dim,
@@ -93,6 +101,36 @@ struct InnerProductMatrix<int8_t, 1, 1> {
 };
 
 template <>
+struct InnerProductMatrix<Float16, 1, 1> {
+  //! Type of value
+  using ValueType = Float16;
+
+  //! Compute the distance between matrix and query
+  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
+                      float *out);
+};
+
+template <>
+struct InnerProductMatrix<float, 1, 1> {
+  //! Type of value
+  using ValueType = float;
+
+  //! Compute the distance between matrix and query
+  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
+                      float *out);
+};
+
+template <>
+struct MinusInnerProductMatrix<uint8_t, 1, 1> {
+  //! Type of value
+  using ValueType = uint8_t;
+
+  //! Compute the distance between matrix and query
+  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
+                      float *out);
+};
+
+template <>
 struct MinusInnerProductMatrix<int8_t, 1, 1> {
   //! Type of value
   using ValueType = int8_t;
@@ -102,6 +140,25 @@ struct MinusInnerProductMatrix<int8_t, 1, 1> {
                       float *out);
 };
 
+template <>
+struct MinusInnerProductMatrix<Float16, 1, 1> {
+  //! Type of value
+  using ValueType = Float16;
+
+  //! Compute the distance between matrix and query
+  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
+                      float *out);
+};
+
+template <>
+struct MinusInnerProductMatrix<float, 1, 1> {
+  //! Type of value
+  using ValueType = float;
+
+  //! Compute the distance between matrix and query
+  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
+                      float *out);
+};
 
 /*! Inner Product Matrix
  */
@@ -701,7 +758,9 @@ struct MinusInnerProductMatrix<uint8_t, M, 1,
   }
 };
 
-//sparse
+//--------------------------------------------------
+// Sparse
+//--------------------------------------------------
 template <typename T>
 struct MinusInnerProductSparseMatrix {
   //! Type of value
@@ -722,12 +781,12 @@ struct MinusInnerProductSparseMatrix {
         : seg_id_{seg_id}, vec_cnt_{vec_cnt} {}
   };
 
-  static inline void transform_sparse_format(uint32_t sparse_count,
-                                             const uint32_t *sparse_index,
-                                             const void *sparse_value,
-                                             std::string &buffer);
+  static void transform_sparse_format(uint32_t sparse_count,
+                                      const uint32_t *sparse_index,
+                                      const void *sparse_value,
+                                      std::string &buffer);
 
-  static inline float ComputeInnerProductSparseInSegment(
+  static float ComputeInnerProductSparseInSegment(
       uint32_t m_sparse_count, const uint16_t *m_sparse_index,
       const ValueType *m_sparse_value, uint32_t q_sparse_count,
       const uint16_t *q_sparse_index, const ValueType *q_sparse_value);
@@ -816,12 +875,6 @@ struct MinusInnerProductSparseMatrix {
     *out = -sum;
   }
 };
-
-template <typename T>
-float MinusInnerProductSparseMatrix<T>::ComputeInnerProductSparseInSegment(
-    uint32_t m_sparse_count, const uint16_t *m_sparse_index,
-    const ValueType *m_sparse_value, uint32_t q_sparse_count,
-    const uint16_t *q_sparse_index, const ValueType *q_sparse_value);
 
 template <typename T>
 void MinusInnerProductSparseMatrix<T>::transform_sparse_format(

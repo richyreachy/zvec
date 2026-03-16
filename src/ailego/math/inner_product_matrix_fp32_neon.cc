@@ -19,8 +19,10 @@
 namespace zvec {
 namespace ailego {
 
+//--------------------------------------------------
+// Dense
+//--------------------------------------------------
 #if defined(__ARM_NEON)
-//! Inner Product
 float InnerProductNEON(const float *lhs, const float *rhs, size_t size) {
   const float *last = lhs + size;
   const float *last_aligned = lhs + ((size >> 3) << 3);
