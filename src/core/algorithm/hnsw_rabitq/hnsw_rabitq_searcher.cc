@@ -228,7 +228,6 @@ int HnswRabitqSearcher::search_impl(const void *query,
   if (entity_.doc_cnt() <= ctx->get_bruteforce_threshold()) {
     return search_bf_impl(query, qmeta, count, context);
   }
-  // return search_bf_impl(query, qmeta, count, context);
 
   if (ctx->magic() != magic_) {
     //! context is created by another searcher or streamer
@@ -289,39 +288,45 @@ int HnswRabitqSearcher::search_bf_impl(const void *query,
   ctx->resize_results(count);
 
   if (ctx->group_by_search()) {
-    // if (!ctx->group_by().is_valid()) {
-    //   LOG_ERROR("Invalid group-by function");
-    //   return IndexError_InvalidArgument;
-    // }
+    if (!ctx->group_by().is_valid()) {
+      LOG_ERROR("Invalid group-by function");
+      return IndexError_InvalidArgument;
+    }
 
-    // std::function<std::string(node_id_t)> group_by = [&](node_id_t id) {
-    //   return ctx->group_by()(entity_.get_key(id));
-    // };
+    std::function<std::string(node_id_t)> group_by = [&](node_id_t id) {
+      return ctx->group_by()(entity_.get_key(id));
+    };
 
-    // for (size_t q = 0; q < count; ++q) {
-    //   ctx->reset_query(query);
-    //   ctx->group_topk_heaps().clear();
+    for (size_t q = 0; q < count; ++q) {
+      HnswRabitqQueryEntity entity;
+      int ret = reformer_.transform_to_entity(query, &entity);
+      if (ailego_unlikely(ret != 0)) {
+        LOG_ERROR("Hnsw searcher transform failed");
+        return ret;
+      }
+      ctx->reset_query(query);
+      ctx->group_topk_heaps().clear();
 
-    //   for (node_id_t id = 0; id < entity_.doc_cnt(); ++id) {
-    //     if (entity_.get_key(id) == kInvalidKey) {
-    //       continue;
-    //     }
-    //     if (!ctx->filter().is_valid() || !ctx->filter()(entity_.get_key(id)))
-    //     {
-    //       dist_t dist = ctx->dist_calculator().dist(id);
+      for (node_id_t id = 0; id < entity_.doc_cnt(); ++id) {
+        if (entity_.get_key(id) == kInvalidKey) {
+          continue;
+        }
+        if (!ctx->filter().is_valid() || !ctx->filter()(entity_.get_key(id))) {
+          EstimateRecord dist;
+          alg_->get_full_est(id, dist, entity);
 
-    //       std::string group_id = group_by(id);
+          std::string group_id = group_by(id);
 
-    //       auto &topk_heap = ctx->group_topk_heaps()[group_id];
-    //       if (topk_heap.empty()) {
-    //         topk_heap.limit(ctx->group_topk());
-    //       }
-    //       topk_heap.emplace_back(id, dist);
-    //     }
-    //   }
-    //   ctx->topk_to_result(q);
-    //   query = static_cast<const char *>(query) + qmeta.element_size();
-    // }
+          auto &topk_heap = ctx->group_topk_heaps()[group_id];
+          if (topk_heap.empty()) {
+            topk_heap.limit(ctx->group_topk());
+          }
+          topk_heap.emplace_back(id, dist);
+        }
+      }
+      ctx->topk_to_result(q);
+      query = static_cast<const char *>(query) + qmeta.element_size();
+    }
   } else {
     for (size_t q = 0; q < count; ++q) {
       HnswRabitqQueryEntity entity;
@@ -358,87 +363,101 @@ int HnswRabitqSearcher::search_bf_by_p_keys_impl(
     const void *query, const std::vector<std::vector<uint64_t>> &p_keys,
     const IndexQueryMeta &qmeta, uint32_t count,
     Context::Pointer &context) const {
-  // if (ailego_unlikely(!query || !context)) {
-  //   LOG_ERROR("The context is not created by this searcher");
-  //   return IndexError_Mismatch;
-  // }
+  if (ailego_unlikely(!query || !context)) {
+    LOG_ERROR("The context is not created by this searcher");
+    return IndexError_Mismatch;
+  }
 
-  // if (ailego_unlikely(p_keys.size() != count)) {
-  //   LOG_ERROR("The size of p_keys is not equal to count");
-  //   return IndexError_InvalidArgument;
-  // }
+  if (ailego_unlikely(p_keys.size() != count)) {
+    LOG_ERROR("The size of p_keys is not equal to count");
+    return IndexError_InvalidArgument;
+  }
 
-  // HnswRabitqContext *ctx = dynamic_cast<HnswRabitqContext *>(context.get());
-  // ailego_do_if_false(ctx) {
-  //   LOG_ERROR("Cast context to HnswRabitqContext failed");
-  //   return IndexError_Cast;
-  // }
-  // if (ctx->magic() != magic_) {
-  //   //! context is created by another searcher or streamer
-  //   int ret = update_context(ctx);
-  //   if (ret != 0) {
-  //     return ret;
-  //   }
-  // }
+  HnswRabitqContext *ctx = dynamic_cast<HnswRabitqContext *>(context.get());
+  ailego_do_if_false(ctx) {
+    LOG_ERROR("Cast context to HnswRabitqContext failed");
+    return IndexError_Cast;
+  }
+  if (ctx->magic() != magic_) {
+    //! context is created by another searcher or streamer
+    int ret = update_context(ctx);
+    if (ret != 0) {
+      return ret;
+    }
+  }
 
-  // ctx->clear();
-  // ctx->resize_results(count);
+  ctx->clear();
+  ctx->resize_results(count);
 
-  // if (ctx->group_by_search()) {
-  //   if (!ctx->group_by().is_valid()) {
-  //     LOG_ERROR("Invalid group-by function");
-  //     return IndexError_InvalidArgument;
-  //   }
+  if (ctx->group_by_search()) {
+    if (!ctx->group_by().is_valid()) {
+      LOG_ERROR("Invalid group-by function");
+      return IndexError_InvalidArgument;
+    }
 
-  //   std::function<std::string(node_id_t)> group_by = [&](node_id_t id) {
-  //     return ctx->group_by()(entity_.get_key(id));
-  //   };
+    std::function<std::string(node_id_t)> group_by = [&](node_id_t id) {
+      return ctx->group_by()(entity_.get_key(id));
+    };
 
-  //   for (size_t q = 0; q < count; ++q) {
-  //     ctx->reset_query(query);
-  //     ctx->group_topk_heaps().clear();
+    for (size_t q = 0; q < count; ++q) {
+      HnswRabitqQueryEntity entity;
+      int ret = reformer_.transform_to_entity(query, &entity);
+      if (ailego_unlikely(ret != 0)) {
+        LOG_ERROR("Hnsw searcher transform failed");
+        return ret;
+      }
+      ctx->reset_query(query);
+      ctx->group_topk_heaps().clear();
 
-  //     for (size_t idx = 0; idx < p_keys[q].size(); ++idx) {
-  //       uint64_t pk = p_keys[q][idx];
-  //       if (!ctx->filter().is_valid() || !ctx->filter()(pk)) {
-  //         node_id_t id = entity_.get_id(pk);
-  //         if (id != kInvalidNodeId) {
-  //           dist_t dist = ctx->dist_calculator().dist(id);
-  //           std::string group_id = group_by(id);
+      for (size_t idx = 0; idx < p_keys[q].size(); ++idx) {
+        uint64_t pk = p_keys[q][idx];
+        if (!ctx->filter().is_valid() || !ctx->filter()(pk)) {
+          node_id_t id = entity_.get_id(pk);
+          if (id != kInvalidNodeId) {
+            EstimateRecord dist;
+            alg_->get_full_est(id, dist, entity);
+            std::string group_id = group_by(id);
 
-  //           auto &topk_heap = ctx->group_topk_heaps()[group_id];
-  //           if (topk_heap.empty()) {
-  //             topk_heap.limit(ctx->group_topk());
-  //           }
-  //           topk_heap.emplace_back(id, dist);
-  //         }
-  //       }
-  //     }
-  //     ctx->topk_to_result(q);
-  //     query = static_cast<const char *>(query) + qmeta.element_size();
-  //   }
-  // } else {
-  //   for (size_t q = 0; q < count; ++q) {
-  //     ctx->reset_query(query);
-  //     ctx->topk_heap().clear();
-  //     for (size_t idx = 0; idx < p_keys[q].size(); ++idx) {
-  //       uint64_t pk = p_keys[q][idx];
-  //       if (!ctx->filter().is_valid() || !ctx->filter()(pk)) {
-  //         node_id_t id = entity_.get_id(pk);
-  //         if (id != kInvalidNodeId) {
-  //           dist_t dist = ctx->dist_calculator().dist(id);
-  //           ctx->topk_heap().emplace(id, dist);
-  //         }
-  //       }
-  //     }
-  //     ctx->topk_to_result(q);
-  //     query = static_cast<const char *>(query) + qmeta.element_size();
-  //   }
-  // }
+            auto &topk_heap = ctx->group_topk_heaps()[group_id];
+            if (topk_heap.empty()) {
+              topk_heap.limit(ctx->group_topk());
+            }
+            topk_heap.emplace_back(id, dist);
+          }
+        }
+      }
+      ctx->topk_to_result(q);
+      query = static_cast<const char *>(query) + qmeta.element_size();
+    }
+  } else {
+    for (size_t q = 0; q < count; ++q) {
+      HnswRabitqQueryEntity entity;
+      int ret = reformer_.transform_to_entity(query, &entity);
+      if (ailego_unlikely(ret != 0)) {
+        LOG_ERROR("Hnsw searcher transform failed");
+        return ret;
+      }
+      ctx->reset_query(query);
+      ctx->topk_heap().clear();
+      for (size_t idx = 0; idx < p_keys[q].size(); ++idx) {
+        uint64_t pk = p_keys[q][idx];
+        if (!ctx->filter().is_valid() || !ctx->filter()(pk)) {
+          node_id_t id = entity_.get_id(pk);
+          if (id != kInvalidNodeId) {
+            EstimateRecord dist;
+            alg_->get_full_est(id, dist, entity);
+            ctx->topk_heap().emplace(id, dist);
+          }
+        }
+      }
+      ctx->topk_to_result(q);
+      query = static_cast<const char *>(query) + qmeta.element_size();
+    }
+  }
 
-  // if (ailego_unlikely(ctx->error())) {
-  //   return IndexError_Runtime;
-  // }
+  if (ailego_unlikely(ctx->error())) {
+    return IndexError_Runtime;
+  }
 
   return 0;
 }
