@@ -30,26 +30,78 @@ namespace ailego {
 template <typename T, size_t M, size_t N, typename = void>
 struct InnerProductMatrix;
 
-/*! Inner Product Matrix (M=1, N=1)
+/*! Inner Product Matrix
  */
-template <typename T>
-struct InnerProductMatrix<
-    T, 1, 1, typename std::enable_if<IsSignedArithmetic<T>::value>::type> {
+template <typename T, size_t M, size_t N, typename = void>
+struct MinusInnerProductMatrix;
+
+template <>
+struct InnerProductMatrix<uint8_t, 1, 1> {
+  //! Compute the distance between matrix and query
+  static inline void Compute(const uint8_t *m, const uint8_t *q, size_t dim, float *out);
+};
+
+template <>
+struct InnerProductMatrix<float, 1, 1> {
+  //! Compute the distance between matrix and query
+  static void Compute(const float *m, const float *q, size_t dim, float *out);
+};
+
+template <>
+struct MinusInnerProductMatrix<uint8_t, 1, 1> {
   //! Type of value
-  using ValueType = typename std::remove_cv<T>::type;
+  using ValueType = uint8_t;
 
   //! Compute the distance between matrix and query
-  static inline void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                             float *out) {
-    ailego_assert(m && q && dim && out);
-
-    float sum = 0.0;
-    for (size_t i = 0; i < dim; ++i) {
-      sum += static_cast<float>(m[i] * q[i]);
-    }
-    *out = sum;
-  }
+  static inline void Compute(const uint8_t *m, const uint8_t *q, size_t dim, float *out);
 };
+
+template <>
+struct MinusInnerProductMatrix<float, 1, 1> {
+  //! Compute the distance between matrix and query
+  static void Compute(const float *m, const float *q, size_t dim, float *out);
+};
+
+template <>
+struct InnerProductMatrix<Float16, 1, 1> {
+  //! Type of value
+  using ValueType = Float16;
+
+  //! Compute the distance between matrix and query
+  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
+                      float *out);
+};
+
+template <>
+struct MinusInnerProductMatrix<Float16, 1, 1> {
+  //! Type of value
+  using ValueType = Float16;
+
+  //! Compute the distance between matrix and query
+  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
+                      float *out);
+};
+
+template <>
+struct InnerProductMatrix<int8_t, 1, 1> {
+  //! Type of value
+  using ValueType = int8_t;
+
+  //! Compute the distance between matrix and query
+  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
+                      float *out);
+};
+
+template <>
+struct MinusInnerProductMatrix<int8_t, 1, 1> {
+  //! Type of value
+  using ValueType = int8_t;
+
+  //! Compute the distance between matrix and query
+  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
+                      float *out);
+};
+
 
 /*! Inner Product Matrix
  */
@@ -349,54 +401,6 @@ struct InnerProductMatrix<uint8_t, M, 1,
   }
 };
 
-#if !defined(__SSE4_1__)
-/*! Inner Product Matrix (INT4, M=1, N=1)
- */
-template <>
-struct InnerProductMatrix<uint8_t, 1, 1> {
-  //! Type of value
-  using ValueType = uint8_t;
-
-  //! Compute the distance between matrix and query
-  static inline void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                             float *out) {
-    ailego_assert(m && q && dim && !(dim & 1) && out);
-
-    float sum = 0.0;
-    for (size_t i = 0; i < (dim >> 1); ++i) {
-      uint8_t m_val = m[i];
-      uint8_t q_val = q[i];
-      sum += Int4MulTable[((m_val << 4) & 0xf0) | ((q_val >> 0) & 0xf)] +
-             Int4MulTable[((m_val >> 0) & 0xf0) | ((q_val >> 4) & 0xf)];
-    }
-    *out = sum;
-  }
-};
-#endif  // !__SSE4_1__
-
-template <typename T, size_t M, size_t N, typename = void>
-struct MinusInnerProductMatrix;
-
-/*! Minus Inner Product Matrix (M=1, N=1)
- */
-template <typename T>
-struct MinusInnerProductMatrix<
-    T, 1, 1, typename std::enable_if<IsSignedArithmetic<T>::value>::type> {
-  //! Type of value
-  using ValueType = typename std::remove_cv<T>::type;
-
-  //! Compute the distance between matrix and query
-  static inline void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                             float *out) {
-    ailego_assert(m && q && dim && out);
-
-    float sum = 0.0;
-    for (size_t i = 0; i < dim; ++i) {
-      sum += static_cast<float>(m[i] * q[i]);
-    }
-    *out = -sum;
-  }
-};
 
 /*! Minus Inner Product Matrix
  */
@@ -697,136 +701,7 @@ struct MinusInnerProductMatrix<uint8_t, M, 1,
   }
 };
 
-#if !defined(__SSE4_1__)
-/*! Minus Inner Product Matrix (INT4, M=1, N=1)
- */
-template <>
-struct MinusInnerProductMatrix<uint8_t, 1, 1> {
-  //! Type of value
-  using ValueType = uint8_t;
-
-  //! Compute the distance between matrix and query
-  static inline void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                             float *out) {
-    ailego_assert(m && q && dim && !(dim & 1) && out);
-
-    float sum = 0.0;
-    for (size_t i = 0; i < (dim >> 1); ++i) {
-      uint8_t m_val = m[i];
-      uint8_t q_val = q[i];
-      sum -= Int4MulTable[((m_val << 4) & 0xf0) | ((q_val >> 0) & 0xf)] +
-             Int4MulTable[((m_val >> 0) & 0xf0) | ((q_val >> 4) & 0xf)];
-    }
-    *out = sum;
-  }
-};
-#endif  // !__SSE4_1__
-
-#if defined(__SSE__) || defined(__ARM_NEON)
-/*! Inner Product Matrix (FP32, M=1, N=1)
- */
-template <>
-struct InnerProductMatrix<float, 1, 1> {
-  //! Type of value
-  using ValueType = float;
-
-  //! Compute the distance between matrix and query
-  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                      float *out);
-};
-
-/*! Minus Inner Product Matrix (FP32, M=1, N=1)
- */
-template <>
-struct MinusInnerProductMatrix<float, 1, 1> {
-  //! Type of value
-  using ValueType = float;
-
-  //! Compute the distance between matrix and query
-  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                      float *out);
-};
-#endif  // __SSE__ || __ARM_NEON
-
-#if (defined(__F16C__) && defined(__AVX__)) || \
-    (defined(__ARM_NEON) && defined(__aarch64__))
-/*! Inner Product Matrix (FP16, M=1, N=1)
- */
-template <>
-struct InnerProductMatrix<Float16, 1, 1> {
-  //! Type of value
-  using ValueType = Float16;
-
-  //! Compute the distance between matrix and query
-  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                      float *out);
-};
-
-/*! Minus Inner Product Matrix (FP16, M=1, N=1)
- */
-template <>
-struct MinusInnerProductMatrix<Float16, 1, 1> {
-  //! Type of value
-  using ValueType = Float16;
-
-  //! Compute the distance between matrix and query
-  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                      float *out);
-};
-
-#endif  // (__F16C__ && __AVX__) || (__ARM_NEON && __aarch64__)
-
-#if defined(__SSE4_1__)
-/*! Inner Product Matrix (INT8, M=1, N=1)
- */
-template <>
-struct InnerProductMatrix<int8_t, 1, 1> {
-  //! Type of value
-  using ValueType = int8_t;
-
-  //! Compute the distance between matrix and query
-  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                      float *out);
-};
-
-/*! Minus Inner Product Matrix (INT8, M=1, N=1)
- */
-template <>
-struct MinusInnerProductMatrix<int8_t, 1, 1> {
-  //! Type of value
-  using ValueType = int8_t;
-
-  //! Compute the distance between matrix and query
-  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                      float *out);
-};
-
-
-/*! Inner Product Matrix (INT4, M=1, N=1)
- */
-template <>
-struct InnerProductMatrix<uint8_t, 1, 1> {
-  //! Type of value
-  using ValueType = uint8_t;
-
-  //! Compute the distance between matrix and query
-  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                      float *out);
-};
-
-/*! Minus Inner Product Matrix (INT4, M=1, N=1)
- */
-template <>
-struct MinusInnerProductMatrix<uint8_t, 1, 1> {
-  //! Type of value
-  using ValueType = uint8_t;
-
-  //! Compute the distance between matrix and query
-  static void Compute(const ValueType *m, const ValueType *q, size_t dim,
-                      float *out);
-};
-#endif  // __SSE4_1__
-
+//sparse
 template <typename T>
 struct MinusInnerProductSparseMatrix {
   //! Type of value
@@ -946,26 +821,7 @@ template <typename T>
 float MinusInnerProductSparseMatrix<T>::ComputeInnerProductSparseInSegment(
     uint32_t m_sparse_count, const uint16_t *m_sparse_index,
     const ValueType *m_sparse_value, uint32_t q_sparse_count,
-    const uint16_t *q_sparse_index, const ValueType *q_sparse_value) {
-  float sum = 0.0f;
-
-  size_t m_i = 0;
-  size_t q_i = 0;
-  while (m_i < m_sparse_count && q_i < q_sparse_count) {
-    if (m_sparse_index[m_i] == q_sparse_index[q_i]) {
-      sum += m_sparse_value[m_i] * q_sparse_value[q_i];
-
-      ++m_i;
-      ++q_i;
-    } else if (m_sparse_index[m_i] < q_sparse_index[q_i]) {
-      ++m_i;
-    } else {
-      ++q_i;
-    }
-  }
-
-  return sum;
-}
+    const uint16_t *q_sparse_index, const ValueType *q_sparse_value);
 
 template <typename T>
 void MinusInnerProductSparseMatrix<T>::transform_sparse_format(
@@ -1046,34 +902,6 @@ void MinusInnerProductSparseMatrix<T>::transform_sparse_format(
     sparse_value_ptr += unit_size;
   }
 }
-
-#if defined(__SSE4_1__)
-template <>
-float MinusInnerProductSparseMatrix<float>::ComputeInnerProductSparseInSegment(
-    uint32_t m_sparse_count, const uint16_t *m_sparse_index,
-    const ValueType *m_sparse_value, uint32_t q_sparse_count,
-    const uint16_t *q_sparse_index, const ValueType *q_sparse_value);
-
-template <>
-float MinusInnerProductSparseMatrix<Float16>::
-    ComputeInnerProductSparseInSegment(uint32_t m_sparse_count,
-                                       const uint16_t *m_sparse_index,
-                                       const ValueType *m_sparse_value,
-                                       uint32_t q_sparse_count,
-                                       const uint16_t *q_sparse_index,
-                                       const ValueType *q_sparse_value);
-#endif
-
-#if defined(__AVX512FP16__)
-template <>
-float MinusInnerProductSparseMatrix<Float16>::
-    ComputeInnerProductSparseInSegment(uint32_t m_sparse_count,
-                                       const uint16_t *m_sparse_index,
-                                       const ValueType *m_sparse_value,
-                                       uint32_t q_sparse_count,
-                                       const uint16_t *q_sparse_index,
-                                       const ValueType *q_sparse_value);
-#endif
 
 }  // namespace ailego
 }  // namespace zvec
