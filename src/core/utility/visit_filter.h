@@ -22,16 +22,12 @@
 #include <vector>
 #include <ailego/container/bloom_filter.h>
 #include <ailego/utility/bitset_helper.h>
+#include <zvec/ailego/internal/platform.h>
 #include <zvec/core/framework/index_error.h>
 #include <zvec/core/framework/index_logger.h>
 
 namespace zvec {
 namespace core {
-
-// id_t is a POSIX type from <sys/types.h>; provide a definition for Windows
-#if defined(_MSC_VER)
-typedef unsigned int id_t;
-#endif
 
 struct VisitFilterHeader {
   VisitFilterHeader() : maxDocCnt(0), maxScanNum(0) {}

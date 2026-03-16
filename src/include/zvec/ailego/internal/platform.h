@@ -44,7 +44,7 @@
 #endif
 #endif
 
-//! Add 'ssize_t' for MSVC (before extern "C" so it's available in C++)
+//! MSVC platform compatibility (before extern "C" so available in C++)
 #if defined(_MSC_VER)
 
 #if !defined(S_ISDIR)
@@ -56,7 +56,25 @@
 typedef intptr_t ssize_t;
 #endif
 
+#if !defined(_ID_T_DEFINED)
+#define _ID_T_DEFINED
+typedef unsigned int id_t;
 #endif
+
+#include <stdlib.h>
+#define ailego_bswap16(x) _byteswap_ushort(x)
+#define ailego_bswap32(x) _byteswap_ulong(x)
+#define ailego_bswap64(x) _byteswap_uint64(x)
+
+#define strncasecmp _strnicmp
+
+#else  // !_MSC_VER
+
+#define ailego_bswap16(x) __builtin_bswap16(x)
+#define ailego_bswap32(x) __builtin_bswap32(x)
+#define ailego_bswap64(x) __builtin_bswap64(x)
+
+#endif  // _MSC_VER
 
 
 #if defined(__cplusplus)

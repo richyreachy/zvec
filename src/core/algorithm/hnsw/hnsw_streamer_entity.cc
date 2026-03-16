@@ -89,7 +89,7 @@ int HnswStreamerEntity::update_neighbors(
   }
 
   auto loc = get_neighbor_chunk_loc(level, id);
-  size_t size = reinterpret_cast<char *>(&hd->neighbors[i]) - &buffer[0];
+  size_t size = reinterpret_cast<char *>(&hd->neighbors[i]) - buffer.data();
   size_t ret = loc.first->write(loc.second, hd, size);
   if (ailego_unlikely(ret != size)) {
     LOG_ERROR("Write neighbor header failed, ret=%zu", ret);
@@ -487,7 +487,6 @@ int HnswStreamerEntity::add_vector(level_t level, key_t key, const void *vec,
   Chunk::Pointer node_chunk;
   // On MSVC, unsigned long is 32-bit, so -1UL is 0xFFFFFFFF not 0xFFFFFFFFFFFFFFFF.
   size_t chunk_offset = static_cast<size_t>(-1);
-
 
   std::lock_guard<std::mutex> lock(mutex_);
   // duplicate check
