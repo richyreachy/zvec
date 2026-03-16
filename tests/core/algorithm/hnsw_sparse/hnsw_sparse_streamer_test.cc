@@ -13,21 +13,11 @@
 // limitations under the License.
 #include "hnsw_sparse_streamer.h"
 #include <atomic>
-#include <cstdlib>
 #include <sys/stat.h>
 #include <sys/types.h>
 #ifndef _MSC_VER
 #include <fcntl.h>
 #include <unistd.h>
-#else
-#include <chrono>
-#include <thread>
-inline void sleep(unsigned int seconds) {
-  std::this_thread::sleep_for(std::chrono::seconds(seconds));
-}
-inline void usleep(unsigned int microseconds) {
-  std::this_thread::sleep_for(std::chrono::microseconds(microseconds));
-}
 #endif
 #include <future>
 #include <iostream>
@@ -35,7 +25,7 @@ inline void usleep(unsigned int microseconds) {
 #include <ailego/math/norm_matrix.h>
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
-#include "zvec/ailego/utility/file_helper.h"
+#include "tests/test_util.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -64,7 +54,7 @@ class HnswSparseStreamerTest : public testing::Test {
   static shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string HnswSparseStreamerTest::dir_("HnswSparseStreamerTest");
+std::string HnswSparseStreamerTest::dir_("HnswSparseStreamerTest/");
 shared_ptr<IndexMeta> HnswSparseStreamerTest::index_meta_ptr_;
 
 void HnswSparseStreamerTest::generate_sparse_data(
@@ -102,19 +92,11 @@ void HnswSparseStreamerTest::SetUp(void) {
                                                 IndexMeta::DataType::DT_FP32));
   index_meta_ptr_->set_metric("InnerProductSparse", 0, ailego::Params());
 
-  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
-#ifdef _WIN32
-    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
-#endif
-  }
+  zvec::test_util::RemoveTestPath(dir_);
 }
 
 void HnswSparseStreamerTest::TearDown(void) {
-  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
-#ifdef _WIN32
-    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
-#endif
-  }
+  zvec::test_util::RemoveTestPath(dir_);
 }
 
 TEST_F(HnswSparseStreamerTest, TestGeneral) {
@@ -138,7 +120,7 @@ TEST_F(HnswSparseStreamerTest, TestGeneral) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestGeneral", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestGeneral", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -248,7 +230,7 @@ TEST_F(HnswSparseStreamerTest, TestAddVector) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestAddVector", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestAddVector", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   auto ctx = streamer->create_context();
@@ -284,7 +266,7 @@ TEST_F(HnswSparseStreamerTest, TestLinearSearch) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestLinearSearch.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestLinearSearch.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -364,7 +346,7 @@ TEST_F(HnswSparseStreamerTest, TestLinearSearchByKeys) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestLinearSearchByKeys.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestLinearSearchByKeys.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -498,9 +480,9 @@ TEST_F(HnswSparseStreamerTest, TestOpenClose) {
   ASSERT_NE(nullptr, storage2);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage1->init(stg_params));
-  ASSERT_EQ(0, storage1->open(dir_ + "/TessOpenAndClose1", true));
+  ASSERT_EQ(0, storage1->open(dir_ + "TessOpenAndClose1", true));
   ASSERT_EQ(0, storage2->init(stg_params));
-  ASSERT_EQ(0, storage2->open(dir_ + "/TessOpenAndClose2", true));
+  ASSERT_EQ(0, storage2->open(dir_ + "TessOpenAndClose2", true));
   ASSERT_EQ(0, streamer->init(meta, params));
   auto checkIter = [](size_t base, size_t total,
                       IndexStreamer::Pointer &streamer) {
@@ -593,7 +575,7 @@ TEST_F(HnswSparseStreamerTest, TestCreateIterator) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestCreateIterator", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestCreateIterator", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -681,7 +663,7 @@ TEST_F(HnswSparseStreamerTest, TestForceFlush) {
   stg_params.set("proxima.mmap_file.storage.copy_on_write", true);
   stg_params.set("proxima.mmap_file.storage.force_flush", true);
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestForceFlush", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestForceFlush", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -732,7 +714,7 @@ TEST_F(HnswSparseStreamerTest, TestForceFlush) {
   storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_NE(nullptr, storage);
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestForceFlush", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestForceFlush", true));
   ASSERT_EQ(0, streamer->open(storage));
   checkIter(cnt, streamer);
 
@@ -777,7 +759,7 @@ TEST_F(HnswSparseStreamerTest, TestKnnMultiThread) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TessKnnMultiThread", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TessKnnMultiThread", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   auto addVector = [&streamer](int baseKey, size_t addCnt) {
@@ -928,7 +910,7 @@ TEST_F(HnswSparseStreamerTest, TestKnnConcurrentAddAndSearch) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TessKnnConcurrentAddAndSearch", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TessKnnConcurrentAddAndSearch", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   auto addVector = [&streamer](int baseKey, size_t addCnt) {
@@ -1060,7 +1042,7 @@ TEST_F(HnswSparseStreamerTest, TestBfThreshold) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TessBfThreshold", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TessBfThreshold", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   size_t cnt = 10000;
@@ -1148,7 +1130,7 @@ TEST_F(HnswSparseStreamerTest, TestFilter) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestFilter", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestFilter", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   size_t cnt = 100UL;
@@ -1239,7 +1221,7 @@ TEST_F(HnswSparseStreamerTest, TestMaxIndexSize) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestMaxIndexSize", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestMaxIndexSize", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   size_t vsz0 = 0;
@@ -1297,7 +1279,7 @@ TEST_F(HnswSparseStreamerTest, TestKnnCleanUp) {
   ASSERT_NE(nullptr, storage1);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage1->init(stg_params));
-  ASSERT_EQ(0, storage1->open(dir_ + "/TestKnnCluenUp1", true));
+  ASSERT_EQ(0, storage1->open(dir_ + "TestKnnCluenUp1", true));
   ailego::Params params;
 
   constexpr size_t static sparse_dim_count1 = 32;
@@ -1325,7 +1307,7 @@ TEST_F(HnswSparseStreamerTest, TestKnnCleanUp) {
   auto storage2 = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_NE(nullptr, storage2);
   ASSERT_EQ(0, storage2->init(stg_params));
-  ASSERT_EQ(0, storage2->open(dir_ + "/TestKnnCluenUp2", true));
+  ASSERT_EQ(0, storage2->open(dir_ + "TestKnnCluenUp2", true));
 
   constexpr size_t static sparse_dim_count2 = 64;
   IndexMeta meta2(IndexMeta::MetaType::MT_SPARSE, IndexMeta::DataType::DT_FP32);
@@ -1362,7 +1344,7 @@ TEST_F(HnswSparseStreamerTest, TestIndexSizeQuota) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestIndexSizeQuota", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestIndexSizeQuota", true));
   ailego::Params params;
 
   IndexMeta meta(IndexMeta::MetaType::MT_SPARSE, IndexMeta::DataType::DT_FP32);
@@ -1408,7 +1390,7 @@ TEST_F(HnswSparseStreamerTest, TestBloomFilter) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestBloomFilter", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestBloomFilter", true));
   ailego::Params params;
   params.set(PARAM_HNSW_SPARSE_STREAMER_MAX_NEIGHBOR_COUNT, 10);
   params.set(PARAM_HNSW_SPARSE_STREAMER_SCALING_FACTOR, 16);
@@ -1456,7 +1438,7 @@ TEST_F(HnswSparseStreamerTest, TestStreamerParams) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestStreamerParams", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestStreamerParams", true));
   ailego::Params params;
   params.set("proxima.hnsw.sparse_streamer.docs_hard_limit", 5);
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
@@ -1499,7 +1481,7 @@ TEST_F(HnswSparseStreamerTest, TestCheckStats) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  std::string path = dir_ + "/TestCheckStats.index";
+  std::string path = dir_ + "TestCheckStats.index";
   ASSERT_EQ(0, storage->open(path, true));
   ailego::Params params;
   params.set(PARAM_HNSW_SPARSE_STREAMER_MAX_NEIGHBOR_COUNT, 100);
@@ -1613,7 +1595,7 @@ TEST_F(HnswSparseStreamerTest, TestCheckStats) {
   ASSERT_EQ(createTime3, createTime1);
   ASSERT_GT(updateTime3, updateTime2);
 
-  auto dpath = dir_ + "/dumpIndex";
+  auto dpath = dir_ + "dumpIndex";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(dpath));
@@ -1637,7 +1619,7 @@ TEST_F(HnswSparseStreamerTest, TestCheckDuplicateAndGetVector) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestCheckDuplicateAndGetVector", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestCheckDuplicateAndGetVector", true));
   ailego::Params params;
   params.set(PARAM_HNSW_SPARSE_STREAMER_MAX_NEIGHBOR_COUNT, 10);
   params.set(PARAM_HNSW_SPARSE_STREAMER_SCALING_FACTOR, 5);
@@ -1732,7 +1714,7 @@ TEST_F(HnswSparseStreamerTest, TestDumpIndexAndAdd) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestDumpIndexAndAdd", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestDumpIndexAndAdd", true));
   ailego::Params params;
   params.set(PARAM_HNSW_SPARSE_STREAMER_MAX_NEIGHBOR_COUNT, 10);
   params.set(PARAM_HNSW_SPARSE_STREAMER_SCALING_FACTOR, 5);
@@ -1772,7 +1754,7 @@ TEST_F(HnswSparseStreamerTest, TestDumpIndexAndAdd) {
 
   addVector(0, 2000, false);
   auto t2 = std::async(std::launch::async, addVector, 2000, 3000, true);
-  auto path1 = dir_ + "/dumpIndex1";
+  auto path1 = dir_ + "dumpIndex1";
   auto dumper1 = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper1, nullptr);
   ASSERT_EQ(0, dumper1->create(path1));
@@ -1846,7 +1828,7 @@ TEST_F(HnswSparseStreamerTest, TestProvider) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestProvider.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestProvider.index", true));
   ailego::Params params;
   params.set(PARAM_HNSW_SPARSE_STREAMER_MAX_NEIGHBOR_COUNT, 10);
   params.set(PARAM_HNSW_SPARSE_STREAMER_SCALING_FACTOR, 5);
@@ -1897,7 +1879,7 @@ TEST_F(HnswSparseStreamerTest, TestProvider) {
                               sparse_velues.data(), qmeta, ctx));
   }
 
-  auto path1 = dir_ + "/TestProvider";
+  auto path1 = dir_ + "TestProvider";
   auto dumper1 = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper1, nullptr);
   ASSERT_EQ(0, dumper1->create(path1));
@@ -2005,9 +1987,9 @@ TEST_F(HnswSparseStreamerTest, TestSharedContext) {
     streamer->open(storage);
     return streamer;
   };
-  auto streamer1 = create_streamer(dir_ + "/TestSharedContext.index1");
-  auto streamer2 = create_streamer(dir_ + "/TestSharedContext.index2");
-  auto streamer3 = create_streamer(dir_ + "/TestSharedContext.index3");
+  auto streamer1 = create_streamer(dir_ + "TestSharedContext.index1");
+  auto streamer2 = create_streamer(dir_ + "TestSharedContext.index2");
+  auto streamer3 = create_streamer(dir_ + "TestSharedContext.index3");
 
   srand(ailego::Realtime::MilliSeconds());
   IndexQueryMeta qmeta(IndexMeta::MetaType::MT_SPARSE,
@@ -2112,7 +2094,7 @@ TEST_F(HnswSparseStreamerTest, TestBruteForceSetupInContext) {
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
   ASSERT_EQ(0,
-            storage->open(dir_ + "/TestBruteForceSetupInContext.index", true));
+            storage->open(dir_ + "TestBruteForceSetupInContext.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -2252,7 +2234,7 @@ TEST_F(HnswSparseStreamerTest, TestQueryFilteringRatio) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestQueryFilteringRatio", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestQueryFilteringRatio", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -2368,7 +2350,7 @@ TEST_F(HnswSparseStreamerTest, TestAddAndSearchWithID) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestGeneral", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestGeneral", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 

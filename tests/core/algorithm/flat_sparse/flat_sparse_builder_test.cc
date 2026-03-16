@@ -17,7 +17,7 @@
 #include <iostream>
 #include <vector>
 #include <gtest/gtest.h>
-#include "zvec/ailego/utility/file_helper.h"
+#include "tests/test_util.h"
 
 using namespace zvec::core;
 using namespace zvec::ailego;
@@ -37,7 +37,7 @@ class FlatSparseBuilderTest : public testing::Test {
   static shared_ptr<IndexMeta> _index_meta_ptr;
 };
 
-std::string FlatSparseBuilderTest::_dir("FlatSparseBuilderTest");
+std::string FlatSparseBuilderTest::_dir("FlatSparseBuilderTest/");
 shared_ptr<IndexMeta> FlatSparseBuilderTest::_index_meta_ptr;
 
 void FlatSparseBuilderTest::SetUp(void) {
@@ -47,7 +47,7 @@ void FlatSparseBuilderTest::SetUp(void) {
 }
 
 void FlatSparseBuilderTest::TearDown(void) {
-  zvec::ailego::FileHelper::RemovePath(_dir.c_str());
+  zvec::test_util::RemoveTestPath(_dir);
 }
 
 TEST_F(FlatSparseBuilderTest, TestGeneral) {
@@ -83,7 +83,7 @@ TEST_F(FlatSparseBuilderTest, TestGeneral) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestGeneral";
+  string path = _dir + "TestGeneral";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -187,7 +187,7 @@ TEST_F(FlatSparseBuilderTest, TestIndexThreads) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestIndexThreads";
+  string path = _dir + "TestIndexThreads";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder1->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -244,7 +244,7 @@ TEST_F(FlatSparseBuilderTest, TestHalfFloatConverter) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestHalFloatConverter";
+  string path = _dir + "TestHalFloatConverter";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());

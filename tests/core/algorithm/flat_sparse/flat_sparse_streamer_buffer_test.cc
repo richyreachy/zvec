@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cstdlib>
 #include <string>
 #include <vector>
 #include <ailego/math/norm2_matrix.h>
@@ -23,7 +22,7 @@
 #include <zvec/ailego/buffer/buffer_manager.h>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_streamer.h>
-#include "zvec/ailego/utility/file_helper.h"
+#include "tests/test_util.h"
 
 using namespace std;
 using namespace testing;
@@ -50,7 +49,7 @@ class FlatSparseStreamerTest : public testing::Test {
   static shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string FlatSparseStreamerTest::dir_("FlatSparseStreamerTest");
+std::string FlatSparseStreamerTest::dir_("FlatSparseStreamerTest/");
 shared_ptr<IndexMeta> FlatSparseStreamerTest::index_meta_ptr_;
 
 void FlatSparseStreamerTest::generate_sparse_data(
@@ -88,19 +87,11 @@ void FlatSparseStreamerTest::SetUp(void) {
                                                 IndexMeta::DataType::DT_FP32));
   index_meta_ptr_->set_metric("InnerProductSparse", 0, ailego::Params());
 
-  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
-#ifdef _WIN32
-    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
-#endif
-  }
+  zvec::test_util::RemoveTestPath(dir_);
 }
 
 void FlatSparseStreamerTest::TearDown(void) {
-  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
-#ifdef _WIN32
-    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
-#endif
-  }
+  zvec::test_util::RemoveTestPath(dir_);
 }
 
 TEST_F(FlatSparseStreamerTest, TestGeneral) {
@@ -119,7 +110,7 @@ TEST_F(FlatSparseStreamerTest, TestGeneral) {
   ailego::Params stg_params;
   auto write_storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, write_storage->init(stg_params));
-  ASSERT_EQ(0, write_storage->open(dir_ + "/Test/FlatSparseSearch", true));
+  ASSERT_EQ(0, write_storage->open(dir_ + "Test/FlatSparseSearch", true));
   ASSERT_EQ(0, write_streamer->init(index_meta, params));
   ASSERT_EQ(0, write_streamer->open(write_storage));
 
@@ -152,7 +143,7 @@ TEST_F(FlatSparseStreamerTest, TestGeneral) {
   auto read_storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_NE(nullptr, read_storage);
   ASSERT_EQ(0, read_storage->init(stg_params));
-  ASSERT_EQ(0, read_storage->open(dir_ + "/Test/FlatSparseSearch", false));
+  ASSERT_EQ(0, read_storage->open(dir_ + "Test/FlatSparseSearch", false));
   ASSERT_EQ(0, read_streamer->open(read_storage));
 
   auto linearCtx = read_streamer->create_context();

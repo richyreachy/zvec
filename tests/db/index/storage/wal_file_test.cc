@@ -25,17 +25,8 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <stdio.h>
-#ifdef _MSC_VER
-#include <io.h>
-inline int truncate(const char *path, long length) {
-  int fd = _open(path, _O_RDWR);
-  if (fd < 0) return -1;
-  int ret = _chsize(fd, length);
-  _close(fd);
-  return ret;
-}
-#endif
 #include <gtest/gtest.h>
+#include "tests/test_util.h"
 #include <zvec/ailego/parallel/thread_pool.h>
 #include <zvec/ailego/utility/string_helper.h>
 #include <zvec/ailego/utility/time_helper.h>
@@ -52,11 +43,7 @@ using SegmentID = uint32_t;
 class WalFileTest : public testing::Test {
  protected:
   void SetUp() {
-#ifdef _WIN32
-    system("del /f /q .\\data.wal.*");
-#else
-    system("rm -rf ./data.wal.*");
-#endif
+    zvec::test_util::RemoveTestFiles("./data.wal.*");
   }
 
   void TearDown() {}

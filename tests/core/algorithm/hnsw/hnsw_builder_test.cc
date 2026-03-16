@@ -19,7 +19,7 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
 #include "zvec/core/framework/index_framework.h"
-#include "zvec/ailego/utility/file_helper.h"
+#include "tests/test_util.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -43,7 +43,7 @@ class HnswBuilderTest : public testing::Test {
   static shared_ptr<IndexMeta> _index_meta_ptr;
 };
 
-std::string HnswBuilderTest::_dir("hnswBuilderTest");
+std::string HnswBuilderTest::_dir("hnswBuilderTest/");
 shared_ptr<IndexMeta> HnswBuilderTest::_index_meta_ptr;
 
 void HnswBuilderTest::SetUp(void) {
@@ -53,7 +53,7 @@ void HnswBuilderTest::SetUp(void) {
 }
 
 void HnswBuilderTest::TearDown(void) {
-  zvec::ailego::FileHelper::RemovePath(_dir.c_str());
+  zvec::test_util::RemoveTestPath(_dir);
 }
 
 TEST_F(HnswBuilderTest, TestGeneral) {
@@ -82,7 +82,7 @@ TEST_F(HnswBuilderTest, TestGeneral) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestGeneral";
+  string path = _dir + "TestGeneral";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -190,7 +190,7 @@ TEST_F(HnswBuilderTest, TestIndexThreads) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestIndexThreads";
+  string path = _dir + "TestIndexThreads";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder1->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -242,7 +242,7 @@ TEST_F(HnswBuilderTest, TestCosine) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestCosine";
+  string path = _dir + "TestCosine";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -326,7 +326,7 @@ TEST_F(HnswBuilderTest, TestCosineFp16Converter) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestCosineFp16Converter";
+  string path = _dir + "TestCosineFp16Converter";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -408,7 +408,7 @@ TEST_F(HnswBuilderTest, TestCosineInt8Converter) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestCosineInt8Converter";
+  string path = _dir + "TestCosineInt8Converter";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -490,7 +490,7 @@ TEST_F(HnswBuilderTest, TestCosineInt4Converter) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestCosineInt4Converter";
+  string path = _dir + "TestCosineInt4Converter";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());

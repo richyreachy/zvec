@@ -24,7 +24,7 @@
 #include "zvec/core/framework/index_factory.h"
 #include "zvec/core/framework/index_meta.h"
 #include "hnsw_params.h"
-#include "zvec/ailego/utility/file_helper.h"
+#include "tests/test_util.h"
 
 using namespace std;
 using namespace testing;
@@ -49,7 +49,7 @@ class HnswSearcherTest : public testing::Test {
   static shared_ptr<IndexMeta> _index_meta_ptr;
 };
 
-std::string HnswSearcherTest::_dir("HnswSearcherTest");
+std::string HnswSearcherTest::_dir("HnswSearcherTest/");
 shared_ptr<IndexMeta> HnswSearcherTest::_index_meta_ptr;
 
 void HnswSearcherTest::SetUp(void) {
@@ -59,7 +59,7 @@ void HnswSearcherTest::SetUp(void) {
 }
 
 void HnswSearcherTest::TearDown(void) {
-  zvec::ailego::FileHelper::RemovePath(_dir.c_str());
+  zvec::test_util::RemoveTestPath(_dir);
 }
 
 TEST_F(HnswSearcherTest, TestRnnSearch) {
@@ -81,7 +81,7 @@ TEST_F(HnswSearcherTest, TestRnnSearch) {
 
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestRnnSearch";
+  string path = _dir + "TestRnnSearch";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -147,7 +147,7 @@ TEST_F(HnswSearcherTest, TestRnnSearchInnerProduct) {
 
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestRnnSearchInnerProduct";
+  string path = _dir + "TestRnnSearchInnerProduct";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -229,7 +229,7 @@ TEST_F(HnswSearcherTest, TestRnnSearchCosine) {
 
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestRnnSearchCosine";
+  string path = _dir + "TestRnnSearchCosine";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -300,7 +300,7 @@ TEST_F(HnswSearcherTest, TestRnnSearchMipsSquaredEuclidean) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(_dir + "/TestStreamerDump.index", true));
+  ASSERT_EQ(0, storage->open(_dir + "TestStreamerDump.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -344,7 +344,7 @@ TEST_F(HnswSearcherTest, TestRnnSearchMipsSquaredEuclidean) {
     ASSERT_LT(-radius, results[topk - 1].score());
   }
 
-  auto path = _dir + "/TestStreamerDump";
+  auto path = _dir + "TestStreamerDump";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -415,7 +415,7 @@ TEST_F(HnswSearcherTest, TestGeneral) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestGeneral";
+  string path = _dir + "TestGeneral";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -560,7 +560,7 @@ TEST_F(HnswSearcherTest, TestClearAndReload) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestGeneral";
+  string path = _dir + "TestGeneral";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -658,7 +658,7 @@ TEST_F(HnswSearcherTest, TestFilter) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestGeneral";
+  string path = _dir + "TestGeneral";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -758,7 +758,7 @@ TEST_F(HnswSearcherTest, TestStreamerDump) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(_dir + "/TestStreamerDump.index", true));
+  ASSERT_EQ(0, storage->open(_dir + "TestStreamerDump.index", true));
   ASSERT_EQ(0, streamer->init(*_index_meta_ptr, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -773,7 +773,7 @@ TEST_F(HnswSearcherTest, TestStreamerDump) {
     }
     streamer->add_impl(i, vec.data(), qmeta, ctx);
   }
-  auto path = _dir + "/TestStreamerDump";
+  auto path = _dir + "TestStreamerDump";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -886,9 +886,9 @@ TEST_F(HnswSearcherTest, TestSharedContext) {
   size_t docs1 = rand() % 500 + 100;
   size_t docs2 = rand() % 5000 + 100;
   size_t docs3 = rand() % 50000 + 100;
-  auto path1 = _dir + "/TestSharedContext.index1";
-  auto path2 = _dir + "/TestSharedContext.index2";
-  auto path3 = _dir + "/TestSharedContext.index3";
+  auto path1 = _dir + "TestSharedContext.index1";
+  auto path2 = _dir + "TestSharedContext.index2";
+  auto path3 = _dir + "TestSharedContext.index3";
   auto searcher1 = gen_index(0, docs1, path1);
   auto searcher2 = gen_index(1, docs2, path2);
   auto searcher3 = gen_index(2, docs3, path3);
@@ -956,7 +956,7 @@ TEST_F(HnswSearcherTest, TestSharedContext) {
       IndexFactory::CreateStreamer("HnswStreamer");
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   storage->init(ailego::Params());
-  storage->open(_dir + "/TestSharedContext.index4", true);
+  storage->open(_dir + "TestSharedContext.index4", true);
   streamer->init(*_index_meta_ptr, ailego::Params());
   streamer->open(storage);
   NumericalVector<float> query(dim);
@@ -1010,7 +1010,7 @@ TEST_F(HnswSearcherTest, TestProvider) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestProvider";
+  string path = _dir + "TestProvider";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -1076,7 +1076,7 @@ TEST_F(HnswSearcherTest, TestMipsEuclideanMetric) {
 
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestMipsEuclideanMetric";
+  string path = _dir + "TestMipsEuclideanMetric";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -1131,7 +1131,7 @@ TEST_F(HnswSearcherTest, TestRandomPaddingTopk) {
 
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestRandomPadding";
+  string path = _dir + "TestRandomPadding";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -1199,7 +1199,7 @@ TEST_F(HnswSearcherTest, TestBruteForceSetupInContext) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestGeneral";
+  string path = _dir + "TestGeneral";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -1336,7 +1336,7 @@ TEST_F(HnswSearcherTest, TestCosine) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(_dir + "/TestCosine.index", true));
+  ASSERT_EQ(0, storage->open(_dir + "TestCosine.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -1364,7 +1364,7 @@ TEST_F(HnswSearcherTest, TestCosine) {
     ASSERT_EQ(0, streamer->add_impl(i, new_vec.data(), new_meta, ctx));
   }
 
-  auto path = _dir + "/TestCosine";
+  auto path = _dir + "TestCosine";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -1473,7 +1473,7 @@ TEST_F(HnswSearcherTest, TestFetchVector) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(_dir + "/TestFetchVector.index", true));
+  ASSERT_EQ(0, storage->open(_dir + "TestFetchVector.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -1491,7 +1491,7 @@ TEST_F(HnswSearcherTest, TestFetchVector) {
     streamer->add_impl(i, vec.data(), qmeta, ctx);
   }
 
-  auto path = _dir + "/TestFetchVector";
+  auto path = _dir + "TestFetchVector";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -1593,7 +1593,7 @@ TEST_F(HnswSearcherTest, TestFetchVectorCosine) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(_dir + "/TestFetchVectorCosine.index", true));
+  ASSERT_EQ(0, storage->open(_dir + "TestFetchVectorCosine.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -1623,7 +1623,7 @@ TEST_F(HnswSearcherTest, TestFetchVectorCosine) {
     ASSERT_EQ(0, streamer->add_impl(i, new_vec.data(), new_meta, ctx));
   }
 
-  auto path = _dir + "/TestFetchVectorCosine";
+  auto path = _dir + "TestFetchVectorCosine";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -1751,7 +1751,7 @@ TEST_F(HnswSearcherTest, TestFetchVectorCosineHalfFloatConverter) {
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
   ASSERT_EQ(
-      0, storage->open(_dir + "/TestFetchVectorCosineHalfFloatConverter.index",
+      0, storage->open(_dir + "TestFetchVectorCosineHalfFloatConverter.index",
                        true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
@@ -1786,7 +1786,7 @@ TEST_F(HnswSearcherTest, TestFetchVectorCosineHalfFloatConverter) {
     vecs.push_back(vec);
   }
 
-  auto path = _dir + "/TestFetchVectorCosineHalfFloatConverter";
+  auto path = _dir + "TestFetchVectorCosineHalfFloatConverter";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -1915,7 +1915,7 @@ TEST_F(HnswSearcherTest, TestFetchVectorCosineFp16Converter) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(_dir + "/TestFetchVectorCosineFp16Converter.index",
+  ASSERT_EQ(0, storage->open(_dir + "TestFetchVectorCosineFp16Converter.index",
                              true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
@@ -1949,7 +1949,7 @@ TEST_F(HnswSearcherTest, TestFetchVectorCosineFp16Converter) {
     vecs.push_back(vec);
   }
 
-  auto path = _dir + "/TestFetchVectorCosineFp16Converter";
+  auto path = _dir + "TestFetchVectorCosineFp16Converter";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -2070,7 +2070,7 @@ TEST_F(HnswSearcherTest, TestFetchVectorCosineInt8Converter) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(_dir + "/TestFetchVectorCosineInt8Converter.index",
+  ASSERT_EQ(0, storage->open(_dir + "TestFetchVectorCosineInt8Converter.index",
                              true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
@@ -2101,7 +2101,7 @@ TEST_F(HnswSearcherTest, TestFetchVectorCosineInt8Converter) {
     ASSERT_EQ(0, streamer->add_impl(i, new_vec.data(), new_meta, ctx));
   }
 
-  auto path = _dir + "/TestFetchVectorCosineInt8Converter";
+  auto path = _dir + "TestFetchVectorCosineInt8Converter";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -2228,7 +2228,7 @@ TEST_F(HnswSearcherTest, TestFetchVectorCosineInt4Converter) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(_dir + "/TestFetchVectorCosineInt4Converter.index",
+  ASSERT_EQ(0, storage->open(_dir + "TestFetchVectorCosineInt4Converter.index",
                              true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
@@ -2259,7 +2259,7 @@ TEST_F(HnswSearcherTest, TestFetchVectorCosineInt4Converter) {
     ASSERT_EQ(0, streamer->add_impl(i, new_vec.data(), new_meta, ctx));
   }
 
-  auto path = _dir + "/TestFetchVectorCosineInt4Converter";
+  auto path = _dir + "TestFetchVectorCosineInt4Converter";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -2374,7 +2374,7 @@ TEST_F(HnswSearcherTest, TestGroup) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestGroup";
+  string path = _dir + "TestGroup";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -2501,7 +2501,7 @@ TEST_F(HnswSearcherTest, TestGroupNotEnoughNum) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestGroupNotEnoughNum";
+  string path = _dir + "TestGroupNotEnoughNum";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -2590,7 +2590,7 @@ TEST_F(HnswSearcherTest, TestGroupInBruteforceSearch) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = _dir + "/TestGroupInBruteforceSearch";
+  string path = _dir + "TestGroupInBruteforceSearch";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -2695,7 +2695,7 @@ TEST_F(HnswSearcherTest, TestBinaryConverter) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(_dir + "/TestBinaryConverter.index", true));
+  ASSERT_EQ(0, storage->open(_dir + "TestBinaryConverter.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -2726,7 +2726,7 @@ TEST_F(HnswSearcherTest, TestBinaryConverter) {
     vecs.push_back(vec);
   }
 
-  auto path = _dir + "/TestBinaryConverter";
+  auto path = _dir + "TestBinaryConverter";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));

@@ -21,6 +21,7 @@
 #include "zvec/ailego/utility/float_helper.h"
 #include "zvec/db/doc.h"
 #include "zvec/db/index_params.h"
+#include "tests/test_util.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -61,9 +62,7 @@ TEST(VectorColumnIndexerTest, General) {
     const std::string index_file_path = "test_indexer.index";
     constexpr idx_t kDocId = 2345;
 
-    char cmd_buf[100];
-    snprintf(cmd_buf, 100, "rm -f %s", index_file_path.c_str());
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
 
     // 1. create indexer
     auto indexer = std::make_shared<VectorColumnIndexer>(
@@ -172,7 +171,7 @@ TEST(VectorColumnIndexerTest, General) {
 
     indexer->Close();
 
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
   };
 
   func(std::make_shared<FlatIndexParams>(MetricType::IP),
@@ -214,9 +213,7 @@ TEST(VectorColumnIndexerTest, DenseDataTypeFP16) {
     constexpr idx_t kDocId = 2345;
     constexpr int dimension = 4;
 
-    char cmd_buf[100];
-    snprintf(cmd_buf, 100, "rm -f %s", index_file_path.c_str());
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
 
     // 1. create indexer
     auto indexer = std::make_shared<VectorColumnIndexer>(
@@ -355,7 +352,7 @@ TEST(VectorColumnIndexerTest, DenseDataTypeFP16) {
 
     indexer->Close();
 
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
   };
 
   func(std::make_shared<FlatIndexParams>(MetricType::IP),
@@ -371,9 +368,7 @@ TEST(VectorColumnIndexerTest, DenseDataTypeINT8) {
     constexpr idx_t kDocId = 2345;
     constexpr int dimension = 4;
 
-    char cmd_buf[100];
-    snprintf(cmd_buf, 100, "rm -f %s", index_file_path.c_str());
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
 
     // 1. create indexer
     auto indexer = std::make_shared<VectorColumnIndexer>(
@@ -495,7 +490,7 @@ TEST(VectorColumnIndexerTest, DenseDataTypeINT8) {
 
     indexer->Close();
 
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
   };
 
   func(std::make_shared<FlatIndexParams>(MetricType::IP),
@@ -511,9 +506,7 @@ TEST(VectorColumnIndexerTest, SparseGeneral) {
     const std::string index_file_path = "test_indexer.index";
     constexpr idx_t kDocId = 2345;
 
-    char cmd_buf[100];
-    snprintf(cmd_buf, 100, "rm -f %s", index_file_path.c_str());
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
 
     // create indexer
     auto indexer = std::make_shared<VectorColumnIndexer>(
@@ -607,7 +600,7 @@ TEST(VectorColumnIndexerTest, SparseGeneral) {
 
     indexer->Close();
 
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
   };
 
   func(std::make_shared<FlatIndexParams>(MetricType::IP));
@@ -623,9 +616,7 @@ TEST(VectorColumnIndexerTest, SparseDataTypeFP16) {
     const std::string index_file_path = "test_indexer.index";
     constexpr idx_t kDocId = 2345;
 
-    char cmd_buf[100];
-    snprintf(cmd_buf, 100, "rm -f %s", index_file_path.c_str());
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
 
     // create indexer
     auto indexer = std::make_shared<VectorColumnIndexer>(
@@ -723,7 +714,7 @@ TEST(VectorColumnIndexerTest, SparseDataTypeFP16) {
 
     indexer->Close();
 
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
   };
 
   func(std::make_shared<FlatIndexParams>(MetricType::IP));
@@ -734,9 +725,8 @@ TEST(VectorColumnIndexerTest, Merge) {
   constexpr uint32_t kDimension = 64;
   const std::string index_name{"test_indexer.index"};
 
-  auto del_index_file_func = [&](const std::string file_name) {
-    auto cmd_buf = "rm -f " + file_name;
-    system(cmd_buf.c_str());
+  auto del_index_file_func = [](const std::string &file_name) {
+    zvec::test_util::RemoveTestFiles(file_name);
   };
 
   auto create_indexer_func =
@@ -1003,9 +993,8 @@ TEST(VectorColumnIndexerTest, SparseMerge) {
   constexpr uint32_t kUnitSize = sizeof(float);  // VECTOR_FP32
   const std::string index_name{"test_indexer.index"};
 
-  auto del_index_file_func = [&](const std::string file_name) {
-    auto cmd_buf = "rm -f " + file_name;
-    system(cmd_buf.c_str());
+  auto del_index_file_func = [](const std::string &file_name) {
+    zvec::test_util::RemoveTestFiles(file_name);
   };
 
   auto create_indexer_func =
@@ -1281,9 +1270,7 @@ TEST(VectorColumnIndexerTest, BfPks) {
   auto func = [&](const IndexParams::Ptr index_params) {
     const std::string index_file_path = "test_indexer.index";
 
-    char cmd_buf[100];
-    snprintf(cmd_buf, 100, "rm -f %s", index_file_path.c_str());
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
 
     // 1. create indexer
     auto indexer = std::make_shared<VectorColumnIndexer>(
@@ -1399,7 +1386,7 @@ TEST(VectorColumnIndexerTest, BfPks) {
 
     indexer->Close();
 
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
   };
 
   func(std::make_shared<FlatIndexParams>(MetricType::COSINE));
@@ -1586,12 +1573,10 @@ TEST(VectorColumnIndexerTest, CosineGeneral) {
                           // will be too large due to float's precision
   const uint32_t kTopk = 10;
 
-  char cmd_buf[100];
-  snprintf(cmd_buf, 100, "rm -f %s", index_file_path.c_str());
-  system(cmd_buf);
+  zvec::test_util::RemoveTestFiles(index_file_path);
 
   auto func = [&](const IndexParams::Ptr index_params, DataType data_type) {
-    system(cmd_buf);
+    zvec::test_util::RemoveTestFiles(index_file_path);
     auto indexer = std::make_shared<VectorColumnIndexer>(
         index_file_path,
         FieldSchema("test", data_type, kDim, false, index_params));
@@ -1744,9 +1729,7 @@ TEST(VectorColumnIndexerTest, Score) {
   auto sparse_indices = std::vector<uint32_t>{0, 1, 2};
   auto query_vector = std::vector<float>{1.0f, 2.0f, 3.0f};
 
-  char cmd_buf[100];
-  snprintf(cmd_buf, 100, "rm -f %s", index_file_path.c_str());
-  system(cmd_buf);
+  zvec::test_util::RemoveTestFiles(index_file_path);
 
 
   auto check_score = [&](VectorIndexResults *vector_results,
@@ -1948,9 +1931,7 @@ TEST(VectorColumnIndexerTest, Failure) {
   constexpr idx_t kDocId = 1234;
   auto vector = std::vector<float>{1.0f, 2.0f, 3.0f};
 
-  char cmd_buf[100];
-  snprintf(cmd_buf, 100, "rm -f %s", index_file_path.c_str());
-  system(cmd_buf);
+  zvec::test_util::RemoveTestFiles(index_file_path);
 
   // Test case 1: Operations on unopened indexer
   {
@@ -2331,16 +2312,15 @@ TEST(VectorColumnIndexerTest, Failure) {
   //   indexer->Close();
   // }
 
-  system(cmd_buf);
+  zvec::test_util::RemoveTestFiles(index_file_path);
 }
 
 TEST(VectorColumnIndexerTest, CosineMerge) {
   constexpr uint32_t kDimension = 64;
   const std::string index_name{"test_indexer.index"};
 
-  auto del_index_file_func = [&](const std::string file_name) {
-    auto cmd_buf = "rm -f " + file_name;
-    system(cmd_buf.c_str());
+  auto del_index_file_func = [](const std::string &file_name) {
+    zvec::test_util::RemoveTestFiles(file_name);
   };
 
   auto create_indexer_func =
@@ -2592,9 +2572,8 @@ TEST(VectorColumnIndexerTest, Refiner) {
                           // will be too large due to float's precision
   const uint32_t kTopk = 10;
 
-  auto del_index_file_func = [&](const std::string &file_name) {
-    auto cmd_buf = "rm -f " + file_name;
-    system(cmd_buf.c_str());
+  auto del_index_file_func = [](const std::string &file_name) {
+    zvec::test_util::RemoveTestFiles(file_name);
   };
 
   auto create_indexer_func =

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "hnsw_sparse_builder.h"
-#include <cstdlib>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -20,8 +19,8 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
 #include "zvec/core/framework/index_framework.h"
-#include "zvec/ailego/utility/file_helper.h"
 #include "hnsw_sparse_params.h"
+#include "tests/test_util.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -44,7 +43,7 @@ class HnswSparseBuilderTest : public testing::Test {
   static shared_ptr<IndexMeta> _index_meta_ptr;
 };
 
-std::string HnswSparseBuilderTest::_dir("HnswSparseBuilderTest");
+std::string HnswSparseBuilderTest::_dir("HnswSparseBuilderTest/");
 shared_ptr<IndexMeta> HnswSparseBuilderTest::_index_meta_ptr;
 
 void HnswSparseBuilderTest::SetUp(void) {
@@ -54,11 +53,7 @@ void HnswSparseBuilderTest::SetUp(void) {
 }
 
 void HnswSparseBuilderTest::TearDown(void) {
-  if (!zvec::ailego::FileHelper::RemovePath(_dir.c_str())) {
-#ifdef _WIN32
-    system(("rmdir /s /q " + _dir + " 2>NUL").c_str());
-#endif
-  }
+  zvec::test_util::RemoveTestPath(_dir);
 }
 
 TEST_F(HnswSparseBuilderTest, TestGeneral) {
@@ -96,7 +91,7 @@ TEST_F(HnswSparseBuilderTest, TestGeneral) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestGeneral";
+  string path = _dir + "TestGeneral";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -234,7 +229,7 @@ TEST_F(HnswSparseBuilderTest, TestIndexThreads) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestIndexThreads";
+  string path = _dir + "TestIndexThreads";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder1->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -293,7 +288,7 @@ TEST_F(HnswSparseBuilderTest, TestHalfFloatConverter) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestHalFloatConverter";
+  string path = _dir + "TestHalFloatConverter";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -389,7 +384,7 @@ TEST_F(HnswSparseBuilderTest, TestIndptr) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestIndptr";
+  string path = _dir + "TestIndptr";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -451,7 +446,7 @@ TEST_F(HnswSparseBuilderTest, TestIndptrFp16) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestIndptrFp16";
+  string path = _dir + "TestIndptrFp16";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());

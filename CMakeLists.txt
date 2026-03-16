@@ -49,6 +49,7 @@ include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
 
 include_directories(${PROJECT_ROOT_DIR}/src/include)
 include_directories(${PROJECT_ROOT_DIR}/src)
+include_directories(${PROJECT_ROOT_DIR})
 
 option(BUILD_PYTHON_BINDINGS "Build Python bindings using pybind11" OFF)
 message(STATUS "BUILD_PYTHON_BINDINGS:${BUILD_PYTHON_BINDINGS}")

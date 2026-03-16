@@ -21,7 +21,7 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
 #include "zvec/core/framework/index_framework.h"
-#include "zvec/ailego/utility/file_helper.h"
+#include "tests/test_util.h"
 #include "hnsw_sparse_params.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
@@ -51,7 +51,7 @@ class HnswSparseSearcherTest : public testing::Test {
   static shared_ptr<IndexMeta> _index_meta_ptr;
 };
 
-std::string HnswSparseSearcherTest::dir_("HnswSparseSearcherTest");
+std::string HnswSparseSearcherTest::dir_("HnswSparseSearcherTest/");
 shared_ptr<IndexMeta> HnswSparseSearcherTest::_index_meta_ptr;
 
 void HnswSparseSearcherTest::generate_sparse_data(
@@ -91,7 +91,7 @@ void HnswSparseSearcherTest::SetUp(void) {
 }
 
 void HnswSparseSearcherTest::TearDown(void) {
-  zvec::ailego::FileHelper::RemovePath(dir_.c_str());
+  zvec::test_util::RemoveTestPath(dir_);
 }
 
 TEST_F(HnswSparseSearcherTest, TestGeneral) {
@@ -115,7 +115,7 @@ TEST_F(HnswSparseSearcherTest, TestGeneral) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestGeneral.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestGeneral.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -138,7 +138,7 @@ TEST_F(HnswSparseSearcherTest, TestGeneral) {
                                     sparse_vec_list[i].data(), qmeta, ctx));
   }
 
-  auto path = dir_ + "/TestGeneral";
+  auto path = dir_ + "TestGeneral";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -248,7 +248,7 @@ TEST_F(HnswSparseSearcherTest, TestRnnSearch) {
 
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = dir_ + "/TestRnnSearch";
+  string path = dir_ + "TestRnnSearch";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -333,7 +333,7 @@ TEST_F(HnswSparseSearcherTest, TestClearAndReload) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = dir_ + "/TestClearAndReload";
+  string path = dir_ + "TestClearAndReload";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -468,7 +468,7 @@ TEST_F(HnswSparseSearcherTest, TestFilter) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = dir_ + "/TestFilter";
+  string path = dir_ + "TestFilter";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -620,7 +620,7 @@ TEST_F(HnswSparseSearcherTest, TestBatchQuery) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = dir_ + "/TestBatchQuery";
+  string path = dir_ + "TestBatchQuery";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -755,7 +755,7 @@ TEST_F(HnswSparseSearcherTest, TestStreamerDump) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestStreamerDump.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestStreamerDump.index", true));
   ASSERT_EQ(0, streamer->init(*_index_meta_ptr, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -777,7 +777,7 @@ TEST_F(HnswSparseSearcherTest, TestStreamerDump) {
                                     sparse_vec_list[i].data(), qmeta, ctx));
   }
 
-  auto path = dir_ + "/TestStreamerDump";
+  auto path = dir_ + "TestStreamerDump";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -912,9 +912,9 @@ TEST_F(HnswSparseSearcherTest, TestSharedContext) {
   size_t docs1 = rand() % 500 + 100;
   size_t docs2 = rand() % 5000 + 100;
   size_t docs3 = rand() % 50000 + 100;
-  auto path1 = dir_ + "/TestSharedContext.index1";
-  auto path2 = dir_ + "/TestSharedContext.index2";
-  auto path3 = dir_ + "/TestSharedContext.index3";
+  auto path1 = dir_ + "TestSharedContext.index1";
+  auto path2 = dir_ + "TestSharedContext.index2";
+  auto path3 = dir_ + "TestSharedContext.index3";
   auto searcher1 = gen_index(0, docs1, path1);
   auto searcher2 = gen_index(1, docs2, path2);
   auto searcher3 = gen_index(2, docs3, path3);
@@ -999,7 +999,7 @@ TEST_F(HnswSparseSearcherTest, TestSharedContext) {
       IndexFactory::CreateStreamer("HnswSparseStreamer");
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   storage->init(ailego::Params());
-  storage->open(dir_ + "/TestSharedContext.index4", true);
+  storage->open(dir_ + "TestSharedContext.index4", true);
   streamer->init(*_index_meta_ptr, ailego::Params());
   streamer->open(storage);
 
@@ -1074,7 +1074,7 @@ TEST_F(HnswSparseSearcherTest, TestProvider) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = dir_ + "/TestProvider";
+  string path = dir_ + "TestProvider";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -1161,7 +1161,7 @@ TEST_F(HnswSparseSearcherTest, TestRandomPaddingTopk) {
 
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = dir_ + "/TestRandomPadding";
+  string path = dir_ + "TestRandomPadding";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -1248,7 +1248,7 @@ TEST_F(HnswSparseSearcherTest, TestBruteForceSetupInContext) {
   ASSERT_EQ(0, builder->build(holder));
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
-  string path = dir_ + "/TestBruteForceSetupInContext";
+  string path = dir_ + "TestBruteForceSetupInContext";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -1394,7 +1394,7 @@ TEST_F(HnswSparseSearcherTest, TestHalfFloatConverter) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestHalfFloatConverter.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestHalfFloatConverter.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -1425,7 +1425,7 @@ TEST_F(HnswSparseSearcherTest, TestHalfFloatConverter) {
                                     new_vec.data(), new_meta, ctx));
   }
 
-  auto path = dir_ + "/TestHalfFloatConverter";
+  auto path = dir_ + "TestHalfFloatConverter";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -1531,7 +1531,7 @@ TEST_F(HnswSparseSearcherTest, TestQueryFilteringRatio) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestQueryFilteringRatio.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestQueryFilteringRatio.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -1554,7 +1554,7 @@ TEST_F(HnswSparseSearcherTest, TestQueryFilteringRatio) {
                                     sparse_vec_list[i].data(), qmeta, ctx));
   }
 
-  auto path = dir_ + "/TestQueryFilteringRatio";
+  auto path = dir_ + "TestQueryFilteringRatio";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));
@@ -1671,7 +1671,7 @@ TEST_F(HnswSparseSearcherTest, TestHalfFloatRevert) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestHalfFloatRevert.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestHalfFloatRevert.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -1729,7 +1729,7 @@ TEST_F(HnswSparseSearcherTest, TestHalfFloatRevert) {
     }
   }
 
-  auto path = dir_ + "/TestHalfFloatRevert";
+  auto path = dir_ + "TestHalfFloatRevert";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(path));

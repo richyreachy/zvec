@@ -22,6 +22,7 @@
 #include "zvec/core/interface/index_factory.h"
 #include "zvec/core/interface/index_param.h"
 #include "zvec/core/interface/index_param_builders.h"
+#include "tests/test_util.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -30,26 +31,13 @@
 
 using namespace zvec::core_interface;
 
-static void remove_files(const std::string &pattern) {
-  if (pattern.find('*') != std::string::npos ||
-      pattern.find('?') != std::string::npos) {
-#ifdef _WIN32
-    system(("del /f /q " + pattern + " 2>NUL").c_str());
-#else
-    system(("rm -rf " + pattern).c_str());
-#endif
-  } else {
-    zvec::ailego::FileHelper::RemovePath(pattern.c_str());
-  }
-}
-
 TEST(IndexInterface, General) {
   constexpr uint32_t kDimension = 64;
   const std::string index_name{"test.index"};
 
   auto func = [&](const BaseIndexParam::Pointer &param,
                   const BaseIndexQueryParam::Pointer &query_param) {
-    remove_files(index_name);
+    zvec::test_util::RemoveTestFiles(index_name);
     auto index = IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
@@ -97,7 +85,7 @@ TEST(IndexInterface, General) {
     ASSERT_FLOAT_EQ(1.0f, fetched_vector[1]);
     ASSERT_FLOAT_EQ(2.0f, fetched_vector[2]);
     index->Close();
-    remove_files(index_name);
+    zvec::test_util::RemoveTestFiles(index_name);
   };
 
 
@@ -170,7 +158,7 @@ TEST(IndexInterface, BufferGeneral) {
   auto func = [&](const BaseIndexParam::Pointer &param,
                   const BaseIndexQueryParam::Pointer &query_param) {
     std::string real_index_name = index_name;
-    remove_files(index_name + "*");
+    zvec::test_util::RemoveTestFiles(index_name + "*");
     auto write_index = IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, write_index);
 
@@ -223,7 +211,7 @@ TEST(IndexInterface, BufferGeneral) {
     ASSERT_FLOAT_EQ(1.0f, fetched_vector[1]);
     ASSERT_FLOAT_EQ(2.0f, fetched_vector[2]);
     read_index->Close();
-    remove_files(index_name + "*");
+    zvec::test_util::RemoveTestFiles(index_name + "*");
   };
 
 
@@ -279,7 +267,7 @@ TEST(IndexInterface, SparseGeneral) {
 
   auto func = [&](const BaseIndexParam::Pointer &param,
                   const BaseIndexQueryParam::Pointer &query_param) {
-    remove_files(index_name);
+    zvec::test_util::RemoveTestFiles(index_name);
     auto index = IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
@@ -345,7 +333,7 @@ TEST(IndexInterface, SparseGeneral) {
       ASSERT_EQ(i, fetched_values[i]);
     }
     index->Close();
-    remove_files(index_name);
+    zvec::test_util::RemoveTestFiles(index_name);
   };
 
 
@@ -394,7 +382,7 @@ TEST(IndexInterface, Merge) {
   const std::string index_name{"test.index"};
 
   auto del_index_file_func = [&](const std::string file_name) {
-    remove_files(file_name);
+    zvec::test_util::RemoveTestFiles(file_name);
   };
 
   auto create_index_func =
@@ -769,7 +757,7 @@ TEST(IndexInterface, Failure) {
     ASSERT_NE(0, ret);
 
     index->Close();
-    remove_files("test.index");
+    zvec::test_util::RemoveTestFiles("test.index");
   }
 
   // Test invalid vector data type for sparse operations
@@ -792,7 +780,7 @@ TEST(IndexInterface, Failure) {
     ASSERT_NE(0, ret);
 
     index->Close();
-    remove_files("test.index");
+    zvec::test_util::RemoveTestFiles("test.index");
   }
 
   // Test fetch non-existent document
@@ -813,7 +801,7 @@ TEST(IndexInterface, Failure) {
     ASSERT_NE(0, ret);
 
     index->Close();
-    remove_files("test.index");
+    zvec::test_util::RemoveTestFiles("test.index");
   }
 
   // Test search with invalid vector data
@@ -846,7 +834,7 @@ TEST(IndexInterface, Failure) {
     ASSERT_NE(0, ret);
 
     index->Close();
-    remove_files("test.index");
+    zvec::test_util::RemoveTestFiles("test.index");
   }
 
   // Test merge with invalid write concurrency
@@ -890,9 +878,9 @@ TEST(IndexInterface, Failure) {
     index1->Close();
     index2->Close();
     index3->Close();
-    remove_files("test1.index");
-    remove_files("test2.index");
-    remove_files("test3.index");
+    zvec::test_util::RemoveTestFiles("test1.index");
+    zvec::test_util::RemoveTestFiles("test2.index");
+    zvec::test_util::RemoveTestFiles("test3.index");
   }
 }
 
@@ -1022,7 +1010,7 @@ TEST(IndexInterface, Score) {
   auto sparse_indices = std::vector<uint32_t>{0, 1, 2};
   auto query_vector = std::vector<float>{1.0f, 2.0f, 3.0f};
 
-  remove_files(index_file_path);
+  zvec::test_util::RemoveTestFiles(index_file_path);
 
   auto check_score = [&](const SearchResult &result, MetricType metric_type) {
     ASSERT_EQ(result.doc_list_.size(), 2);
@@ -1093,7 +1081,7 @@ TEST(IndexInterface, Score) {
   auto dense_func = [&](const BaseIndexParam::Pointer &param,
                         const BaseIndexQueryParam::Pointer query_param,
                         MetricType metric_type) {
-    remove_files(index_file_path);
+    zvec::test_util::RemoveTestFiles(index_file_path);
     auto index = IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
@@ -1115,13 +1103,13 @@ TEST(IndexInterface, Score) {
     check_score(result, metric_type);
 
     index->Close();
-    remove_files(index_file_path);
+    zvec::test_util::RemoveTestFiles(index_file_path);
   };
 
   auto sparse_func = [&](const BaseIndexParam::Pointer &param,
                          const BaseIndexQueryParam::Pointer query_param,
                          MetricType metric_type) {
-    remove_files(index_file_path);
+    zvec::test_util::RemoveTestFiles(index_file_path);
     auto index = IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
@@ -1149,7 +1137,7 @@ TEST(IndexInterface, Score) {
     check_score(result, metric_type);
 
     index->Close();
-    remove_files(index_file_path);
+    zvec::test_util::RemoveTestFiles(index_file_path);
   };
 
   constexpr uint32_t kDimension = 3;

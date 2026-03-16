@@ -1,4 +1,3 @@
-#include <cstdlib>
 #include <future>
 #include <string>
 #include <vector>
@@ -8,7 +7,7 @@
 #include <zvec/ailego/buffer/buffer_manager.h>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_streamer.h>
-#include "zvec/ailego/utility/file_helper.h"
+#include "tests/test_util.h"
 
 using namespace zvec::core;
 using namespace zvec::ailego;
@@ -32,7 +31,7 @@ class FlatStreamerTest : public testing::Test {
   static std::shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string FlatStreamerTest::dir_("flat_streamer_buffer_time_test_dir");
+std::string FlatStreamerTest::dir_("flat_streamer_buffer_time_test_dir/");
 std::shared_ptr<IndexMeta> FlatStreamerTest::index_meta_ptr_;
 
 void FlatStreamerTest::SetUp(void) {
@@ -40,19 +39,11 @@ void FlatStreamerTest::SetUp(void) {
                             IndexMeta(IndexMeta::DataType::DT_FP32, dim));
   index_meta_ptr_->set_metric("SquaredEuclidean", 0, Params());
 
-  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
-#ifdef _WIN32
-    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
-#endif
-  }
+  zvec::test_util::RemoveTestPath(dir_);
 }
 
 void FlatStreamerTest::TearDown(void) {
-  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
-#ifdef _WIN32
-    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
-#endif
-  }
+  zvec::test_util::RemoveTestPath(dir_);
 }
 
 TEST_F(FlatStreamerTest, TestLinearSearchMMap) {
@@ -67,7 +58,7 @@ TEST_F(FlatStreamerTest, TestLinearSearchMMap) {
   ASSERT_NE(nullptr, storage);
   Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/Test/LinearSearchMMap", true));
+  ASSERT_EQ(0, storage->open(dir_ + "Test/LinearSearchMMap", true));
   ASSERT_EQ(0, write_streamer->open(storage));
 
   auto ctx = write_streamer->create_context();
@@ -93,7 +84,7 @@ TEST_F(FlatStreamerTest, TestLinearSearchMMap) {
   auto read_storage = IndexFactory::CreateStorage("BufferStorage");
   ASSERT_NE(nullptr, read_storage);
   ASSERT_EQ(0, read_storage->init(stg_params));
-  ASSERT_EQ(0, read_storage->open(dir_ + "/Test/LinearSearchMMap", false));
+  ASSERT_EQ(0, read_storage->open(dir_ + "Test/LinearSearchMMap", false));
   ASSERT_EQ(0, read_streamer->open(read_storage));
   size_t topk = 30;
   ElapsedTime elapsed_time;

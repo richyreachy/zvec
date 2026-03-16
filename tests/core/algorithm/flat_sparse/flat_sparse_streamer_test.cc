@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cstdlib>
 #include <future>
 #include <numeric>
 #include <string>
@@ -22,7 +21,7 @@
 #include <ailego/utility/memory_helper.h>
 #include <algorithm/flat_sparse/flat_sparse_utility.h>
 #include <gtest/gtest.h>
-#include "zvec/ailego/utility/file_helper.h"
+#include "tests/test_util.h"
 #include <zvec/ailego/buffer/buffer_manager.h>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_streamer.h>
@@ -51,7 +50,7 @@ class FlatSparseStreamerTest : public testing::Test {
   static std::shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string FlatSparseStreamerTest::dir_("flat_sparse_streamer_test_dir");
+std::string FlatSparseStreamerTest::dir_("flat_sparse_streamer_test_dir/");
 std::shared_ptr<IndexMeta> FlatSparseStreamerTest::index_meta_ptr_;
 
 void FlatSparseStreamerTest::generate_sparse_data(
@@ -91,19 +90,11 @@ void FlatSparseStreamerTest::SetUp(void) {
                                       IndexMeta::DataType::DT_FP32));
   index_meta_ptr_->set_metric("InnerProductSparse", 0, Params());
 
-  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
-#ifdef _WIN32
-    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
-#endif
-  }
+  zvec::test_util::RemoveTestPath(dir_);
 }
 
 void FlatSparseStreamerTest::TearDown(void) {
-  if (!zvec::ailego::FileHelper::RemovePath(dir_.c_str())) {
-#ifdef _WIN32
-    system(("rmdir /s /q " + dir_ + " 2>NUL").c_str());
-#endif
-  }
+  zvec::test_util::RemoveTestPath(dir_);
 }
 
 TEST_F(FlatSparseStreamerTest, TestGeneral) {
@@ -112,7 +103,7 @@ TEST_F(FlatSparseStreamerTest, TestGeneral) {
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_TRUE(storage != nullptr);
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestGeneral", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestGeneral", true));
 
 
   // init streamer
@@ -182,7 +173,7 @@ TEST_F(FlatSparseStreamerTest, TestLinearSearch) {
   Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestLinearSearch.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestLinearSearch.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -256,7 +247,7 @@ TEST_F(FlatSparseStreamerTest, TestLinearSearchByKeys) {
   Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestLinearSearchByKeys.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestLinearSearchByKeys.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -381,7 +372,7 @@ TEST_F(FlatSparseStreamerTest, TestCreateIterator) {
   ASSERT_NE(nullptr, storage);
   Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestCreateIterator", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestCreateIterator", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -479,9 +470,9 @@ TEST_F(FlatSparseStreamerTest, TestOpenAndClose) {
   ASSERT_NE(nullptr, storage2);
   Params stg_params;
   ASSERT_EQ(0, storage1->init(stg_params));
-  ASSERT_EQ(0, storage1->open(dir_ + "/TessOpenAndClose1", true));
+  ASSERT_EQ(0, storage1->open(dir_ + "TessOpenAndClose1", true));
   ASSERT_EQ(0, storage2->init(stg_params));
-  ASSERT_EQ(0, storage2->open(dir_ + "/TessOpenAndClose2", true));
+  ASSERT_EQ(0, storage2->open(dir_ + "TessOpenAndClose2", true));
   ASSERT_EQ(0, streamer->init(meta, params));
   auto checkIter = [](size_t base, size_t total,
                       IndexStreamer::Pointer &streamer) {
@@ -580,7 +571,7 @@ TEST_F(FlatSparseStreamerTest, TestForceFlush) {
   stg_params.set("proxima.mmap_file.storage.copy_on_write", true);
   stg_params.set("proxima.mmap_file.storage.force_flush", true);
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestForceFlush", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestForceFlush", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -630,7 +621,7 @@ TEST_F(FlatSparseStreamerTest, TestForceFlush) {
   storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_NE(nullptr, storage);
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestForceFlush", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestForceFlush", true));
   ASSERT_EQ(0, streamer->open(storage));
   checkIter(cnt, streamer);
 
@@ -668,7 +659,7 @@ TEST_F(FlatSparseStreamerTest, TestMultiThread) {
   ASSERT_NE(nullptr, storage);
   Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TessKnnMultiThread", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TessKnnMultiThread", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   auto addVector = [&streamer](int baseKey, size_t addCnt) {
@@ -816,7 +807,7 @@ TEST_F(FlatSparseStreamerTest, TestConcurrentAddAndSearch) {
   ASSERT_NE(nullptr, storage);
   Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TessConcurrentAddAndSearch", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TessConcurrentAddAndSearch", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   auto addVector = [&streamer](int baseKey, size_t addCnt) {
@@ -946,7 +937,7 @@ TEST_F(FlatSparseStreamerTest, TestFilter) {
   ASSERT_NE(nullptr, storage);
   Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestFilter", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestFilter", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   size_t cnt = 100UL;
@@ -1032,7 +1023,7 @@ TEST_F(FlatSparseStreamerTest, TestProvider) {
   ASSERT_NE(nullptr, storage);
   Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestProvider.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestProvider.index", true));
   Params params;
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
@@ -1115,7 +1106,7 @@ TEST_F(FlatSparseStreamerTest, TestProvider) {
   }
 
   // dump
-  // auto path1 = dir_ + "/TestProvider";
+  // auto path1 = dir_ + "TestProvider";
   // auto dumper1 = IndexFactory::CreateDumper("FileDumper");
   // ASSERT_NE(dumper1, nullptr);
   // ASSERT_EQ(0, dumper1->create(path1));
@@ -1218,7 +1209,7 @@ TEST_F(FlatSparseStreamerTest, TestParamsMaxDocCount) {
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_TRUE(storage != nullptr);
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestGeneral", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestGeneral", true));
 
 
   // init streamer
@@ -1299,7 +1290,7 @@ TEST_F(FlatSparseStreamerTest, TestParamsDataChunkSize) {
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_TRUE(storage != nullptr);
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestGeneral", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestGeneral", true));
 
 
   // init streamer
@@ -1391,9 +1382,9 @@ TEST_F(FlatSparseStreamerTest, TestSharedContext) {
     streamer->open(storage);
     return streamer;
   };
-  auto streamer1 = create_streamer(dir_ + "/TestSharedContext.index1");
-  auto streamer2 = create_streamer(dir_ + "/TestSharedContext.index2");
-  auto streamer3 = create_streamer(dir_ + "/TestSharedContext.index3");
+  auto streamer1 = create_streamer(dir_ + "TestSharedContext.index1");
+  auto streamer2 = create_streamer(dir_ + "TestSharedContext.index2");
+  auto streamer3 = create_streamer(dir_ + "TestSharedContext.index3");
 
   srand(Realtime::MilliSeconds());
   IndexQueryMeta qmeta(IndexMeta::DT_FP32);
@@ -1491,7 +1482,7 @@ TEST_F(FlatSparseStreamerTest, TestGroupBy) {
   Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestLinearSearchGroup.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestLinearSearchGroup.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -1566,7 +1557,7 @@ TEST_F(FlatSparseStreamerTest, TestGroupByNotEnoughNum) {
   Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestLinearSearchGroup.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestLinearSearchGroup.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -1641,7 +1632,7 @@ TEST_F(FlatSparseStreamerTest, TestAddAndSearchWithID) {
   Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "/TestGroup.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestGroup.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
   auto ctx = streamer->create_context();
