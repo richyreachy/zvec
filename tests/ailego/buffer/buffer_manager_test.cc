@@ -58,7 +58,10 @@ class BufferManagerTest : public testing::Test {
     BufferManager::Instance().init(4 * 1024 * 1024, 1);
   }
 
-  static void TearDownTestCase() {}
+  static void TearDownTestCase() {
+    BufferManager::Instance().cleanup();
+    zvec::ailego::FileHelper::RemovePath(working_dir.c_str());
+  }
   /*****  Global initialization and cleanup - End  *****/
   ;
 };

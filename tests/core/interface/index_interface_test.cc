@@ -269,6 +269,7 @@ TEST(IndexInterface, BufferGeneral) {
            .with_fetch_vector(true)
            .with_ef_search(20)
            .build());
+  zvec::ailego::BufferManager::Instance().cleanup();
 }
 
 
