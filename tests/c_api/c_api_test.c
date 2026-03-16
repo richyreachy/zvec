@@ -168,7 +168,7 @@ void test_zvec_config() {
   TEST_ASSERT(temp_file->overdue_days == 30);
 
   zvec_config_file_log_destroy(temp_file);
-  
+
   // Test 6: Config data creation and basic operations
   ZVecConfigData *config_data = zvec_config_data_create();
   TEST_ASSERT(config_data != NULL);
@@ -197,12 +197,12 @@ void test_zvec_config() {
     TEST_ASSERT(config_data->log_config != NULL);
 
     ZVecFileLogConfig *new_file = zvec_config_file_log_create(
-      ZVEC_LOG_LEVEL_DEBUG, "./logs", "app", 50, 30);
+        ZVEC_LOG_LEVEL_DEBUG, "./logs", "app", 50, 30);
     TEST_ASSERT(new_file != NULL);
     zvec_config_data_set_log_config(config_data, ZVEC_LOG_TYPE_FILE, new_file);
     TEST_ASSERT(config_data->log_type == ZVEC_LOG_TYPE_FILE);
     TEST_ASSERT(config_data->log_config != NULL);
-    
+
     zvec_config_data_destroy(config_data);
   }
 
