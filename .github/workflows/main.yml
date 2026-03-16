@@ -123,6 +123,7 @@ jobs:
           if [[ "${{ matrix.platform }}" == "macos-arm64" ]]; then
             NPROC=$(sysctl -n hw.ncpu 2>/dev/null || echo 2)
           else
+            lscpu
             NPROC=$(nproc 2>/dev/null || echo 2)
           fi
           echo "NPROC=$NPROC" >> $GITHUB_ENV
