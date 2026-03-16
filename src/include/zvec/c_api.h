@@ -430,7 +430,8 @@ typedef struct {
 
   // log
   ZVecLogType log_type;
-  void *log_config; /**< Log configuration (ZVecConsoleLogConfig or ZVecFileLogConfig) */
+  void *log_config; /**< Log configuration (ZVecConsoleLogConfig or
+                       ZVecFileLogConfig) */
 
   // query
   uint32_t query_thread_count;        /**< Query thread count */
@@ -503,7 +504,8 @@ ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_config_data_set_memory_limit(
 /**
  * @brief Set log configuration in configuration data
  * @param config Configuration data pointer
- * @param log_config Log configuration pointer (ownership is transferred to config, do not free separately)
+ * @param log_config Log configuration pointer (ownership is transferred to
+ * config, do not free separately)
  * @return ZVecErrorCode Error code
  */
 ZVEC_EXPORT ZVecErrorCode ZVEC_CALL zvec_config_data_set_log_config(
