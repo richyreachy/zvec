@@ -19,12 +19,14 @@
 #include <zvec/ailego/container/params.h>
 #include <zvec/ailego/parallel/thread_pool.h>
 #include <zvec/ailego/utility/string_helper.h>
+#include "ailego/pattern/defer.h"
 #include "algorithm/hnsw_rabitq/rabitq_reformer.h"
 #include "zvec/core/framework/index_cluster.h"
 #include "zvec/core/framework/index_error.h"
 #include "zvec/core/framework/index_factory.h"
 #include "zvec/core/framework/index_features.h"
 #include "zvec/core/framework/index_holder.h"
+#include "zvec/core/framework/index_memory.h"
 #include "zvec/core/framework/index_meta.h"
 #include "rabitq_params.h"
 #include "rabitq_utils.h"
@@ -171,6 +173,10 @@ int RabitqConverter::train(IndexHolder::Pointer holder) {
   }
 
   ret = cluster->mount(sampler);
+  if (ret != 0) {
+    LOG_ERROR("Failed to mount training data: %d", ret);
+    return ret;
+  }
   cluster->suggest(num_clusters_);
 
   // Perform clustering
@@ -264,6 +270,8 @@ int RabitqConverter::to_reformer(IndexReformer::Pointer *reformer) {
     LOG_ERROR("Failed to create memory dumper: %d", ret);
     return ret;
   }
+  // Release memory
+  AILEGO_DEFER([&file_id]() { IndexMemory::Instance()->remove(file_id); });
   ret = this->dump(memory_dumper);
   if (ret != 0) {
     LOG_ERROR("Failed to dump RabitqConverter: %d", ret);
@@ -295,7 +303,6 @@ int RabitqConverter::to_reformer(IndexReformer::Pointer *reformer) {
     return ret;
   }
   *reformer = std::move(res);
-  // TODO: release memory of memory_storage
   return 0;
 }
 

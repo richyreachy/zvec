@@ -22,6 +22,7 @@
 #include "zvec/core/framework/index_error.h"
 #include "zvec/core/framework/index_factory.h"
 #include "zvec/core/framework/index_logger.h"
+#include "zvec/core/framework/index_memory.h"
 #include "zvec/core/framework/index_meta.h"
 #include "zvec/core/framework/index_provider.h"
 #include "hnsw_rabitq_algorithm.h"
@@ -172,10 +173,6 @@ int HnswRabitqBuilder::init(const IndexMeta &meta,
 
   // Create and initialize RaBitQ converter
   converter_ = std::make_shared<RabitqConverter>();
-  if (!converter_) {
-    LOG_ERROR("Failed to create RabitqConverter");
-    return IndexError_NoMemory;
-  }
 
   IndexMeta converter_meta = meta_;
   converter_meta.set_dimension(dimension);
@@ -296,6 +293,8 @@ int HnswRabitqBuilder::train_converter_and_load_reformer(
     LOG_ERROR("Failed to create memory dumper: %d", ret);
     return ret;
   }
+  // Release memory
+  AILEGO_DEFER([&file_id]() { IndexMemory::Instance()->remove(file_id); });
   ret = converter_->dump(memory_dumper);
   if (ret != 0) {
     LOG_ERROR("Failed to dump RabitqConverter: %d", ret);
@@ -326,7 +325,6 @@ int HnswRabitqBuilder::train_converter_and_load_reformer(
     LOG_ERROR("Failed to load RabitqReformer: %d", ret);
     return ret;
   }
-  // TODO: release memory of memory_storage
   return 0;
 }
 
