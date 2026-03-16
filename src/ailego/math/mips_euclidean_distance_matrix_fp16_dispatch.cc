@@ -19,33 +19,27 @@ namespace zvec {
 namespace ailego {
 
 #if defined(__ARM_NEON)
-float MipsEucldeanDistanceRepeatedQuadraticInjectionNEON(const Float16 *lhs,
-                                                         const Float16 *rhs,
-                                                         size_t size, size_t m,
-                                                         float e2);
-float MipsEucldeanDistanceSphericalInjectionNEON(const Float16 *lhs,
-                                                 const Float16 *rhs,
-                                                 size_t size, float e2);
+float MipsEuclideanDistanceRepeatedQuadraticInjectionFp16NEON(
+    const Float16 *lhs, const Float16 *rhs, size_t size, size_t m, float e2);
+float MipsEuclideanDistanceSphericalInjectionFp16NEON(const Float16 *lhs,
+                                                      const Float16 *rhs,
+                                                      size_t size, float e2);
 #endif
 
 #if defined(__AVX512F__)
-float MipsEucldeanDistanceRepeatedQuadraticInjectionAVX512(const Float16 *lhs,
-                                                           const Float16 *rhs,
-                                                           size_t size,
-                                                           size_t m, float e2);
-float MipsEucldeanDistanceSphericalInjectionAVX512(const Float16 *lhs,
-                                                   const Float16 *rhs,
-                                                   size_t size, float e2);
+float MipsEuclideanDistanceRepeatedQuadraticInjectionFp16AVX512(
+    const Float16 *lhs, const Float16 *rhs, size_t size, size_t m, float e2);
+float MipsEuclideanDistanceSphericalInjectionFp16AVX512(const Float16 *lhs,
+                                                        const Float16 *rhs,
+                                                        size_t size, float e2);
 #endif
 
 #if defined(__AVX__)
-float MipsEucldeanDistanceRepeatedQuadraticInjectionAVX(const Float16 *lhs,
-                                                        const Float16 *rhs,
-                                                        size_t size, size_t m,
-                                                        float e2);
-float MipsEucldeanDistanceSphericalInjectionAVX(const Float16 *lhs,
-                                                const Float16 *rhs, size_t size,
-                                                float e2);
+float MipsEuclideanDistanceRepeatedQuadraticInjectionFp16AVX(
+    const Float16 *lhs, const Float16 *rhs, size_t size, size_t m, float e2);
+float MipsEuclideanDistanceSphericalInjectionFp16AVX(const Float16 *lhs,
+                                                     const Float16 *rhs,
+                                                     size_t size, float e2);
 #endif
 
 #if (defined(__F16C__) && defined(__AVX__)) || \
@@ -54,15 +48,15 @@ float MipsEucldeanDistanceSphericalInjectionAVX(const Float16 *lhs,
 void MipsSquaredEuclideanDistanceMatrix<Float16, 1, 1>::Compute(
     const ValueType *p, const ValueType *q, size_t dim, float e2, float *out) {
 #if defined(__ARM_NEON)
-  *out = MipsEucldeanDistanceSphericalInjectionNEON(p, q, dim, e2);
+  *out = MipsEuclideanDistanceSphericalInjectionFp16NEON(p, q, dim, e2);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out = MipsEucldeanDistanceSphericalInjectionAVX512(p, q, dim, e2);
+    *out = MipsEuclideanDistanceSphericalInjectionFp16AVX512(p, q, dim, e2);
     return;
   }
 #endif
-  *out = MipsEucldeanDistanceSphericalInjectionAVX(p, q, dim, e2);
+  *out = MipsEuclideanDistanceSphericalInjectionFp16AVX(p, q, dim, e2);
 #endif  //__ARM_NEON
 }
 
@@ -71,16 +65,18 @@ void MipsSquaredEuclideanDistanceMatrix<Float16, 1, 1>::Compute(
     const ValueType *p, const ValueType *q, size_t dim, size_t m, float e2,
     float *out) {
 #if defined(__ARM_NEON)
-  *out = MipsEucldeanDistanceRepeatedQuadraticInjectionNEON(p, q, dim, m, e2);
+  *out =
+      MipsEuclideanDistanceRepeatedQuadraticInjectionFp16NEON(p, q, dim, m, e2);
 #else
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    *out =
-        MipsEucldeanDistanceRepeatedQuadraticInjectionAVX512(p, q, dim, m, e2);
+    *out = MipsEuclideanDistanceRepeatedQuadraticInjectionFp16AVX512(p, q, dim,
+                                                                     m, e2);
     return;
   }
 #endif
-  *out = MipsEucldeanDistanceRepeatedQuadraticInjectionAVX(p, q, dim, m, e2);
+  *out =
+      MipsEuclideanDistanceRepeatedQuadraticInjectionFp16AVX(p, q, dim, m, e2);
 #endif  //__ARM_NEON
 }
 

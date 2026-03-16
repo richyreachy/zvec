@@ -135,9 +135,9 @@ float InnerProductAndSquaredNormAVX2(const uint8_t *lhs, const uint8_t *rhs,
   return result;
 }
 
-float MipsEucldeanDistanceSphericalInjectionAVX2(const uint8_t *lhs,
-                                                 const uint8_t *rhs,
-                                                 size_t size, float e2) {
+float MipsEuclideanDistanceSphericalInjectionAVX2(const uint8_t *lhs,
+                                                  const uint8_t *rhs,
+                                                  size_t size, float e2) {
   float u2{0.0f};
   float v2{0.0f};
   float sum{0.0f};
@@ -147,10 +147,10 @@ float MipsEucldeanDistanceSphericalInjectionAVX2(const uint8_t *lhs,
   return ComputeSphericalInjection(sum, u2, v2, e2);
 }
 
-float MipsEucldeanDistanceRepeatedQuadraticInjectionAVX2(const uint8_t *lhs,
-                                                         const uint8_t *rhs,
-                                                         size_t size, size_t m,
-                                                         float e2) {
+float MipsEuclideanDistanceRepeatedQuadraticInjectionAVX2(const uint8_t *lhs,
+                                                          const uint8_t *rhs,
+                                                          size_t size, size_t m,
+                                                          float e2) {
   float u2{0.0f};
   float v2{0.0f};
   float sum{0.0f};

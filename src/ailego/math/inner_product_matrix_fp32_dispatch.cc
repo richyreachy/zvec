@@ -136,11 +136,10 @@ float MinusInnerProductSparseMatrix<float>::ComputeInnerProductSparseInSegment(
                                           m_sparse_value, q_sparse_count,
                                           q_sparse_index, q_sparse_value);
   }
-#else
+#endif
   return InnerProductSparseInSegment(m_sparse_count, m_sparse_index,
                                      m_sparse_value, q_sparse_count,
                                      q_sparse_index, q_sparse_value);
-#endif
 }
 }  // namespace ailego
 }  // namespace zvec
