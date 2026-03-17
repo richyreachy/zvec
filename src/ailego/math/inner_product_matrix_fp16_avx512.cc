@@ -20,17 +20,24 @@ namespace zvec {
 namespace ailego {
 
 #if defined(__AVX512F__)
-void InnerProductFp16AVX512(const Float16 *lhs, const Float16 *rhs, size_t size,
-                            float *out) {
-  ACCUM_FP16_1X1_AVX512(lhs, rhs, size, out, 0ull, )
+float InnerProductFp16AVX512(const Float16 *lhs, const Float16 *rhs,
+                             size_t size) {
+  float score{0.0f};
+
+  ACCUM_FP16_1X1_AVX512(lhs, rhs, size, &score, 0ull, )
+
+  return score;
 }
 
-void MinusInnerProductFp16AVX512(const Float16 *lhs, const Float16 *rhs,
-                                 size_t size, float *out) {
-  ACCUM_FP16_1X1_AVX512(lhs, rhs, size, out, 0ull, NEGATE_FP32_GENERAL)
+float MinusInnerProductFp16AVX512(const Float16 *lhs, const Float16 *rhs,
+                                  size_t size) {
+  float score{0.0f};
+
+  ACCUM_FP16_1X1_AVX512(lhs, rhs, size, &score, 0ull, NEGATE_FP32_GENERAL)
+
+  return score;
 }
 #endif  //__AVX512F__
-
 
 }  // namespace ailego
 }  // namespace zvec
