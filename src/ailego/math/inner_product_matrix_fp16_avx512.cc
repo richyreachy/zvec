@@ -20,13 +20,13 @@ namespace zvec {
 namespace ailego {
 
 #if defined(__AVX512F__)
-void InnerProductAVX512(const Float16 *lhs, const Float16 *rhs, size_t size,
-                        float *out) {
+void InnerProductFp16AVX512(const Float16 *lhs, const Float16 *rhs, size_t size,
+                            float *out) {
   ACCUM_FP16_1X1_AVX512(lhs, rhs, size, out, 0ull, )
 }
 
-void MinusInnerProductAVX512(const Float16 *lhs, const Float16 *rhs,
-                             size_t size, float *out) {
+void MinusInnerProductFp16AVX512(const Float16 *lhs, const Float16 *rhs,
+                                 size_t size, float *out) {
   ACCUM_FP16_1X1_AVX512(lhs, rhs, size, out, 0ull, NEGATE_FP32_GENERAL)
 }
 #endif  //__AVX512F__

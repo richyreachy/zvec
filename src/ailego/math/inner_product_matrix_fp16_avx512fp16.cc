@@ -21,8 +21,8 @@ namespace ailego {
 
 #if defined(__AVX512FP16__)
 //! Inner Product
-float InnerProductAVX512FP16(const Float16 *lhs, const Float16 *rhs,
-                             size_t size) {
+float InnerProductFp16AVX512FP16(const Float16 *lhs, const Float16 *rhs,
+                                 size_t size) {
   const Float16 *last = lhs + size;
   const Float16 *last_aligned = lhs + ((size >> 6) << 6);
 
@@ -747,7 +747,7 @@ do_scalar:
   return sum;
 }
 
-#endif  // __AVX512FP16__                   
+#endif  // __AVX512FP16__
 
 }  // namespace ailego
 }  // namespace zvec
