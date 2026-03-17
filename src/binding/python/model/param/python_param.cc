@@ -461,7 +461,7 @@ Examples:
                    ", \"m\":" + std::to_string(self.m()) +
                    ", \"ef_construction\":" +
                    std::to_string(self.ef_construction()) +
-                   "\", \"quantize_type\":\"" +
+                   ", \"quantize_type\":\"" +
                    quantize_type_to_string(self.quantize_type()) + "\"}";
           })
       .def(py::pickle(

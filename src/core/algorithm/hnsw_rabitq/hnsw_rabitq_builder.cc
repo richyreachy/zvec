@@ -207,7 +207,9 @@ int HnswRabitqBuilder::cleanup(void) {
   errcode_ = 0;
   error_ = false;
   entity_.cleanup();
-  alg_->cleanup();
+  if (alg_) {
+    alg_->cleanup();
+  }
   meta_.clear();
   metric_.reset();
   stats_.clear_attributes();
@@ -369,9 +371,6 @@ int HnswRabitqBuilder::build(IndexThreads::Pointer threads,
 
   if (!threads) {
     threads = std::make_shared<SingleQueueIndexThreads>(thread_cnt_, false);
-    if (!threads) {
-      return IndexError_NoMemory;
-    }
   }
 
   auto start_time = ailego::Monotime::MilliSeconds();
