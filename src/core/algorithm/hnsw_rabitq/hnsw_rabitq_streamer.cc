@@ -304,7 +304,7 @@ int HnswRabitqStreamer::open(IndexStorage::Pointer stg) {
       return ret;
     }
   } else {
-    if (!stg->has(RABITQ_CONVERER_SEG_ID)) {
+    if (!stg->has(RABITQ_CONVERTER_SEG_ID)) {
       int ret = reformer_->dump(stg);
       if (ret != 0) {
         LOG_ERROR("Failed to dump reformer, ret=%d", ret);

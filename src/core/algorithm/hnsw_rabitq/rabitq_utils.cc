@@ -98,10 +98,10 @@ int dump_rabitq_centroids(
   }
 
   int ret =
-      dumper->append(RABITQ_CONVERER_SEG_ID, dumped_size, padding_size, crc);
+      dumper->append(RABITQ_CONVERTER_SEG_ID, dumped_size, padding_size, crc);
   if (ret != 0) {
     LOG_ERROR("Dump segment %s meta failed, ret=%d",
-              RABITQ_CONVERER_SEG_ID.c_str(), ret);
+              RABITQ_CONVERTER_SEG_ID.c_str(), ret);
     return ret;
   }
 

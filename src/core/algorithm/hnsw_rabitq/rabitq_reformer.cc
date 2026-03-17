@@ -126,9 +126,9 @@ int RabitqReformer::load(IndexStorage::Pointer storage) {
     return IndexError_InvalidArgument;
   }
 
-  auto segment = storage->get(RABITQ_CONVERER_SEG_ID);
+  auto segment = storage->get(RABITQ_CONVERTER_SEG_ID);
   if (!segment) {
-    LOG_ERROR("Failed to get segment %s", RABITQ_CONVERER_SEG_ID.c_str());
+    LOG_ERROR("Failed to get segment %s", RABITQ_CONVERTER_SEG_ID.c_str());
     return IndexError_InvalidFormat;
   }
 
@@ -402,16 +402,16 @@ int RabitqReformer::dump(const IndexStorage::Pointer &storage) {
       header_size + rotated_centroids_size + centroids_size + rotator_size;
   size_t total_size = align_size(data_size);
 
-  int ret = storage->append(RABITQ_CONVERER_SEG_ID, total_size);
+  int ret = storage->append(RABITQ_CONVERTER_SEG_ID, total_size);
   if (ret != 0) {
     LOG_ERROR("Failed to append segment %s, ret=%d",
-              RABITQ_CONVERER_SEG_ID.c_str(), ret);
+              RABITQ_CONVERTER_SEG_ID.c_str(), ret);
     return ret;
   }
 
-  auto segment = storage->get(RABITQ_CONVERER_SEG_ID);
+  auto segment = storage->get(RABITQ_CONVERTER_SEG_ID);
   if (!segment) {
-    LOG_ERROR("Failed to get segment %s", RABITQ_CONVERER_SEG_ID.c_str());
+    LOG_ERROR("Failed to get segment %s", RABITQ_CONVERTER_SEG_ID.c_str());
     return IndexError_ReadData;
   }
 

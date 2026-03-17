@@ -21,7 +21,7 @@
 namespace zvec {
 namespace core {
 
-inline const std::string RABITQ_CONVERER_SEG_ID{"rabitq.converter"};
+inline const std::string RABITQ_CONVERTER_SEG_ID{"rabitq.converter"};
 
 struct RabitqConverterHeader {
   uint32_t num_clusters;
