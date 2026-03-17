@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "hnsw_streamer.h"
-#include <atomic>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <atomic>
 #ifndef _MSC_VER
 #include <fcntl.h>
 #include <unistd.h>
@@ -3408,8 +3408,7 @@ TEST_F(HnswStreamerTest, TestGroupInBruteforceSearch) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0,
-            storage->open(dir_ + "TestGroupInBruteforceSearch.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "TestGroupInBruteforceSearch.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 

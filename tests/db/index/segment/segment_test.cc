@@ -1150,7 +1150,8 @@ TEST_P(SegmentTest, CombinedVectorColumnIndexerWithQuantVectorIndex) {
   query_params.topk = 10;
   query_params.filter = nullptr;
   query_params.fetch_vector = false;
-  query_params.query_params = std::make_shared<zvec::QueryParams>(IndexType::HNSW);
+  query_params.query_params =
+      std::make_shared<zvec::QueryParams>(IndexType::HNSW);
   query_params.query_params->set_is_using_refiner(true);
 
   auto results = combined_indexer->Search(query, query_params);
@@ -1202,7 +1203,8 @@ TEST_P(SegmentTest, CombinedVectorColumnIndexerQueryWithPks) {
   query_params.topk = 10;
   query_params.filter = nullptr;
   query_params.fetch_vector = false;
-  query_params.query_params = std::make_shared<zvec::QueryParams>(IndexType::HNSW);
+  query_params.query_params =
+      std::make_shared<zvec::QueryParams>(IndexType::HNSW);
   query_params.bf_pks = bf_pks;
 
   auto results = combined_indexer->Search(query, query_params);

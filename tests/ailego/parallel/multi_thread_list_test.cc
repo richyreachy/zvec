@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include <iostream>
-#include <vector>
 #include <memory>
+#include <vector>
 #include <zvec/ailego/parallel/thread_pool.h>
 
 #define private public

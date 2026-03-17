@@ -20,8 +20,8 @@
 #include <ailego/math/norm_matrix.h>
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
-#include "hnsw_sparse_streamer.h"
 #include "tests/test_util.h"
+#include "hnsw_sparse_streamer.h"
 
 using namespace std;
 using namespace testing;
@@ -48,7 +48,8 @@ class HnswSparseStreamerTest : public testing::Test {
   static shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string HnswSparseStreamerTest::dir_("hnsw_sparse_streamer_buffer_test_dir/");
+std::string HnswSparseStreamerTest::dir_(
+    "hnsw_sparse_streamer_buffer_test_dir/");
 shared_ptr<IndexMeta> HnswSparseStreamerTest::index_meta_ptr_;
 
 void HnswSparseStreamerTest::generate_sparse_data(

@@ -21,7 +21,8 @@
 
 // Define printf format attribute for GCC/Clang, empty for MSVC
 #if defined(__GNUC__) || defined(__clang__)
-#define AILEGO_PRINTF_FORMAT(fmt_idx, arg_idx) __attribute__((format(printf, fmt_idx, arg_idx)))
+#define AILEGO_PRINTF_FORMAT(fmt_idx, arg_idx) \
+  __attribute__((format(printf, fmt_idx, arg_idx)))
 #else
 #define AILEGO_PRINTF_FORMAT(fmt_idx, arg_idx)
 #endif
@@ -158,7 +159,8 @@ class LoggerBroker {
 
   //! Log Message
   AILEGO_PRINTF_FORMAT(4, 5)
-  static void Log(int level, const char *file, int line, const char *format, ...) {
+  static void Log(int level, const char *file, int line, const char *format,
+                  ...) {
     if (IsLevelEnabled(level)) {
       va_list args;
       va_start(args, format);

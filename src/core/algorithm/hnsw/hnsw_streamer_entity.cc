@@ -485,7 +485,8 @@ int HnswStreamerEntity::check_hnsw_index(const HNSWHeader *hd) const {
 int HnswStreamerEntity::add_vector(level_t level, key_t key, const void *vec,
                                    node_id_t *id) {
   Chunk::Pointer node_chunk;
-  // On MSVC, unsigned long is 32-bit, so -1UL is 0xFFFFFFFF not 0xFFFFFFFFFFFFFFFF.
+  // On MSVC, unsigned long is 32-bit, so -1UL is 0xFFFFFFFF not
+  // 0xFFFFFFFFFFFFFFFF.
   size_t chunk_offset = static_cast<size_t>(-1);
 
   std::lock_guard<std::mutex> lock(mutex_);

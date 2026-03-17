@@ -19,9 +19,9 @@
 #include <zvec/ailego/utility/file_helper.h>
 
 #ifdef _MSC_VER
-#include <chrono>
 #include <fcntl.h>
 #include <io.h>
+#include <chrono>
 #include <thread>
 #endif
 

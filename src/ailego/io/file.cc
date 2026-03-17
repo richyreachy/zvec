@@ -639,14 +639,14 @@ ssize_t File::offset(void) const {
 }
 
 void *File::MemoryMap(NativeHandle handle, ssize_t off, size_t len, int opts) {
-// Root cause: Windows MapViewOfFile requires the file offset to be aligned to
-// the allocation granularity (64 KB), but segment offsets were only
-// page-aligned (4 KB). Also, CreateFileMapping was using len instead of
-// off + len as the max size.
-//
-// Fix: Align the view offset down to allocation granularity, adjust the map
-// length, and return base + excess. MemoryUnmap recovers the base by rounding
-// down to granularity.
+  // Root cause: Windows MapViewOfFile requires the file offset to be aligned to
+  // the allocation granularity (64 KB), but segment offsets were only
+  // page-aligned (4 KB). Also, CreateFileMapping was using len instead of
+  // off + len as the max size.
+  //
+  // Fix: Align the view offset down to allocation granularity, adjust the map
+  // length, and return base + excess. MemoryUnmap recovers the base by rounding
+  // down to granularity.
 
   SYSTEM_INFO si;
   GetSystemInfo(&si);
@@ -675,9 +675,8 @@ void *File::MemoryMap(NativeHandle handle, ssize_t off, size_t len, int opts) {
   view_offset.QuadPart = aligned_off;
   size_t view_len = len + excess;
 
-  void *base = MapViewOfFile(file_mapping, desired_access,
-                             view_offset.HighPart, view_offset.LowPart,
-                             view_len);
+  void *base = MapViewOfFile(file_mapping, desired_access, view_offset.HighPart,
+                             view_offset.LowPart, view_len);
   CloseHandle(file_mapping);
 
   ailego_null_if_false(base);

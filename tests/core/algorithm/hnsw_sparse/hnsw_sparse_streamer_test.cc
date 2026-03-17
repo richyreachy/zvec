@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "hnsw_sparse_streamer.h"
-#include <atomic>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <atomic>
 #ifndef _MSC_VER
 #include <fcntl.h>
 #include <unistd.h>

@@ -18,10 +18,10 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include "db/index/column/vector_column/vector_column_params.h"
+#include "tests/test_util.h"
 #include "zvec/ailego/utility/float_helper.h"
 #include "zvec/db/doc.h"
 #include "zvec/db/index_params.h"
-#include "tests/test_util.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -1297,9 +1297,8 @@ TEST(VectorColumnIndexerTest, BfPks) {
     {
       auto bf_pks = std::vector<uint64_t>{1};
       auto query_vec = std::vector<float>{1.0f, 2.0f, 3.0f};
-      auto query =
-          vector_column_params::VectorData{vector_column_params::DenseVector{
-              query_vec.data()}};
+      auto query = vector_column_params::VectorData{
+          vector_column_params::DenseVector{query_vec.data()}};
       vector_column_params::QueryParams query_params;
       query_params.topk = 10;
       query_params.filter = nullptr;
@@ -1327,9 +1326,8 @@ TEST(VectorColumnIndexerTest, BfPks) {
     {
       auto bf_pks = std::vector<uint64_t>{1, 2};
       auto query_vec = std::vector<float>{1.0f, 2.0f, 3.0f};
-      auto query =
-          vector_column_params::VectorData{vector_column_params::DenseVector{
-              query_vec.data()}};
+      auto query = vector_column_params::VectorData{
+          vector_column_params::DenseVector{query_vec.data()}};
       vector_column_params::QueryParams query_params;
       query_params.topk = 10;
       query_params.filter = nullptr;
@@ -1357,9 +1355,8 @@ TEST(VectorColumnIndexerTest, BfPks) {
     {
       auto bf_pks = std::vector<uint64_t>{2};
       auto query_vec = std::vector<float>{1.0f, 2.0f, 3.0f};
-      auto query =
-          vector_column_params::VectorData{vector_column_params::DenseVector{
-              query_vec.data()}};
+      auto query = vector_column_params::VectorData{
+          vector_column_params::DenseVector{query_vec.data()}};
       vector_column_params::QueryParams query_params;
       query_params.topk = 10;
       query_params.filter = nullptr;

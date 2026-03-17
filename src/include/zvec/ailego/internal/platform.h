@@ -48,7 +48,7 @@
 #if defined(_MSC_VER)
 
 #if !defined(S_ISDIR)
-#define S_ISDIR(mode) (((mode)&S_IFMT) == S_IFDIR)
+#define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
 #endif
 
 #if !defined(_SSIZE_T_DEFINED)

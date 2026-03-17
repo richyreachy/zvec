@@ -15,9 +15,9 @@
 #include <cmath>
 #include <random>
 #include <ailego/algorithm/kmeans.h>
-#include <zvec/ailego/internal/platform.h>
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/params.h>
+#include <zvec/ailego/internal/platform.h>
 #include "zvec/core/framework/index_framework.h"
 
 using namespace zvec::core;

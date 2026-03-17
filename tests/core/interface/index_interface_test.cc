@@ -17,12 +17,12 @@
 #include <iostream>
 #include <unordered_map>
 #include <gtest/gtest.h>
+#include "tests/test_util.h"
 #include "zvec/ailego/buffer/buffer_manager.h"
 #include "zvec/core/interface/index.h"
 #include "zvec/core/interface/index_factory.h"
 #include "zvec/core/interface/index_param.h"
 #include "zvec/core/interface/index_param_builders.h"
-#include "tests/test_util.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push

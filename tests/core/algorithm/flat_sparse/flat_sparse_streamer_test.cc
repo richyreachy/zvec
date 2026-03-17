@@ -21,10 +21,10 @@
 #include <ailego/utility/memory_helper.h>
 #include <algorithm/flat_sparse/flat_sparse_utility.h>
 #include <gtest/gtest.h>
-#include "tests/test_util.h"
 #include <zvec/ailego/buffer/buffer_manager.h>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_streamer.h>
+#include "tests/test_util.h"
 
 using namespace zvec::core;
 using namespace zvec::ailego;

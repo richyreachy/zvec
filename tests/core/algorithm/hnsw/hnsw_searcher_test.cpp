@@ -20,11 +20,11 @@
 #include <ailego/math/distance.h>
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
+#include "tests/test_util.h"
 #include "zvec/core/framework/index_builder.h"
 #include "zvec/core/framework/index_factory.h"
 #include "zvec/core/framework/index_meta.h"
 #include "hnsw_params.h"
-#include "tests/test_util.h"
 
 using namespace std;
 using namespace testing;
