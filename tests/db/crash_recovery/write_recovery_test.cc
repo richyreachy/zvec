@@ -50,12 +50,14 @@ static std::string LocateDataGenerator() {
 
   const std::string base_name = "data_generator";
   std::vector<std::string> candidates;
-
   // Define potential search locations relative to the current working directory
   const std::vector<std::string> search_paths = {"./", "./bin/"};
-#ifdef _WIN32
+
   for (const auto &p : search_paths) {
     candidates.push_back(p);
+  }
+#ifdef _WIN32
+  for (const auto &p : search_paths) {
     candidates.push_back(p + "Debug/");
     candidates.push_back(p + "Release/");
   }
@@ -63,7 +65,7 @@ static std::string LocateDataGenerator() {
 
 
   for (auto &p : candidates) {
-    p += "/" + base_name;
+    p += base_name;
 #ifdef _WIN32
     p += ".exe";  // Append .exe suffix for Windows compatibility
 #endif
