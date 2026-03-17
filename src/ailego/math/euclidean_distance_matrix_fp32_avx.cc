@@ -23,9 +23,8 @@ namespace ailego {
 float SquaredEuclideanDistanceFp32SSEInternal(const float *lhs,
                                               const float *rhs, size_t size);
 
-inline float SquaredEuclideanDistanceFp32AVXInternal(const float *lhs,
-                                                     const float *rhs,
-                                                     size_t size) {
+float SquaredEuclideanDistanceFp32AVXInternal(const float *lhs,
+                                              const float *rhs, size_t size) {
   const float *last = lhs + size;
   const float *last_aligned = lhs + ((size >> 4) << 4);
 
