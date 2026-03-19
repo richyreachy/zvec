@@ -410,9 +410,10 @@ bool File::create(const char *path, size_t len, bool direct) {
   ailego_false_if_false(native_handle_ == File::InvalidHandle && path);
 
   // Try opening or creating the file
-  HANDLE file_handle =
-      CreateFileA(path, GENERIC_WRITE | GENERIC_READ, FILE_SHARE_READ, nullptr,
-                  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  HANDLE file_handle = CreateFileA(
+      path, GENERIC_WRITE | GENERIC_READ,
+      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+      CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
   ailego_false_if_false(file_handle != INVALID_HANDLE_VALUE);
 
   // Truncate the file to the specified size
@@ -432,7 +433,8 @@ bool File::create(const char *path, size_t len, bool direct) {
     // Close and reopen file
     CloseHandle(file_handle);
     file_handle = CreateFileA(
-        path, GENERIC_WRITE | GENERIC_READ, FILE_SHARE_READ, nullptr,
+        path, GENERIC_WRITE | GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING, nullptr);
     ailego_false_if_false(file_handle != INVALID_HANDLE_VALUE);
   }
@@ -451,9 +453,10 @@ bool File::open(const char *path, bool rdonly, bool direct) {
   if (direct) {
     flags |= FILE_FLAG_NO_BUFFERING;
   }
-  HANDLE file_handle =
-      CreateFileA(path, (rdonly ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE),
-                  FILE_SHARE_READ, nullptr, OPEN_EXISTING, flags, nullptr);
+  HANDLE file_handle = CreateFileA(
+      path, (rdonly ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE),
+      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+      OPEN_EXISTING, flags, nullptr);
   ailego_false_if_false(file_handle != INVALID_HANDLE_VALUE);
 
   read_only_ = rdonly;
