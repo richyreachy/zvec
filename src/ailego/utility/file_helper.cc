@@ -258,9 +258,10 @@ bool FileHelper::GetWorkingDirectory(std::string *path) {
 }
 
 bool FileHelper::GetFileSize(const char *path, size_t *psz) {
-  HANDLE handle = CreateFileA(
-      path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-      nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  HANDLE handle =
+      CreateFileA(path, GENERIC_READ,
+                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                  nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (handle == INVALID_HANDLE_VALUE) {
     return false;
   }
