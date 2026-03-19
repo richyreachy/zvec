@@ -237,7 +237,7 @@ TEST_F(CollectionTest, Feature_CreateAndOpen_PathValidate) {
       }
       ASSERT_TRUE(result.has_value());
 
-      ailego::FileHelper::RemoveDirectory(path.c_str());
+      result.value()->Destroy();
     }
   }
 
