@@ -28,11 +28,6 @@ else()
     set(LIB_ARROW_DATASET ${EXTERNAL_LIB_DIR}/libarrow_dataset.a)
 endif()
 
-# $<CONFIG> is a generator expression that evaluates to the current build configuration (e.g., Debug, Release) at build system generation time, not at CMake configure time.
-# Multi-config vs. single-config generators:
-# Multi-config generators (Visual Studio, Xcode, Ninja Multi-Config): $<CONFIG> works as expected and evaluates differently for each configuration.
-# Single-config generators (Makefiles, Ninja): $<CONFIG> evaluates to the value of CMAKE_BUILD_TYPE (which must be set at configure time)
-
 set(CONFIGURE_ENV_LIST "")
 if(USE_OSS_MIRROR)
         list(APPEND CONFIGURE_ENV_LIST
