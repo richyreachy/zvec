@@ -310,8 +310,11 @@ bool FileHelper::MakePath(const char *path) {
 }
 
 bool FileHelper::RemoveDirectory(const char *path) {
-  // TODO: refactor left functions
   if (path == nullptr || *path == '\0') {
+    return false;
+  }
+
+  if (!FileHelper::IsDirectory(path)) {
     return false;
   }
 
