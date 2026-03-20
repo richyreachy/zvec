@@ -47,7 +47,7 @@ const std::regex FIELD_NAME_REGEX("^[a-zA-Z0-9_-]{1,32}$");
 const std::regex DOC_PK_REGEX("^[a-zA-Z0-9_!@#$%+=.-]{1,64}$");
 
 const std::regex COLLECTION_PATH_REGEX(
-    R"(^/?(?:[a-zA-Z0-9_.\-]+/)*[a-zA-Z0-9_.\-]+$)");
+    R"(^(?:[a-zA-Z]:)?[/\\]?(?:[a-zA-Z0-9_.\-]+[/\\])*[a-zA-Z0-9_.\-]+$)");
 
 constexpr uint32_t kMaxDenseDimSize = 20000;
 
