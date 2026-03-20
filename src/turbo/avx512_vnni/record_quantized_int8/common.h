@@ -48,8 +48,9 @@ static inline int32_t HorizontalAdd_INT32_V256(__m256i v) {
 // Compute the raw integer inner product of two int8 vectors of length `size`.
 // The result is written to `*distance` as a float.
 // Both `a` and `b` must point to int8_t arrays.
-static TURBO_ALWAYS_INLINE void ip_int8_avx512_vnni(
-    const void *a, const void *b, size_t size, float *distance) {
+static TURBO_ALWAYS_INLINE void ip_int8_avx512_vnni(const void *a,
+                                                    const void *b, size_t size,
+                                                    float *distance) {
   const __m256i ONES_INT16_AVX = _mm256_set1_epi32(0x00010001);
   const __m128i ONES_INT16_SSE = _mm_set1_epi32(0x00010001);
 
@@ -315,4 +316,5 @@ static TURBO_ALWAYS_INLINE void ip_int8_batch_avx512_vnni(
 
 }  // namespace zvec::turbo::avx512_vnni::internal
 
-#endif  // defined(__AVX512VNNI__) || (defined(_MSC_VER) && defined(__AVX512F__))
+#endif  // defined(__AVX512VNNI__) || (defined(_MSC_VER) &&
+        // defined(__AVX512F__))
