@@ -16,6 +16,7 @@
 
 #include <zvec/ailego/buffer/buffer_pool.h>
 #include <zvec/ailego/container/params.h>
+#include <zvec/ailego/io/file.h>
 #include <zvec/core/framework/index_error.h>
 #include <zvec/core/framework/index_module.h>
 
