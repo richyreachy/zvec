@@ -66,8 +66,7 @@ class Segment {
   virtual uint64_t doc_count(const IndexFilter::Ptr filter = nullptr) = 0;
 
   // for collection
-  virtual Status add_column(const std::string &column_name,
-                            FieldSchema::Ptr column_schema,
+  virtual Status add_column(FieldSchema::Ptr column_schema,
                             const std::string &expression,
                             const AddColumnOptions &options) = 0;
 
@@ -135,9 +134,9 @@ class Segment {
 
   virtual Status Delete(const std::string &pk) = 0;
 
-  virtual Status Delete(uint64_t doc_id) = 0;
+  virtual Status Delete(uint64_t g_doc_id) = 0;
 
-  virtual Doc::Ptr Fetch(uint64_t doc_id) = 0;
+  virtual Doc::Ptr Fetch(uint64_t g_doc_id) = 0;
 
   // for sqlengine
   virtual TablePtr fetch(const std::vector<std::string> &columns,

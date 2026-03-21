@@ -1,5 +1,5 @@
-include(${CMAKE_SOURCE_DIR}/cmake/bazel.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/option.cmake)
+include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
+include(${PROJECT_ROOT_DIR}/cmake/option.cmake)
 
 cc_directories(cluster)
 cc_directories(flat)
@@ -13,4 +13,8 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
   cc_directory(diskann)
 else()
   message(STATUS "not build diskann")
+endif()
+
+if(RABITQ_SUPPORTED)
+  cc_directories(hnsw_rabitq)
 endif()
