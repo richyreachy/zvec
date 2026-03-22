@@ -273,20 +273,18 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
   std::unique_ptr<std::set<diskann_id_t>> prev_level(
       new std::set<diskann_id_t>());
 
-  for (uint64_t miter = 0;
-       miter < entrypints_.size() && cur_level->size() < num_nodes_to_cache;
-       miter++) {
-    cur_level->insert(entrypints_[miter]);
+  for (uint64_t iter = 0;
+       iter < entrypints_.size() && cur_level->size() < num_nodes_to_cache;
+       iter++) {
+    cur_level->insert(entrypints_[iter]);
   }
 
   uint64_t level = 1;
   uint64_t prev_node_set_size = 0;
   while ((node_set.size() + cur_level->size() < num_nodes_to_cache) &&
          cur_level->size() != 0) {
-    // swap prev_level and cur_level
     std::swap(prev_level, cur_level);
 
-    // clear cur_level
     cur_level->clear();
 
     std::vector<diskann_id_t> nodes_to_expand;
@@ -295,6 +293,7 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
       if (node_set.find(id) != node_set.end()) {
         continue;
       }
+
       node_set.insert(id);
       nodes_to_expand.push_back(id);
     }
@@ -315,8 +314,8 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
       std::vector<void *> coord_buffers(end - start, nullptr);
       std::vector<std::pair<uint32_t, diskann_id_t *>> neighbor_buffers;
 
-      for (size_t cur_pt = start; cur_pt < end; cur_pt++) {
-        nodes_to_read.push_back(nodes_to_expand[cur_pt]);
+      for (size_t i = start; i < end; i++) {
+        nodes_to_read.push_back(nodes_to_expand[i]);
         neighbor_buffers.emplace_back(0, new diskann_id_t[max_degree_ + 1]);
       }
 
@@ -330,7 +329,6 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
           uint32_t neighbor_num = neighbor_buffers[i].first;
           diskann_id_t *neighbors = neighbor_buffers[i].second;
 
-          // explore next level
           for (uint32_t j = 0; j < neighbor_num && !finish_flag; j++) {
             if (node_set.find(neighbors[j]) == node_set.end()) {
               cur_level->insert(neighbors[j]);
