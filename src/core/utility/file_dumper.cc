@@ -103,7 +103,7 @@ struct FileDumper : public IndexDumper {
   size_t size(void) const override {
     return file_.size();
   }
-  
+
  protected:
   //! Close index file
   bool close_index(void) {
