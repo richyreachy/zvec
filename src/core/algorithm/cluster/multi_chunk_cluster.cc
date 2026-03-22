@@ -58,8 +58,7 @@ int MultiChunkClusterAlgorithm::update(const ailego::Params &params) {
 }
 
 //! MultiChunkCluster
-int MultiChunkClusterAlgorithm::update_params(
-    const ailego::Params &params) {
+int MultiChunkClusterAlgorithm::update_params(const ailego::Params &params) {
   params.get(GENERAL_THREAD_COUNT, &thread_count_);
   params.get(GENERAL_CLUSTER_COUNT, &cluster_count_);
 
@@ -142,8 +141,7 @@ int MultiChunkClusterAlgorithm::init(const IndexMeta &meta,
   return 0;
 }
 
-int MultiChunkClusterAlgorithm::mount(
-    IndexFeatures::Pointer features) {
+int MultiChunkClusterAlgorithm::mount(IndexFeatures::Pointer features) {
   if (!features) {
     return IndexError_InvalidArgument;
   }
@@ -166,9 +164,8 @@ int MultiChunkClusterAlgorithm::mount(
 }
 
 //! cluster
-int MultiChunkClusterAlgorithm::cluster(
-    IndexThreads::Pointer threads,
-    IndexCluster::CentroidList &cents) {
+int MultiChunkClusterAlgorithm::cluster(IndexThreads::Pointer threads,
+                                        IndexCluster::CentroidList &cents) {
   if (chunk_count_ == 0) {
     LOG_ERROR("Invalid Chunk Count: %u", chunk_count_);
 
@@ -182,8 +179,7 @@ int MultiChunkClusterAlgorithm::cluster(
   }
 
   if (!threads) {
-    threads = std::make_shared<SingleQueueIndexThreads>(thread_count_,
-                                                                  false);
+    threads = std::make_shared<SingleQueueIndexThreads>(thread_count_, false);
     if (!threads) {
       return IndexError_NoMemory;
     }
@@ -230,16 +226,14 @@ int MultiChunkClusterAlgorithm::cluster(
 
 //! Classify
 int MultiChunkClusterAlgorithm::classify(
-    IndexThreads::Pointer /*threads*/,
-    IndexCluster::CentroidList & /*cents*/) {
+    IndexThreads::Pointer /*threads*/, IndexCluster::CentroidList & /*cents*/) {
   return IndexError_Unsupported;
 }
 
 //! Label
-int MultiChunkClusterAlgorithm::label(
-    IndexThreads::Pointer threads,
-    const IndexCluster::CentroidList &cents,
-    std::vector<uint32_t> *out) {
+int MultiChunkClusterAlgorithm::label(IndexThreads::Pointer threads,
+                                      const IndexCluster::CentroidList &cents,
+                                      std::vector<uint32_t> *out) {
   if (chunk_count_ == 0) {
     LOG_ERROR("Invalid Chunk Count: %u", chunk_count_);
 
@@ -268,8 +262,7 @@ int MultiChunkClusterAlgorithm::label(
   }
 
   if (!threads) {
-    threads = std::make_shared<SingleQueueIndexThreads>(thread_count_,
-                                                                  false);
+    threads = std::make_shared<SingleQueueIndexThreads>(thread_count_, false);
     if (!threads) {
       return IndexError_NoMemory;
     }
@@ -444,4 +437,3 @@ int MultiChunkCluster::init(const IndexMeta &meta,
 
 }  // namespace core
 }  // namespace zvec
-

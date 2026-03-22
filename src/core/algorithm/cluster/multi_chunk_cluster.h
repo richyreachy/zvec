@@ -14,8 +14,8 @@
 #pragma once
 
 #include <ailego/algorithm/kmeans.h>
-#include <zvec/ailego/internal/platform.h>
 #include <ailego/parallel/multi_thread_list.h>
+#include <zvec/ailego/internal/platform.h>
 #include <zvec/core/framework/index_cluster.h>
 #include <zvec/core/framework/index_error.h>
 #include <zvec/core/framework/index_factory.h>
@@ -36,8 +36,7 @@ class MultiChunkClusterAlgorithm {
   ~MultiChunkClusterAlgorithm(void) {}
 
   //! Initialize Cluster
-  int init(const IndexMeta &meta,
-           const ailego::Params &params);
+  int init(const IndexMeta &meta, const ailego::Params &params);
 
   //! Cleanup Cluster
   int cleanup(void);
@@ -55,8 +54,7 @@ class MultiChunkClusterAlgorithm {
   int mount(IndexFeatures::Pointer feats);
 
   //! Cluster
-  int cluster(IndexThreads::Pointer threads,
-              IndexCluster::CentroidList &cents);
+  int cluster(IndexThreads::Pointer threads, IndexCluster::CentroidList &cents);
 
   //! Classify
   int classify(IndexThreads::Pointer threads,
@@ -171,7 +169,7 @@ void MultiChunkNumericalAlgorithm<T>::do_cluster(
     auto chunk_dim = chunk_dims_[chunk];
 
     ailego::NumericalKmeans<T, IndexThreads> algorithm(cluster_count_,
-                                                                 chunk_dim);
+                                                       chunk_dim);
 
     // mount features into algorithm
     auto features_count = features_->count();
@@ -190,9 +188,8 @@ void MultiChunkNumericalAlgorithm<T>::do_cluster(
       return;
     }
 
-    ailego::Kmc2CentroidsGenerator<
-        ailego::NumericalKmeans<T, IndexThreads>,
-        IndexThreads>
+    ailego::Kmc2CentroidsGenerator<ailego::NumericalKmeans<T, IndexThreads>,
+                                   IndexThreads>
         cent_gen;
     cent_gen.set_chain_length(markov_chain_length_);
     cent_gen.set_assumption_free(assumption_free_);
@@ -223,8 +220,7 @@ void MultiChunkNumericalAlgorithm<T>::do_cluster(
     for (size_t i = 0; i < chunk_cents.count(); ++i) {
       size_t global_cent_idx = chunk * cluster_count_ + i;
 
-      IndexCluster::Centroid *centroid =
-          &(cents->at(global_cent_idx));
+      IndexCluster::Centroid *centroid = &(cents->at(global_cent_idx));
       centroid->set_score(algorithm.context().clusters()[i].cost());
       centroid->set_follows(algorithm.context().clusters()[i].count());
       centroid->set_feature(algorithm.centroids()[i],
@@ -334,8 +330,7 @@ void MultiChunkNumericalInnerProductAlgorithm<T>::do_cluster(
     }
 
     ailego::Kmc2CentroidsGenerator<
-        ailego::NumericalInnerProductKmeans<T, IndexThreads>,
-        IndexThreads>
+        ailego::NumericalInnerProductKmeans<T, IndexThreads>, IndexThreads>
         cent_gen;
     cent_gen.set_chain_length(markov_chain_length_);
     cent_gen.set_assumption_free(assumption_free_);
@@ -366,8 +361,7 @@ void MultiChunkNumericalInnerProductAlgorithm<T>::do_cluster(
     for (size_t i = 0; i < chunk_cents.count(); ++i) {
       size_t global_cent_idx = chunk * cluster_count_ + i;
 
-      IndexCluster::Centroid *centroid =
-          &(cents->at(global_cent_idx));
+      IndexCluster::Centroid *centroid = &(cents->at(global_cent_idx));
       centroid->set_score(algorithm.context().clusters()[i].cost());
       centroid->set_follows(algorithm.context().clusters()[i].count());
       centroid->set_feature(algorithm.centroids()[i],
@@ -429,8 +423,7 @@ class MultiChunkCluster {
   ~MultiChunkCluster(void) {}
 
   //! Initialize Cluster
-  int init(const IndexMeta &meta,
-           const ailego::Params &params);
+  int init(const IndexMeta &meta, const ailego::Params &params);
 
   //! Cleanup Cluster
   int cleanup(void);
@@ -448,8 +441,7 @@ class MultiChunkCluster {
   int mount(IndexFeatures::Pointer feats);
 
   //! Cluster
-  int cluster(IndexThreads::Pointer threads,
-              IndexCluster::CentroidList &cents);
+  int cluster(IndexThreads::Pointer threads, IndexCluster::CentroidList &cents);
 
   //! Classify
   int classify(IndexThreads::Pointer threads,
@@ -474,4 +466,3 @@ class MultiChunkCluster {
 
 }  // namespace core
 }  // namespace zvec
-
