@@ -65,13 +65,9 @@ class DiskAnnUtil {
                                                    uint8_t *dest, size_t npts,
                                                    size_t dim) {
     for (size_t i = 0; i < npts; i++) {
-      // std::string str_encode = std::to_string(i) + ": ";
       for (size_t j = 0; j < dim; j++) {
         dest[i * dim + j] = src[i * dim + j];
-
-        // str_encode += std::to_string(dest[i * dim + j]) + ", ";
       }
-      // std::cout << str_encode << std::endl;
     }
   }
 

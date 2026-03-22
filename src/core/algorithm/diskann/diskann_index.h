@@ -71,7 +71,6 @@ class DiskAnnIndex {
   uint32_t max_degree_{0};
   uint32_t node_per_sector_{0};
   uint32_t max_node_size_{0};
-  float max_base_norm_{0.0f};
   uint64_t pq_chunk_num_{0};
   uint64_t disk_bytes_per_point_{0};
   uint64_t aligned_dim_{0};
@@ -91,10 +90,7 @@ class DiskAnnIndex {
 
   diskann_id_t *neighbor_cache_buf_{nullptr};
   void *coord_cache_buf_{nullptr};
-  uint64_t count_visited_nodes_{0};
 
-  // tsl::robin_map<uint32_t, void *> coord_cache_;
-  // tsl::robin_map<uint32_t, std::pair<uint32_t, uint32_t *>> neighbor_cache_;
   std::map<diskann_id_t, void *> coord_cache_;
   std::map<diskann_id_t, std::pair<uint32_t, diskann_id_t *>> neighbor_cache_;
 

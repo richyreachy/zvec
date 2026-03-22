@@ -32,7 +32,7 @@ class DiskAnnBuilderEntity : public DiskAnnEntity {
   int add_vector(diskann_key_t key, const void *vec) override;
 
   std::pair<uint32_t, const diskann_id_t *> get_neighbors(
-      diskann_id_t id) const;
+      diskann_id_t id) const override;
 
   int set_neighbors(diskann_id_t id,
                     const std::vector<diskann_id_t> &neighbor_ids) override;
@@ -87,9 +87,6 @@ class DiskAnnBuilderEntity : public DiskAnnEntity {
   uint32_t max_observed_degree_{0};
   uint32_t neighbor_size_{0};
 
-  // uint64_t doc_cnt_{0};
-  bool reorder_data_{false};
-
   std::string mem_index_file_{""};
   std::string index_path_prefix_{""};
 
@@ -98,7 +95,6 @@ class DiskAnnBuilderEntity : public DiskAnnEntity {
   std::string neighbors_buffer_{};
   std::vector<diskann_id_t> entrypoints_{};
 
-  uint32_t doc_cnt_{0};
   IndexMeta meta_;
 
   std::vector<uint8_t> pq_full_pivot_data_;

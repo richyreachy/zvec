@@ -96,14 +96,8 @@ class DiskAnnBuilder : public IndexBuilder {
   uint32_t build_thread_count_{0};
   uint32_t max_train_sample_count_{PQTable::kMaxTrainSampleCount};
   double train_sample_ratio_{PQTable::kTrainSampleRatio};
-  bool append_reorder_data_{false};
-  uint32_t quantized_dimension_{0};
-  bool use_opq_{false};
-  bool use_filters_{false};
-  float filter_threshold_{0.0};
   std::string universal_label_{""};
   std::string codebook_prefix_{""};
-  float filter_build_{0.0f};
   std::string index_path_prefix_{"./diskann"};
 
   BUILD_STATE state_;

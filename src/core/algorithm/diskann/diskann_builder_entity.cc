@@ -95,11 +95,6 @@ std::pair<uint32_t, const diskann_id_t *> DiskAnnBuilderEntity::get_neighbors(
   const diskann_id_t *neighbors =
       reinterpret_cast<const diskann_id_t *>(start_ptr + sizeof(uint32_t));
 
-  // if (neighbor_cnt > max_build_degree_) {
-  //   std::cout << "get neighbors overflow. node id: " << id << ", cnt: " <<
-  //   neighbor_cnt << std::endl;
-  // }
-
   return std::make_pair(neighbor_cnt, neighbors);
 }
 
@@ -112,11 +107,6 @@ int DiskAnnBuilderEntity::set_neighbors(
 
   uint32_t neighbor_cnt = neighbor_ids.size();
 
-  // if (neighbor_cnt > max_build_degree_) {
-  //   std::cout << "set neighbors overflow. node id: " << id << ", cnt: " <<
-  //   neighbor_cnt << std::endl;
-  // }
-
   memcpy(start_ptr + sizeof(uint32_t), neighbor_ids.data(),
          sizeof(diskann_id_t) * neighbor_cnt);
   memcpy(start_ptr, &neighbor_cnt, sizeof(uint32_t));
@@ -124,23 +114,6 @@ int DiskAnnBuilderEntity::set_neighbors(
   if (max_observed_degree_ < neighbor_cnt) {
     max_observed_degree_ = neighbor_cnt;
   }
-
-#if 0
-  // if (id == 624227)
-  //  if (id == 42)
-  {
-    std::cout << "set, node: " << id << ", size: " << neighbor_cnt << ", ";
-
-    for (size_t j = 0; j < neighbor_cnt; ++j) {
-      std::cout << neighbor_ids[j];
-      if (j == neighbor_cnt - 1) {
-        std::cout << std::endl;
-      } else {
-        std::cout << ", ";
-      }
-    }
-  }
-#endif
 
   return 0;
 }
@@ -164,27 +137,6 @@ int DiskAnnBuilderEntity::add_neighbor(diskann_id_t id,
   if (max_observed_degree_ < neighbor_cnt) {
     max_observed_degree_ = neighbor_cnt;
   }
-
-#if 0
-  // if (id == 624227)
-  //  if (id == 42)
-  {
-    std::cout << "add, node: " << id << ", size: " << neighbor_cnt << ", ";
-
-    uint8_t *start_ptr = reinterpret_cast<uint8_t *>(&neighbors_buffer_[0]) +
-                         id * neighbor_size_ + sizeof(uint32_t);
-
-    diskann_id_t *id_start = reinterpret_cast<diskann_id_t *>(start_ptr);
-    for (size_t j = 0; j < neighbor_cnt; ++j) {
-      std::cout << id_start[j];
-      if (j == neighbor_cnt - 1) {
-        std::cout << std::endl;
-      } else {
-        std::cout << ", ";
-      }
-    }
-  }
-#endif
 
   return 0;
 }
@@ -237,7 +189,7 @@ int DiskAnnBuilderEntity::dump_pq_meta_segment(
   size_t size_full_pivot_data =
       dumper->write(pq_full_pivot_data_.data(), pq_meta_.full_pivot_data_size);
   if (size_full_pivot_data != pq_meta_.full_pivot_data_size) {
-    LOG_ERROR("Failed to dump full pivot data, expect: %lu, actual: %lu",
+    LOG_ERROR("Failed to dump full pivot data, expect: %llu, actual: %zu",
               pq_meta_.full_pivot_data_size, size_full_pivot_data);
     return IndexError_WriteData;
   }
@@ -249,7 +201,7 @@ int DiskAnnBuilderEntity::dump_pq_meta_segment(
   size_t size_centroid =
       dumper->write(pq_centroid_.data(), pq_meta_.centroid_data_size);
   if (size_centroid != pq_meta_.centroid_data_size) {
-    LOG_ERROR("Failed to dump centroid num, expect: %lu, actual: %lu",
+    LOG_ERROR("Failed to dump centroid num, expect: %llu, actual: %zu",
               pq_meta_.centroid_data_size, size_centroid);
     return IndexError_WriteData;
   }
@@ -261,7 +213,7 @@ int DiskAnnBuilderEntity::dump_pq_meta_segment(
   size_t size_chunk_offset = dumper->write(
       pq_chunk_offsets_.data(), (pq_meta_.chunk_num + 1) * sizeof(uint32_t));
   if (size_chunk_offset != (pq_meta_.chunk_num + 1) * sizeof(uint32_t)) {
-    LOG_ERROR("Failed to dump centroid num, expect: %lu, actual: %lu",
+    LOG_ERROR("Failed to dump centroid num, expect: %llu, actual: %zu",
               (pq_meta_.chunk_num + 1) * sizeof(uint32_t), size_chunk_offset);
     return IndexError_WriteData;
   }
@@ -305,7 +257,7 @@ int DiskAnnBuilderEntity::dump_pq_data_segment(
       dumper->write(block_compressed_data_.data(), doc_cnt * chunk_num);
 
   if (size_total != doc_cnt * chunk_num) {
-    LOG_ERROR("Failed to dump block compressed data, expect: %lu, actual: %lu",
+    LOG_ERROR("Failed to dump block compressed data, expect: %llu, actual: %zu",
               doc_cnt * chunk_num, size_total);
     return IndexError_WriteData;
   }
@@ -442,7 +394,7 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
                        sizeof(uint32_t));
 
   LOG_INFO(
-      "Dump Data, medoid: %zu, max node size: %zu, node per sector: %zu, "
+      "Dump Data, medoid: %llu, max node size: %llu, node per sector: %llu, "
       "max observed degree: %u",
       medoid(), max_node_size, node_per_sector, max_observed_degree_);
 
@@ -490,7 +442,7 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
 
     for (uint64_t sector = 0; sector < sector_num; sector++) {
       if (sector != 0 && sector % 100000 == 0) {
-        LOG_INFO("Sector #%zu written", sector);
+        LOG_INFO("Sector #%llu written", sector);
       }
 
       memset(&(sector_buf[0]), 0, DiskAnnUtil::kSectorSize);
@@ -537,7 +489,7 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
       // flush sector to disk
       len = dumper->write(sector_buf.data(), DiskAnnUtil::kSectorSize);
       if (len != DiskAnnUtil::kSectorSize) {
-        LOG_ERROR("Write Vector Error, write=%zu, expect=%zu", len,
+        LOG_ERROR("Write Vector Error, write=%zu, expect=%llu", len,
                   DiskAnnUtil::kSectorSize);
 
         return IndexError_WriteData;
@@ -547,7 +499,7 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
                                  crc);
     }
 
-    LOG_INFO("Total Sector #%zu written", sector_num);
+    LOG_INFO("Total Sector #%llu written", sector_num);
 
     index_size = sector_num * DiskAnnUtil::kSectorSize;
   } else {
@@ -561,7 +513,7 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
 
     for (uint64_t i = 0; i < doc_cnt; i++) {
       if (i != 0 && (i * sector_num_per_node) % 100000 == 0) {
-        LOG_INFO("Sector # %zu written", i * sector_num_per_node);
+        LOG_INFO("Sector # %llu written", i * sector_num_per_node);
       }
 
       memset(&(multisector_buf[0]), 0,
@@ -599,7 +551,7 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
       len = dumper->write(multisector_buf.data(),
                           sector_num_per_node * DiskAnnUtil::kSectorSize);
       if (len != sector_num_per_node * DiskAnnUtil::kSectorSize) {
-        LOG_ERROR("Write Vector Error, write=%zu, expect=%zu", len,
+        LOG_ERROR("Write Vector Error, write=%zu, expect=%llu", len,
                   sector_num_per_node * DiskAnnUtil::kSectorSize);
 
         return IndexError_WriteData;
@@ -612,7 +564,7 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
                                  crc);
     }
 
-    LOG_INFO("Total Sector #%zu written", doc_cnt * sector_num_per_node);
+    LOG_INFO("Total Sector #%llu written", doc_cnt * sector_num_per_node);
 
     index_size = doc_cnt * sector_num_per_node * DiskAnnUtil::kSectorSize;
   }

@@ -35,65 +35,64 @@ class DiskAnnSearcher : public IndexSearcher {
 
  protected:
   //! Initialize Searcher
-  virtual int init(const ailego::Params &params) override;
+  int init(const ailego::Params &params) override;
 
   //! Cleanup Searcher
-  virtual int cleanup(void) override;
+  int cleanup(void) override;
 
   //! Load Index from storage
-  virtual int load(IndexStorage::Pointer storage,
-                   IndexMetric::Pointer metric) override;
+  int load(IndexStorage::Pointer storage, IndexMetric::Pointer metric) override;
 
   //! Unload index from storage
-  virtual int unload(void) override;
+  int unload(void) override;
 
   //! KNN Search
-  virtual int search_impl(const void *query, const IndexQueryMeta &qmeta,
-                          ContextPointer &context) const override {
+  int search_impl(const void *query, const IndexQueryMeta &qmeta,
+                  ContextPointer &context) const override {
     return search_impl(query, qmeta, 1, context);
   }
 
   //! KNN Search
-  virtual int search_impl(const void *query, const IndexQueryMeta &qmeta,
-                          uint32_t count,
-                          ContextPointer &context) const override;
+  int search_impl(const void *query, const IndexQueryMeta &qmeta,
+                  uint32_t count, ContextPointer &context) const override;
 
   //! Linear Search
-  virtual int search_bf_impl(const void *query, const IndexQueryMeta &qmeta,
-                             ContextPointer &context) const override {
+  int search_bf_impl(const void *query, const IndexQueryMeta &qmeta,
+                     ContextPointer &context) const override {
     return search_bf_impl(query, qmeta, 1, context);
   }
 
   //! Linear Search
-  virtual int search_bf_impl(const void *query, const IndexQueryMeta &qmeta,
-                             uint32_t count,
-                             ContextPointer &context) const override;
+  int search_bf_impl(const void *query, const IndexQueryMeta &qmeta,
+                     uint32_t count, ContextPointer &context) const override;
 
   //! Linear search by primary keys
-  virtual int search_bf_by_p_keys_impl(
-      const void *query, const std::vector<std::vector<uint64_t>> &p_keys,
-      const IndexQueryMeta &qmeta, ContextPointer &context) const override {
+  int search_bf_by_p_keys_impl(const void *query,
+                               const std::vector<std::vector<uint64_t>> &p_keys,
+                               const IndexQueryMeta &qmeta,
+                               ContextPointer &context) const override {
     return search_bf_by_p_keys_impl(query, p_keys, qmeta, 1, context);
   }
 
   //! Linear search by primary keys
-  virtual int search_bf_by_p_keys_impl(
-      const void *query, const std::vector<std::vector<uint64_t>> &p_keys,
-      const IndexQueryMeta &qmeta, uint32_t count,
-      ContextPointer &context) const override;
+  int search_bf_by_p_keys_impl(const void *query,
+                               const std::vector<std::vector<uint64_t>> &p_keys,
+                               const IndexQueryMeta &qmeta, uint32_t count,
+                               ContextPointer &context) const override;
 
   //! Linear search by primary keys
-  virtual int search_bf_by_p_keys_impl(
-      const void *query, const uint32_t sparse_count,
-      const uint32_t *sparse_indices, const void *sparse_query,
-      const std::vector<std::vector<uint64_t>> &p_keys,
-      const IndexQueryMeta &qmeta, ContextPointer &context) const override {
+  int search_bf_by_p_keys_impl(const void *query, const uint32_t sparse_count,
+                               const uint32_t *sparse_indices,
+                               const void *sparse_query,
+                               const std::vector<std::vector<uint64_t>> &p_keys,
+                               const IndexQueryMeta &qmeta,
+                               ContextPointer &context) const override {
     return search_bf_by_p_keys_impl(query, &sparse_count, sparse_indices,
                                     sparse_query, p_keys, qmeta, 1, context);
   }
 
   //! Linear search by primary keys
-  virtual int search_bf_by_p_keys_impl(
+  int search_bf_by_p_keys_impl(
       const void * /*query*/, const uint32_t * /*sparse_count*/,
       const uint32_t * /*sparse_indices*/, const void * /*sparse_query*/,
       const std::vector<std::vector<uint64_t>> & /*p_keys*/,
@@ -103,34 +102,33 @@ class DiskAnnSearcher : public IndexSearcher {
   }
 
   //! Get vector by key
-  virtual int get_vector(uint64_t key, Context::Pointer &context,
-                         std::string &vector) const;
+  int get_vector(uint64_t key, Context::Pointer &context,
+                 std::string &vector) const override;
 
   //! Create a searcher context
-  virtual ContextPointer create_context() const;
+  ContextPointer create_context() const override;
 
   //! Create a new iterator
-  virtual IndexSearcher::Provider::Pointer create_provider(
-      void) const override {
+  IndexSearcher::Provider::Pointer create_provider(void) const override {
     return nullptr;
   }
 
   //! Retrieve statistics
-  virtual const Stats &stats(void) const override {
+  const Stats &stats(void) const override {
     return stats_;
   }
 
   //! Retrieve meta of index
-  virtual const IndexMeta &meta(void) const override {
+  const IndexMeta &meta(void) const override {
     return meta_;
   }
 
   //! Retrieve params of index
-  virtual const ailego::Params &params(void) const override {
+  const ailego::Params &params(void) const override {
     return params_;
   }
 
-  virtual void print_debug_info() override;
+  void print_debug_info() override;
 
  private:
   template <typename T, typename LabelT = uint32_t>

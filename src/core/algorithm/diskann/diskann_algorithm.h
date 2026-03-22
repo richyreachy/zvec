@@ -59,7 +59,7 @@ class DiskAnnAlgorithm {
 
   int generate_pq(IndexThreads::Pointer threads, const IndexMeta &meta,
                   IndexHolder::Pointer holder, uint32_t num_pq_chunks,
-                  bool use_zero_mean, std::vector<uint8_t> &centroid,
+                  std::vector<uint8_t> &centroid,
                   std::vector<uint8_t> &block_compressed_data);
 
   int train_quantized_data(IndexThreads::Pointer threads,
@@ -70,10 +70,9 @@ class DiskAnnAlgorithm {
                            size_t num_pq_chunks);
 
   int train_pq(IndexThreads::Pointer threads, const IndexMeta &meta,
-               IndexHolder::Pointer holder, std::string &train_data,
-               size_t num_train, uint32_t num_centers, uint32_t num_pq_chunks,
-               uint32_t max_iterations, bool use_zero_mean,
-               std::vector<uint8_t> &full_pivot_data,
+               std::string &train_data, size_t num_train, uint32_t num_centers,
+               uint32_t num_pq_chunks, uint32_t max_iterations,
+               bool use_zero_mean, std::vector<uint8_t> &full_pivot_data,
                std::vector<uint8_t> &centroid,
                std::vector<uint32_t> &chunk_offsets);
 
@@ -85,8 +84,7 @@ class DiskAnnAlgorithm {
   int search_neighbor_and_prune(diskann_id_t id,
                                 std::vector<diskann_id_t> &pruned_list,
                                 DiskAnnContext *ctx);
-  int iterate_to_fixed_point(diskann_id_t location,
-                             const std::vector<diskann_id_t> &init_ids,
+  int iterate_to_fixed_point(const std::vector<diskann_id_t> &init_ids,
                              DiskAnnContext *ctx);
   int prune_neighbors(diskann_id_t id, std::vector<Neighbor> &pool,
                       std::vector<diskann_id_t> &pruned_list,

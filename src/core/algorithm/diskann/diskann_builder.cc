@@ -208,7 +208,7 @@ int DiskAnnBuilder::calculate_entry_point() {
 
   (*entity_.mutable_medoid()) = medoid_id;
 
-  LOG_INFO("Medroid Calculation Done. ID: %lu",
+  LOG_INFO("Medroid Calculation Done. ID: %llu",
            static_cast<uint64_t>(medoid_id));
 
   return 0;
@@ -267,7 +267,7 @@ int DiskAnnBuilder::build_internal(IndexThreads::Pointer threads) {
       LOG_ERROR("Failed to build index while waiting finish");
       return errcode_;
     }
-    LOG_INFO("Built cnt %lu, finished percent %.3f%%", finished.load(),
+    LOG_INFO("Built cnt %llu, finished percent %.3f%%", finished.load(),
              finished.load() * 100.0f / entity_.doc_cnt());
   }
   if (error_.load(std::memory_order_acquire)) {
@@ -300,7 +300,7 @@ int DiskAnnBuilder::prune_internal(IndexThreads::Pointer threads) {
       LOG_ERROR("Failed to purne index while waiting finish");
       return errcode_;
     }
-    LOG_INFO("Prune cnt %lu, finished percent %.3f%%", finished.load(),
+    LOG_INFO("Prune cnt %llu, finished percent %.3f%%", finished.load(),
              finished.load() * 100.0f / entity_.doc_cnt());
   }
   if (error_.load(std::memory_order_acquire)) {
@@ -543,23 +543,6 @@ int DiskAnnBuilder::build(IndexThreads::Pointer threads,
 
   error_ = false;
   while (iter->is_valid()) {
-#if 0
-    // do norm for cosine
-    // std::string norm_data;
-    // do_norm(iter->data(), &norm_data);
-
-    // ret = entity_.add_vector(iter->key(), norm_data.data());
-#endif
-    // uint16_t fp16_data0 = ailego::FloatHelper::ToFP16(1 / 100.0f);
-    // float float_data0 = ailego::FloatHelper::ToFP32(fp16_data0);
-
-    // std::cout << "data: " << float_data0 << std::endl;
-
-    // uint16_t fp16_data = *(uint16_t *)iter->data();
-    // float float_data = ailego::FloatHelper::ToFP32(fp16_data);
-    // std::cout << "key: " << iter->key() << ", data: " << float_data << ",
-    // data raw: " << fp16_data << std::endl;
-
     ret = entity_.add_vector(iter->key(), iter->data());
     if (ailego_unlikely(ret != 0)) {
       return ret;

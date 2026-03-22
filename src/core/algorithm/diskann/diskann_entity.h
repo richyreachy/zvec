@@ -32,7 +32,6 @@ struct VectorInfo {
 
  public:
   VectorInfo() = default;
-  VectorInfo(const VectorInfo &other) : dist_{other.dist_}, vec_{other.vec_} {}
   VectorInfo(float dist, const std::string &vec) : dist_{dist}, vec_{vec} {}
 };
 

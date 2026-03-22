@@ -46,28 +46,6 @@ int DiskAnnAlgorithm::add_node(diskann_id_t id, DiskAnnContext *ctx) {
 
   std::vector<diskann_id_t> pruned_list;
 
-#if 0
-  if (id == 629003) {
-    std::cout << "id: 629003" << std::endl;
-  }
-
-  if (id == 699848) {
-    std::cout << "id: 699848" << std::endl;
-  }
-
-  if (id == 625133) {
-    std::cout << "id: 625133" << std::endl;
-  }
-
-  if (id == 624227) {
-    std::cout << "id: 624227" << std::endl;
-  }
-
-  if (id == 1048576) {
-    std::cout << "id: 1048576" << std::endl;
-  }
-#endif
-
   int ret = search_neighbor_and_prune(id, pruned_list, ctx);
   if (ret != 0) {
     return ret;
@@ -122,10 +100,6 @@ int DiskAnnAlgorithm::inter_insert(diskann_id_t id,
   DistCalculator &dc = ctx->dist_calculator();
 
   for (auto &des : pruned_list) {
-    // if (id == 624227 && des == 592586) {
-    //   std::cout << "hello" << std::endl;
-    // }
-
     std::vector<diskann_id_t> new_neighbors;
     bool need_prune = false;
 
@@ -192,8 +166,7 @@ int DiskAnnAlgorithm::inter_insert(diskann_id_t id,
 }
 
 int DiskAnnAlgorithm::iterate_to_fixed_point(
-    diskann_id_t location, const std::vector<diskann_id_t> &init_ids,
-    DiskAnnContext *ctx) {
+    const std::vector<diskann_id_t> &init_ids, DiskAnnContext *ctx) {
   DistCalculator &dc = ctx->dist_calculator();
   std::vector<Neighbor> &expanded_nodes = ctx->expanded_nodes();
   NeighborPriorityQueue &best_list_nodes = ctx->best_list_nodes();
@@ -210,20 +183,11 @@ int DiskAnnAlgorithm::iterate_to_fixed_point(
     best_list_nodes.insert(nn);
   }
 
-  uint32_t cmps = 0;
-
-#if 0
-  std::string expand_path = "";
-#endif
-
   while (best_list_nodes.has_unexpanded_node()) {
     auto neighbor = best_list_nodes.closest_unexpanded();
     auto node_id = neighbor.id;
 
     expanded_nodes.emplace_back(neighbor);
-#if 0
-    expand_path += std::to_string(node_id) + ">";
-#endif
 
     uint32_t lock_idx = node_id & kLockMask;
 
@@ -251,14 +215,7 @@ int DiskAnnAlgorithm::iterate_to_fixed_point(
 
       best_list_nodes.insert(Neighbor(id, dist));
     }
-
-    cmps += static_cast<uint32_t>(id_scratch.size());
   }
-
-#if 0
-  std::cout << "id: " << location << ", expand path: " << expand_path
-            << std::endl;
-#endif
 
   return 0;
 }
@@ -357,11 +314,7 @@ int DiskAnnAlgorithm::search_neighbor_and_prune(
     DiskAnnContext *ctx) {
   const std::vector<diskann_id_t> init_ids = get_init_ids(ctx);
 
-  // if (id == 629003) {
-  //   std::cout << "id: 629003" << std::endl;
-  // }
-
-  int ret = iterate_to_fixed_point(id, init_ids, ctx);
+  int ret = iterate_to_fixed_point(init_ids, ctx);
   if (ret != 0) {
     return ret;
   }
@@ -456,7 +409,7 @@ int DiskAnnAlgorithm::prepare_pq_train_data(
               num_train * vec_size);
 
   // use fp32 to accumulate to avoid overflow
-  float centroid_temp[dim];
+  std::vector<float> centroid_temp(dim);
   for (uint64_t d = 0; d < dim; d++) {
     centroid_temp[d] = 0;
   }
@@ -521,12 +474,14 @@ int DiskAnnAlgorithm::convert_pivot_data(
   return 0;
 }
 
-int DiskAnnAlgorithm::train_pq(
-    IndexThreads::Pointer threads, const IndexMeta &meta,
-    IndexHolder::Pointer holder, std::string &train_data, size_t num_train,
-    uint32_t num_centers, uint32_t pq_chunk_num, uint32_t max_iterations,
-    bool use_zero_mean, std::vector<uint8_t> &full_pivot_data,
-    std::vector<uint8_t> &centroid, std::vector<uint32_t> &chunk_offsets) {
+int DiskAnnAlgorithm::train_pq(IndexThreads::Pointer threads,
+                               const IndexMeta &meta, std::string &train_data,
+                               size_t num_train, uint32_t num_centers,
+                               uint32_t pq_chunk_num, uint32_t max_iterations,
+                               bool use_zero_mean,
+                               std::vector<uint8_t> &full_pivot_data,
+                               std::vector<uint8_t> &centroid,
+                               std::vector<uint32_t> &chunk_offsets) {
   uint32_t dim = meta.dimension();
   if (pq_chunk_num > dim) {
     LOG_ERROR("Error: number of chunks more than dimension. chunk: %u, dim: %u",
@@ -643,9 +598,9 @@ int DiskAnnAlgorithm::train_quantized_data(
 
   // bool use_zero_mean = (meta.metric_name() != "InnerProduct" ? true :
   // false);
-  bool use_zero_mean = true;
+  bool use_zero_mean = false;
 
-  ret = train_pq(threads, new_meta, holder, train_data, train_size,
+  ret = train_pq(threads, new_meta, train_data, train_size,
                  PQTable::kPQCentroidNum, pq_chunk_num, PQTable::kMeanIterNum,
                  use_zero_mean, pq_full_pivot_data, pq_centroid,
                  pq_chunk_offsets);
@@ -660,7 +615,7 @@ int DiskAnnAlgorithm::train_quantized_data(
 int DiskAnnAlgorithm::generate_pq(IndexThreads::Pointer threads,
                                   const IndexMeta &meta,
                                   IndexHolder::Pointer holder,
-                                  uint32_t pq_chunk_num, bool use_zero_mean,
+                                  uint32_t pq_chunk_num,
                                   std::vector<uint8_t> &centroid,
                                   std::vector<uint8_t> &block_compressed_data) {
   uint32_t type = meta.data_type();
@@ -778,10 +733,9 @@ int DiskAnnAlgorithm::generate_quantized_data(
 
   // bool use_zero_mean = (meta.metric_name() != "InnerProduct" ? true :
   // false);
-  bool use_zero_mean = true;
 
-  int ret = generate_pq(threads, new_meta, holder, pq_chunk_num, use_zero_mean,
-                        pq_centroid, block_compressed_data);
+  int ret = generate_pq(threads, new_meta, holder, pq_chunk_num, pq_centroid,
+                        block_compressed_data);
   if (ret != 0) {
     LOG_ERROR("Generate PQ Error, ret: %d", ret);
     return ret;

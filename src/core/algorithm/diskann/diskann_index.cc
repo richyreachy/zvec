@@ -17,6 +17,7 @@
 #include <iostream>
 #include <memory>
 #include <set>
+#include <unordered_set>
 
 namespace zvec {
 namespace core {
@@ -260,36 +261,35 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
   if (num_nodes_to_cache > tenp_cnt) {
     LOG_WARN(
         "Reducing nodes to cache from: %zu, to: (10 percent of total nodes: "
-        "%zu)",
+        "%llu)",
         num_nodes_to_cache, tenp_cnt);
 
     num_nodes_to_cache = tenp_cnt == 0 ? 1 : tenp_cnt;
   }
 
-  LOG_INFO("Begin to cache %ld Nodes", num_nodes_to_cache);
+  LOG_INFO("Begin to cache %llu Nodes", num_nodes_to_cache);
 
-  std::unique_ptr<std::set<diskann_id_t>> cur_level(
-      new std::set<diskann_id_t>());
-  std::unique_ptr<std::set<diskann_id_t>> prev_level(
-      new std::set<diskann_id_t>());
+  std::unordered_set<diskann_id_t> cur_level;
+  std::unordered_set<diskann_id_t> prev_level;
 
   for (uint64_t iter = 0;
-       iter < entrypints_.size() && cur_level->size() < num_nodes_to_cache;
+       iter < entrypints_.size() && cur_level.size() < num_nodes_to_cache;
        iter++) {
-    cur_level->insert(entrypints_[iter]);
+    cur_level.insert(entrypints_[iter]);
   }
 
   uint64_t level = 1;
   uint64_t prev_node_set_size = 0;
-  while ((node_set.size() + cur_level->size() < num_nodes_to_cache) &&
-         cur_level->size() != 0) {
-    std::swap(prev_level, cur_level);
+  while ((node_set.size() + cur_level.size() < num_nodes_to_cache) &&
+         cur_level.size() != 0) {
+    prev_level.swap(cur_level);
 
-    cur_level->clear();
+    cur_level.clear();
 
     std::vector<diskann_id_t> nodes_to_expand;
+    nodes_to_expand.reserve(prev_level.size());
 
-    for (const diskann_id_t &id : *prev_level) {
+    for (const diskann_id_t &id : prev_level) {
       if (node_set.find(id) != node_set.end()) {
         continue;
       }
@@ -309,13 +309,14 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
       size_t start = block * BLOCK_SIZE;
       size_t end = std::min((uint64_t)((block + 1) * BLOCK_SIZE),
                             (uint64_t)(nodes_to_expand.size()));
+      const size_t block_size = end - start;
 
-      std::vector<diskann_id_t> nodes_to_read;
-      std::vector<void *> coord_buffers(end - start, nullptr);
+      std::vector<diskann_id_t> nodes_to_read(nodes_to_expand.begin() + start,
+                                              nodes_to_expand.begin() + end);
+      std::vector<void *> coord_buffers(block_size, nullptr);
       std::vector<std::pair<uint32_t, diskann_id_t *>> neighbor_buffers;
 
-      for (size_t i = start; i < end; i++) {
-        nodes_to_read.push_back(nodes_to_expand[i]);
+      for (size_t i = 0; i < block_size; i++) {
         neighbor_buffers.emplace_back(0, new diskann_id_t[max_degree_ + 1]);
       }
 
@@ -331,37 +332,38 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
 
           for (uint32_t j = 0; j < neighbor_num && !finish_flag; j++) {
             if (node_set.find(neighbors[j]) == node_set.end()) {
-              cur_level->insert(neighbors[j]);
+              cur_level.insert(neighbors[j]);
             }
-            if (cur_level->size() + node_set.size() >= num_nodes_to_cache) {
+            if (cur_level.size() + node_set.size() >= num_nodes_to_cache) {
               finish_flag = true;
             }
           }
         }
+
         delete[] neighbor_buffers[i].second;
       }
     }
 
     size_t total_size = node_set.size();
 
-    LOG_INFO("Level: %lu, Cached Size: %zu, Total Cached Size: %zu", level,
+    LOG_INFO("Level: %llu, Cached Size: %llu, Total Cached Size: %zu", level,
              total_size - prev_node_set_size, total_size);
 
     prev_node_set_size = total_size;
     level++;
   }
 
-  ailego_assert(node_set.size() + cur_level->size() == num_nodes_to_cache ||
-                cur_level->size() == 0);
+  ailego_assert(node_set.size() + cur_level.size() == num_nodes_to_cache ||
+                cur_level.size() == 0);
 
   node_list.clear();
-  node_list.reserve(node_set.size() + cur_level->size());
+  node_list.reserve(node_set.size() + cur_level.size());
 
   for (auto node : node_set) {
     node_list.push_back(node);
   }
 
-  for (auto node : *cur_level) {
+  for (auto node : cur_level) {
     node_list.push_back(node);
   }
 
@@ -485,11 +487,6 @@ int DiskAnnIndex::linear_search(DiskAnnContext *ctx) {
 
       void *node_fp_coords = node_disk_buf;
       memcpy(data_buf, node_fp_coords, disk_bytes_per_point_);
-
-      // std::cout << "id: " << frontier_neighbor.first << ", query data: " <<
-      // ailego::FloatHelper::ToFP32(*((uint16_t *)aligned_query_raw))
-      //         << ", data: " << ailego::FloatHelper::ToFP32(*(uint16_t
-      //         *)data_buf) << std::endl;
 
       float cur_expanded_dist = dc.dist(aligned_query_raw, data_buf);
 
@@ -832,15 +829,6 @@ int DiskAnnIndex::cached_beam_search(DiskAnnContext *ctx) {
       auto neighbor = candidates.closest_unexpanded();
       num_seen++;
 
-#if 0
-      if (neighbor.id == 1099069) {
-        std::cout << "node id: 1099069" << std::endl;
-      }
-
-      if (neighbor.id == 267404) {
-        std::cout << "node id: 267404" << std::endl;
-      }
-#endif
       auto iter = neighbor_cache_.find(neighbor.id);
       if (iter != neighbor_cache_.end()) {
         cached_neighbors.push_back(std::make_pair(neighbor.id, iter->second));
@@ -1170,10 +1158,10 @@ int DiskAnnIndex::cached_beam_search_in_mem(DiskAnnContext *ctx) {
 
       cpu_timer.reset();
 
-      float distances[neighbor_num];
+      std::vector<float> distances(neighbor_num);
       pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
                                ctx->pq_table_dist_buffer(),
-                               ctx->pq_coord_buffer(), distances);
+                               ctx->pq_coord_buffer(), distances.data());
 
       stats.dist_num += neighbor_num;
       stats.cpu_us += cpu_timer.micro_seconds();

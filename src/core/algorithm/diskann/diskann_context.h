@@ -120,7 +120,7 @@ class DiskAnnContext : public IndexContext {
 
  public:
   //! Set topk of search result
-  void set_topk(uint32_t val) {
+  void set_topk(uint32_t val) override {
     topk_ = val;
     topk_heap_.limit(val);
   }
@@ -129,12 +129,12 @@ class DiskAnnContext : public IndexContext {
     list_size_ = list_size;
   }
 
-  void set_fetch_vector(bool v) {
+  void set_fetch_vector(bool v) override {
     fetch_vector_ = v;
   }
 
   //! Get topk
-  inline uint32_t topk() const {
+  inline uint32_t topk() const override {
     return topk_;
   }
 

@@ -51,46 +51,6 @@ int DiskAnnReducer::cleanup(void) {
   return 0;
 }
 
-//! Feed indexes from containers
-// int DiskAnnReducer::feed(IndexStorage::Pointer container) {
-//   if (state_ != STATE_INITED && state_ != STATE_FEED) {
-//     LOG_ERROR("Init the reducer before feed");
-//     return IndexError_Uninitialized;
-//   }
-
-//   if (!container) {
-//     LOG_ERROR("Container nullptr");
-//     return IndexError_InvalidArgument;
-//   }
-
-//   IndexMeta meta;
-//   int ret =
-//       IndexHelper::DeserializeFromStorage(container.get(), &meta);
-//   if (ret != 0) {
-//     LOG_ERROR("Failed to deserialize meta from container");
-//     return ret;
-//   }
-
-//   DiskAnnReducerEntity::Pointer entity =
-//       std::make_shared<DiskAnnReducerEntity>();
-//   // ret = entity->load(container, true);
-//   ret = entity->load(container, false);
-//   if (ret != 0) {
-//     LOG_ERROR("Diskann reducer load index failed");
-//     return ret;
-//   }
-
-//   if (entities_.empty()) {
-//     meta_ = meta;
-//   }
-
-//   entities_.emplace_back(entity);
-
-//   state_ = STATE_FEED;
-
-//   return 0;
-// }
-
 //! Reduce operator with filter
 int DiskAnnReducer::reduce(const IndexFilter &filter) {
   if (entities_.empty() || state_ != STATE_FEED) {
@@ -98,10 +58,10 @@ int DiskAnnReducer::reduce(const IndexFilter &filter) {
     return IndexError_NoReady;
   }
 
-  size_t total_cnt = 0;
-  for (auto entity_ : entities_) {
-    total_cnt += entity_->doc_cnt();
-  }
+  // size_t total_cnt = 0;
+  // for (auto entity_ : entities_) {
+  //   total_cnt += entity_->doc_cnt();
+  // }
 
   if (use_mem_holder_) {
     mem_holder_ = std::make_shared<RandomAccessIndexHolder>(meta_);
@@ -202,7 +162,7 @@ int DiskAnnReducer::reduce(const IndexFilter &filter) {
 
   state_ = STATE_REDUCE;
 
-  LOG_INFO("End DiskAnn reduce. cost time: [%zu]s", timer.seconds());
+  LOG_INFO("End DiskAnn reduce. cost time: [%llu]s", timer.seconds());
   return 0;
 }
 
@@ -223,8 +183,8 @@ int DiskAnnReducer::dump(const IndexDumper::Pointer &dumper) {
   }
   stats_.set_dumped_costtime(timer.seconds());
 
-  LOG_INFO("End diskann reducer dump, dump costtime=[%zu]s",
-           (size_t)stats_.dumped_costtime());
+  LOG_INFO("End diskann reducer dump, dump costtime=[%llu]s",
+           stats_.dumped_costtime());
 
   return 0;
 }
