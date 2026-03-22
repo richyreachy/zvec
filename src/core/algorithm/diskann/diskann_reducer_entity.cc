@@ -19,8 +19,8 @@
 namespace zvec {
 namespace core {
 
-int DiskAnnReducerEntity::load(
-    const IndexStorage::Pointer &container, bool check_crc) {
+int DiskAnnReducerEntity::load(const IndexStorage::Pointer &container,
+                               bool check_crc) {
   container_ = container;
 
   int ret = load_segments(check_crc);

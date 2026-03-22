@@ -44,8 +44,8 @@ class DiskAnnBuilderEntity : public DiskAnnEntity {
   const void *get_vector(diskann_id_t id) const override;
 
  public:
-  int init(const IndexMeta &meta, uint32_t max_degree,
-           uint32_t list_size, double memory_limit, uint32_t build_threads);
+  int init(const IndexMeta &meta, uint32_t max_degree, uint32_t list_size,
+           double memory_limit, uint32_t build_threads);
 
   int dump(IndexHolder::Pointer holder, IndexMeta &meta,
            const IndexDumper::Pointer &dumper);
@@ -56,10 +56,8 @@ class DiskAnnBuilderEntity : public DiskAnnEntity {
   int dump_dummy_segment(const IndexDumper::Pointer &dumper) const;
   int dump_pq_meta_segment(const IndexDumper::Pointer &dumper) const;
   int dump_pq_data_segment(const IndexDumper::Pointer &dumper) const;
-  int dump_key_mapping_segment(
-      const IndexDumper::Pointer &dumper) const;
-  int dump_entrypoint_segment(
-      const IndexDumper::Pointer &dumper) const;
+  int dump_key_mapping_segment(const IndexDumper::Pointer &dumper) const;
+  int dump_entrypoint_segment(const IndexDumper::Pointer &dumper) const;
   int dump_key_segment(const IndexDumper::Pointer &dumper) const;
 
   int reserve_space(uint32_t docs);

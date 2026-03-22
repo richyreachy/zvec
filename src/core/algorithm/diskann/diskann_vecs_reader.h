@@ -15,8 +15,8 @@
 
 #include <iostream>
 #include <ailego/io/mmap_file.h>
-#include <zvec/core/framework/index_holder.h>
 #include <framework/index_framework.h>
+#include <zvec/core/framework/index_holder.h>
 
 namespace zvec {
 namespace core {
@@ -82,8 +82,7 @@ class DiskAnnVecsReader {
         taglist_base_data_{nullptr},
         taglist_size_{0} {}
 
-  void set_measure(const std::string &name,
-                   const IndexParams &params) {
+  void set_measure(const std::string &name, const IndexParams &params) {
     index_meta_.set_measure(name, 0, params);
   }
 
@@ -319,4 +318,3 @@ class DiskAnnVecsReader {
 
 }  // namespace core
 }  // namespace zvec
-

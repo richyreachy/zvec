@@ -304,8 +304,7 @@ class DiskAnnIndexHolder : public IndexHolder {
   std::ofstream file_;
   uint32_t element_size_{0};
   uint32_t dimension_{0};
-  IndexMeta::DataType type_{
-      IndexMeta::DataType::DT_UNDEFINED};
+  IndexMeta::DataType type_{IndexMeta::DataType::DT_UNDEFINED};
   uint32_t sector_vec_num_{0};
   uint32_t data_size_{0};
   uint32_t padding_size_{0};

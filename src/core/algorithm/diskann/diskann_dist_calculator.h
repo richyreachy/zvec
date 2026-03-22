@@ -16,7 +16,6 @@
 #include <memory>
 #include <zvec/core/framework/index_context.h>
 #include <zvec/core/framework/index_meta.h>
-
 #include "diskann_entity.h"
 
 namespace zvec {
@@ -29,22 +28,19 @@ class DistCalculator {
  public:
   //! Constructor
   DistCalculator(const DiskAnnEntity *entity,
-                 const IndexMetric::Pointer &measure,
-                 uint32_t dim)
+                 const IndexMetric::Pointer &measure, uint32_t dim)
       : entity_(entity),
         distance_(measure->distance()),
         query_(nullptr),
         dim_(dim),
         compare_cnt_(0) {}
 
-  void update(const IndexMetric::Pointer &measure,
-              uint32_t dim) {
+  void update(const IndexMetric::Pointer &measure, uint32_t dim) {
     distance_ = measure->distance();
     dim_ = dim;
   }
 
-  inline void update_distance(
-      const IndexMetric::MatrixDistance &distance) {
+  inline void update_distance(const IndexMetric::MatrixDistance &distance) {
     distance_ = distance;
   }
 
@@ -152,4 +148,3 @@ class DistCalculator {
 
 }  // namespace core
 }  // namespace zvec
-

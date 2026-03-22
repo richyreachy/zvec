@@ -34,8 +34,7 @@ class DiskAnnSearcherEntity : public DiskAnnEntity {
  public:
   virtual const DiskAnnEntity::Pointer clone() const override;
 
-  int load(const IndexMeta &meta,
-           IndexStorage::Pointer storage);
+  int load(const IndexMeta &meta, IndexStorage::Pointer storage);
   int load_pq_segment();
   int load_header_segment();
   int load_vector_segment();
@@ -69,17 +68,14 @@ class DiskAnnSearcherEntity : public DiskAnnEntity {
  private:
   DiskAnnSearcherEntity(
       const DiskAnnMetaHeader &meta_header, const DiskAnnPqMeta &pq_meta,
-      const SegmentPointer &meta_segment,
-      const SegmentPointer &pq_meta_segment,
+      const SegmentPointer &meta_segment, const SegmentPointer &pq_meta_segment,
       const SegmentPointer &pq_data_segment,
-      const SegmentPointer &vector_segment,
-      const SegmentPointer &key_segment,
+      const SegmentPointer &vector_segment, const SegmentPointer &key_segment,
       const SegmentPointer &key_mapping_segment,
-      const SegmentPointer &entrypoint_segment,
-      uint32_t num_threads, uint32_t list_size, uint32_t cache_nodes_num,
-      bool warm_up, uint32_t beam_size, const IndexMeta meta,
-      PQTable::Pointer pq_table, const std::string &key_buffer,
-      const std::string &key_mapping_buffer,
+      const SegmentPointer &entrypoint_segment, uint32_t num_threads,
+      uint32_t list_size, uint32_t cache_nodes_num, bool warm_up,
+      uint32_t beam_size, const IndexMeta meta, PQTable::Pointer pq_table,
+      const std::string &key_buffer, const std::string &key_mapping_buffer,
       const std::vector<diskann_id_t> &entrypoints)
       : DiskAnnEntity(meta_header, pq_meta),
         meta_segment_(meta_segment),

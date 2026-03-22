@@ -48,35 +48,31 @@ class DiskAnnSearcher : public IndexSearcher {
   virtual int unload(void) override;
 
   //! KNN Search
-  virtual int search_impl(const void *query,
-                          const IndexQueryMeta &qmeta,
+  virtual int search_impl(const void *query, const IndexQueryMeta &qmeta,
                           ContextPointer &context) const override {
     return search_impl(query, qmeta, 1, context);
   }
 
   //! KNN Search
-  virtual int search_impl(const void *query,
-                          const IndexQueryMeta &qmeta, uint32_t count,
+  virtual int search_impl(const void *query, const IndexQueryMeta &qmeta,
+                          uint32_t count,
                           ContextPointer &context) const override;
 
   //! Linear Search
-  virtual int search_bf_impl(const void *query,
-                             const IndexQueryMeta &qmeta,
+  virtual int search_bf_impl(const void *query, const IndexQueryMeta &qmeta,
                              ContextPointer &context) const override {
     return search_bf_impl(query, qmeta, 1, context);
   }
 
   //! Linear Search
-  virtual int search_bf_impl(const void *query,
-                             const IndexQueryMeta &qmeta,
+  virtual int search_bf_impl(const void *query, const IndexQueryMeta &qmeta,
                              uint32_t count,
                              ContextPointer &context) const override;
 
   //! Linear search by primary keys
   virtual int search_bf_by_p_keys_impl(
       const void *query, const std::vector<std::vector<uint64_t>> &p_keys,
-      const IndexQueryMeta &qmeta,
-      ContextPointer &context) const override {
+      const IndexQueryMeta &qmeta, ContextPointer &context) const override {
     return search_bf_by_p_keys_impl(query, p_keys, qmeta, 1, context);
   }
 
@@ -91,8 +87,7 @@ class DiskAnnSearcher : public IndexSearcher {
       const void *query, const uint32_t sparse_count,
       const uint32_t *sparse_indices, const void *sparse_query,
       const std::vector<std::vector<uint64_t>> &p_keys,
-      const IndexQueryMeta &qmeta,
-      ContextPointer &context) const override {
+      const IndexQueryMeta &qmeta, ContextPointer &context) const override {
     return search_bf_by_p_keys_impl(query, &sparse_count, sparse_indices,
                                     sparse_query, p_keys, qmeta, 1, context);
   }
@@ -171,4 +166,3 @@ class DiskAnnSearcher : public IndexSearcher {
 
 }  // namespace core
 }  // namespace zvec
-

@@ -13,11 +13,10 @@
 // limitations under the License.
 
 #include "diskann_index.h"
-
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <set>
-#include <algorithm>
 
 namespace zvec {
 namespace core {
@@ -316,7 +315,8 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
         DiskAnnUtil::div_round_up(nodes_to_expand.size(), BLOCK_SIZE);
     for (size_t block = 0; block < nblocks && !finish_flag; block++) {
       size_t start = block * BLOCK_SIZE;
-      size_t end = std::min((uint64_t)((block + 1) * BLOCK_SIZE), (uint64_t)(nodes_to_expand.size()));
+      size_t end = std::min((uint64_t)((block + 1) * BLOCK_SIZE),
+                            (uint64_t)(nodes_to_expand.size()));
 
       std::vector<diskann_id_t> nodes_to_read;
       std::vector<void *> coord_buffers(end - start, nullptr);
@@ -665,8 +665,7 @@ int DiskAnnIndex::keys_search(const std::vector<uint64_t> &keys,
   return 0;
 }
 
-int DiskAnnIndex::get_vector(diskann_id_t id,
-                             IndexContext::Pointer &context,
+int DiskAnnIndex::get_vector(diskann_id_t id, IndexContext::Pointer &context,
                              std::string &vector) {
   DiskAnnContext *ctx = dynamic_cast<DiskAnnContext *>(context.get());
 

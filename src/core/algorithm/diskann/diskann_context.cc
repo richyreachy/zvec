@@ -20,10 +20,9 @@
 namespace zvec {
 namespace core {
 
-DiskAnnContext::DiskAnnContext(
-    const IndexMeta &meta,
-    const IndexMetric::Pointer &measure,
-    const DiskAnnEntity::Pointer &entity)
+DiskAnnContext::DiskAnnContext(const IndexMeta &meta,
+                               const IndexMetric::Pointer &measure,
+                               const DiskAnnEntity::Pointer &entity)
     : dc_(entity.get(), measure, meta.dimension()), entity_{entity} {}
 
 int DiskAnnContext::init(ContextType type, uint32_t graph_degree,
@@ -111,10 +110,10 @@ DiskAnnContext::~DiskAnnContext() {
   }
 }
 
-int DiskAnnContext::update_context(
-    ContextType type, const IndexMeta &meta,
-    const IndexMetric::Pointer &measure,
-    const DiskAnnEntity::Pointer &entity, uint32_t magic_num) {
+int DiskAnnContext::update_context(ContextType type, const IndexMeta &meta,
+                                   const IndexMetric::Pointer &measure,
+                                   const DiskAnnEntity::Pointer &entity,
+                                   uint32_t magic_num) {
   if (ailego_unlikely(type != type_)) {
     LOG_ERROR(
         "DiskAnnContext does not support shared by different type, "

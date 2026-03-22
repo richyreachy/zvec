@@ -84,8 +84,8 @@ void PQTable::aggregate_coords(uint32_t id_num, const diskann_id_t *ids,
 }
 
 void PQTable::pq_dist_lookup(const uint8_t *pq_ids, size_t id_num,
-                             size_t pq_nchunks,
-                             const float *pq_dist_buffer, float *dists_out) {
+                             size_t pq_nchunks, const float *pq_dist_buffer,
+                             float *dists_out) {
   ailego_prefetch(dists_out);
   ailego_prefetch(pq_ids);
   ailego_prefetch(pq_ids + 64);

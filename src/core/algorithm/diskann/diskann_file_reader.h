@@ -40,9 +40,9 @@ int setup_io_ctx(IOContext &ctx);
 int destroy_io_ctx(IOContext &ctx);
 
 struct AlignedRead {
-  uint64_t offset;  
-  uint64_t len;     
-  void *buf;        
+  uint64_t offset;
+  uint64_t len;
+  void *buf;
 
   AlignedRead() : offset(0), len(0), buf(nullptr) {}
 
@@ -62,7 +62,7 @@ class AlignedFileReader {
  public:
   virtual IOContext &get_ctx() = 0;
 
-  virtual ~AlignedFileReader(){};
+  virtual ~AlignedFileReader() {};
 
   virtual void register_thread() = 0;
   virtual void deregister_thread() = 0;
@@ -79,7 +79,7 @@ class LinuxAlignedFileReader : public AlignedFileReader {
  private:
   uint64_t file_sz;
   int file_desc;
-  
+
   IOContext bad_ctx = (IOContext)-1;
 
  public:

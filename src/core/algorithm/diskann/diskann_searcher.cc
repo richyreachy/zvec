@@ -46,8 +46,7 @@ int DiskAnnSearcher::load(IndexStorage::Pointer storage,
 
   auto start_time = ailego::Monotime::MilliSeconds();
 
-  int ret =
-      IndexHelper::DeserializeFromStorage(storage.get(), &meta_);
+  int ret = IndexHelper::DeserializeFromStorage(storage.get(), &meta_);
   if (ret != 0) {
     LOG_ERROR("Failed to deserialize meta from storage");
     return ret;
@@ -125,8 +124,7 @@ int DiskAnnSearcher::update_context(DiskAnnContext *ctx) const {
                              entity, magic_);
 }
 
-int DiskAnnSearcher::search_impl(const void *query,
-                                 const IndexQueryMeta &qmeta,
+int DiskAnnSearcher::search_impl(const void *query, const IndexQueryMeta &qmeta,
                                  uint32_t count,
                                  Context::Pointer &context) const {
   // do search
@@ -158,8 +156,7 @@ int DiskAnnSearcher::search_impl(const void *query,
 }
 
 int DiskAnnSearcher::search_bf_impl(const void *query,
-                                    const IndexQueryMeta &qmeta,
-                                    uint32_t count,
+                                    const IndexQueryMeta &qmeta, uint32_t count,
                                     Context::Pointer &context) const {
   if (ailego_unlikely(!query || !context)) {
     LOG_ERROR("The context is not created by this searcher");
@@ -253,8 +250,7 @@ int DiskAnnSearcher::get_vector(uint64_t key, Context::Pointer &context,
   return diskann_index_->get_vector(key, context, vector);
 }
 
-IndexSearcher::Context::Pointer DiskAnnSearcher::create_context()
-    const {
+IndexSearcher::Context::Pointer DiskAnnSearcher::create_context() const {
   const DiskAnnEntity::Pointer search_ctx_entity = entity_.clone();
   if (!search_ctx_entity) {
     LOG_ERROR("Failed to create search context entity");

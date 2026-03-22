@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <set>
 #include "diskann_algorithm.h"
+#include <set>
 #include <zvec/core/framework/index_holder.h>
 #include "diskann_util.h"
 
@@ -494,8 +494,8 @@ int DiskAnnAlgorithm::prepare_pq_train_data(
 
 template <typename T>
 int DiskAnnAlgorithm::convert_pivot_data(
-    const IndexMeta &meta, uint32_t num_centers,
-    uint32_t pq_chunk_num, const std::vector<uint32_t> &chunk_dims,
+    const IndexMeta &meta, uint32_t num_centers, uint32_t pq_chunk_num,
+    const std::vector<uint32_t> &chunk_dims,
     const std::vector<uint32_t> &chunk_offsets,
     IndexCluster::CentroidList &centroids,
     std::vector<uint8_t> &full_pivot_data) {
@@ -521,15 +521,12 @@ int DiskAnnAlgorithm::convert_pivot_data(
   return 0;
 }
 
-int DiskAnnAlgorithm::train_pq(IndexThreads::Pointer threads,
-                               const IndexMeta &meta,
-                               IndexHolder::Pointer holder,
-                               std::string &train_data, size_t num_train,
-                               uint32_t num_centers, uint32_t pq_chunk_num,
-                               uint32_t max_iterations, bool use_zero_mean,
-                               std::vector<uint8_t> &full_pivot_data,
-                               std::vector<uint8_t> &centroid,
-                               std::vector<uint32_t> &chunk_offsets) {
+int DiskAnnAlgorithm::train_pq(
+    IndexThreads::Pointer threads, const IndexMeta &meta,
+    IndexHolder::Pointer holder, std::string &train_data, size_t num_train,
+    uint32_t num_centers, uint32_t pq_chunk_num, uint32_t max_iterations,
+    bool use_zero_mean, std::vector<uint8_t> &full_pivot_data,
+    std::vector<uint8_t> &centroid, std::vector<uint32_t> &chunk_offsets) {
   uint32_t dim = meta.dimension();
   if (pq_chunk_num > dim) {
     LOG_ERROR("Error: number of chunks more than dimension. chunk: %u, dim: %u",
@@ -620,10 +617,10 @@ int DiskAnnAlgorithm::train_pq(IndexThreads::Pointer threads,
 }
 
 int DiskAnnAlgorithm::train_quantized_data(
-    IndexThreads::Pointer threads,
-    IndexHolder::Pointer holder, const IndexMeta &meta,
-    std::vector<uint8_t> &pq_full_pivot_data, std::vector<uint8_t> &pq_centroid,
-    std::vector<uint32_t> &pq_chunk_offsets, size_t pq_chunk_num) {
+    IndexThreads::Pointer threads, IndexHolder::Pointer holder,
+    const IndexMeta &meta, std::vector<uint8_t> &pq_full_pivot_data,
+    std::vector<uint8_t> &pq_centroid, std::vector<uint32_t> &pq_chunk_offsets,
+    size_t pq_chunk_num) {
   size_t train_size;
   std::string train_data;
 
@@ -767,9 +764,8 @@ int DiskAnnAlgorithm::generate_pq(IndexThreads::Pointer threads,
 }
 
 int DiskAnnAlgorithm::generate_quantized_data(
-    IndexThreads::Pointer threads,
-    IndexHolder::Pointer holder, const IndexMeta &meta,
-    std::vector<uint8_t> &pq_centroid,
+    IndexThreads::Pointer threads, IndexHolder::Pointer holder,
+    const IndexMeta &meta, std::vector<uint8_t> &pq_centroid,
     std::vector<uint8_t> &block_compressed_data, size_t pq_chunk_num) {
   IndexMeta new_meta = meta;
 

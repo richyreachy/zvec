@@ -16,9 +16,9 @@
 #include <vector>
 #include <ailego/parallel/lock.h>
 #include <ailego/parallel/multi_thread_list.h>
+#include <utility/sparse_utility.h>
 #include <zvec/core/framework/index_holder.h>
 #include <zvec/core/framework/index_reducer.h>
-#include <utility/sparse_utility.h>
 #include "diskann_holder.h"
 #include "diskann_reducer_entity.h"
 
@@ -38,7 +38,7 @@ class DiskAnnReducer : public IndexReducer {
   virtual int cleanup(void) override;
 
   //! Feed indexes from containers
-  //virtual int feed(IndexStorage::Pointer container) override;
+  // virtual int feed(IndexStorage::Pointer container) override;
 
   //! Reduce operator (with filter)
   virtual int reduce(const IndexFilter &filter) override;

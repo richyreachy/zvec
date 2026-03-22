@@ -24,8 +24,7 @@
 namespace zvec {
 namespace core {
 
-int DiskAnnBuilder::init(const IndexMeta &meta,
-                         const ailego::Params &params) {
+int DiskAnnBuilder::init(const IndexMeta &meta, const ailego::Params &params) {
   LOG_INFO("Begin DiskAnnBuilder::init");
 
   params.get(PARAM_DISKANN_BUILDER_MAX_DEGREE, &max_degree_);
@@ -313,8 +312,7 @@ int DiskAnnBuilder::prune_internal(IndexThreads::Pointer threads) {
   return 0;
 }
 
-int DiskAnnBuilder::train_quantized_data(
-    IndexThreads::Pointer threads) {
+int DiskAnnBuilder::train_quantized_data(IndexThreads::Pointer threads) {
   LOG_INFO("Starting Train: Chunk Num: %u", pq_chunk_num_);
 
   ailego::ElapsedTime timer;
@@ -338,8 +336,7 @@ int DiskAnnBuilder::train_quantized_data(
   return 0;
 }
 
-int DiskAnnBuilder::generate_quantized_data(
-    IndexThreads::Pointer threads) {
+int DiskAnnBuilder::generate_quantized_data(IndexThreads::Pointer threads) {
   LOG_INFO("Starting PQ Generate: Query Memory Limit: %lf, Chunk Num: %u",
            memory_limit_, pq_chunk_num_);
 
@@ -475,8 +472,8 @@ int DiskAnnBuilder::train(IndexThreads::Pointer threads,
   }
 
   if (!threads) {
-    threads = std::make_shared<SingleQueueIndexThreads>(
-        build_thread_count_, false);
+    threads =
+        std::make_shared<SingleQueueIndexThreads>(build_thread_count_, false);
     if (!threads) {
       return IndexError_NoMemory;
     }
@@ -529,8 +526,8 @@ int DiskAnnBuilder::build(IndexThreads::Pointer threads,
   holder_ = holder;
 
   if (!threads) {
-    threads = std::make_shared<SingleQueueIndexThreads>(
-        build_thread_count_, false);
+    threads =
+        std::make_shared<SingleQueueIndexThreads>(build_thread_count_, false);
     if (!threads) {
       return IndexError_NoMemory;
     }

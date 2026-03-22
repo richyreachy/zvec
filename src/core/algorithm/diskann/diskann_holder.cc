@@ -14,7 +14,5 @@
 #pragma once
 
 namespace zvec {
-namespace core {
-
-}  // namespace core
+namespace core {}  // namespace core
 }  // namespace zvec

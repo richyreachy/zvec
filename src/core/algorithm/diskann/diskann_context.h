@@ -47,8 +47,7 @@ class DiskAnnContext : public IndexContext {
   };
 
   //! Construct
-  DiskAnnContext(const IndexMeta &meta,
-                 const IndexMetric::Pointer &measure,
+  DiskAnnContext(const IndexMeta &meta, const IndexMetric::Pointer &measure,
                  const DiskAnnEntity::Pointer &entity);
 
   //! Destructor
@@ -81,8 +80,7 @@ class DiskAnnContext : public IndexContext {
   }
 
   //! Retrieve search group result with index
-  virtual const IndexGroupDocumentList &group_result(
-      void) const override {
+  virtual const IndexGroupDocumentList &group_result(void) const override {
     return group_results_[0];
   }
 

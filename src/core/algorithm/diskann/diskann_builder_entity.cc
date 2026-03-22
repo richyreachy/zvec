@@ -20,9 +20,9 @@
 namespace zvec {
 namespace core {
 
-int DiskAnnBuilderEntity::init(const IndexMeta &meta,
-                               uint32_t max_degree, uint32_t list_size,
-                               double memory_limit, uint32_t build_threads) {
+int DiskAnnBuilderEntity::init(const IndexMeta &meta, uint32_t max_degree,
+                               uint32_t list_size, double memory_limit,
+                               uint32_t build_threads) {
   meta_ = meta;
 
   max_degree_ = max_degree;
@@ -189,9 +189,10 @@ int DiskAnnBuilderEntity::add_neighbor(diskann_id_t id,
   return 0;
 }
 
-int64_t DiskAnnBuilderEntity::dump_segment(
-    const IndexDumper::Pointer &dumper, const std::string &segment_id,
-    const void *data, size_t size) const {
+int64_t DiskAnnBuilderEntity::dump_segment(const IndexDumper::Pointer &dumper,
+                                           const std::string &segment_id,
+                                           const void *data,
+                                           size_t size) const {
   size_t len = dumper->write(data, size);
   if (len != size) {
     LOG_ERROR("Dump segment %s data failed, expect: %lu, actual: %lu",
@@ -336,8 +337,10 @@ int DiskAnnBuilderEntity::dump_dummy_segment(
     const IndexDumper::Pointer &dumper) const {
   // to make offset aligned with 4K
   size_t dumper_header_size = dumper->size();
-  
-  size_t dummy_size = DiskAnnUtil::round_up(dumper_header_size, DiskAnnUtil::kSectorSize) - dumper_header_size; 
+
+  size_t dummy_size =
+      DiskAnnUtil::round_up(dumper_header_size, DiskAnnUtil::kSectorSize) -
+      dumper_header_size;
 
   if (dummy_size != 0) {
     std::string dummpy_data(dummy_size, '\0');
@@ -352,7 +355,7 @@ int DiskAnnBuilderEntity::dump_dummy_segment(
       return ret;
     }
   }
-  
+
   return 0;
 }
 
@@ -419,8 +422,7 @@ int DiskAnnBuilderEntity::dump_entrypoint_segment(
   return 0;
 }
 
-int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder,
-                               IndexMeta &meta,
+int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
                                const IndexDumper::Pointer &dumper) {
   uint64_t doc_cnt = holder->count();
   uint64_t max_node_size =

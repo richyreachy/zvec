@@ -32,7 +32,7 @@ int setup_io_ctx(IOContext &ctx) {
   int ret = io_setup(MAX_EVENTS, &ctx);
 
   return ret;
-#else 
+#else
   return 0;
 #endif
 }
@@ -42,7 +42,7 @@ int destroy_io_ctx(IOContext &ctx) {
   int ret = io_destroy(ctx);
 
   return ret;
-#else 
+#else
   return 0;
 #endif
 }
@@ -197,15 +197,21 @@ void LinuxAlignedFileReader::deregister_all_threads() {
 }
 
 void LinuxAlignedFileReader::open(const std::string &fname) {
-#if (defined(__linux) || defined(__linux__))
-  int flags = O_DIRECT | O_RDONLY | O_LARGEFILE;
+  int flags = O_RDONLY;
+
+#if defined(__linux__) || defined(__linux)
+  flags |= O_DIRECT | O_LARGEFILE;
+#elif defined(__APPLE__) || defined(__MACH__)
+
+#endif
+
   this->file_desc = ::open(fname.c_str(), flags);
 
   // error checks
   ailego_assert(this->file_desc != -1);
 
   LOG_INFO("Opened file : %s", fname.c_str());
-#endif
+  // #endif
 }
 
 void LinuxAlignedFileReader::close() {
