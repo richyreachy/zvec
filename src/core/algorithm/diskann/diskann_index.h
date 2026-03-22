@@ -37,8 +37,7 @@ class DiskAnnIndex {
   int load_cache_list(const std::vector<diskann_id_t> &node_list);
 
   void cache_bfs_levels(uint64_t num_nodes_to_cache,
-                        std::vector<diskann_id_t> &node_list,
-                        const bool shuffle = false);
+                        std::vector<diskann_id_t> &node_list);
 
   int cached_beam_search(DiskAnnContext *ctx);
   int cached_beam_search_by_group(DiskAnnContext *ctx);

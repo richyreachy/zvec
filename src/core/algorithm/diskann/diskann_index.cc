@@ -253,11 +253,7 @@ int DiskAnnIndex::load_cache_list(const std::vector<diskann_id_t> &node_list) {
 }
 
 void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
-                                    std::vector<diskann_id_t> &node_list,
-                                    const bool shuffle) {
-  std::random_device rng;
-  std::mt19937 urng(rng());
-
+                                    std::vector<diskann_id_t> &node_list) {
   std::set<diskann_id_t> node_set;
 
   size_t tenp_cnt = static_cast<uint64_t>(std::round(doc_cnt_ * 0.1));
@@ -303,10 +299,7 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
       nodes_to_expand.push_back(id);
     }
 
-    if (shuffle)
-      std::shuffle(nodes_to_expand.begin(), nodes_to_expand.end(), urng);
-    else
-      std::sort(nodes_to_expand.begin(), nodes_to_expand.end());
+    std::sort(nodes_to_expand.begin(), nodes_to_expand.end());
 
     bool finish_flag = false;
 
