@@ -314,21 +314,33 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
       std::vector<diskann_id_t> nodes_to_read(nodes_to_expand.begin() + start,
                                               nodes_to_expand.begin() + end);
       std::vector<void *> coord_buffers(block_size, nullptr);
-      std::vector<std::pair<uint32_t, diskann_id_t *>> neighbor_buffers;
+
+      std::vector<std::pair<uint32_t, std::vector<diskann_id_t>>>
+          neighbor_buffers;
+      neighbor_buffers.reserve(block_size);
 
       for (size_t i = 0; i < block_size; i++) {
-        neighbor_buffers.emplace_back(0, new diskann_id_t[max_degree_ + 1]);
+        neighbor_buffers.emplace_back(
+            0, std::vector<diskann_id_t>(max_degree_ + 1));
+      }
+
+      std::vector<std::pair<uint32_t, diskann_id_t *>> neighbor_buffers_ptr;
+      neighbor_buffers_ptr.reserve(block_size);
+      for (size_t i = 0; i < block_size; i++) {
+        neighbor_buffers_ptr.emplace_back(neighbor_buffers[i].first,
+                                          neighbor_buffers[i].second.data());
       }
 
       auto read_status =
-          read_nodes(nodes_to_read, coord_buffers, neighbor_buffers);
+          read_nodes(nodes_to_read, coord_buffers, neighbor_buffers_ptr);
 
       for (uint32_t i = 0; i < read_status.size(); i++) {
         if (read_status[i] == false) {
           continue;
         } else {
+          neighbor_buffers[i].first = neighbor_buffers_ptr[i].first;
           uint32_t neighbor_num = neighbor_buffers[i].first;
-          diskann_id_t *neighbors = neighbor_buffers[i].second;
+          diskann_id_t *neighbors = neighbor_buffers[i].second.data();
 
           for (uint32_t j = 0; j < neighbor_num && !finish_flag; j++) {
             if (node_set.find(neighbors[j]) == node_set.end()) {
@@ -339,8 +351,6 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
             }
           }
         }
-
-        delete[] neighbor_buffers[i].second;
       }
     }
 

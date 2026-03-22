@@ -28,7 +28,7 @@ class DiskAnnAlgorithm {
 
  public:
   DiskAnnAlgorithm(DiskAnnEntity &entity, uint32_t max_degree,
-                   uint32_t max_train_sample_count, double train_sample_ratio);
+                   uint32_t max_train_sample_count);
 
  public:
   template <typename T>
@@ -108,7 +108,6 @@ class DiskAnnAlgorithm {
   uint32_t max_degree_{DiskAnnEntity::kDefaultMaxDegree};
   uint32_t max_candidate_size_{DiskAnnEntity::kDefaultMaxOcclusionSize};
   uint32_t max_train_sample_count_{PQTable::kMaxTrainSampleCount};
-  double train_sample_ratio_{PQTable::kTrainSampleRatio};
 
   std::vector<std::mutex> lock_pool_{};
 

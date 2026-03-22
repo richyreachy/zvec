@@ -100,8 +100,8 @@ int DiskAnnBuilder::init(const IndexMeta &meta, const ailego::Params &params) {
     return ret;
   }
 
-  algo_ = DiskAnnAlgorithm::UPointer(new DiskAnnAlgorithm(
-      entity_, max_degree_, max_train_sample_count_, train_sample_ratio_));
+  algo_ = DiskAnnAlgorithm::UPointer(
+      new DiskAnnAlgorithm(entity_, max_degree_, max_train_sample_count_));
 
   state_ = BUILD_STATE_INITED;
 

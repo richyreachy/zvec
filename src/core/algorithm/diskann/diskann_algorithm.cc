@@ -21,12 +21,10 @@ namespace zvec {
 namespace core {
 
 DiskAnnAlgorithm::DiskAnnAlgorithm(DiskAnnEntity &entity, uint32_t max_degree,
-                                   uint32_t max_train_sample_count,
-                                   double train_sample_ratio)
+                                   uint32_t max_train_sample_count)
     : entity_(entity),
       max_degree_(max_degree),
       max_train_sample_count_{max_train_sample_count},
-      train_sample_ratio_{train_sample_ratio},
       lock_pool_(kLockCnt) {}
 
 std::vector<diskann_id_t> DiskAnnAlgorithm::get_init_ids(DiskAnnContext *ctx) {
