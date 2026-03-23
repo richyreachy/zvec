@@ -45,4 +45,4 @@
 	url = https://github.com/VectorDB-NTU/RaBitQ-Library.git
 [submodule "thirdparty/aio/libaio-0.3"]
 	path = thirdparty/aio/libaio-0.3
-	url = git@github.com:yugabyte/libaio.git
+	url = https://github.com/yugabyte/libaio.git
