@@ -3,23 +3,7 @@ set(protobuf_WITH_ZLIB ON CACHE BOOL "Disable zlib support in protobuf" FORCE)
 
 set(_SAVED_CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${EXTERNAL_LIB_DIR})
-
-# protoc runs on the build machine at configure/build time, so it must not
-# use ISA extensions the host CPU may lack (e.g. AVX-512 on CI runners).
-if (MSVC)
-    set(_SAVED_C_FLAGS "${CMAKE_C_FLAGS}")
-    set(_SAVED_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    string(REGEX REPLACE "(/arch|/ARCH):[A-Za-z0-9]+" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-    string(REGEX REPLACE "(/arch|/ARCH):[A-Za-z0-9]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-endif ()
-
 add_subdirectory(protobuf-3.21.12/cmake protobuf-3.21.12)
-
-if (MSVC)
-    set(CMAKE_C_FLAGS "${_SAVED_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${_SAVED_CXX_FLAGS}")
-endif ()
-
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${_SAVED_CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 unset(_SAVED_CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
 
