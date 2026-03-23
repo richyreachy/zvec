@@ -150,7 +150,7 @@ class PQTable {
   IndexMeta meta_;
   uint64_t chunk_num_{0};
 
-  bool rotate_{false};
+  // bool rotate_{false};
 };
 
 }  // namespace core

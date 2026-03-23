@@ -396,8 +396,8 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
 
   LOG_INFO(
       "Dump Data, medoid: %zu, max node size: %zu, node per sector: %zu, "
-      "max observed degree: %u",
-      medoid(), (size_t)max_node_size, (size_t)node_per_sector,
+      "max observed degree: %zu",
+      (size_t)medoid(), (size_t)max_node_size, (size_t)node_per_sector,
       (size_t)max_observed_degree_);
 
   // write a dummy segment to make data align

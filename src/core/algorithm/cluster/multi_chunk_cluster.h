@@ -33,7 +33,7 @@ class MultiChunkClusterAlgorithm {
   MultiChunkClusterAlgorithm(void) {}
 
   //! Destructor
-  ~MultiChunkClusterAlgorithm(void) {}
+  virtual ~MultiChunkClusterAlgorithm(void) {}
 
   //! Initialize Cluster
   int init(const IndexMeta &meta, const ailego::Params &params);

@@ -261,8 +261,8 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
   if (num_nodes_to_cache > tenp_cnt) {
     LOG_WARN(
         "Reducing nodes to cache from: %zu, to: (10 percent of total nodes: "
-        "zu)",
-        num_nodes_to_cache, (size_t)tenp_cnt);
+        "%zu)",
+        (size_t)num_nodes_to_cache, (size_t)tenp_cnt);
 
     num_nodes_to_cache = tenp_cnt == 0 ? 1 : tenp_cnt;
   }
@@ -379,8 +379,9 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
   }
 
   size_t total_size = node_list.size();
-  LOG_INFO("Level: %lu, Cached Size: %zu, Total Cached Size: %zu", level,
-           total_size - prev_node_set_size, total_size);
+  LOG_INFO("Level: %zu, Cached Size: %zu, Total Cached Size: %zu",
+           (size_t)level, (size_t)(total_size - prev_node_set_size),
+           (size_t)total_size);
 
   return;
 }
