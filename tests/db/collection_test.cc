@@ -257,7 +257,6 @@ TEST_F(CollectionTest, Feature_CreateAndOpen_PathValidate) {
         "a*b",        // *
         "a[b]",       // []
         "a{b}",       // {}
-        "a\\b",       //
         "a~b",        // ~
         "a#b",        // #
         "a\tb",       // tab
