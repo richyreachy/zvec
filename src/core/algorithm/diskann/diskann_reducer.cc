@@ -162,7 +162,7 @@ int DiskAnnReducer::reduce(const IndexFilter &filter) {
 
   state_ = STATE_REDUCE;
 
-  LOG_INFO("End DiskAnn reduce. cost time: [%llu]s", timer.seconds());
+  LOG_INFO("End DiskAnn reduce. cost time: [%zu]s", (size_t)timer.seconds());
   return 0;
 }
 
@@ -183,8 +183,8 @@ int DiskAnnReducer::dump(const IndexDumper::Pointer &dumper) {
   }
   stats_.set_dumped_costtime(timer.seconds());
 
-  LOG_INFO("End diskann reducer dump, dump costtime=[%llu]s",
-           stats_.dumped_costtime());
+  LOG_INFO("End diskann reducer dump, dump costtime=[%zu]s",
+           (size_t)(stats_.dumped_costtime()));
 
   return 0;
 }

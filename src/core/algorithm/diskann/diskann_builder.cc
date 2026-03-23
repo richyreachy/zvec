@@ -208,8 +208,7 @@ int DiskAnnBuilder::calculate_entry_point() {
 
   (*entity_.mutable_medoid()) = medoid_id;
 
-  LOG_INFO("Medroid Calculation Done. ID: %llu",
-           static_cast<uint64_t>(medoid_id));
+  LOG_INFO("Medroid Calculation Done. ID: %zu", (size_t)medoid_id);
 
   return 0;
 }
@@ -267,7 +266,7 @@ int DiskAnnBuilder::build_internal(IndexThreads::Pointer threads) {
       LOG_ERROR("Failed to build index while waiting finish");
       return errcode_;
     }
-    LOG_INFO("Built cnt %llu, finished percent %.3f%%", finished.load(),
+    LOG_INFO("Built cnt %zu, finished percent %.3f%%", (size_t)finished.load(),
              finished.load() * 100.0f / entity_.doc_cnt());
   }
   if (error_.load(std::memory_order_acquire)) {
@@ -300,7 +299,7 @@ int DiskAnnBuilder::prune_internal(IndexThreads::Pointer threads) {
       LOG_ERROR("Failed to purne index while waiting finish");
       return errcode_;
     }
-    LOG_INFO("Prune cnt %llu, finished percent %.3f%%", finished.load(),
+    LOG_INFO("Prune cnt %zu, finished percent %.3f%%", (size_t)finished.load(),
              finished.load() * 100.0f / entity_.doc_cnt());
   }
   if (error_.load(std::memory_order_acquire)) {

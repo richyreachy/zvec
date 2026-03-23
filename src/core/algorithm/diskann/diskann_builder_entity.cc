@@ -189,8 +189,8 @@ int DiskAnnBuilderEntity::dump_pq_meta_segment(
   size_t size_full_pivot_data =
       dumper->write(pq_full_pivot_data_.data(), pq_meta_.full_pivot_data_size);
   if (size_full_pivot_data != pq_meta_.full_pivot_data_size) {
-    LOG_ERROR("Failed to dump full pivot data, expect: %llu, actual: %zu",
-              pq_meta_.full_pivot_data_size, size_full_pivot_data);
+    LOG_ERROR("Failed to dump full pivot data, expect: %zu, actual: %zu",
+              (size_t)pq_meta_.full_pivot_data_size, size_full_pivot_data);
     return IndexError_WriteData;
   }
 
@@ -201,8 +201,8 @@ int DiskAnnBuilderEntity::dump_pq_meta_segment(
   size_t size_centroid =
       dumper->write(pq_centroid_.data(), pq_meta_.centroid_data_size);
   if (size_centroid != pq_meta_.centroid_data_size) {
-    LOG_ERROR("Failed to dump centroid num, expect: %llu, actual: %zu",
-              pq_meta_.centroid_data_size, size_centroid);
+    LOG_ERROR("Failed to dump centroid num, expect: %zu, actual: %zu",
+              (size_t)pq_meta_.centroid_data_size, size_centroid);
     return IndexError_WriteData;
   }
 
@@ -213,8 +213,9 @@ int DiskAnnBuilderEntity::dump_pq_meta_segment(
   size_t size_chunk_offset = dumper->write(
       pq_chunk_offsets_.data(), (pq_meta_.chunk_num + 1) * sizeof(uint32_t));
   if (size_chunk_offset != (pq_meta_.chunk_num + 1) * sizeof(uint32_t)) {
-    LOG_ERROR("Failed to dump centroid num, expect: %llu, actual: %zu",
-              (pq_meta_.chunk_num + 1) * sizeof(uint32_t), size_chunk_offset);
+    LOG_ERROR("Failed to dump centroid num, expect: %zu, actual: %zu",
+              (size_t)((pq_meta_.chunk_num + 1) * sizeof(uint32_t)),
+              size_chunk_offset);
     return IndexError_WriteData;
   }
 
@@ -257,8 +258,8 @@ int DiskAnnBuilderEntity::dump_pq_data_segment(
       dumper->write(block_compressed_data_.data(), doc_cnt * chunk_num);
 
   if (size_total != doc_cnt * chunk_num) {
-    LOG_ERROR("Failed to dump block compressed data, expect: %llu, actual: %zu",
-              doc_cnt * chunk_num, size_total);
+    LOG_ERROR("Failed to dump block compressed data, expect: %zu, actual: %zu",
+              (size_t)(doc_cnt * chunk_num), size_total);
     return IndexError_WriteData;
   }
 
@@ -394,9 +395,10 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
                        sizeof(uint32_t));
 
   LOG_INFO(
-      "Dump Data, medoid: %llu, max node size: %llu, node per sector: %llu, "
+      "Dump Data, medoid: %zu, max node size: %zu, node per sector: %zu, "
       "max observed degree: %u",
-      medoid(), max_node_size, node_per_sector, max_observed_degree_);
+      medoid(), (size_t)max_node_size, (size_t)node_per_sector,
+      (size_t)max_observed_degree_);
 
   // write a dummy segment to make data align
   int ret = dump_dummy_segment(dumper);
@@ -442,7 +444,7 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
 
     for (uint64_t sector = 0; sector < sector_num; sector++) {
       if (sector != 0 && sector % 100000 == 0) {
-        LOG_INFO("Sector #%llu written", sector);
+        LOG_INFO("Sector #%zu written", (size_t)sector);
       }
 
       memset(&(sector_buf[0]), 0, DiskAnnUtil::kSectorSize);
@@ -489,8 +491,8 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
       // flush sector to disk
       len = dumper->write(sector_buf.data(), DiskAnnUtil::kSectorSize);
       if (len != DiskAnnUtil::kSectorSize) {
-        LOG_ERROR("Write Vector Error, write=%zu, expect=%llu", len,
-                  DiskAnnUtil::kSectorSize);
+        LOG_ERROR("Write Vector Error, write=%zu, expect=%zu", len,
+                  (size_t)DiskAnnUtil::kSectorSize);
 
         return IndexError_WriteData;
       }
@@ -499,7 +501,7 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
                                  crc);
     }
 
-    LOG_INFO("Total Sector #%llu written", sector_num);
+    LOG_INFO("Total Sector #%zu written", (size_t)sector_num);
 
     index_size = sector_num * DiskAnnUtil::kSectorSize;
   } else {
@@ -513,7 +515,7 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
 
     for (uint64_t i = 0; i < doc_cnt; i++) {
       if (i != 0 && (i * sector_num_per_node) % 100000 == 0) {
-        LOG_INFO("Sector # %llu written", i * sector_num_per_node);
+        LOG_INFO("Sector # %zu written", (size_t)(i * sector_num_per_node));
       }
 
       memset(&(multisector_buf[0]), 0,
@@ -551,8 +553,8 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
       len = dumper->write(multisector_buf.data(),
                           sector_num_per_node * DiskAnnUtil::kSectorSize);
       if (len != sector_num_per_node * DiskAnnUtil::kSectorSize) {
-        LOG_ERROR("Write Vector Error, write=%zu, expect=%llu", len,
-                  sector_num_per_node * DiskAnnUtil::kSectorSize);
+        LOG_ERROR("Write Vector Error, write=%zu, expect=%zu", len,
+                  (size_t)(sector_num_per_node * DiskAnnUtil::kSectorSize));
 
         return IndexError_WriteData;
       }
@@ -564,7 +566,8 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
                                  crc);
     }
 
-    LOG_INFO("Total Sector #%llu written", doc_cnt * sector_num_per_node);
+    LOG_INFO("Total Sector #%zu written",
+             (size_t)(doc_cnt * sector_num_per_node));
 
     index_size = doc_cnt * sector_num_per_node * DiskAnnUtil::kSectorSize;
   }
