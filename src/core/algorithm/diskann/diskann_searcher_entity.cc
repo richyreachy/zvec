@@ -160,7 +160,7 @@ int DiskAnnSearcherEntity::load_pq_segment() {
   if (read_size != pq_meta_.full_pivot_data_size) {
     LOG_ERROR("Read segment %s failed, expect: %zu, actual: %zu",
               DiskAnnEntity::kDiskAnnPqMetaSegmentId.c_str(),
-              pq_meta_.full_pivot_data_size, read_size);
+              (size_t)(pq_meta_.full_pivot_data_size), (size_t)read_size);
     return IndexError_ReadData;
   }
   memcpy(&(full_pivot_data[0]), data, read_size);
@@ -175,7 +175,7 @@ int DiskAnnSearcherEntity::load_pq_segment() {
   if (read_size != pq_meta_.centroid_data_size) {
     LOG_ERROR("Read segment %s failed, expect: %zu, actual: %zu",
               DiskAnnEntity::kDiskAnnPqMetaSegmentId.c_str(),
-              pq_meta_.centroid_data_size, read_size);
+              (size_t)(pq_meta_.centroid_data_size), (size_t)read_size);
     return IndexError_ReadData;
   }
   memcpy(&(centroid[0]), data, read_size);
@@ -190,7 +190,8 @@ int DiskAnnSearcherEntity::load_pq_segment() {
   if (read_size != (pq_meta_.chunk_num + 1) * sizeof(uint32_t)) {
     LOG_ERROR("Read segment %s failed, expect: %zu, actual: %zu",
               DiskAnnEntity::kDiskAnnPqMetaSegmentId.c_str(),
-              (pq_meta_.chunk_num + 1) * sizeof(uint32_t), read_size);
+              (size_t)((pq_meta_.chunk_num + 1) * sizeof(uint32_t)),
+              (size_t)read_size);
     return IndexError_ReadData;
   }
   memcpy(&(chunk_offsets[0]), data, read_size);
@@ -215,7 +216,8 @@ int DiskAnnSearcherEntity::load_pq_segment() {
   if (read_size != meta_header_.doc_cnt * pq_meta_.chunk_num) {
     LOG_ERROR("Read segment %s failed, expect: %zu, actual: %zu",
               DiskAnnEntity::kDiskAnnPqMetaSegmentId.c_str(),
-              meta_header_.doc_cnt * pq_meta_.chunk_num, read_size);
+              (size_t)(meta_header_.doc_cnt * pq_meta_.chunk_num),
+              (size_t)read_size);
 
     return IndexError_ReadData;
   }
