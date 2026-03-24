@@ -30,7 +30,8 @@ struct IndexMetaFormatHeader {
   uint32_t space_id;
   uint32_t attachment_offset;
   uint32_t attachment_size;
-  uint8_t reserved_[4092];
+  uint32_t extra_meta_size;
+  uint8_t reserved_[4088];
 };
 
 static_assert(sizeof(IndexMetaFormatHeader) % 32 == 0,
@@ -47,6 +48,7 @@ void IndexMeta::serialize(std::string *out) const {
   format.dimension = dimension_;
   format.unit_size = unit_size_;
   format.space_id = space_id_;
+  format.extra_meta_size = extra_meta_size_;
 
   if (!metric_name_.empty()) {
     ailego::Params item;
