@@ -25,9 +25,6 @@ if(MSVC)
     add_compile_options(/wd4334)
     ######
 
-    #TODO(windows): to be verified
-    add_definitions(-DARROW_STATIC -DPARQUET_STATIC -DARROW_ACERO_STATIC -DARROW_DS_STATIC -DARROW_COMPUTE_STATIC)
-
 
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror=return-type")
