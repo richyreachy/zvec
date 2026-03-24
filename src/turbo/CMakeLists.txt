@@ -28,6 +28,39 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
     endif()
 endif()
 
+if(NOT ANDROID AND AUTO_DETECT_ARCH)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
+        file(GLOB_RECURSE AVX512_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/avx512/*.cc)
+        set_source_files_properties(
+            ${AVX512_SRCS}
+            PROPERTIES
+            COMPILE_FLAGS "${TURBO_MARCH_FLAG_AVX512}"
+        )
+    endif()
+endif()
+
+if(NOT ANDROID AND AUTO_DETECT_ARCH)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
+        file(GLOB_RECURSE AVX2_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/avx2/*.cc)
+        set_source_files_properties(
+            ${AVX2_SRCS}
+            PROPERTIES
+            COMPILE_FLAGS "${TURBO_MARCH_FLAG_AVX2}"
+        )
+    endif()
+endif()
+
+if(NOT ANDROID AND AUTO_DETECT_ARCH)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
+        file(GLOB_RECURSE SSE_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/sse/*.cc)
+        set_source_files_properties(
+            ${SSE_SRCS}
+            PROPERTIES
+            COMPILE_FLAGS "${TURBO_MARCH_FLAG_SSE}"
+        )
+    endif()
+endif()
+
 cc_library(
     NAME zvec_turbo STATIC STRICT PACKED
     SRCS ${ALL_SRCS}

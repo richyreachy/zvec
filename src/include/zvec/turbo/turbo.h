@@ -28,11 +28,13 @@ using QueryPreprocessFunc =
 enum class MetricType {
   kSquaredEuclidean,
   kCosine,
+  kInnerProduct,
   kMipsSquaredEuclidean,
   kUnknown,
 };
 
 enum class DataType {
+  kInt4,
   kInt8,
   kUnknown,
 };

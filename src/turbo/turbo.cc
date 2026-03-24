@@ -14,6 +14,9 @@
 
 #include <ailego/internal/cpu_features.h>
 #include <zvec/turbo/turbo.h>
+#include "avx2/record_quantized_int4/cosine.h"
+#include "avx2/record_quantized_int4/inner_product.h"
+#include "avx2/record_quantized_int4/squared_euclidean.h"
 #include "avx512_vnni/record_quantized_int8/cosine.h"
 #include "avx512_vnni/record_quantized_int8/squared_euclidean.h"
 
@@ -29,6 +32,21 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
         }
         if (metric_type == MetricType::kCosine) {
           return avx512_vnni::cosine_int8_distance;
+        }
+      }
+    }
+  }
+  if (data_type == DataType::kInt4) {
+    if (quantize_type == QuantizeType::kDefault) {
+      if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX2) {
+        if (metric_type == MetricType::kSquaredEuclidean) {
+          return avx2::squared_euclidean_int4_distance;
+        }
+        if (metric_type == MetricType::kCosine) {
+          return avx2::cosine_int4_distance;
+        }
+        if (metric_type == MetricType::kInnerProduct) {
+          return avx2::inner_product_int4_distance;
         }
       }
     }
@@ -51,6 +69,23 @@ BatchDistanceFunc get_batch_distance_func(MetricType metric_type,
       }
     }
   }
+
+  if (data_type == DataType::kInt4) {
+    if (quantize_type == QuantizeType::kDefault) {
+      if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX2) {
+        if (metric_type == MetricType::kSquaredEuclidean) {
+          return avx2::squared_euclidean_int4_batch_distance;
+        }
+        if (metric_type == MetricType::kCosine) {
+          return avx2::cosine_int4_batch_distance;
+        }
+        if (metric_type == MetricType::kInnerProduct) {
+          return avx2::inner_product_int4_batch_distance;
+        }
+      }
+    }
+  }
+
   return nullptr;
 }
 
