@@ -47,9 +47,23 @@ int DiskAnnIndex::init(DiskAnnSearcherEntity &entity) {
   index_segment_offset_ = vector_segment->data_offset();
 
   // reopen file with directo
+  // bool with_direct_io = true;
+  // if (with_direct_io) {
+  //   reader_.reset(new LinuxAlignedFileReader());
+
+  //   auto file_path = storage->file_path();
+  //   reader_->open(file_path);
+
+  //   storage->cleanup();
+  // } else {
+  //   auto file = storage->file();
+  //   reader_.reset(new LinuxAlignedFileReader(file->native_handle()));
+  // }
+
+  // reopen file with directo
   bool with_direct_io = true;
   if (with_direct_io) {
-    reader_.reset(new LinuxAlignedFileReader());
+    reader_.reset(new KQueueAlignedFileReader());
 
     auto file_path = storage->file_path();
     reader_->open(file_path);
@@ -57,7 +71,7 @@ int DiskAnnIndex::init(DiskAnnSearcherEntity &entity) {
     storage->cleanup();
   } else {
     auto file = storage->file();
-    reader_.reset(new LinuxAlignedFileReader(file->native_handle()));
+    reader_.reset(new KQueueAlignedFileReader(file->native_handle()));
   }
 
   int ret = setup_io_ctx(init_ctx_);
@@ -94,9 +108,9 @@ int DiskAnnIndex::init(DiskAnnSearcherEntity &entity) {
     return IndexError_InvalidArgument;
   }
 
-  DiskAnnUtil::alloc_aligned((void **)(&centroid_data_),
-                             entrypints_.size() * aligned_dim_ * sizeof(float),
-                             32);
+  size_t buf_size = DiskAnnUtil::round_up(
+      entrypints_.size() * aligned_dim_ * sizeof(float), 32);
+  DiskAnnUtil::alloc_aligned((void **)(&centroid_data_), buf_size, 32);
 
   use_medroids_data_as_centroids();
 
@@ -151,9 +165,11 @@ std::vector<bool> DiskAnnIndex::read_nodes(
       node_per_sector_ > 0
           ? 1
           : DiskAnnUtil::div_round_up(max_node_size_, DiskAnnUtil::kSectorSize);
-  DiskAnnUtil::alloc_aligned(
-      (void **)&buf, node_ids.size() * sector_num * DiskAnnUtil::kSectorSize,
+
+  size_t buf_size = DiskAnnUtil::round_up(
+      node_ids.size() * sector_num * DiskAnnUtil::kSectorSize,
       DiskAnnUtil::kSectorSize);
+  DiskAnnUtil::alloc_aligned((void **)&buf, buf_size, DiskAnnUtil::kSectorSize);
 
   // create read requests
   for (size_t i = 0; i < node_ids.size(); ++i) {
@@ -210,8 +226,10 @@ int DiskAnnIndex::load_cache_list(const std::vector<diskann_id_t> &node_list) {
 
   // Allocate space for coordinate cache
   size_t coord_cache_buf_len = num_cached_nodes * aligned_dim_;
-  DiskAnnUtil::alloc_aligned((void **)&coord_cache_buf_,
-                             coord_cache_buf_len * meta_.unit_size(),
+  size_t buf_size = DiskAnnUtil::round_up(
+      coord_cache_buf_len * meta_.unit_size(), 8 * meta_.unit_size());
+
+  DiskAnnUtil::alloc_aligned((void **)&coord_cache_buf_, buf_size,
                              8 * meta_.unit_size());
 
   memset(coord_cache_buf_, 0, coord_cache_buf_len * meta_.unit_size());

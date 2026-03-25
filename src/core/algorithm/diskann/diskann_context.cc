@@ -31,8 +31,9 @@ int DiskAnnContext::init(ContextType type, uint32_t graph_degree,
   element_size_ = element_size;
   pq_chunk_num_ = pq_chunk_num;
 
-  DiskAnnUtil::alloc_aligned((void **)&query_, element_size_, 32);
-  DiskAnnUtil::alloc_aligned((void **)&query_rotated_, element_size_, 32);
+  size_t buf_size = DiskAnnUtil::round_up(element_size_, 32);
+  DiskAnnUtil::alloc_aligned((void **)&query_, buf_size, 32);
+  DiskAnnUtil::alloc_aligned((void **)&query_rotated_, buf_size, 32);
 
   int ret;
   switch (type) {
@@ -45,7 +46,7 @@ int DiskAnnContext::init(ContextType type, uint32_t graph_degree,
       }
       break;
 
-    case kSearcherContext:
+    case kSearcherContext: {
       ret = visit_filter_.init(filter_mode_, entity_->doc_cnt(),
                                entity_->doc_cnt(), negative_probility_);
       if (ret != 0) {
@@ -53,17 +54,23 @@ int DiskAnnContext::init(ContextType type, uint32_t graph_degree,
         return ret;
       }
 
-      DiskAnnUtil::alloc_aligned(
-          (void **)&pq_table_dist_buffer_,
+      buf_size = DiskAnnUtil::round_up(
           PQTable::kPQCentroidNum * pq_chunk_num_ * sizeof(float), 256);
-      DiskAnnUtil::alloc_aligned((void **)&pq_coord_buffer_,
-                                 graph_degree * pq_chunk_num_ * sizeof(uint8_t),
+      DiskAnnUtil::alloc_aligned((void **)&pq_table_dist_buffer_, buf_size,
                                  256);
-      DiskAnnUtil::alloc_aligned((void **)&coord_buffer_, element_size_, 256);
-      DiskAnnUtil::alloc_aligned(
-          (void **)&sector_buffer_,
+
+      buf_size = DiskAnnUtil::round_up(
+          graph_degree * pq_chunk_num_ * sizeof(uint8_t), 256);
+      DiskAnnUtil::alloc_aligned((void **)&pq_coord_buffer_, buf_size, 256);
+
+      buf_size = DiskAnnUtil::round_up(element_size_, 256);
+      DiskAnnUtil::alloc_aligned((void **)&coord_buffer_, buf_size, 256);
+
+      buf_size = DiskAnnUtil::round_up(
           DiskAnnUtil::kMaxSectorReadNum * DiskAnnUtil::kSectorSize,
           DiskAnnUtil::kSectorSize);
+      DiskAnnUtil::alloc_aligned((void **)&sector_buffer_, buf_size,
+                                 DiskAnnUtil::kSectorSize);
 
       ret = setup_io_ctx(io_ctx_);
       if (ret != 0) {
@@ -71,7 +78,7 @@ int DiskAnnContext::init(ContextType type, uint32_t graph_degree,
         return ret;
       }
       break;
-
+    }
     default:
       LOG_ERROR("Init context failed");
       return IndexError_Runtime;

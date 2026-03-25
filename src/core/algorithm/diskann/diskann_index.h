@@ -82,7 +82,8 @@ class DiskAnnIndex {
   diskann_id_t medoid_;
   std::vector<diskann_id_t> entrypints_;
 
-  std::shared_ptr<LinuxAlignedFileReader> reader_{nullptr};
+  // std::shared_ptr<LinuxAlignedFileReader> reader_{nullptr};
+  std::shared_ptr<KQueueAlignedFileReader> reader_{nullptr};
 
   PQTable::Pointer pq_table_;
 
