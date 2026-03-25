@@ -34,6 +34,15 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
           return avx512_vnni::cosine_int8_distance;
         }
       }
+
+      if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX2) {
+        // if (metric_type == MetricType::kSquaredEuclidean) {
+        //   return avx2::squared_euclidean_int8_distance;
+        // }
+        // if (metric_type == MetricType::kCosine) {
+        //   return avx2::cosine_int8_distance;
+        // }
+      }
     }
   }
   if (data_type == DataType::kInt4) {

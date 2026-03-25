@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "avx2/record_quantized_int4/squared_euclidean.h"
-#include "avx2/record_quantized_int4/squared_euclidean_common.h"
+#include "avx2/record_quantized_int4/inner_product_common.h"
 
 #if defined(__AVX2__)
 #include <immintrin.h>
@@ -24,6 +24,35 @@ namespace zvec::turbo::avx2 {
 void squared_euclidean_int4_distance(const void *a, const void *b, size_t dim,
                                      float *distance) {
 #if defined(__AVX2__)
+  const int d = dim - 32;
+  const size_t original_dim = d >> 1;
+
+  if (original_dim <= 0) {
+    return;
+  }
+
+  internal::inner_product_int4_avx2(a, b, original_dim, distance);
+
+  const float *a_tail = reinterpret_cast<const float *>(
+      reinterpret_cast<const uint8_t *>(a) + original_dim);
+  const float *b_tail = reinterpret_cast<const float *>(
+      reinterpret_cast<const uint8_t *>(b) + original_dim);
+
+  float qa = a_tail[0];
+  float qb = a_tail[1];
+  float qs = a_tail[2];
+  float qs2 = a_tail[3];
+
+  const float sum = qa * qs;
+  const float sum2 = qa * qa * qs2;
+
+  float ma = b_tail[0];
+  float mb = b_tail[1];
+  float ms = b_tail[2];
+  float ms2 = b_tail[3];
+
+  *distance = ma * ma * ms2 + sum2 - 2 * ma * qa * *distance +
+              (mb - qb) * (mb - qb) * d + 2 * (mb - qb) * (ms * ma - sum);
 #else
   (void)a;
   (void)b;

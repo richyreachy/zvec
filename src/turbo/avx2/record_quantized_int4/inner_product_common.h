@@ -146,10 +146,8 @@ static inline int32_t HorizontalAdd_INT32_V128(__m128i v) {
 #endif  // __SSE2__
 
 //! Compute the distance between matrix and query
-static __attribute__((always_inline)) void ip_int4_avx2(const void *a,
-                                                        const void *b,
-                                                        size_t size,
-                                                        float *distance) {
+static __attribute__((always_inline)) void inner_product_int4_avx2(
+    const void *a, const void *b, size_t size, float *distance) {
   const uint8_t *lhs = reinterpret_cast<const uint8_t *>(a);
   const uint8_t *rhs = reinterpret_cast<const uint8_t *>(b);
   const uint8_t *last = lhs + size;

@@ -105,6 +105,13 @@ class QuantizedIntegerMetric : public IndexMetric {
           return DistanceMatrixCompute<SquaredEuclidean, int8_t>(m, n);
         }
         if (meta_.data_type() == IndexMeta::DataType::DT_INT4) {
+          auto turbo_ret = turbo::get_distance_func(
+              turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt4,
+              turbo::QuantizeType::kDefault);
+          if (turbo_ret && m == 1 && n == 1) {
+            return turbo_ret;
+          }
+
           return DistanceMatrixCompute<SquaredEuclidean, uint8_t>(m, n);
         }
         break;
