@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "avx2/record_quantized_int4/cosine.h"
-#include "avx2/record_quantized_int4/common.h"
+#include "avx2/record_quantized_int4/inner_product_common.h"
 #if defined(__AVX2__)
 #include <immintrin.h>
 #endif

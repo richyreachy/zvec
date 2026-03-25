@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "avx2/record_quantized_int4/inner_product.h"
-#include "avx2/record_quantized_int4/common.h"
+#include "avx2/record_quantized_int4/inner_product_common.h"
 
 #if defined(__AVX2__)
 #include <immintrin.h>
@@ -43,17 +43,13 @@ void inner_product_int4_distance(const void *a, const void *b, size_t dim,
   float qa = a_tail[0];
   float qb = a_tail[1];
   float qs = a_tail[2];
-  float qs2 = a_tail[3];
-  const float sum = qa * qs;
-  const float sum2 = qa * qa * qs2;
 
   float ma = b_tail[0];
   float mb = b_tail[1];
   float ms = b_tail[2];
-  float ms2 = b_tail[3];
 
-  *distance = ma * ma * ms2 + sum2 - 2 * ma * qa * *distance +
-              (mb - qb) * (mb - qb) * d + 2 * (mb - qb) * (ms * ma - sum);
+  *distance =
+      -(ma * qa * *distance + mb * qa * qs + qb * ma * ms + d * qb * mb);
 
 #else
   (void)a;

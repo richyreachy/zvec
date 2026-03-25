@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "avx2/record_quantized_int4/common.h"
-#include "avx2/record_quantized_int4/cosine.h"
+#include "avx2/record_quantized_int4/squared_euclidean.h"
+#include "avx2/record_quantized_int4/squared_euclidean_common.h"
 
 #if defined(__AVX2__)
 #include <immintrin.h>

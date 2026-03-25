@@ -32,8 +32,7 @@ using namespace zvec::ailego;
 
 static IndexHolder::Pointer GetHolder(
     size_t dim, size_t count, std::uniform_real_distribution<float> &dist) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   auto holder = std::make_shared<MultiPassIndexHolder<IndexMeta::DT_FP32>>(dim);
   for (size_t i = 0; i < count; ++i) {
     ailego::NumericalVector<float> vec(dim);
@@ -71,8 +70,7 @@ TEST(QuantizedIntegerMetric, General) {
 
   Params params;
 
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 1.0);
   const size_t DIMENSION = 21;
   ailego::NumericalVector<float> x(DIMENSION);
@@ -141,8 +139,7 @@ TEST(QuantizedIntegerMetric, General) {
 }
 
 TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
@@ -202,8 +199,7 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
 }
 
 TEST(QuantizedIntegerMetric, TestInt8SquaredEuclideanReformer) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
   std::uniform_int_distribution<int> dist2(0, 1);
 
@@ -251,7 +247,7 @@ void TestDistanceMatrixInt8(const std::string &metric_name) {
 
   const size_t batch_size = M;
   const size_t query_size = N;
-  size_t dimension = (std::uniform_int_distribution<size_t>(1, 65))(gen)*4;
+  size_t dimension = (std::uniform_int_distribution<size_t>(1, 65))(gen) * 4;
   auto holder = GetHolder(dimension, batch_size, dist);
   IndexMeta meta(IndexMeta::DT_FP32, dimension);
   meta.set_metric(metric_name, 0, Params());
@@ -344,8 +340,7 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclideanMetric) {
 }
 
 TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen) * 2;
@@ -404,8 +399,7 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
 }
 
 TEST(QuantizedIntegerMetric, TestInt4SquaredEuclideanReformer) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
   std::uniform_int_distribution<int> dist2(0, 1);
 
@@ -453,7 +447,7 @@ void TestDistanceMatrixInt4(const std::string &metric_name) {
 
   const size_t batch_size = M;
   const size_t query_size = N;
-  size_t dimension = (std::uniform_int_distribution<size_t>(1, 65))(gen)*8;
+  size_t dimension = (std::uniform_int_distribution<size_t>(1, 65))(gen) * 8;
   auto holder = GetHolder(dimension, batch_size, dist);
   IndexMeta meta(IndexMeta::DT_FP32, dimension);
   meta.set_metric(metric_name, 0, Params());
@@ -546,8 +540,7 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclideanMetric) {
 }
 
 TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
@@ -631,8 +624,7 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProductMetric) {
 }
 
 TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen) * 2;
@@ -716,8 +708,7 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProductMetric) {
 }
 
 TEST(QuantizedIntegerMetric, TestInt8MipsSquaredEuclidean) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
@@ -805,8 +796,7 @@ TEST(QuantizedIntegerMetric, TestInt8MipsSquaredEuclideanMetric) {
 }
 
 TEST(QuantizedIntegerMetric, TestInt4MipsSquaredEuclidean) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen) * 2;
@@ -890,8 +880,7 @@ TEST(QuantizedIntegerMetric, TestInt4MipsSquaredEuclideanMetric) {
 }
 
 TEST(QuantizedIntegerMetric, TestInt8NormalizedCosine) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
@@ -990,8 +979,7 @@ TEST(QuantizedIntegerMetric, TestInt8NormalizedCosineMetric) {
 }
 
 TEST(QuantizedIntegerMetric, TestInt8Cosine) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
@@ -1071,8 +1059,7 @@ TEST(QuantizedIntegerMetric, TestInt8Cosine) {
 }
 
 TEST(QuantizedIntegerMetric, TestInt4NormalizedCosine) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen) * 2;

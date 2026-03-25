@@ -65,7 +65,7 @@ static inline int32_t HorizontalAdd_INT32_V256(__m256i v) {
   return _mm_cvtsi128_si32(x4);
 }
 
-#define MASK_INT4_SSE _mm_set1_epi32(0xf0f0f0f0)
+#define MASK_INT4_SSE _mm_set1_epi32(0x0f0f0f0f)
 #define ONES_INT16_SSE _mm_set1_epi32(0x00010001)
 
 #define MASK_INT4_AVX _mm256_set1_epi32(0xf0f0f0f0)
@@ -129,6 +129,22 @@ static const AILEGO_ALIGNED(32) int8_t Int4ConvertTable[32] = {
         _mm256_add_epi32(_mm256_add_epi32(ymm_lhs_0, ymm_lhs_1), ymm_sum);    \
   }
 
+#if defined(__SSE2__)
+static inline int32_t HorizontalAdd_INT32_V128(__m128i v) {
+#ifdef __SSE3__
+  __m128i x1 = _mm_hadd_epi32(v, v);
+  __m128i x2 = _mm_hadd_epi32(x1, x1);
+  return _mm_cvtsi128_si32(x2);
+#else
+  __m128i x1 = _mm_shuffle_epi32(v, _MM_SHUFFLE(0, 0, 3, 2));
+  __m128i x2 = _mm_add_epi32(v, x1);
+  __m128i x3 = _mm_shuffle_epi32(x2, _MM_SHUFFLE(0, 0, 0, 1));
+  __m128i x4 = _mm_add_epi32(x2, x3);
+  return _mm_cvtsi128_si32(x4);
+#endif
+}
+#endif  // __SSE2__
+
 //! Compute the distance between matrix and query
 static __attribute__((always_inline)) void ip_int4_avx2(const void *a,
                                                         const void *b,
@@ -136,47 +152,24 @@ static __attribute__((always_inline)) void ip_int4_avx2(const void *a,
                                                         float *distance) {
   const uint8_t *lhs = reinterpret_cast<const uint8_t *>(a);
   const uint8_t *rhs = reinterpret_cast<const uint8_t *>(b);
-
   const uint8_t *last = lhs + size;
-  const uint8_t *last_aligned = lhs + ((size >> 5) << 5);
-  __m256i ymm_sum = _mm256_setzero_si256();
+  const uint8_t *last_aligned = lhs + ((size >> 4) << 4);
+  __m128i xmm_sum = _mm_setzero_si128();
 
-  if (((uintptr_t)lhs & 0x1f) == 0 && ((uintptr_t)rhs & 0x1f) == 0) {
-    for (; lhs != last_aligned; lhs += 32, rhs += 32) {
-      __m256i ymm_lhs = _mm256_load_si256((const __m256i *)(lhs));
-      __m256i ymm_rhs = _mm256_load_si256((const __m256i *)(rhs));
-      FMA_INT4_ITER_AVX(ymm_lhs, ymm_rhs, ymm_sum)
-    }
-
-    if (last >= lhs + 16) {
-      __m128i xmm_lhs = _mm_load_si128((const __m128i *)lhs);
-      __m128i xmm_rhs = _mm_load_si128((const __m128i *)rhs);
-      __m128i xmm_sum = _mm_setzero_si128();
+  if (((uintptr_t)lhs & 0xf) == 0 && ((uintptr_t)rhs & 0xf) == 0) {
+    for (; lhs != last_aligned; lhs += 16, rhs += 16) {
+      __m128i xmm_lhs = _mm_load_si128((const __m128i *)(lhs));
+      __m128i xmm_rhs = _mm_load_si128((const __m128i *)(rhs));
       FMA_INT4_ITER_SSE(xmm_lhs, xmm_rhs, xmm_sum)
-      ymm_sum = _mm256_add_epi32(_mm256_set_m128i(_mm_setzero_si128(), xmm_sum),
-                                 ymm_sum);
-      lhs += 16;
-      rhs += 16;
     }
   } else {
-    for (; lhs != last_aligned; lhs += 32, rhs += 32) {
-      __m256i ymm_lhs = _mm256_loadu_si256((const __m256i *)(lhs));
-      __m256i ymm_rhs = _mm256_loadu_si256((const __m256i *)(rhs));
-      FMA_INT4_ITER_AVX(ymm_lhs, ymm_rhs, ymm_sum)
-    }
-
-    if (last >= lhs + 16) {
-      __m128i xmm_lhs = _mm_loadu_si128((const __m128i *)lhs);
-      __m128i xmm_rhs = _mm_loadu_si128((const __m128i *)rhs);
-      __m128i xmm_sum = _mm_setzero_si128();
+    for (; lhs != last_aligned; lhs += 16, rhs += 16) {
+      __m128i xmm_lhs = _mm_loadu_si128((const __m128i *)(lhs));
+      __m128i xmm_rhs = _mm_loadu_si128((const __m128i *)(rhs));
       FMA_INT4_ITER_SSE(xmm_lhs, xmm_rhs, xmm_sum)
-      ymm_sum = _mm256_add_epi32(_mm256_set_m128i(_mm_setzero_si128(), xmm_sum),
-                                 ymm_sum);
-      lhs += 16;
-      rhs += 16;
     }
   }
-  float result = static_cast<float>(HorizontalAdd_INT32_V256(ymm_sum));
+  float result = static_cast<float>(HorizontalAdd_INT32_V128(xmm_sum));
 
   switch (last - lhs) {
     case 15:
