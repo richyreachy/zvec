@@ -12,31 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "sse/record_quantized_int4/squared_euclidean.h"
-#include "sse/record_quantized_int4/inner_product_common.h"
+#include "avx2/record_quantized_int8/inner_product.h"
+#include "avx2/record_quantized_int8/inner_product_common.h"
 
-#if defined(__SSE__)
+#if defined(__AVX2__)
 #include <immintrin.h>
 #endif
 
-namespace zvec::turbo::sse {
+namespace zvec::turbo::avx2 {
 
-void squared_euclidean_int4_distance(const void *a, const void *b, size_t dim,
-                                     float *distance) {
-#if defined(__SSE__)
+// Compute squared Euclidean distance between a single quantized int8
+// vector pair.
+void inner_product_int8_distance(const void *a, const void *b, size_t dim,
+                                 float *distance) {
+#if defined(__AVX2__)
 
 #else
   (void)a;
   (void)b;
   (void)dim;
   (void)distance;
-#endif  // __SSE__
+#endif  //__AVX2__
 }
 
-void squared_euclidean_int4_batch_distance(const void *const *vectors,
-                                           const void *query, size_t n,
-                                           size_t dim, float *distances) {
-#if defined(__SSE__)
+// Batch version of inner_product_int8_distance.
+void inner_product_int8_batch_distance(const void *const *vectors,
+                                       const void *query, size_t n, size_t dim,
+                                       float *distances) {
+#if defined(__AVX2__)
 
 #else
   (void)vectors;
@@ -44,7 +47,7 @@ void squared_euclidean_int4_batch_distance(const void *const *vectors,
   (void)n;
   (void)dim;
   (void)distances;
-#endif  //__SSE__
+#endif  //__AVX2__
 }
 
-}  // namespace zvec::turbo::sse
+}  // namespace zvec::turbo::avx2

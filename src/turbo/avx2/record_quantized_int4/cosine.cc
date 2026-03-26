@@ -65,7 +65,8 @@ void cosine_int4_batch_distance(const void *const *vectors, const void *query,
     return;
   }
 
-  internal::ip_int4_batch_avx2(vectors, query, n, original_dim, distances);
+  internal::inner_product_int4_batch_avx2(vectors, query, n, original_dim,
+                                          distances);
 
   const float *q_tail = reinterpret_cast<const float *>(
       reinterpret_cast<const int8_t *>(query) + original_dim);

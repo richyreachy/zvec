@@ -223,12 +223,12 @@ static __attribute__((always_inline)) void squared_euclidean_int4_avx2(
 // single query. Uses AVX512-VNNI dpbusd instruction.
 // `query` is treated as uint8 (preprocessed), `vectors[i]` as int8.
 template <size_t batch_size>
-__attribute__((always_inline)) void ip_int4_batch_avx2_impl(
+__attribute__((always_inline)) void inner_product_int4_batch_avx2_impl(
     const void *query, const void *const *vectors,
     const std::array<const void *, batch_size> &prefetch_ptrs,
     size_t dimensionality, float *distances) {}
 
-static __attribute__((always_inline)) void ip_int4_batch_avx2(
+static __attribute__((always_inline)) void inner_product_int4_batch_avx2(
     const void *const *vectors, const void *query, size_t n, size_t dim,
     float *distances) {
   static constexpr size_t batch_size = 2;
@@ -243,13 +243,13 @@ static __attribute__((always_inline)) void ip_int4_batch_avx2(
         prefetch_ptrs[j] = nullptr;
       }
     }
-    ip_int4_batch_avx2_impl<batch_size>(query, &vectors[i], prefetch_ptrs, dim,
-                                        distances + i);
+    inner_product_int4_batch_avx2_impl<batch_size>(
+        query, &vectors[i], prefetch_ptrs, dim, distances + i);
   }
   for (; i < n; i++) {
     std::array<const void *, 1> prefetch_ptrs{nullptr};
-    ip_int4_batch_avx2_impl<1>(query, &vectors[i], prefetch_ptrs, dim,
-                               distances + i);
+    inner_product_int4_batch_avx2_impl<1>(query, &vectors[i], prefetch_ptrs,
+                                          dim, distances + i);
   }
 }
 

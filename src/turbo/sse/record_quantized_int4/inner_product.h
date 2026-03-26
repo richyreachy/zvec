@@ -14,12 +14,11 @@
 
 #pragma once
 
-
 #include <cstddef>
 
 namespace zvec::turbo::sse {
 
-// Compute squared Euclidean distance between a single quantized INT4
+// Compute inner product distance between a single quantized INT4
 // vector pair.
 void inner_product_int4_distance(const void *a, const void *b, size_t dim,
                                  float *distance);

@@ -11,3 +11,43 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+#include "sse/record_quantized_int8/inner_product.h"
+#include "sse/record_quantized_int8/common.h"
+
+#if defined(__SSE__)
+#include <immintrin.h>
+#endif
+
+namespace zvec::turbo::sse {
+
+// Compute squared Euclidean distance between a single quantized INT4
+// vector pair.
+void inner_product_int8_distance(const void *a, const void *b, size_t dim,
+                                 float *distance) {
+#if defined(__SSE__)
+
+#else
+  (void)a;
+  (void)b;
+  (void)dim;
+  (void)distance;
+#endif  //__SSE__
+}
+
+// Batch version of inner_product_int8_distance.
+void inner_product_int8_batch_distance(const void *const *vectors,
+                                       const void *query, size_t n, size_t dim,
+                                       float *distances) {
+#if defined(__SSE__)
+
+#else
+  (void)vectors;
+  (void)query;
+  (void)n;
+  (void)dim;
+  (void)distances;
+#endif  //__SSE__
+}
+
+}  // namespace zvec::turbo::sse

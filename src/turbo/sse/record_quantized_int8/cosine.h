@@ -31,9 +31,4 @@ void cosine_int8_distance(const void *a, const void *b, size_t dim,
 void cosine_int8_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances);
 
-// Preprocess the query vector in-place (shift int8 -> uint8 by adding 128)
-// so that the AVX512-VNNI dpbusd instruction can be used for inner product.
-// `dim` includes the 24-byte metadata tail.
-void cosine_int8_query_preprocess(void *query, size_t dim);
-
 }  // namespace zvec::turbo::sse

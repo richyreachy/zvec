@@ -43,15 +43,25 @@ enum class QuantizeType {
   kDefault,
 };
 
+enum class CpuArchType {
+  kAuto,
+  kSSE,
+  kAVX2,
+  kAVX512,
+  kAVX512VNNI,
+  kAVX512FP16
+};
+
 DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
-                               QuantizeType quantize_type);
+                               QuantizeType quantize_type,
+                               CpuArchType cpu_arch_type = CpuArchType::kAuto);
 
-BatchDistanceFunc get_batch_distance_func(MetricType metric_type,
-                                          DataType data_type,
-                                          QuantizeType quantize_type);
+BatchDistanceFunc get_batch_distance_func(
+    MetricType metric_type, DataType data_type, QuantizeType quantize_type,
+    CpuArchType cpu_arch_type = CpuArchType::kAuto);
 
-QueryPreprocessFunc get_query_preprocess_func(MetricType metric_type,
-                                              DataType data_type,
-                                              QuantizeType quantize_type);
+QueryPreprocessFunc get_query_preprocess_func(
+    MetricType metric_type, DataType data_type, QuantizeType quantize_type,
+    CpuArchType cpu_arch_type = CpuArchType::kAuto);
 
 }  // namespace zvec::turbo

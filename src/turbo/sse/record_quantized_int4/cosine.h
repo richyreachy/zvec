@@ -19,15 +19,11 @@
 namespace zvec::turbo::sse {
 
 // Compute cosine distance (negative inner product after normalization) between
-// a single quantized INT8 vector pair.
-// `dim` includes the original vector bytes plus a 24-byte metadata tail
-// (3 floats: scale_a, bias_a, sum_a).
+// a single quantized INT4 vector pair.
 void cosine_int4_distance(const void *a, const void *b, size_t dim,
                           float *distance);
 
-// Batch version of cosine_int8_distance.
-// The query must have been preprocessed by cosine_int8_query_preprocess
-// (int8 -> uint8 via + 128 shift) before calling this function.
+// Batch version of cosine_int4_distance.
 void cosine_int4_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances);
 

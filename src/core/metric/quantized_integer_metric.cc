@@ -118,6 +118,12 @@ class QuantizedIntegerMetric : public IndexMetric {
 
       case MetricType::kInnerProduct:
         if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
+          auto turbo_ret = turbo::get_distance_func(
+              turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
+              turbo::QuantizeType::kDefault);
+          if (turbo_ret && m == 1 && n == 1) {
+            return turbo_ret;
+          }
           return DistanceMatrixCompute<MinusInnerProduct, int8_t>(m, n);
         }
 

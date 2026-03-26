@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "sse/record_quantized_int4/cosine.h"
-#include "sse/record_quantized_int4/common.h"
-#if defined(__SSE4_1__)
+#include "sse/record_quantized_int4/inner_product_common.h"
+#if defined(__SSE__)
 #include <immintrin.h>
 #endif
 
@@ -22,12 +22,7 @@ namespace zvec::turbo::sse {
 
 void cosine_int4_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
-#if defined(__SSE4_1__)
-  // `dim` is the full encoded size; the original vector occupies dim-24 bytes.
-  const int original_dim = dim - 24;
-  if (original_dim <= 0) {
-    return;
-  }
+#if defined(__SSE__)
 
 #else
   (void)a;
@@ -39,7 +34,7 @@ void cosine_int4_distance(const void *a, const void *b, size_t dim,
 
 void cosine_int4_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances) {
-#if defined(__SSE4_1__)
+#if defined(__SSE__)
 
 #else
   (void)vectors;
@@ -47,7 +42,7 @@ void cosine_int4_batch_distance(const void *const *vectors, const void *query,
   (void)n;
   (void)dim;
   (void)distances;
-#endif  //__SSE4_1__
+#endif  //__SSE__
 }
 
 }  // namespace zvec::turbo::sse

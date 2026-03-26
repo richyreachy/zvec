@@ -16,16 +16,16 @@
 
 #include <cstddef>
 
-namespace zvec::turbo::sse {
+namespace zvec::turbo::avx2 {
 
-// Compute squared euclidean distance between a single quantized INT4
+// Compute inner product distance between a single quantized int8
 // vector pair.
-void squared_euclidean_int4_distance(const void *a, const void *b, size_t dim,
-                                     float *distance);
+void inner_product_int8_distance(const void *a, const void *b, size_t dim,
+                                 float *distance);
 
-// Batch version of squared euclidean  INT4.
-void squared_euclidean_int4_batch_distance(const void *const *vectors,
-                                           const void *query, size_t n,
-                                           size_t dim, float *distances);
+// Batch version of inner_product_int8_distance.
+void inner_product_int8_batch_distance(const void *const *vectors,
+                                       const void *query, size_t n, size_t dim,
+                                       float *distances);
 
-}  // namespace zvec::turbo::sse
+}  // namespace zvec::turbo::avx2

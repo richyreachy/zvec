@@ -13,3 +13,19 @@
 // limitations under the License.
 
 #pragma once
+
+#include <cstddef>
+
+namespace zvec::turbo::sse {
+
+// Compute inner product distance between a single quantized INT4
+// vector pair.
+void inner_product_int8_distance(const void *a, const void *b, size_t dim,
+                                 float *distance);
+
+// Batch version of inner_product_int4_distance.
+void inner_product_int8_batch_distance(const void *const *vectors,
+                                       const void *query, size_t n, size_t dim,
+                                       float *distances);
+
+}  // namespace zvec::turbo::sse
