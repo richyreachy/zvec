@@ -5,26 +5,27 @@ set(CC_CXX_STANDARD 17)
 
 if(MSVC)
     set(INTTYPES_FORMAT VC7)
-    add_compile_options(/FS) #handle .pdb
+    add_compile_options(/FS) # handle .pdb
     add_compile_options(/EHsc) # def c++ exception behavior
     add_compile_options(/Zc:preprocessor)
     add_compile_options(/we4716) # -Werror=return-type
 
-
-    ###### reduce output length to make vibe coding work better :), which should be removed or solved later
-    add_compile_options(/wd4267 /wd4244)
+    ###### reduce output length to make vibe coding work better :) should be removed or solved later
+    add_compile_options(/wd4267 /wd4244 /wd4305 /wd4242) # conversion/truncation from 'size_t' to 'type', possible loss of data
+    add_compile_options(/wd4310) # cast truncates constant value
     add_compile_options(/wd4146) # unary minus operator applied to unsigned type #usage: uint32_t seg_id_{-1U};
-    add_compile_options(/wd4310) # warning C4310: cast truncates constant value
-    add_compile_options(/wd4530) #  warning C4530: C++ exception handler used, but unwind semantics are not enabled. Specify /EHsc
-    add_compile_options(/wd4251) #protobuf
-    add_compile_options(/wd4245 /wd4334 /wd4702  /wd4305 /wd4099)
-    add_compile_options(/wd4200) # flexible structure
-
-    # //warning C4334: '<<': result of 32-bit shift implicitly converted to 64 bits (was 64-bit shift intended?)
-    # keeps |= (1 << k);
+    add_compile_options(/wd4245) # conversion from 'type1' to 'type2', signed/unsigned mismatch
+    add_compile_options(/wd4251) # class 'type' needs to have dll-interface to be used by clients of class 'type2'
+    add_compile_options(/wd4099) # type name first seen using 'object_type1' now seen using 'object_type2'
+    add_compile_options(/wd4200) # nonstandard extension used : zero-sized array in struct/union
+    add_compile_options(/wd4324) # structure was padded due to alignment specifier
+    add_compile_options(/wd4702) # unreachable code
+    add_compile_options(/wd4996) # wstring_convert are deprecated in C++17 # usage: in antlr4
+    add_compile_options(/wd4101) # unreferenced local variable
+    add_compile_options(/wd4996) # The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _lseek
+    # result of 32-bit shift implicitly converted to 64 bits (was 64-bit shift intended?) # usage: keeps |= (1 << k);
     add_compile_options(/wd4334)
     ######
-
 
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror=return-type")
