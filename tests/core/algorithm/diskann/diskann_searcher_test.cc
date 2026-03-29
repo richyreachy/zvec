@@ -1105,7 +1105,8 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
       order_keys.push_back(linearResult[j].key());
 
       p_keys[0] = order_keys;
-      std::shuffle(p_keys[0].begin(), p_keys[0].end(), gen());
+
+      std::shuffle(p_keys[0].begin(), p_keys[0].end(), gen);
     }
 
     ASSERT_EQ(0, searcher->search_bf_by_p_keys_impl(new_query.data(), p_keys,
@@ -1129,7 +1130,6 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
     // TODO: check
     topk1Hits += i == knnResult[0].key();
 
-    auto &linearResult = linearCtx->result();
     ASSERT_EQ(topk, linearResult.size());
     ASSERT_EQ(i, linearResult[0].key());
 

@@ -25,5 +25,5 @@ add_subdirectory(CRoaring CRoaring EXCLUDE_FROM_ALL)
 add_subdirectory(arrow arrow EXCLUDE_FROM_ALL)
 add_subdirectory(magic_enum magic_enum EXCLUDE_FROM_ALL)
 add_subdirectory(RaBitQ-Library RaBitQ-Library EXCLUDE_FROM_ALL)
-add_subdirectory(aio aio EXCLUDE_FROM_ALL)
+#add_subdirectory(aio aio EXCLUDE_FROM_ALL)
 
