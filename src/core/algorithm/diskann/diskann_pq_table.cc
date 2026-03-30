@@ -21,6 +21,14 @@ namespace core {
 PQTable::PQTable(const IndexMeta &meta, uint32_t chunk_num)
     : chunk_num_(chunk_num) {
   meta_ = meta;
+
+  if (meta.metric_name() == "Cosine") {
+    if (meta.data_type() == IndexMeta::DataType::DT_FP32) {
+      meta_.set_dimension(meta.dimension() - 1);
+    } else {
+      meta_.set_dimension(meta.dimension() - 2);
+    }
+  }
 }
 
 PQTable::~PQTable() {}

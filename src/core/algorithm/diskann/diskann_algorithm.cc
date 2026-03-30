@@ -731,7 +731,7 @@ int DiskAnnAlgorithm::generate_quantized_data(
   IndexMeta new_meta = meta;
 
   if (meta.metric_name() == "Cosine") {
-    new_meta.set_metric("InnerProduct", 0, ailego::Params());
+    new_meta.set_metric("SquaredEuclidean", 0, ailego::Params());
 
     if (meta.data_type() == IndexMeta::DataType::DT_FP32) {
       new_meta.set_dimension(meta.dimension() - 1);

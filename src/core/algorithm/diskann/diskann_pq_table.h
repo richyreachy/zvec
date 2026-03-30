@@ -113,8 +113,7 @@ class PQTable {
   }
 
   int preprocess_pq_dist_table(void *query_rotated, float *dist_buffer) {
-    uint32_t type = meta_.data_type();
-    switch (type) {
+    switch (meta_.data_type()) {
       case IndexMeta::DataType::DT_FP32:
         preprocess_query(reinterpret_cast<float *>(query_rotated));
         compute_distance_table(reinterpret_cast<float *>(query_rotated),
@@ -127,7 +126,7 @@ class PQTable {
             reinterpret_cast<ailego::Float16 *>(query_rotated), dist_buffer);
         break;
       default:
-        LOG_ERROR("Unsupported Type: %u", type);
+        LOG_ERROR("Unsupported Type: %u", meta_.data_type());
         return IndexError_Unsupported;
     }
 
@@ -149,8 +148,6 @@ class PQTable {
 
   IndexMeta meta_;
   uint64_t chunk_num_{0};
-
-  // bool rotate_{false};
 };
 
 }  // namespace core

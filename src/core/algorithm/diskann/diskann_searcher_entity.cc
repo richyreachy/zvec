@@ -210,9 +210,7 @@ int DiskAnnSearcherEntity::load_pq_segment() {
   void *pq_data_ptr = &pq_data[0];
   read_size = pq_data_segment_->fetch(
       0, pq_data_ptr, meta_header_.doc_cnt * pq_meta_.chunk_num);
-  // read_size = pq_data_segment_->read(0, &data,
-  //                                    meta_header_.doc_cnt *
-  //                                    pq_meta_.chunk_num);
+
   if (read_size != meta_header_.doc_cnt * pq_meta_.chunk_num) {
     LOG_ERROR("Read segment %s failed, expect: %zu, actual: %zu",
               DiskAnnEntity::kDiskAnnPqMetaSegmentId.c_str(),
@@ -221,8 +219,6 @@ int DiskAnnSearcherEntity::load_pq_segment() {
 
     return IndexError_ReadData;
   }
-
-  // memcpy(&(pq_data[0]), data, read_size);
 
   pq_table_ = std::make_shared<PQTable>(meta_, pq_meta_.chunk_num);
 

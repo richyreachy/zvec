@@ -819,8 +819,7 @@ TEST_F(DiskAnnSearcherTest, TestGeneralFp16) {
   IndexBuilder::Pointer builder = IndexFactory::CreateBuilder("DiskAnnBuilder");
   ASSERT_NE(builder, nullptr);
 
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-2.0, 2.0);
 
   std::vector<NumericalVector<float>> vecs;
@@ -974,8 +973,7 @@ TEST_F(DiskAnnSearcherTest, TestGeneralFp16) {
 
 
 TEST_F(DiskAnnSearcherTest, TestCosine) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
 
   std::uniform_real_distribution<float> dist(-2.0, 2.0);
 
@@ -1034,7 +1032,7 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
 
-  string path = _dir + "/TestGeneral";
+  string path = _dir + "/TestCosine";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
@@ -1083,6 +1081,7 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
   linearByPKeysCtx->set_topk(topk);
   knnCtx->set_topk(topk);
 
+  // size_t query_cnt = 1;
   size_t query_cnt = 10;
   size_t step = doc_cnt / query_cnt;
   for (size_t i = 0; i < query_cnt; ++i) {
