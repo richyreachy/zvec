@@ -1086,7 +1086,8 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
   size_t query_cnt = 10;
   size_t step = doc_cnt / query_cnt;
   for (size_t i = 0; i < query_cnt; ++i) {
-    auto &qvec = vecs[i + step];
+    size_t index = i * step;
+    auto &qvec = vecs[index];
 
     std::string new_query;
     IndexQueryMeta new_meta;
@@ -1098,7 +1099,7 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
 
     auto &linearResult = linearCtx->result();
 
-    ASSERT_EQ(i, linearResult[0].key());
+    ASSERT_EQ(index, linearResult[0].key());
 
     // do linear search by p_keys test
     std::vector<std::vector<uint64_t>> p_keys;
@@ -1132,10 +1133,10 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
 
     auto &knnResult = knnCtx->result();
     // TODO: check
-    topk1Hits += i == knnResult[0].key();
+    topk1Hits += index == knnResult[0].key();
 
     ASSERT_EQ(topk, linearResult.size());
-    ASSERT_EQ(i, linearResult[0].key());
+    ASSERT_EQ(index, linearResult[0].key());
 
     for (size_t k = 0; k < topk; ++k) {
       totalCnts++;
@@ -1150,7 +1151,6 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
 
   float recall = totalHits * 1.0f / totalCnts;
   float topk1Recall = topk1Hits * 1.0f / query_cnt;
-
 
   EXPECT_GT(recall, 0.90f);
   EXPECT_GT(topk1Recall, 0.90f);
