@@ -971,7 +971,6 @@ TEST_F(DiskAnnSearcherTest, TestGeneralFp16) {
   EXPECT_GT(cost, 2.0f);
 }
 
-
 TEST_F(DiskAnnSearcherTest, TestCosine) {
   std::mt19937 gen(15583);
 
@@ -1033,6 +1032,190 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
   ASSERT_NE(dumper, nullptr);
 
   string path = _dir + "/TestCosine";
+  ASSERT_EQ(0, dumper->create(path));
+  ASSERT_EQ(0, builder->dump(dumper));
+  ASSERT_EQ(0, dumper->close());
+
+  auto &stats = builder->stats();
+  ASSERT_EQ(doc_cnt, stats.trained_count());
+  ASSERT_EQ(doc_cnt, stats.built_count());
+  ASSERT_EQ(doc_cnt, stats.dumped_count());
+  ASSERT_EQ(0UL, stats.discarded_count());
+  ASSERT_GT(stats.trained_costtime(), 0UL);
+  ASSERT_GT(stats.built_costtime(), 0UL);
+
+  // test searcher
+  IndexSearcher::Pointer searcher =
+      IndexFactory::CreateSearcher("DiskAnnSearcher");
+  ASSERT_TRUE(searcher != nullptr);
+
+  Params search_params;
+  search_params.set("proxima.diskann.searcher.list_size", 500);
+
+  ASSERT_EQ(0, searcher->init(search_params));
+
+  auto storage = IndexFactory::CreateStorage("FileReadStorage");
+  ASSERT_EQ(0, storage->open(path, false));
+  ASSERT_EQ(0, searcher->load(storage, IndexMetric::Pointer()));
+  auto ctx = searcher->create_context();
+  ASSERT_TRUE(!!ctx);
+
+  auto linearCtx = searcher->create_context();
+  auto linearByPKeysCtx = searcher->create_context();
+  auto knnCtx = searcher->create_context();
+
+  ASSERT_TRUE(!!linearCtx);
+  ASSERT_TRUE(!!linearByPKeysCtx);
+  ASSERT_TRUE(!!knnCtx);
+
+  NumericalVector<float> vec(dim);
+  IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dim);
+  size_t topk = 200;
+  uint64_t knnTotalTime = 0;
+  uint64_t linearTotalTime = 0;
+  int totalHits = 0;
+  int totalCnts = 0;
+  int topk1Hits = 0;
+  linearCtx->set_topk(topk);
+  linearByPKeysCtx->set_topk(topk);
+  knnCtx->set_topk(topk);
+
+  // size_t query_cnt = 1;
+  size_t query_cnt = 10;
+  size_t step = doc_cnt / query_cnt;
+  for (size_t i = 0; i < query_cnt; ++i) {
+    size_t index = i * step;
+    auto &qvec = vecs[index];
+
+    std::string new_query;
+    IndexQueryMeta new_meta;
+    ASSERT_EQ(0,
+              reformer->transform(qvec.data(), qmeta, &new_query, &new_meta));
+
+    ASSERT_EQ(0,
+              searcher->search_bf_impl(new_query.data(), new_meta, linearCtx));
+
+    auto &linearResult = linearCtx->result();
+
+    ASSERT_EQ(index, linearResult[0].key());
+
+    // do linear search by p_keys test
+    std::vector<std::vector<uint64_t>> p_keys;
+    p_keys.resize(1);
+
+    std::vector<uint64_t> order_keys;
+    for (size_t j = 0; j < 10; ++j) {
+      order_keys.push_back(linearResult[j].key());
+
+      p_keys[0] = order_keys;
+
+      std::shuffle(p_keys[0].begin(), p_keys[0].end(), gen);
+    }
+
+    ASSERT_EQ(0, searcher->search_bf_by_p_keys_impl(new_query.data(), p_keys,
+                                                    qmeta, linearByPKeysCtx));
+    auto &linearByPKeysResult = linearByPKeysCtx->result();
+    ASSERT_EQ(10, linearByPKeysResult.size());
+    ASSERT_EQ(order_keys[0], linearByPKeysResult[0].key());
+    ASSERT_EQ(order_keys[1], linearByPKeysResult[1].key());
+    ASSERT_EQ(order_keys[2], linearByPKeysResult[2].key());
+    ASSERT_EQ(order_keys[3], linearByPKeysResult[3].key());
+    ASSERT_EQ(order_keys[4], linearByPKeysResult[4].key());
+    ASSERT_EQ(order_keys[5], linearByPKeysResult[5].key());
+    ASSERT_EQ(order_keys[6], linearByPKeysResult[6].key());
+    ASSERT_EQ(order_keys[7], linearByPKeysResult[7].key());
+
+    auto t1 = Realtime::MicroSeconds();
+    ASSERT_EQ(0, searcher->search_impl(new_query.data(), qmeta, knnCtx));
+    auto t2 = Realtime::MicroSeconds();
+
+    auto &knnResult = knnCtx->result();
+    // TODO: check
+    topk1Hits += index == knnResult[0].key();
+
+    ASSERT_EQ(topk, linearResult.size());
+    ASSERT_EQ(index, linearResult[0].key());
+
+    for (size_t k = 0; k < topk; ++k) {
+      totalCnts++;
+      for (size_t j = 0; j < topk; ++j) {
+        if (linearResult[j].key() == knnResult[k].key()) {
+          totalHits++;
+          break;
+        }
+      }
+    }
+  }
+
+  float recall = totalHits * 1.0f / totalCnts;
+  float topk1Recall = topk1Hits * 1.0f / query_cnt;
+
+  EXPECT_GT(recall, 0.90f);
+  EXPECT_GT(topk1Recall, 0.90f);
+}
+
+
+TEST_F(DiskAnnSearcherTest, TestCosineFp16) {
+  std::mt19937 gen(15583);
+
+  std::uniform_real_distribution<float> dist(-2.0, 2.0);
+
+  IndexBuilder::Pointer builder = IndexFactory::CreateBuilder("DiskAnnBuilder");
+  ASSERT_NE(builder, nullptr);
+
+  auto holder =
+      make_shared<MultiPassIndexHolder<IndexMeta::DataType::DT_FP32>>(dim);
+  size_t doc_cnt = 10000UL;
+
+  std::vector<NumericalVector<float>> vecs;
+
+  for (size_t i = 0; i < doc_cnt; i++) {
+    NumericalVector<float> vec(dim);
+    for (size_t j = 0; j < dim; ++j) {
+      vec[j] = dist(gen);
+    }
+
+    ASSERT_TRUE(holder->emplace(i, vec));
+
+    vecs.push_back(vec);
+  }
+
+  IndexMeta index_meta_raw(IndexMeta::DataType::DT_FP32, dim);
+  index_meta_raw.set_metric("Cosine", 0, Params());
+
+  Params converter_params;
+  auto converter = IndexFactory::CreateConverter("CosineFp16Converter");
+  converter->init(index_meta_raw, converter_params);
+  IndexMeta index_meta = converter->meta();
+
+  auto reformer = IndexFactory::CreateReformer(index_meta.reformer_name());
+  ASSERT_TRUE(reformer != nullptr);
+
+  ASSERT_EQ(0, reformer->init(index_meta.reformer_params()));
+
+  Params params;
+
+  params.set("proxima.diskann.builder.max_degree", 32);
+  params.set("proxima.diskann.builder.list_size", 50);
+  params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
+  params.set("proxima.diskann.builder.threads", 4);
+
+  IndexMeta new_meta = converter->meta();
+
+  converter->transform(holder);
+
+  auto new_holder = converter->result();
+
+  ASSERT_EQ(0, builder->init(new_meta, params));
+
+  ASSERT_EQ(0, builder->train(new_holder));
+
+  ASSERT_EQ(0, builder->build(new_holder));
+
+  auto dumper = IndexFactory::CreateDumper("FileDumper");
+  ASSERT_NE(dumper, nullptr);
+
+  string path = _dir + "/TestCosineFp16";
   ASSERT_EQ(0, dumper->create(path));
   ASSERT_EQ(0, builder->dump(dumper));
   ASSERT_EQ(0, dumper->close());
