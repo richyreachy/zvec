@@ -1071,8 +1071,6 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
   NumericalVector<float> vec(dim);
   IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dim);
   size_t topk = 200;
-  uint64_t knnTotalTime = 0;
-  uint64_t linearTotalTime = 0;
   int totalHits = 0;
   int totalCnts = 0;
   int topk1Hits = 0;
@@ -1125,9 +1123,7 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
     ASSERT_EQ(order_keys[6], linearByPKeysResult[6].key());
     ASSERT_EQ(order_keys[7], linearByPKeysResult[7].key());
 
-    auto t1 = Realtime::MicroSeconds();
     ASSERT_EQ(0, searcher->search_impl(new_query.data(), qmeta, knnCtx));
-    auto t2 = Realtime::MicroSeconds();
 
     auto &knnResult = knnCtx->result();
     // TODO: check
@@ -1153,7 +1149,6 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
   EXPECT_GT(recall, 0.90f);
   EXPECT_GT(topk1Recall, 0.90f);
 }
-
 
 TEST_F(DiskAnnSearcherTest, TestCosineFp16) {
   std::mt19937 gen(15583);
@@ -1255,8 +1250,6 @@ TEST_F(DiskAnnSearcherTest, TestCosineFp16) {
   NumericalVector<float> vec(dim);
   IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dim);
   size_t topk = 200;
-  uint64_t knnTotalTime = 0;
-  uint64_t linearTotalTime = 0;
   int totalHits = 0;
   int totalCnts = 0;
   int topk1Hits = 0;
@@ -1309,9 +1302,7 @@ TEST_F(DiskAnnSearcherTest, TestCosineFp16) {
     ASSERT_EQ(order_keys[6], linearByPKeysResult[6].key());
     ASSERT_EQ(order_keys[7], linearByPKeysResult[7].key());
 
-    auto t1 = Realtime::MicroSeconds();
     ASSERT_EQ(0, searcher->search_impl(new_query.data(), qmeta, knnCtx));
-    auto t2 = Realtime::MicroSeconds();
 
     auto &knnResult = knnCtx->result();
     // TODO: check

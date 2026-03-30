@@ -17,7 +17,7 @@
 #include <zvec/core/framework/index_builder.h>
 #include "diskann_algorithm.h"
 #include "diskann_builder_entity.h"
-#include "diskann_pq_table.h"
+#include "diskann_pq_trainer.h"
 
 namespace zvec {
 namespace core {
@@ -111,13 +111,15 @@ class DiskAnnBuilder : public IndexBuilder {
   std::mutex mutex_{};
   std::condition_variable cond_{};
 
-  IndexMeta meta_;
+  IndexMeta raw_meta_;
+  IndexMeta build_meta_;
 
   DiskAnnBuilderEntity entity_{};
 
   IndexHolder::Pointer holder_;
 
   DiskAnnAlgorithm::UPointer algo_;
+  DiskAnnPqTrainer::UPointer trainer_;
 
   uint32_t check_interval_secs_{kDefaultLogIntervalSecs};
 };

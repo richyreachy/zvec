@@ -16,8 +16,6 @@
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_meta.h>
 #include "diskann_context.h"
-#include "diskann_pq_table.h"
-#include "../cluster/multi_chunk_cluster.h"
 
 namespace zvec {
 namespace core {
@@ -27,54 +25,7 @@ class DiskAnnAlgorithm {
   typedef std::unique_ptr<DiskAnnAlgorithm> UPointer;
 
  public:
-  DiskAnnAlgorithm(DiskAnnEntity &entity, uint32_t max_degree,
-                   uint32_t max_train_sample_count);
-
- public:
-  template <typename T>
-  static int prepare_pq_train_data(
-      const IndexMeta &meta, size_t num_train, std::string &train_data,
-      bool use_zero_mean, std::vector<uint8_t> &centroid,
-      std::shared_ptr<CompactIndexFeatures> &train_features);
-
-  template <typename T>
-  static int convert_pivot_data(const IndexMeta &meta, uint32_t num_centers,
-                                uint32_t pq_chunk_num,
-                                const std::vector<uint32_t> &chunk_dims,
-                                const std::vector<uint32_t> &chunk_offsets,
-                                IndexCluster::CentroidList &centroids,
-                                std::vector<uint8_t> &full_pivot_data);
-
-  int gen_random_sample(IndexHolder::Pointer holder, const IndexMeta &meta,
-                        std::string &sample_data, size_t &sample_size);
-
-  int generate_quantized_data(IndexThreads::Pointer threads,
-                              IndexHolder::Pointer holder,
-                              const IndexMeta &meta,
-                              // std::vector<uint8_t> &pq_full_pivot_data,
-                              std::vector<uint8_t> &pq_centroid,
-                              // std::vector<uint32_t> &pq_chunk_offsets,
-                              std::vector<uint8_t> &block_compressed_data,
-                              size_t num_pq_chunks);
-
-  int generate_pq(IndexThreads::Pointer threads, const IndexMeta &meta,
-                  IndexHolder::Pointer holder, uint32_t num_pq_chunks,
-                  std::vector<uint8_t> &centroid,
-                  std::vector<uint8_t> &block_compressed_data);
-
-  int train_quantized_data(IndexThreads::Pointer threads,
-                           IndexHolder::Pointer holder, const IndexMeta &meta,
-                           std::vector<uint8_t> &pq_full_pivot_data,
-                           std::vector<uint8_t> &pq_centroid,
-                           std::vector<uint32_t> &pq_chunk_offsets,
-                           size_t num_pq_chunks);
-
-  int train_pq(IndexThreads::Pointer threads, const IndexMeta &meta,
-               std::string &train_data, size_t num_train, uint32_t num_centers,
-               uint32_t num_pq_chunks, uint32_t max_iterations,
-               bool use_zero_mean, std::vector<uint8_t> &full_pivot_data,
-               std::vector<uint8_t> &centroid,
-               std::vector<uint32_t> &chunk_offsets);
+  DiskAnnAlgorithm(DiskAnnEntity &entity, uint32_t max_degree);
 
  public:
   int add_node(diskann_id_t id, DiskAnnContext *ctx);
@@ -100,20 +51,12 @@ class DiskAnnAlgorithm {
   static constexpr uint32_t kLockCnt{1U << 16};
   static constexpr uint32_t kLockMask{kLockCnt - 1U};
 
-  static constexpr uint32_t compress_batch_size_{
-      DiskAnnEntity::kDefaultCompressBatchSize};
-
   DiskAnnEntity &entity_;
 
   uint32_t max_degree_{DiskAnnEntity::kDefaultMaxDegree};
   uint32_t max_candidate_size_{DiskAnnEntity::kDefaultMaxOcclusionSize};
-  uint32_t max_train_sample_count_{PQTable::kMaxTrainSampleCount};
 
   std::vector<std::mutex> lock_pool_{};
-
-  // pq cluster
-  MultiChunkCluster chunk_cluster_;
-  IndexCluster::CentroidList cluster_centroids_;
 
   float alpha_{DiskAnnEntity::kDefaultAlpha};
   bool saturate_graph_{true};

@@ -73,26 +73,35 @@ int DiskAnnBuilder::init(const IndexMeta &meta, const ailego::Params &params) {
     params.get(PARAM_DISKANN_BUILDER_TRAIN_SAMPLE_RATIO, &train_sample_ratio_);
   }
 
-  meta_ = meta;
+  raw_meta_ = meta;
 
-  std::string metric_name = meta_.metric_name();
-  if (metric_name == "InnerProduct") {
-    metric_name = "SquaredEuclidean";
+  build_meta_ = meta;
+  if (meta.metric_name() == "InnerProduct") {
+    build_meta_.set_metric("SquaredEuclidean", 0, ailego::Params());
+  } else if (meta.metric_name() == "Cosine") {
+    build_meta_.set_metric("SquaredEuclidean", 0, ailego::Params());
+
+    if (meta.data_type() == IndexMeta::DataType::DT_FP32) {
+      build_meta_.set_dimension(meta.dimension() - 1);
+    } else {
+      build_meta_.set_dimension(meta.dimension() - 2);
+    }
   }
 
-  metric_ = IndexFactory::CreateMetric(metric_name);
+  metric_ = IndexFactory::CreateMetric(build_meta_.metric_name());
   if (!metric_) {
-    LOG_ERROR("CreateMetric failed, name: %s", metric_name.c_str());
+    LOG_ERROR("CreateMetric failed, name: %s",
+              build_meta_.metric_name().c_str());
     return IndexError_NoExist;
   }
 
-  int ret = metric_->init(meta_, meta_.metric_params());
+  int ret = metric_->init(build_meta_, build_meta_.metric_params());
   if (ret != 0) {
     LOG_ERROR("IndexMeasure init failed, ret=%d", ret);
     return ret;
   }
 
-  meta_.set_builder("DiskAnnBuilder", DiskAnnEntity::kRevision, params);
+  raw_meta_.set_builder("DiskAnnBuilder", DiskAnnEntity::kRevision, params);
 
   ret = entity_.init(meta, max_degree_, list_size_, memory_limit_,
                      build_thread_count_);
@@ -100,8 +109,11 @@ int DiskAnnBuilder::init(const IndexMeta &meta, const ailego::Params &params) {
     return ret;
   }
 
-  algo_ = DiskAnnAlgorithm::UPointer(
-      new DiskAnnAlgorithm(entity_, max_degree_, max_train_sample_count_));
+  algo_ =
+      DiskAnnAlgorithm::UPointer(new DiskAnnAlgorithm(entity_, max_degree_));
+
+  trainer_ =
+      DiskAnnPqTrainer::UPointer(new DiskAnnPqTrainer(max_train_sample_count_));
 
   state_ = BUILD_STATE_INITED;
 
@@ -119,24 +131,22 @@ int DiskAnnBuilder::cleanup(void) {
 int DiskAnnBuilder::calculate_entry_point() {
   std::string centroid;
 
-  uint32_t dim = meta_.dimension();
-  uint32_t type = meta_.data_type();
+  size_t dimension = build_meta_.dimension();
 
-  if (type != IndexMeta::DataType::DT_FP32 &&
-      type != IndexMeta::DataType::DT_FP16) {
+  if (build_meta_.data_type() != IndexMeta::DataType::DT_FP32 &&
+      build_meta_.data_type() != IndexMeta::DataType::DT_FP16) {
     LOG_ERROR("Data type not supported");
     return IndexError_InvalidArgument;
   }
 
-  centroid.resize(dim * sizeof(float));
+  centroid.resize(dimension * sizeof(float));
 
-  size_t dimension = meta_.dimension();
   float *centroid_data_ptr = reinterpret_cast<float *>(&centroid[0]);
   for (size_t i = 0; i < dimension; i++) {
     centroid_data_ptr[i] = 0;
   }
 
-  switch (type) {
+  switch (build_meta_.data_type()) {
     case IndexMeta::DataType::DT_FP32:
       for (size_t id = 0; id < entity_.doc_cnt(); id++) {
         const float *data_ptr =
@@ -157,6 +167,8 @@ int DiskAnnBuilder::calculate_entry_point() {
         }
       }
       break;
+    default:
+      return IndexError_Unsupported;
   }
 
   for (size_t i = 0; i < dimension; i++) {
@@ -167,7 +179,7 @@ int DiskAnnBuilder::calculate_entry_point() {
   diskann_id_t medoid_id = kInvalidId;
   float min_dist = std::numeric_limits<float>::max();
 
-  switch (type) {
+  switch (build_meta_.data_type()) {
     case IndexMeta::DataType::DT_FP32:
       for (size_t id = 0; id < entity_.doc_cnt(); id++) {
         const float *data_ptr =
@@ -204,6 +216,8 @@ int DiskAnnBuilder::calculate_entry_point() {
         }
       }
       break;
+    default:
+      return IndexError_Unsupported;
   }
 
   (*entity_.mutable_medoid()) = medoid_id;
@@ -233,14 +247,14 @@ int DiskAnnBuilder::calculate_pq_chunk_num() {
 
   pq_chunk_num_ =
       pq_chunk_num_ < max_pq_chunk_num_ ? pq_chunk_num_ : max_pq_chunk_num_;
-  if (pq_chunk_num_ > meta_.dimension()) {
+  if (pq_chunk_num_ > build_meta_.dimension()) {
     LOG_ERROR("PQ Chunk Num is more than dimension, chunk num: %u, dim: %u",
-              pq_chunk_num_, meta_.dimension());
+              pq_chunk_num_, build_meta_.dimension());
     return IndexError_InvalidArgument;
   }
 
-  LOG_INFO("Quantizing %u dimension data into %u bytes.", meta_.dimension(),
-           pq_chunk_num_);
+  LOG_INFO("Quantizing %u dimension data into %u bytes.",
+           build_meta_.dimension(), pq_chunk_num_);
 
   return 0;
 }
@@ -315,8 +329,8 @@ int DiskAnnBuilder::train_quantized_data(IndexThreads::Pointer threads) {
   LOG_INFO("Starting Train: Chunk Num: %u", pq_chunk_num_);
 
   ailego::ElapsedTime timer;
-  int ret = algo_->train_quantized_data(
-      threads, holder_, meta_, entity_.pq_full_pivot_data(),
+  int ret = trainer_->train_quantized_data(
+      threads, holder_, build_meta_, entity_.pq_full_pivot_data(),
       entity_.pq_centroid(), entity_.pq_chunk_offsets(), pq_chunk_num_);
   if (ret != 0) {
     LOG_ERROR("Train Quantized Data Error, ret=%d", ret);
@@ -340,8 +354,8 @@ int DiskAnnBuilder::generate_quantized_data(IndexThreads::Pointer threads) {
            memory_limit_, pq_chunk_num_);
 
   ailego::ElapsedTime timer;
-  int ret = algo_->generate_quantized_data(
-      threads, holder_, meta_, entity_.pq_centroid(),
+  int ret = trainer_->generate_quantized_data(
+      threads, holder_, build_meta_, entity_.pq_centroid(),
       entity_.block_compressed_data(), pq_chunk_num_);
   if (ret != 0) {
     LOG_ERROR("Generate Quantized Data Error, ret=%d", ret);
@@ -362,7 +376,7 @@ void DiskAnnBuilder::do_build(uint64_t idx, size_t step_size,
   });
 
   DiskAnnContext *ctx = new (std::nothrow) DiskAnnContext(
-      meta_, metric_,
+      build_meta_, metric_,
       std::shared_ptr<DiskAnnEntity>(&entity_, [](DiskAnnEntity *) {}));
 
   if (ailego_unlikely(ctx == nullptr)) {
@@ -374,11 +388,10 @@ void DiskAnnBuilder::do_build(uint64_t idx, size_t step_size,
   }
 
   ctx->init(DiskAnnContext::kBuilderContext, max_degree_, pq_chunk_num_,
-            meta_.element_size());
+            build_meta_.element_size());
   ctx->set_list_size(list_size_);
 
   DiskAnnContext::Pointer auto_ptr(ctx);
-  IndexQueryMeta qmeta(meta_.data_type(), meta_.dimension());
   for (uint64_t id = idx; id < entity_.doc_cnt(); id += step_size) {
     ctx->reset_query(entity_.get_vector(id));
     int ret = algo_->add_node(id, ctx);
@@ -402,7 +415,7 @@ void DiskAnnBuilder::do_prune(uint64_t idx, size_t step_size,
   });
 
   DiskAnnContext *ctx = new (std::nothrow) DiskAnnContext(
-      meta_, metric_,
+      build_meta_, metric_,
       std::shared_ptr<DiskAnnEntity>(&entity_, [](DiskAnnEntity *) {}));
 
   if (ailego_unlikely(ctx == nullptr)) {
@@ -414,11 +427,10 @@ void DiskAnnBuilder::do_prune(uint64_t idx, size_t step_size,
   }
 
   ctx->init(DiskAnnContext::kBuilderContext, max_degree_, pq_chunk_num_,
-            meta_.element_size());
+            build_meta_.element_size());
   ctx->set_list_size(list_size_);
 
   DiskAnnContext::Pointer auto_ptr(ctx);
-  IndexQueryMeta qmeta(meta_.data_type(), meta_.dimension());
   for (uint64_t id = idx; id < entity_.doc_cnt(); id += step_size) {
     ctx->reset_query(entity_.get_vector(id));
     int ret = algo_->prune_node(id, ctx);
@@ -501,15 +513,15 @@ int DiskAnnBuilder::do_norm(const void *data_ptr, std::string *norm_data) {
 
   const float *float_data_ptr = reinterpret_cast<const float *>(data_ptr);
 
-  norm_data->resize(meta_.dimension() * sizeof(float));
+  norm_data->resize(build_meta_.dimension() * sizeof(float));
   float *output_buf = reinterpret_cast<float *>(&((*norm_data)[0]));
 
-  for (uint32_t dim = 0; dim < meta_.dimension(); dim++) {
+  for (uint32_t dim = 0; dim < build_meta_.dimension(); dim++) {
     norm_pt += *(float_data_ptr + dim) * *(float_data_ptr + dim);
   }
   norm_pt = std::sqrt(norm_pt);
 
-  for (uint32_t dim = 0; dim < meta_.dimension(); dim++) {
+  for (uint32_t dim = 0; dim < build_meta_.dimension(); dim++) {
     *(output_buf + dim) = *(float_data_ptr + dim) / norm_pt;
   }
 
@@ -600,16 +612,16 @@ int DiskAnnBuilder::dump(const IndexDumper::Pointer &dumper) {
 
   LOG_INFO("Begin DiskAnnBuilder::dump");
 
-  meta_.set_searcher("DiskAnnSearcher", 0, ailego::Params());
+  raw_meta_.set_searcher("DiskAnnSearcher", 0, ailego::Params());
   auto start_time = ailego::Monotime::MilliSeconds();
 
-  int ret = IndexHelper::SerializeToDumper(meta_, dumper.get());
+  int ret = IndexHelper::SerializeToDumper(raw_meta_, dumper.get());
   if (ret != 0) {
     LOG_ERROR("Failed to serialize meta into dumper.");
     return ret;
   }
 
-  ret = entity_.dump(holder_, meta_, dumper);
+  ret = entity_.dump(holder_, raw_meta_, dumper);
   if (ret != 0) {
     LOG_ERROR("Index dump failed, ret: %u", ret);
 
