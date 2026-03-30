@@ -579,9 +579,16 @@ int DiskAnnAlgorithm::train_quantized_data(
 
   IndexMeta new_meta = meta;
 
-  // if (meta.metric_name() == "Cosine") {
-  //   new_meta.set_metric("InnerProduct", 0, IndexParams());
-  // }
+  if (meta.metric_name() == "Cosine") {
+    new_meta.set_metric("SquaredEuclidean", 0, ailego::Params());
+
+    if (meta.data_type() == IndexMeta::DataType::DT_FP32) {
+      new_meta.set_dimension(meta.dimension() - 1);
+    } else {
+      new_meta.set_dimension(meta.dimension() - 2);
+    }
+  }
+
   if (meta.metric_name() == "InnerProduct") {
     new_meta.set_metric("SquaredEuclidean", 0, ailego::Params());
   }
@@ -618,6 +625,7 @@ int DiskAnnAlgorithm::generate_pq(IndexThreads::Pointer threads,
                                   std::vector<uint8_t> &block_compressed_data) {
   uint32_t type = meta.data_type();
   uint32_t dim = meta.dimension();
+
   if (pq_chunk_num > dim) {
     LOG_ERROR("Error: number of chunks more than dimension. chunk: %u, dim: %u",
               pq_chunk_num, dim);
@@ -722,9 +730,15 @@ int DiskAnnAlgorithm::generate_quantized_data(
     std::vector<uint8_t> &block_compressed_data, size_t pq_chunk_num) {
   IndexMeta new_meta = meta;
 
-  // if (meta.metric_name() == "Cosine") {
-  //   new_meta.set_metric("InnerProduct", 0, ailego::Params());
-  // }
+  if (meta.metric_name() == "Cosine") {
+    new_meta.set_metric("InnerProduct", 0, ailego::Params());
+
+    if (meta.data_type() == IndexMeta::DataType::DT_FP32) {
+      new_meta.set_dimension(meta.dimension() - 1);
+    } else {
+      new_meta.set_dimension(meta.dimension() - 2);
+    }
+  }
   if (meta.metric_name() == "InnerProduct") {
     new_meta.set_metric("SquaredEuclidean", 0, ailego::Params());
   }

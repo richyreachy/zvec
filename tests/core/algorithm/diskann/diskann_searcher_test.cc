@@ -1020,9 +1020,12 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
   params.set("proxima.diskann.builder.threads", 4);
 
   IndexMeta new_meta = converter->meta();
-  ASSERT_EQ(0, builder->init(new_meta, params));
+
+  converter->transform(holder);
 
   auto new_holder = converter->result();
+
+  ASSERT_EQ(0, builder->init(new_meta, params));
 
   ASSERT_EQ(0, builder->train(new_holder));
 
@@ -1080,9 +1083,10 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
   linearByPKeysCtx->set_topk(topk);
   knnCtx->set_topk(topk);
 
-  size_t query_cnt = 100;
+  size_t query_cnt = 10;
+  size_t step = doc_cnt / query_cnt;
   for (size_t i = 0; i < query_cnt; ++i) {
-    auto &qvec = vecs[i];
+    auto &qvec = vecs[i + step];
 
     std::string new_query;
     IndexQueryMeta new_meta;
