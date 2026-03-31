@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "avx/float32/cosine.h"
-#include "avx/float32/inner_product_common.h"
+#include "avx/float32/common.h"
 
 #if defined(__AVX__)
 #include <immintrin.h>

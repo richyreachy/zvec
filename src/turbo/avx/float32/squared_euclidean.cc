@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "avx/float32/squared_euclidean.h"
-#include "avx/float32/inner_product_common.h"
+#include "avx/float32/common.h"
 
 #if defined(__AVX__)
 #include <immintrin.h>
@@ -24,6 +24,7 @@ namespace zvec::turbo::avx {
 void squared_euclidean_fp32_distance(const void *a, const void *b, size_t dim,
                                      float *distance) {
 #if defined(__AVX__)
+
 #else
   (void)a;
   (void)b;

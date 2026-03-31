@@ -19,7 +19,17 @@ namespace zvec::turbo::scalar {
 // Compute squared Euclidean distance between a single quantized FP32
 // vector pair.
 void inner_product_fp32_distance(const void *a, const void *b, size_t dim,
-                                 float *distance) {}
+                                 float *distance) {
+  const float *m = reinterpret_cast<const float *>(a);
+  const float *q = reinterpret_cast<const float *>(b);
+
+  float sum = 0.0;
+  for (size_t i = 0; i < dim; ++i) {
+    sum += static_cast<float>(m[i] * q[i]);
+  }
+
+  *distance = -sum;
+}
 
 // Batch version of inner_product_fp32_distance.
 void inner_product_fp32_batch_distance(const void *const *vectors,

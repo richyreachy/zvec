@@ -12,42 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "avx2/record_quantized_int4/inner_product.h"
-#include "avx2/record_quantized_int4/inner_product_common.h"
+#include "avx/float32/inner_product.h"
+#include "avx/float32/common.h"
 
-#if defined(__AVX2__)
+#if defined(__AVX__)
 #include <immintrin.h>
 #endif
 
-namespace zvec::turbo::avx2 {
+namespace zvec::turbo::avx {
 
 // Compute squared Euclidean distance between a single quantized FP32
 // vector pair.
 void inner_product_fp32_distance(const void *a, const void *b, size_t dim,
                                  float *distance) {
-#if defined(__AVX2__)
-
-#else
   (void)a;
   (void)b;
   (void)dim;
   (void)distance;
-#endif  //__AVX2__
 }
 
 // Batch version of inner_product_fp32_distance.
 void inner_product_fp32_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances) {
-#if defined(__AVX2__)
-
-#else
   (void)vectors;
   (void)query;
   (void)n;
   (void)dim;
   (void)distances;
-#endif  //__AVX2__
 }
 
-}  // namespace zvec::turbo::avx2
+}  // namespace zvec::turbo::avx

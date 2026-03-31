@@ -13,11 +13,20 @@
 // limitations under the License.
 
 #include "scalar/float32/cosine.h"
+#include "scalar/float32/inner_product.h"
 
 namespace zvec::turbo::scalar {
 
 void cosine_fp32_distance(const void *a, const void *b, size_t dim,
-                          float *distance) {}
+                          float *distance) {
+  constexpr size_t extra_dim = 1;
+  size_t original_dim = dim - extra_dim;
+
+  float ip;
+  inner_product_fp32_distance(a, b, original_dim, &ip);
+
+  *distance = 1 - ip;
+}
 
 void cosine_fp32_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances) {}

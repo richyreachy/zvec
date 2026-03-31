@@ -14,14 +14,23 @@
 
 #include <ailego/internal/cpu_features.h>
 #include <zvec/turbo/turbo.h>
+#include "avx/float32/cosine.h"
+#include "avx/float32/inner_product.h"
+#include "avx/float32/squared_euclidean.h"
 #include "avx2/record_quantized_int4/cosine.h"
 #include "avx2/record_quantized_int4/inner_product.h"
 #include "avx2/record_quantized_int4/squared_euclidean.h"
 #include "avx2/record_quantized_int8/cosine.h"
 #include "avx2/record_quantized_int8/inner_product.h"
 #include "avx2/record_quantized_int8/squared_euclidean.h"
+#include "avx512/float32/cosine.h"
+#include "avx512/float32/inner_product.h"
+#include "avx512/float32/squared_euclidean.h"
 #include "avx512_vnni/record_quantized_int8/cosine.h"
 #include "avx512_vnni/record_quantized_int8/squared_euclidean.h"
+#include "scalar/float32/cosine.h"
+#include "scalar/float32/inner_product.h"
+#include "scalar/float32/squared_euclidean.h"
 #include "scalar/record_quantized_int4/cosine.h"
 #include "scalar/record_quantized_int4/inner_product.h"
 #include "scalar/record_quantized_int4/squared_euclidean.h"

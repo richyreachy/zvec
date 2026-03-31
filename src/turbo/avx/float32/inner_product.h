@@ -16,7 +16,7 @@
 
 #include <cstddef>
 
-namespace zvec::turbo::avx2 {
+namespace zvec::turbo::avx {
 
 // Compute inner product distance between a single quantized FP32
 // vector pair.
@@ -28,4 +28,4 @@ void inner_product_fp32_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances);
 
-}  // namespace zvec::turbo::avx2
+}  // namespace zvec::turbo::avx
