@@ -15,7 +15,7 @@
 #include "avx512/float32/inner_product.h"
 #include "avx512/float32/common.h"
 
-#if defined(__AVX2__)
+#if defined(__AVX512F__)
 #include <immintrin.h>
 #endif
 
@@ -25,12 +25,12 @@ namespace zvec::turbo::avx512 {
 // vector pair.
 void inner_product_fp32_distance(const void *a, const void *b, size_t dim,
                                  float *distance) {
-#if defined(__AVX512__)
+#if defined(__AVX512F__)
   const float *lhs = reinterpret_cast<const float *>(a);
   const float *rhs = reinterpret_cast<const float *>(b);
 
-  const float *last = lhs + size;
-  const float *last_aligned = lhs + ((size >> 5) << 5);
+  const float *last = lhs + dim;
+  const float *last_aligned = lhs + ((dim >> 5) << 5);
 
   __m512 zmm_sum_0 = _mm512_setzero_ps();
   __m512 zmm_sum_1 = _mm512_setzero_ps();
@@ -73,21 +73,22 @@ void inner_product_fp32_distance(const void *a, const void *b, size_t dim,
         _mm512_mask_loadu_ps(zmm_undefined, mask, lhs),
         _mm512_mask_loadu_ps(zmm_undefined, mask, rhs), zmm_sum_0, mask);
   }
-  return HorizontalAdd_FP32_V512(zmm_sum_0);
+
+  *distance = -1 * HorizontalAdd_FP32_V512(zmm_sum_0);
 
 #else
   (void)a;
   (void)b;
   (void)dim;
   (void)distance;
-#endif  //__AVX2__
+#endif  //__AVX512F__
 }
 
 // Batch version of inner_product_fp32_distance.
 void inner_product_fp32_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances) {
-#if defined(__AVX512__)
+#if defined(__AVX512F__)
 
 #else
   (void)vectors;

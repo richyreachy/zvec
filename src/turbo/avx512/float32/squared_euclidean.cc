@@ -15,7 +15,7 @@
 #include "avx512/float32/squared_euclidean.h"
 #include "avx512/float32/common.h"
 
-#if defined(__AVX512__)
+#if defined(__AVX512F__)
 #include <immintrin.h>
 #endif
 
@@ -23,26 +23,80 @@ namespace zvec::turbo::avx512 {
 
 void squared_euclidean_fp32_distance(const void *a, const void *b, size_t dim,
                                      float *distance) {
-#if defined(__AVX512__)
+#if defined(__AVX512F__)
+  const float *lhs = reinterpret_cast<const float *>(a);
+  const float *rhs = reinterpret_cast<const float *>(b);
+
+  const float *last = lhs + dim;
+  const float *last_aligned = lhs + ((dim >> 5) << 5);
+
+  __m512 zmm_sum_0 = _mm512_setzero_ps();
+  __m512 zmm_sum_1 = _mm512_setzero_ps();
+
+  if (((uintptr_t)lhs & 0x3f) == 0 && ((uintptr_t)rhs & 0x3f) == 0) {
+    for (; lhs != last_aligned; lhs += 32, rhs += 32) {
+      __m512 zmm_d_0 =
+          _mm512_sub_ps(_mm512_load_ps(lhs + 0), _mm512_load_ps(rhs + 0));
+      __m512 zmm_d_1 =
+          _mm512_sub_ps(_mm512_load_ps(lhs + 16), _mm512_load_ps(rhs + 16));
+      zmm_sum_0 = _mm512_fmadd_ps(zmm_d_0, zmm_d_0, zmm_sum_0);
+      zmm_sum_1 = _mm512_fmadd_ps(zmm_d_1, zmm_d_1, zmm_sum_1);
+    }
+
+    if (last >= last_aligned + 16) {
+      __m512 zmm_d = _mm512_sub_ps(_mm512_load_ps(lhs), _mm512_load_ps(rhs));
+      zmm_sum_0 = _mm512_fmadd_ps(zmm_d, zmm_d, zmm_sum_0);
+      lhs += 16;
+      rhs += 16;
+    }
+  } else {
+    for (; lhs != last_aligned; lhs += 32, rhs += 32) {
+      __m512 zmm_d_0 =
+          _mm512_sub_ps(_mm512_loadu_ps(lhs + 0), _mm512_loadu_ps(rhs + 0));
+      __m512 zmm_d_1 =
+          _mm512_sub_ps(_mm512_loadu_ps(lhs + 16), _mm512_loadu_ps(rhs + 16));
+      zmm_sum_0 = _mm512_fmadd_ps(zmm_d_0, zmm_d_0, zmm_sum_0);
+      zmm_sum_1 = _mm512_fmadd_ps(zmm_d_1, zmm_d_1, zmm_sum_1);
+    }
+
+    if (last >= last_aligned + 16) {
+      __m512 zmm_d = _mm512_sub_ps(_mm512_loadu_ps(lhs), _mm512_loadu_ps(rhs));
+      zmm_sum_0 = _mm512_fmadd_ps(zmm_d, zmm_d, zmm_sum_0);
+      lhs += 16;
+      rhs += 16;
+    }
+  }
+
+  zmm_sum_0 = _mm512_add_ps(zmm_sum_0, zmm_sum_1);
+  if (lhs != last) {
+    __mmask16 mask = (__mmask16)((1 << (last - lhs)) - 1);
+    __m512 zmm_undefined = _mm512_undefined_ps();
+    __m512 zmm_d = _mm512_mask_sub_ps(
+        zmm_undefined, mask, _mm512_mask_loadu_ps(zmm_undefined, mask, lhs),
+        _mm512_mask_loadu_ps(zmm_undefined, mask, rhs));
+    zmm_sum_0 = _mm512_mask3_fmadd_ps(zmm_d, zmm_d, zmm_sum_0, mask);
+  }
+
+  *distance = HorizontalAdd_FP32_V512(zmm_sum_0);
 #else
   (void)a;
   (void)b;
   (void)dim;
   (void)distance;
-#endif  // __AVX512__
+#endif  // __AVX512F__
 }
 
 void squared_euclidean_fp32_batch_distance(const void *const *vectors,
                                            const void *query, size_t n,
                                            size_t dim, float *distances) {
-#if defined(__AVX512__)
+#if defined(__AVX512F__)
 #else
   (void)vectors;
   (void)query;
   (void)n;
   (void)dim;
   (void)distances;
-#endif  //__AVX512__
+#endif  //__AVX512F__
 }
 
 }  // namespace zvec::turbo::avx512

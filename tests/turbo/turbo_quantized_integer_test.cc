@@ -81,14 +81,12 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
                                      &qmeta_reformer));
     ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
 
-    float score_float32 = ailego::Distance::MinusInnerProduct(
-        query_vec.data(), doc_vec.data(), DIMENSION);
-
-    func_float32(query_vec.data(), doc_vec.data(), DIMENSION, &score_float32);
-
+    float score_float32{0.0f};
     float score_scalar{0.0f};
     float score_avx2{0.0f};
     float score_sse{0.0f};
+
+    func_float32(query_vec.data(), doc_vec.data(), DIMENSION, &score_float32);
 
     func_scalar(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
                 &score_scalar);

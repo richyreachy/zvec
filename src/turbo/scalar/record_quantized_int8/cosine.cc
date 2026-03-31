@@ -15,6 +15,7 @@
 #include "scalar/record_quantized_int8/cosine.h"
 #include <cstdint>
 #include "scalar/record_quantized_int8/common.h"
+#include "scalar/record_quantized_int8/inner_product.h"
 
 namespace zvec::turbo::scalar {
 
@@ -26,7 +27,8 @@ void cosine_int8_distance(const void *a, const void *b, size_t dim,
     return;
   }
 
-  // internal::inner_product_int8_scalar(a, b, original_dim, distance);
+  zvec::turbo::scalar::inner_product_int8_distance(a, b, original_dim,
+                                                   distance);
 
   const float *a_tail = reinterpret_cast<const float *>(
       reinterpret_cast<const uint8_t *>(a) + original_dim);

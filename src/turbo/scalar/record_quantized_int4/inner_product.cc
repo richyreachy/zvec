@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "scalar/record_quantized_int4/inner_product.h"
+#include <cstdint>
 #include "scalar/record_quantized_int4/common.h"
 
 namespace zvec::turbo::scalar {
@@ -21,10 +22,18 @@ namespace zvec::turbo::scalar {
 // vector pair.
 void inner_product_int4_distance(const void *a, const void *b, size_t dim,
                                  float *distance) {
-  (void)a;
-  (void)b;
-  (void)dim;
-  (void)distance;
+  const uint8_t *m = reinterpret_cast<const uint8_t *>(a);
+  const uint8_t *q = reinterpret_cast<const uint8_t *>(b);
+
+  float sum = 0.0;
+  for (size_t i = 0; i < (dim >> 1); ++i) {
+    uint8_t m_val = m[i];
+    uint8_t q_val = q[i];
+    sum += Int4MulTable[((m_val << 4) & 0xf0) | ((q_val >> 0) & 0xf)] +
+           Int4MulTable[((m_val >> 0) & 0xf0) | ((q_val >> 4) & 0xf)];
+  }
+
+  *distance = -sum;
 }
 
 // Batch version of inner_product_int4_distance.

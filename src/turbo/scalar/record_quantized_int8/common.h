@@ -21,3 +21,22 @@
 // overhead.
 
 #pragma once
+
+#include <cstdint>
+
+namespace zvec::turbo::scalar::internal {
+
+static __attribute__((always_inline)) void inner_product_int8_scalar(
+    const void *a, const void *b, size_t dim, float *distance) {
+  const int8_t *m = reinterpret_cast<const int8_t *>(a);
+  const int8_t *q = reinterpret_cast<const int8_t *>(b);
+
+  float sum = 0.0;
+  for (size_t i = 0; i < dim; ++i) {
+    sum += static_cast<float>(m[i] * q[i]);
+  }
+
+  *distance = -sum;
+}
+
+}  // namespace zvec::turbo::scalar::internal
