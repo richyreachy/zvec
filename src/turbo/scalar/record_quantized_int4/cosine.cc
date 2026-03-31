@@ -12,12 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Shared AVX512-VNNI inner product kernels for record_quantized_int8 distance
-// implementations (cosine, l2, mips_l2, etc.).
-//
-// All functions are marked always_inline so that when this header is included
-// from a per-file-march .cc translation unit, the compiler can fully inline
-// and optimize them under the correct -march flag without any cross-TU call
-// overhead.
+#include "scalar/record_quantized_int4/cosine.h"
+#include "scalar/record_quantized_int4/common.h"
 
-#pragma once
+namespace zvec::turbo::scalar {
+
+void cosine_int4_distance(const void *a, const void *b, size_t dim,
+                          float *distance) {
+  (void)a;
+  (void)b;
+  (void)dim;
+  (void)distance;
+}
+
+void cosine_int4_batch_distance(const void *const *vectors, const void *query,
+                                size_t n, size_t dim, float *distances) {
+  (void)vectors;
+  (void)query;
+  (void)n;
+  (void)dim;
+  (void)distances;
+}
+
+}  // namespace zvec::turbo::scalar

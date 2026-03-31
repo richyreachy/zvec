@@ -36,6 +36,8 @@ enum class MetricType {
 enum class DataType {
   kInt4,
   kInt8,
+  kFp16,
+  kFp32,
   kUnknown,
 };
 
@@ -45,7 +47,9 @@ enum class QuantizeType {
 
 enum class CpuArchType {
   kAuto,
+  kScalar,
   kSSE,
+  kAVX,
   kAVX2,
   kAVX512,
   kAVX512VNNI,

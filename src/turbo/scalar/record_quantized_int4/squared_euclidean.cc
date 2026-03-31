@@ -12,20 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "scalar/record_quantized_int4/squared_euclidean.h"
+#include "scalar/record_quantized_int4/common.h"
 
-#include <cstddef>
+namespace zvec::turbo::scalar {
 
-namespace zvec::turbo::avx2 {
+void squared_euclidean_int4_distance(const void *a, const void *b, size_t dim,
+                                     float *distance) {
+  (void)a;
+  (void)b;
+  (void)dim;
+  (void)distance;
+}
 
-// Compute squared euclidean distance between a single quantized INT8
-// vector pair.
-void squared_euclidean_int8_distance(const void *a, const void *b, size_t dim,
-                                     float *distance);
-
-// Batch version of squared euclidean  INT8.
-void squared_euclidean_int8_batch_distance(const void *const *vectors,
+void squared_euclidean_int4_batch_distance(const void *const *vectors,
                                            const void *query, size_t n,
-                                           size_t dim, float *distances);
+                                           size_t dim, float *distances) {
+  (void)vectors;
+  (void)query;
+  (void)n;
+  (void)dim;
+  (void)distances;
+}
 
-}  // namespace zvec::turbo::avx2
+}  // namespace zvec::turbo::scalar

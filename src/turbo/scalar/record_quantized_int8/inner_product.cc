@@ -12,38 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "avx2/float32/cosine.h"
-#include "avx2/float32/inner_product_common.h"
+#include "scalar/record_quantized_int8/inner_product.h"
+#include "scalar/record_quantized_int8/common.h"
 
-#if defined(__AVX2__)
-#include <immintrin.h>
-#endif
+namespace zvec::turbo::scalar {
 
-namespace zvec::turbo::avx2 {
-
-void cosine_fp32_distance(const void *a, const void *b, size_t dim,
-                          float *distance) {
-#if defined(__AVX2__)
-
-#else
+// Compute squared Euclidean distance between a single quantized int8
+// vector pair.
+void inner_product_int8_distance(const void *a, const void *b, size_t dim,
+                                 float *distance) {
   (void)a;
   (void)b;
   (void)dim;
   (void)distance;
-#endif  // __AVX2__
 }
 
-void cosine_fp32_batch_distance(const void *const *vectors, const void *query,
-                                size_t n, size_t dim, float *distances) {
-#if defined(__AVX2__)
-
-#else
+// Batch version of inner_product_int8_distance.
+void inner_product_int8_batch_distance(const void *const *vectors,
+                                       const void *query, size_t n, size_t dim,
+                                       float *distances) {
   (void)vectors;
   (void)query;
   (void)n;
   (void)dim;
   (void)distances;
-#endif  //__AVX2__
 }
 
-}  // namespace zvec::turbo::avx2
+}  // namespace zvec::turbo::scalar

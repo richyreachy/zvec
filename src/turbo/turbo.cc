@@ -22,6 +22,12 @@
 #include "avx2/record_quantized_int8/squared_euclidean.h"
 #include "avx512_vnni/record_quantized_int8/cosine.h"
 #include "avx512_vnni/record_quantized_int8/squared_euclidean.h"
+#include "scalar/record_quantized_int4/cosine.h"
+#include "scalar/record_quantized_int4/inner_product.h"
+#include "scalar/record_quantized_int4/squared_euclidean.h"
+#include "scalar/record_quantized_int8/cosine.h"
+#include "scalar/record_quantized_int8/inner_product.h"
+#include "scalar/record_quantized_int8/squared_euclidean.h"
 #include "sse/record_quantized_int4/cosine.h"
 #include "sse/record_quantized_int4/inner_product.h"
 #include "sse/record_quantized_int4/squared_euclidean.h"
@@ -77,6 +83,17 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
           return sse::inner_product_int8_distance;
         }
       }
+
+      if (metric_type == MetricType::kSquaredEuclidean) {
+        return scalar::squared_euclidean_int8_distance;
+      }
+      if (metric_type == MetricType::kCosine) {
+        return scalar::cosine_int8_distance;
+      }
+
+      if (metric_type == MetricType::kInnerProduct) {
+        return scalar::inner_product_int8_distance;
+      }
     }
   }
 
@@ -96,9 +113,7 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
           return avx2::inner_product_int4_distance;
         }
       }
-    }
 
-    if (quantize_type == QuantizeType::kDefault) {
       if (zvec::ailego::internal::CpuFeatures::static_flags_.SSE &&
           (cpu_arch_type == CpuArchType::kAuto ||
            cpu_arch_type == CpuArchType::kSSE)) {
@@ -111,6 +126,102 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
         if (metric_type == MetricType::kInnerProduct) {
           return sse::inner_product_int4_distance;
         }
+      }
+
+      // if (metric_type == MetricType::kSquaredEuclidean) {
+      //   return scalar::squared_euclidean_int4_distance;
+      // }
+      // else if (metric_type == MetricType::kCosine) {
+      //   return scalar::cosine_int4_distance;
+      // }
+      // else if (metric_type == MetricType::kInnerProduct) {
+      //   return scalar::inner_product_int4_distance;
+      // }
+    }
+  }
+
+  // FP32
+  if (data_type == DataType::kFp32) {
+    if (quantize_type == QuantizeType::kDefault) {
+      if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX2 &&
+          (cpu_arch_type == CpuArchType::kAuto ||
+           cpu_arch_type == CpuArchType::kAVX512)) {
+        if (metric_type == MetricType::kSquaredEuclidean) {
+          return avx512::squared_euclidean_fp32_distance;
+        }
+        if (metric_type == MetricType::kCosine) {
+          return avx512::cosine_fp32_distance;
+        }
+        if (metric_type == MetricType::kInnerProduct) {
+          return avx512::inner_product_fp32_distance;
+        }
+      }
+
+      if (zvec::ailego::internal::CpuFeatures::static_flags_.SSE &&
+          (cpu_arch_type == CpuArchType::kAuto ||
+           cpu_arch_type == CpuArchType::kAVX)) {
+        if (metric_type == MetricType::kSquaredEuclidean) {
+          return avx::squared_euclidean_fp32_distance;
+        }
+        if (metric_type == MetricType::kCosine) {
+          return avx::cosine_fp32_distance;
+        }
+        if (metric_type == MetricType::kInnerProduct) {
+          return avx::inner_product_fp32_distance;
+        }
+      }
+
+      if (metric_type == MetricType::kSquaredEuclidean) {
+        return scalar::squared_euclidean_fp32_distance;
+      }
+      if (metric_type == MetricType::kCosine) {
+        return scalar::cosine_fp32_distance;
+      }
+      if (metric_type == MetricType::kInnerProduct) {
+        return scalar::inner_product_fp32_distance;
+      }
+    }
+  }
+
+  // FP16
+  if (data_type == DataType::kFp16) {
+    if (quantize_type == QuantizeType::kDefault) {
+      if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX2 &&
+          (cpu_arch_type == CpuArchType::kAuto ||
+           cpu_arch_type == CpuArchType::kAVX2)) {
+        if (metric_type == MetricType::kSquaredEuclidean) {
+          return avx2::squared_euclidean_int4_distance;
+        }
+        if (metric_type == MetricType::kCosine) {
+          return avx2::cosine_int4_distance;
+        }
+        if (metric_type == MetricType::kInnerProduct) {
+          return avx2::inner_product_int4_distance;
+        }
+      }
+
+      if (zvec::ailego::internal::CpuFeatures::static_flags_.SSE &&
+          (cpu_arch_type == CpuArchType::kAuto ||
+           cpu_arch_type == CpuArchType::kSSE)) {
+        if (metric_type == MetricType::kSquaredEuclidean) {
+          return sse::squared_euclidean_int4_distance;
+        }
+        if (metric_type == MetricType::kCosine) {
+          return sse::cosine_int4_distance;
+        }
+        if (metric_type == MetricType::kInnerProduct) {
+          return sse::inner_product_int4_distance;
+        }
+      }
+
+      if (metric_type == MetricType::kSquaredEuclidean) {
+        return scalar::squared_euclidean_int4_distance;
+      }
+      if (metric_type == MetricType::kCosine) {
+        return scalar::cosine_int4_distance;
+      }
+      if (metric_type == MetricType::kInnerProduct) {
+        return scalar::inner_product_int4_distance;
       }
     }
   }
