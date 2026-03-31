@@ -19,10 +19,34 @@ namespace zvec::turbo::scalar {
 
 void squared_euclidean_int8_distance(const void *a, const void *b, size_t dim,
                                      float *distance) {
-  (void)a;
-  (void)b;
-  (void)dim;
-  (void)distance;
+  const int original_dim = dim - 20;
+  if (original_dim <= 0) {
+    return;
+  }
+
+  internal::inner_product_int8_scalar(a, b, original_dim, distance);
+
+  const float *a_tail = reinterpret_cast<const float *>(
+      reinterpret_cast<const int8_t *>(a) + original_dim);
+  const float *b_tail = reinterpret_cast<const float *>(
+      reinterpret_cast<const int8_t *>(b) + original_dim);
+
+  float ma = a_tail[0];
+  float mb = a_tail[1];
+  float ms = a_tail[2];
+  float ms2 = a_tail[3];
+
+  float qa = b_tail[0];
+  float qb = b_tail[1];
+  float qs = b_tail[2];
+  float qs2 = b_tail[3];
+
+  const float sum = qa * qs;
+  const float sum2 = qa * qa * qs2;
+
+  *distance = ma * ma * ms2 + sum2 - 2 * ma * qa * *distance +
+              (mb - qb) * (mb - qb) * original_dim +
+              2 * (mb - qb) * (ms * ma - sum);
 }
 
 void squared_euclidean_int8_batch_distance(const void *const *vectors,

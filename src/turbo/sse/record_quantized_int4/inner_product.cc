@@ -15,17 +15,17 @@
 #include "sse/record_quantized_int4/inner_product.h"
 #include "sse/record_quantized_int4/common.h"
 
-#if defined(__SSE__)
+#if defined(__SSE4_1__)
 #include <immintrin.h>
 #endif
 
 namespace zvec::turbo::sse {
 
-// Compute squared Euclidean distance between a single quantized INT4
+// Compute squared inner product distance between a single quantized INT4
 // vector pair.
 void inner_product_int4_distance(const void *a, const void *b, size_t dim,
                                  float *distance) {
-#if defined(__SSE__)
+#if defined(__SSE4_1__)
   const int d = dim - 32;
   const size_t original_dim = d >> 1;
 
@@ -55,14 +55,14 @@ void inner_product_int4_distance(const void *a, const void *b, size_t dim,
   (void)b;
   (void)dim;
   (void)distance;
-#endif  //__SSE__
+#endif  //__SSE4_1__
 }
 
 // Batch version of inner_product_int4_distance.
 void inner_product_int4_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances) {
-#if defined(__SSE__)
+#if defined(__SSE4_1__)
 
 #else
   (void)vectors;
@@ -70,7 +70,7 @@ void inner_product_int4_batch_distance(const void *const *vectors,
   (void)n;
   (void)dim;
   (void)distances;
-#endif  //__SSE__
+#endif  //__SSE4_1__
 }
 
 }  // namespace zvec::turbo::sse
