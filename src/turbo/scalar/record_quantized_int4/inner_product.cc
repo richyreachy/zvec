@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "scalar/record_quantized_int4/inner_product.h"
-#include <cstdint>
 #include "scalar/record_quantized_int4/common.h"
 
 namespace zvec::turbo::scalar {
@@ -22,18 +21,30 @@ namespace zvec::turbo::scalar {
 // vector pair.
 void inner_product_int4_distance(const void *a, const void *b, size_t dim,
                                  float *distance) {
-  const uint8_t *m = reinterpret_cast<const uint8_t *>(a);
-  const uint8_t *q = reinterpret_cast<const uint8_t *>(b);
+  const int d = dim - 32;
+  const size_t original_dim = d >> 1;
 
-  float sum = 0.0;
-  for (size_t i = 0; i < (dim >> 1); ++i) {
-    uint8_t m_val = m[i];
-    uint8_t q_val = q[i];
-    sum += Int4MulTable[((m_val << 4) & 0xf0) | ((q_val >> 0) & 0xf)] +
-           Int4MulTable[((m_val >> 0) & 0xf0) | ((q_val >> 4) & 0xf)];
+  if (original_dim <= 0) {
+    return;
   }
 
-  *distance = -sum;
+  internal::inner_product_int4_scalar(a, b, original_dim, distance);
+
+  const float *a_tail = reinterpret_cast<const float *>(
+      reinterpret_cast<const uint8_t *>(a) + original_dim);
+  const float *b_tail = reinterpret_cast<const float *>(
+      reinterpret_cast<const uint8_t *>(b) + original_dim);
+
+  float qa = a_tail[0];
+  float qb = a_tail[1];
+  float qs = a_tail[2];
+
+  float ma = b_tail[0];
+  float mb = b_tail[1];
+  float ms = b_tail[2];
+
+  *distance =
+      -(ma * qa * *distance + mb * qa * qs + qb * ma * ms + d * qb * mb);
 }
 
 // Batch version of inner_product_int4_distance.

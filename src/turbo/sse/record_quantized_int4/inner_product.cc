@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "sse/record_quantized_int4/inner_product.h"
-#include "sse/record_quantized_int4/inner_product_common.h"
+#include "sse/record_quantized_int4/common.h"
 
 #if defined(__SSE__)
 #include <immintrin.h>
@@ -26,7 +26,30 @@ namespace zvec::turbo::sse {
 void inner_product_int4_distance(const void *a, const void *b, size_t dim,
                                  float *distance) {
 #if defined(__SSE__)
+  const int d = dim - 32;
+  const size_t original_dim = d >> 1;
 
+  if (original_dim <= 0) {
+    return;
+  }
+
+  internal::inner_product_int4_sse(a, b, original_dim, distance);
+
+  const float *a_tail = reinterpret_cast<const float *>(
+      reinterpret_cast<const uint8_t *>(a) + original_dim);
+  const float *b_tail = reinterpret_cast<const float *>(
+      reinterpret_cast<const uint8_t *>(b) + original_dim);
+
+  float qa = a_tail[0];
+  float qb = a_tail[1];
+  float qs = a_tail[2];
+
+  float ma = b_tail[0];
+  float mb = b_tail[1];
+  float ms = b_tail[2];
+
+  *distance =
+      -(ma * qa * *distance + mb * qa * qs + qb * ma * ms + d * qb * mb);
 #else
   (void)a;
   (void)b;

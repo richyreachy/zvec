@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "sse/record_quantized_int4/cosine.h"
-#include "sse/record_quantized_int4/inner_product_common.h"
+#include "sse/record_quantized_int4/common.h"
 #if defined(__SSE__)
 #include <immintrin.h>
 #endif

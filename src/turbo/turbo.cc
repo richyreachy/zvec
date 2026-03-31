@@ -137,15 +137,13 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
         }
       }
 
-      // if (metric_type == MetricType::kSquaredEuclidean) {
-      //   return scalar::squared_euclidean_int4_distance;
-      // }
-      // else if (metric_type == MetricType::kCosine) {
-      //   return scalar::cosine_int4_distance;
-      // }
-      // else if (metric_type == MetricType::kInnerProduct) {
-      //   return scalar::inner_product_int4_distance;
-      // }
+      if (metric_type == MetricType::kSquaredEuclidean) {
+        return scalar::squared_euclidean_int4_distance;
+      } else if (metric_type == MetricType::kCosine) {
+        return scalar::cosine_int4_distance;
+      } else if (metric_type == MetricType::kInnerProduct) {
+        return scalar::inner_product_int4_distance;
+      }
     }
   }
 

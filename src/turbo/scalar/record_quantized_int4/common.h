@@ -25,6 +25,8 @@
 #include <cstdint>
 #include <zvec/ailego/internal/platform.h>
 
+namespace zvec::turbo::scalar::internal {
+
 /*! Four-bits Integer Multiplication Table
  */
 static const AILEGO_ALIGNED(64) int8_t Int4MulTable[256] = {
@@ -45,3 +47,21 @@ static const AILEGO_ALIGNED(64) int8_t Int4MulTable[256] = {
     0, -2, -4,  -6,  -8,  -10, -12, -14, 16,  14,  12,  10,  8,   6,   4,   2,
     0, -1, -2,  -3,  -4,  -5,  -6,  -7,  8,   7,   6,   5,   4,   3,   2,   1,
 };
+
+static __attribute__((always_inline)) void inner_product_int4_scalar(
+    const void *a, const void *b, size_t dim, float *distance) {
+  const uint8_t *m = reinterpret_cast<const uint8_t *>(a);
+  const uint8_t *q = reinterpret_cast<const uint8_t *>(b);
+
+  float sum = 0.0;
+  for (size_t i = 0; i < (dim >> 1); ++i) {
+    uint8_t m_val = m[i];
+    uint8_t q_val = q[i];
+    sum += Int4MulTable[((m_val << 4) & 0xf0) | ((q_val >> 0) & 0xf)] +
+           Int4MulTable[((m_val >> 0) & 0xf0) | ((q_val >> 4) & 0xf)];
+  }
+
+  *distance = -sum;
+}
+
+}  // namespace zvec::turbo::scalar::internal
