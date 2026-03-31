@@ -26,6 +26,54 @@ namespace zvec::turbo::avx512 {
 void inner_product_fp32_distance(const void *a, const void *b, size_t dim,
                                  float *distance) {
 #if defined(__AVX512__)
+  const float *lhs = reinterpret_cast<const float *>(a);
+  const float *rhs = reinterpret_cast<const float *>(b);
+
+  const float *last = lhs + size;
+  const float *last_aligned = lhs + ((size >> 5) << 5);
+
+  __m512 zmm_sum_0 = _mm512_setzero_ps();
+  __m512 zmm_sum_1 = _mm512_setzero_ps();
+
+  if (((uintptr_t)lhs & 0x3f) == 0 && ((uintptr_t)rhs & 0x3f) == 0) {
+    for (; lhs != last_aligned; lhs += 32, rhs += 32) {
+      FMA_FP32_AVX512(_mm512_load_ps(lhs + 0), _mm512_load_ps(rhs + 0),
+                      zmm_sum_0)
+
+      FMA_FP32_AVX512(_mm512_load_ps(lhs + 16), _mm512_load_ps(rhs + 16),
+                      zmm_sum_1)
+    }
+
+    if (last >= last_aligned + 16) {
+      FMA_FP32_AVX512(_mm512_load_ps(lhs), _mm512_load_ps(rhs), zmm_sum_0)
+      lhs += 16;
+      rhs += 16;
+    }
+  } else {
+    for (; lhs != last_aligned; lhs += 32, rhs += 32) {
+      FMA_FP32_AVX512(_mm512_loadu_ps(lhs + 0), _mm512_loadu_ps(rhs + 0),
+                      zmm_sum_0)
+
+      FMA_FP32_AVX512(_mm512_loadu_ps(lhs + 16), _mm512_loadu_ps(rhs + 16),
+                      zmm_sum_1)
+    }
+
+    if (last >= last_aligned + 16) {
+      FMA_FP32_AVX512(_mm512_loadu_ps(lhs), _mm512_loadu_ps(rhs), zmm_sum_0)
+      lhs += 16;
+      rhs += 16;
+    }
+  }
+
+  zmm_sum_0 = _mm512_add_ps(zmm_sum_0, zmm_sum_1);
+  if (lhs != last) {
+    __mmask16 mask = (__mmask16)((1 << (last - lhs)) - 1);
+    __m512 zmm_undefined = _mm512_undefined_ps();
+    zmm_sum_0 = _mm512_mask3_fmadd_ps(
+        _mm512_mask_loadu_ps(zmm_undefined, mask, lhs),
+        _mm512_mask_loadu_ps(zmm_undefined, mask, rhs), zmm_sum_0, mask);
+  }
+  return HorizontalAdd_FP32_V512(zmm_sum_0);
 
 #else
   (void)a;

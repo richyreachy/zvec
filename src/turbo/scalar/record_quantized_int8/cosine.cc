@@ -13,16 +13,36 @@
 // limitations under the License.
 
 #include "scalar/record_quantized_int8/cosine.h"
+#include <cstdint>
 #include "scalar/record_quantized_int8/common.h"
 
 namespace zvec::turbo::scalar {
 
 void cosine_int8_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
-  (void)a;
-  (void)b;
-  (void)dim;
-  (void)distance;
+  const size_t original_dim = dim - 20;
+
+  if (original_dim <= 0) {
+    return;
+  }
+
+  // internal::inner_product_int8_scalar(a, b, original_dim, distance);
+
+  const float *a_tail = reinterpret_cast<const float *>(
+      reinterpret_cast<const uint8_t *>(a) + original_dim);
+  const float *b_tail = reinterpret_cast<const float *>(
+      reinterpret_cast<const uint8_t *>(b) + original_dim);
+
+  float qa = a_tail[0];
+  float qb = a_tail[1];
+  float qs = a_tail[2];
+
+  float ma = b_tail[0];
+  float mb = b_tail[1];
+  float ms = b_tail[2];
+
+  *distance = -(ma * qa * *distance + mb * qa * qs + qb * ma * ms +
+                original_dim * qb * mb);
 }
 
 void cosine_int8_batch_distance(const void *const *vectors, const void *query,

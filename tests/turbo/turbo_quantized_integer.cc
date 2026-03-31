@@ -40,7 +40,7 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
   auto &convert_meta = converter->meta();
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
 
-  auto func_float = turbo::get_distance_func(
+  auto func_float32 = turbo::get_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
@@ -81,10 +81,10 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
                                      &qmeta_reformer));
     ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
 
-    float score_float = ailego::Distance::MinusInnerProduct(
+    float score_float32 = ailego::Distance::MinusInnerProduct(
         query_vec.data(), doc_vec.data(), DIMENSION);
 
-    func_float(query_vec.data(), doc_vec.data(), DIMENSION, &score_float);
+    func_float32(query_vec.data(), doc_vec.data(), DIMENSION, &score_float32);
 
     float score_scalar{0.0f};
     float score_avx2{0.0f};
@@ -99,9 +99,9 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
     func_sse(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
              &score_sse);
 
-    ASSERT_NEAR(score_float, score_avx2, 0.2 * DIMENSION);
-    ASSERT_NEAR(score_float, score_sse, 0.2 * DIMENSION);
-    ASSERT_NEAR(score_float, score_scalar, 0.2 * DIMENSION);
+    ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
+    ASSERT_NEAR(score_float32, score_sse, 0.2 * DIMENSION);
+    ASSERT_NEAR(score_float32, score_scalar, 0.2 * DIMENSION);
     ASSERT_NEAR(score_scalar, score_avx2, 0.001);
     ASSERT_NEAR(score_scalar, score_sse, 0.001);
   }
