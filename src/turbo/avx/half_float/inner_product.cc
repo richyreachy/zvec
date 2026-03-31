@@ -25,10 +25,14 @@ namespace zvec::turbo::avx {
 // vector pair.
 void inner_product_fp16_distance(const void *a, const void *b, size_t dim,
                                  float *distance) {
+#if defined(__AVX__)
+  ACCUM_FP16_1X1_AVX(lhs, rhs, size, distance, 0ull, )
+#else
   (void)a;
   (void)b;
   (void)dim;
   (void)distance;
+#endif  // __AVX__
 }
 
 // Batch version of inner_product_fp16_distance.

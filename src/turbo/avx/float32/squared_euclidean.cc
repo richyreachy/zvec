@@ -24,6 +24,74 @@ namespace zvec::turbo::avx {
 void squared_euclidean_fp32_distance(const void *a, const void *b, size_t dim,
                                      float *distance) {
 #if defined(__AVX__)
+  const float *lhs = reinterpret_cast<const float *>(a);
+  const float *rhs = reinterpret_cast<const float *>(b);
+
+  const float *last = lhs + dim;
+  const float *last_aligned = lhs + ((dim >> 4) << 4);
+
+  __m256 ymm_sum_0 = _mm256_setzero_ps();
+  __m256 ymm_sum_1 = _mm256_setzero_ps();
+
+  if (((uintptr_t)lhs & 0x1f) == 0 && ((uintptr_t)rhs & 0x1f) == 0) {
+    for (; lhs != last_aligned; lhs += 16, rhs += 16) {
+      __m256 ymm_d_0 =
+          _mm256_sub_ps(_mm256_load_ps(lhs + 0), _mm256_load_ps(rhs + 0));
+      __m256 ymm_d_1 =
+          _mm256_sub_ps(_mm256_load_ps(lhs + 8), _mm256_load_ps(rhs + 8));
+      ymm_sum_0 = _mm256_fmadd_ps(ymm_d_0, ymm_d_0, ymm_sum_0);
+      ymm_sum_1 = _mm256_fmadd_ps(ymm_d_1, ymm_d_1, ymm_sum_1);
+    }
+
+    if (last >= last_aligned + 8) {
+      __m256 ymm_d = _mm256_sub_ps(_mm256_load_ps(lhs), _mm256_load_ps(rhs));
+      ymm_sum_0 = _mm256_fmadd_ps(ymm_d, ymm_d, ymm_sum_0);
+      lhs += 8;
+      rhs += 8;
+    }
+  } else {
+    for (; lhs != last_aligned; lhs += 16, rhs += 16) {
+      __m256 ymm_d_0 =
+          _mm256_sub_ps(_mm256_loadu_ps(lhs + 0), _mm256_loadu_ps(rhs + 0));
+      __m256 ymm_d_1 =
+          _mm256_sub_ps(_mm256_loadu_ps(lhs + 8), _mm256_loadu_ps(rhs + 8));
+      ymm_sum_0 = _mm256_fmadd_ps(ymm_d_0, ymm_d_0, ymm_sum_0);
+      ymm_sum_1 = _mm256_fmadd_ps(ymm_d_1, ymm_d_1, ymm_sum_1);
+    }
+
+    if (last >= last_aligned + 8) {
+      __m256 ymm_d = _mm256_sub_ps(_mm256_loadu_ps(lhs), _mm256_loadu_ps(rhs));
+      ymm_sum_0 = _mm256_fmadd_ps(ymm_d, ymm_d, ymm_sum_0);
+      lhs += 8;
+      rhs += 8;
+    }
+  }
+  float result = HorizontalAdd_FP32_V256(_mm256_add_ps(ymm_sum_0, ymm_sum_1));
+
+  switch (last - lhs) {
+    case 7:
+      SSD_FP32_GENERAL(lhs[6], rhs[6], result)
+      /* FALLTHRU */
+    case 6:
+      SSD_FP32_GENERAL(lhs[5], rhs[5], result)
+      /* FALLTHRU */
+    case 5:
+      SSD_FP32_GENERAL(lhs[4], rhs[4], result)
+      /* FALLTHRU */
+    case 4:
+      SSD_FP32_GENERAL(lhs[3], rhs[3], result)
+      /* FALLTHRU */
+    case 3:
+      SSD_FP32_GENERAL(lhs[2], rhs[2], result)
+      /* FALLTHRU */
+    case 2:
+      SSD_FP32_GENERAL(lhs[1], rhs[1], result)
+      /* FALLTHRU */
+    case 1:
+      SSD_FP32_GENERAL(lhs[0], rhs[0], result)
+  }
+
+  *distance = result;
 
 #else
   (void)a;
