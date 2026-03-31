@@ -30,10 +30,12 @@ void inner_product_int8_distance(const void *a, const void *b, size_t dim,
 
   internal::inner_product_int8_scalar(a, b, original_dim, distance);
 
+  *distance = -1 * *distance;
+
   const float *a_tail = reinterpret_cast<const float *>(
-      reinterpret_cast<const uint8_t *>(a) + original_dim);
+      reinterpret_cast<const int8_t *>(a) + original_dim);
   const float *b_tail = reinterpret_cast<const float *>(
-      reinterpret_cast<const uint8_t *>(b) + original_dim);
+      reinterpret_cast<const int8_t *>(b) + original_dim);
 
   float qa = a_tail[0];
   float qb = a_tail[1];
