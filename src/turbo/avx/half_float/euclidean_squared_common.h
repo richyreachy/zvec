@@ -24,6 +24,10 @@
 
 #if defined(__AVX__)
 
+#include <zvec/ailego/utility/float_helper.h>
+
+using namespace zvec::ailego;
+
 //! Calculate sum of squared difference (AVX)
 #define SSD_FP32_AVX(ymm_m, ymm_q, ymm_sum)           \
   {                                                   \
@@ -32,6 +36,12 @@
   }
 
 #define ACCUM_FP32_STEP_AVX SSD_FP32_AVX
+
+#define MATRIX_VAR_INIT_1X1(_VAR_TYPE, _VAR_NAME, _VAR_INIT) \
+  _VAR_TYPE _VAR_NAME##_0_0 = (_VAR_INIT);
+
+#define MATRIX_VAR_INIT(_M, _N, _VAR_TYPE, _VAR_NAME, _VAR_INIT) \
+  MATRIX_VAR_INIT_##_M##X##_N(_VAR_TYPE, _VAR_NAME, _VAR_INIT)
 
 //! Compute the distance between matrix and query (FP16, M=1, N=1)
 #define ACCUM_FP16_1X1_AVX(m, q, dim, out, _MASK, _NORM)                    \

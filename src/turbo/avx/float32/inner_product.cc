@@ -21,7 +21,7 @@
 
 namespace zvec::turbo::avx {
 
-// Compute squared Euclidean distance between a single quantized FP32
+// Compute inner product distance between a single quantized FP32
 // vector pair.
 void inner_product_fp32_distance(const void *a, const void *b, size_t dim,
                                  float *distance) {

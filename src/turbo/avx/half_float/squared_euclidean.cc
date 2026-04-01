@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "avx/float32/squared_euclidean.h"
-#include "avx/float32/common.h"
+#include "avx/half_float/squared_euclidean.h"
+#include "avx/half_float/euclidean_squared_common.h"
 
 #if defined(__AVX__)
 #include <immintrin.h>
@@ -24,7 +24,10 @@ namespace zvec::turbo::avx {
 void squared_euclidean_fp16_distance(const void *a, const void *b, size_t dim,
                                      float *distance) {
 #if defined(__AVX__)
-  ACCUM_FP16_1X1_AVX(lhs, rhs, size, distance, 0ull, )
+  const ailego::Float16 *lhs = reinterpret_cast<const ailego::Float16 *>(a);
+  const ailego::Float16 *rhs = reinterpret_cast<const ailego::Float16 *>(b);
+
+  ACCUM_FP16_1X1_AVX(lhs, rhs, dim, distance, 0ull, )
 #else
   (void)a;
   (void)b;

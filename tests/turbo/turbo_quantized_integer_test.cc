@@ -26,6 +26,7 @@ using namespace zvec;
 using namespace zvec::core;
 using namespace zvec::ailego;
 
+// Target Test Type: avx2, sse, scalar
 TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
   std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
@@ -106,6 +107,7 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
   }
 }
 
+// Target Test Type: avx2, sse, scalar
 TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
   std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
@@ -186,6 +188,7 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
   }
 }
 
+// Target Test Type: avx2, sse, scalar
 TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
   std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
@@ -265,6 +268,7 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
   }
 }
 
+// Target Test Type: avx2, sse, scalar
 TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
   std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
@@ -344,6 +348,7 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
   }
 }
 
+// Target Test Type: avx2, sse, scalar
 TEST(QuantizedIntegerMetric, TestInt8Cosine) {
   std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
@@ -450,6 +455,7 @@ TEST(QuantizedIntegerMetric, TestInt8Cosine) {
   }
 }
 
+// Target Test Type: avx2, sse, scalar
 TEST(QuantizedIntegerMetric, TestInt4Cosine) {
   std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(-1.0, 2.0);

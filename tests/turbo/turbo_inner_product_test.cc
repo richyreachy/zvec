@@ -13,68 +13,136 @@
 // limitations under the License.
 #include <iostream>
 #include <gtest/gtest.h>
+#include <zvec/ailego/container/params.h>
+#include <zvec/turbo/turbo.h>
 #include "zvec/core/framework/index_factory.h"
 
 using namespace zvec;
 using namespace zvec::core;
+using namespace zvec::ailego;
 
-#if 0
-TEST(InnerProductMetric, General) {
-  auto metric = IndexFactory::CreateMetric("InnerProduct");
-  ASSERT_TRUE(metric);
+// Target Test Type: avx, avx512, scalar
+TEST(InnerProductMetric, TestFp32InnerProduct) {
+  std::mt19937 gen(15583);
+  std::uniform_real_distribution<float> dist(-1.0, 2.0);
 
-  IndexMeta meta;
-  meta.set_meta(IndexMeta::DataType::DT_BINARY32, 64);
-  ASSERT_NE(0, metric->init(meta, ailego::Params()));
-  meta.set_meta(IndexMeta::DataType::DT_BINARY64, 64);
-  ASSERT_NE(0, metric->init(meta, ailego::Params()));
-  meta.set_meta(IndexMeta::DataType::DT_FP16, 64);
-  ASSERT_EQ(0, metric->init(meta, ailego::Params()));
-  meta.set_meta(IndexMeta::DataType::DT_FP32, 64);
-  ASSERT_EQ(0, metric->init(meta, ailego::Params()));
-  meta.set_meta(IndexMeta::DataType::DT_INT4, 64);
-  ASSERT_EQ(0, metric->init(meta, ailego::Params()));
-  meta.set_meta(IndexMeta::DataType::DT_INT8, 64);
-  ASSERT_EQ(0, metric->init(meta, ailego::Params()));
+  const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
+  const size_t COUNT = 1000;
 
-  IndexMeta meta2;
-  meta2.set_meta(IndexMeta::DataType::DT_BINARY32, 64);
-  EXPECT_TRUE(metric->is_matched(meta));
-  EXPECT_FALSE(metric->is_matched(meta2));
-  EXPECT_TRUE(metric->is_matched(
-      meta, IndexQueryMeta(IndexMeta::DataType::DT_INT8, 64)));
-  EXPECT_FALSE(metric->is_matched(
-      meta, IndexQueryMeta(IndexMeta::DataType::DT_INT8, 63)));
+  auto func_avx512 = turbo::get_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512);
 
-  EXPECT_FALSE(metric->distance_matrix(0, 0));
-  EXPECT_FALSE(metric->distance_matrix(3, 5));
-  EXPECT_FALSE(metric->distance_matrix(31, 65));
-  EXPECT_TRUE(metric->distance_matrix(1, 1));
-  EXPECT_TRUE(metric->distance_matrix(2, 1));
-  EXPECT_TRUE(metric->distance_matrix(2, 2));
-  EXPECT_TRUE(metric->distance_matrix(4, 1));
-  EXPECT_TRUE(metric->distance_matrix(4, 2));
-  EXPECT_TRUE(metric->distance_matrix(4, 4));
-  EXPECT_TRUE(metric->distance_matrix(8, 1));
-  EXPECT_TRUE(metric->distance_matrix(8, 2));
-  EXPECT_TRUE(metric->distance_matrix(8, 4));
-  EXPECT_TRUE(metric->distance_matrix(8, 8));
-  EXPECT_TRUE(metric->distance_matrix(16, 1));
-  EXPECT_TRUE(metric->distance_matrix(16, 2));
-  EXPECT_TRUE(metric->distance_matrix(16, 4));
-  EXPECT_TRUE(metric->distance_matrix(16, 8));
-  EXPECT_TRUE(metric->distance_matrix(16, 16));
-  EXPECT_TRUE(metric->distance_matrix(32, 1));
-  EXPECT_TRUE(metric->distance_matrix(32, 2));
-  EXPECT_TRUE(metric->distance_matrix(32, 4));
-  EXPECT_TRUE(metric->distance_matrix(32, 8));
-  EXPECT_TRUE(metric->distance_matrix(32, 16));
-  EXPECT_TRUE(metric->distance_matrix(32, 32));
+  auto func_avx = turbo::get_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX);
 
-  EXPECT_TRUE(metric->support_normalize());
-  float result = 1.0f;
-  metric->normalize(&result);
-  EXPECT_FLOAT_EQ(-1.0f, result);
+  auto func_scalar = turbo::get_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
+
+  ailego::NumericalVector<float> query_vec(DIMENSION);
+  for (size_t j = 0; j < DIMENSION; ++j) {
+    query_vec[j] = dist(gen);
+  }
+
+  for (size_t i = 0; i < COUNT; ++i) {
+    ailego::NumericalVector<float> doc_vec(DIMENSION);
+    for (size_t j = 0; j < DIMENSION; ++j) {
+      doc_vec[j] = dist(gen);
+    }
+
+    float score_scalar{0.0f};
+    float score_avx{0.0f};
+    float score_avx512{0.0f};
+
+    func_scalar(doc_vec.data(), query_vec.data(), DIMENSION, &score_scalar);
+
+    func_avx512(doc_vec.data(), query_vec.data(), DIMENSION, &score_avx512);
+
+    func_avx(doc_vec.data(), query_vec.data(), DIMENSION, &score_avx);
+
+    ASSERT_NEAR(score_scalar, score_avx512, 0.001);
+    ASSERT_NEAR(score_scalar, score_avx, 0.001);
+  }
 }
 
-#endif
+// Target Test Type: avx, avx512, avx512fp16, scalar
+TEST(InnerProductMetric, TestFp16InnerProduct) {
+  std::mt19937 gen(15583);
+  std::uniform_real_distribution<float> dist(-1.0, 2.0);
+
+  const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
+  const size_t COUNT = 1000;
+
+  auto converter = IndexFactory::CreateConverter("HalfFloatConverter");
+  IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
+  meta.set_metric("InnerProduct", 0, Params());
+  ASSERT_TRUE(!!converter);
+  ASSERT_EQ(0u, converter->init(meta, Params()));
+  auto &convert_meta = converter->meta();
+  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
+
+  auto func_avx512fp16 = turbo::get_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp16,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512FP16);
+
+  auto func_avx512 = turbo::get_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp16,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512);
+
+  auto func_avx = turbo::get_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX);
+
+  auto func_scalar = turbo::get_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
+
+  ailego::NumericalVector<float> query_vec(DIMENSION);
+  for (size_t j = 0; j < DIMENSION; ++j) {
+    query_vec[j] = dist(gen);
+  }
+
+  for (size_t i = 0; i < COUNT; ++i) {
+    ailego::NumericalVector<float> doc_vec(DIMENSION);
+    for (size_t j = 0; j < DIMENSION; ++j) {
+      doc_vec[j] = dist(gen);
+    }
+
+    IndexQueryMeta qmeta;
+    qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
+    IndexQueryMeta qmeta_reformer;
+
+    std::string query_out;
+    ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+                                     &qmeta_reformer));
+    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+
+    std::string doc_out;
+    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+                                     &qmeta_reformer));
+    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+
+    float score_avx512fp16{0.0f};
+    float score_avx512{0.0f};
+    float score_avx{0.0f};
+    float score_scalar{0.0f};
+
+    func_avx512fp16(doc_out.data(), query_out.data(),
+                    qmeta_reformer.dimension(), &score_avx512fp16);
+
+    func_avx512(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+                &score_avx512);
+
+    func_avx(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+             &score_avx);
+
+    func_scalar(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+                &score_scalar);
+
+    ASSERT_NEAR(score_scalar, score_avx512fp16, 0.001);
+    ASSERT_NEAR(score_scalar, score_avx512, 0.001);
+    ASSERT_NEAR(score_scalar, score_avx, 0.001);
+  }
+}

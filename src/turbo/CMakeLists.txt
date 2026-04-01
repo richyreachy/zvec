@@ -42,6 +42,7 @@ endif()
 if(NOT ANDROID AND AUTO_DETECT_ARCH)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
         file(GLOB_RECURSE AVX2_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/avx2/*.cc)
+        file(GLOB_RECURSE AVX2_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/avx/*.cc)
         set_source_files_properties(
             ${AVX2_SRCS}
             PROPERTIES
@@ -49,6 +50,7 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
         )
     endif()
 endif()
+
 
 if(NOT ANDROID AND AUTO_DETECT_ARCH)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
