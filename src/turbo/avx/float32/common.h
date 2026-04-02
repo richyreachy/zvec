@@ -21,3 +21,26 @@
 // overhead.
 
 #pragma once
+
+#if defined(__AVX__)
+
+#include <immintrin.h>
+
+#define SSD_FP32_GENERAL(m, q, sum) \
+  {                                 \
+    float x = m - q;                \
+    sum += (x * x);                 \
+  }
+
+//! Calculate Fused-Multiply-Add (GENERAL)
+#define FMA_FP32_GENERAL(m, q, sum) sum += (m * q);
+
+static inline float HorizontalAdd_FP32_V256(__m256 v) {
+  __m256 x1 = _mm256_hadd_ps(v, v);
+  __m256 x2 = _mm256_hadd_ps(x1, x1);
+  __m128 x3 = _mm256_extractf128_ps(x2, 1);
+  __m128 x4 = _mm_add_ss(_mm256_castps256_ps128(x2), x3);
+  return _mm_cvtss_f32(x4);
+}
+
+#endif

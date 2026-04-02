@@ -17,6 +17,7 @@
 
 #if defined(__AVX__)
 #include <immintrin.h>
+#include <cstdint>
 #endif
 
 namespace zvec::turbo::avx {

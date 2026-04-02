@@ -18,13 +18,13 @@
 
 namespace zvec::turbo::avx {
 
-// Compute inner product distance between a single quantized FP32
+// Compute inner product distance between a single quantized FP16
 // vector pair.
-void inner_product_fp32_distance(const void *a, const void *b, size_t dim,
+void inner_product_fp16_distance(const void *a, const void *b, size_t dim,
                                  float *distance);
 
-// Batch version of inner_product_fp32_distance.
-void inner_product_fp32_batch_distance(const void *const *vectors,
+// Batch version of inner_product_fp16_distance.
+void inner_product_fp16_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances);
 

@@ -29,9 +29,9 @@ void cosine_fp32_distance(const void *a, const void *b, size_t dim,
   size_t d = dim - extra_dim;
 
   float ip;
-  inner_product_fp32_avx(m, q, d, &ip);
+  inner_product_fp32_distance(a, b, d, &ip);
 
-  *out = 1 - ip;
+  *distance = 1 - ip;
 #else
   (void)a;
   (void)b;

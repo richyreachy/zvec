@@ -17,6 +17,7 @@
 
 #if defined(__AVX__)
 #include <immintrin.h>
+#include <cstdint>
 #endif
 
 namespace zvec::turbo::avx {
@@ -29,7 +30,7 @@ void inner_product_fp32_distance(const void *a, const void *b, size_t dim,
   const float *lhs = reinterpret_cast<const float *>(a);
   const float *rhs = reinterpret_cast<const float *>(b);
 
-  const float *last = lhs + size;
+  const float *last = lhs + dim;
   const float *last_aligned = lhs + ((dim >> 4) << 4);
 
   __m256 ymm_sum_0 = _mm256_setzero_ps();

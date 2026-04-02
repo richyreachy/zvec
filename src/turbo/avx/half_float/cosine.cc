@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "avx/float32/cosine.h"
-#include "avx/float32/common.h"
-#include "avx/float32/inner_product.h"
+#include "avx/half_float/cosine.h"
+#include "avx/half_float/inner_product.h"
+#include "avx/half_float/inner_product_common.h"
 
 #if defined(__AVX__)
 #include <immintrin.h>
@@ -29,9 +29,9 @@ void cosine_fp16_distance(const void *a, const void *b, size_t dim,
   size_t d = dim - extra_dim;
 
   float ip;
-  inner_product_fp16_avx(m, q, d, &ip);
+  cosine_fp16_distance(a, b, d, &ip);
 
-  *out = 1 - ip;
+  *distance = 1 - ip;
 #else
   (void)a;
   (void)b;
