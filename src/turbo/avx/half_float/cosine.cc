@@ -29,7 +29,7 @@ void cosine_fp16_distance(const void *a, const void *b, size_t dim,
   size_t d = dim - extra_dim;
 
   float ip;
-  cosine_fp16_distance(a, b, d, &ip);
+  inner_product_fp16_distance(a, b, d, &ip);
 
   *distance = 1 - ip;
 #else
