@@ -12,34 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "avx512/half_float/inner_product.h"
-#include "avx512/half_float/common.h"
+#include "scalar/half_float/inner_product.h"
+#include <zvec/ailego/utility/float_helper.h>
 
-#if defined(__AVX512F__)
-#include <immintrin.h>
-#endif
-
-namespace zvec::turbo::avx512 {
+namespace zvec::turbo::scalar {
 
 // Compute squared Euclidean distance between a single quantized FP16
 // vector pair.
 void inner_product_fp16_distance(const void *a, const void *b, size_t dim,
                                  float *distance) {
-  (void)a;
-  (void)b;
-  (void)dim;
-  (void)distance;
+  const zvec::ailego::Float16 *m =
+      reinterpret_cast<const zvec::ailego::Float16 *>(a);
+  const zvec::ailego::Float16 *q =
+      reinterpret_cast<const zvec::ailego::Float16 *>(b);
+
+  float sum = 0.0;
+  for (size_t i = 0; i < dim; ++i) {
+    sum += static_cast<float>(m[i] * q[i]);
+  }
+
+  *distance = -sum;
 }
 
 // Batch version of inner_product_fp16_distance.
 void inner_product_fp16_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
-                                       float *distances) {
-  (void)vectors;
-  (void)query;
-  (void)n;
-  (void)dim;
-  (void)distances;
-}
+                                       float *distances) {}
 
-}  // namespace zvec::turbo::avx512
+}  // namespace zvec::turbo::scalar

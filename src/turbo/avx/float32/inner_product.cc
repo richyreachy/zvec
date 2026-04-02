@@ -93,7 +93,7 @@ void inner_product_fp32_distance(const void *a, const void *b, size_t dim,
     case 1:
       FMA_FP32_GENERAL(lhs[0], rhs[0], result)
   }
-  *distance = result;
+  *distance = -1 * result;
 #else
   (void)a;
   (void)b;

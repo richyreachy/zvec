@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "scalar/float32/squared_euclidean.h"
+#include "scalar/half_float/squared_euclidean.h"
 #include <ailego/utility/math_helper.h>
 
 namespace zvec::turbo::scalar {

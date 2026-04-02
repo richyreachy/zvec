@@ -17,6 +17,9 @@
 #include "avx/float32/cosine.h"
 #include "avx/float32/inner_product.h"
 #include "avx/float32/squared_euclidean.h"
+#include "avx/half_float/cosine.h"
+#include "avx/half_float/inner_product.h"
+#include "avx/half_float/squared_euclidean.h"
 #include "avx2/record_quantized_int4/cosine.h"
 #include "avx2/record_quantized_int4/inner_product.h"
 #include "avx2/record_quantized_int4/squared_euclidean.h"
@@ -26,11 +29,20 @@
 #include "avx512/float32/cosine.h"
 #include "avx512/float32/inner_product.h"
 #include "avx512/float32/squared_euclidean.h"
+#include "avx512/half_float/cosine.h"
+#include "avx512/half_float/inner_product.h"
+#include "avx512/half_float/squared_euclidean.h"
 #include "avx512_vnni/record_quantized_int8/cosine.h"
 #include "avx512_vnni/record_quantized_int8/squared_euclidean.h"
+#include "avx512fp16/half_float/cosine.h"
+#include "avx512fp16/half_float/inner_product.h"
+#include "avx512fp16/half_float/squared_euclidean.h"
 #include "scalar/float32/cosine.h"
 #include "scalar/float32/inner_product.h"
 #include "scalar/float32/squared_euclidean.h"
+#include "scalar/half_float/cosine.h"
+#include "scalar/half_float/inner_product.h"
+#include "scalar/half_float/squared_euclidean.h"
 #include "scalar/record_quantized_int4/cosine.h"
 #include "scalar/record_quantized_int4/inner_product.h"
 #include "scalar/record_quantized_int4/squared_euclidean.h"
@@ -150,7 +162,7 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
   // FP32
   if (data_type == DataType::kFp32) {
     if (quantize_type == QuantizeType::kDefault) {
-      if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX2 &&
+      if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F &&
           (cpu_arch_type == CpuArchType::kAuto ||
            cpu_arch_type == CpuArchType::kAVX512)) {
         if (metric_type == MetricType::kSquaredEuclidean) {
@@ -164,7 +176,7 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
         }
       }
 
-      if (zvec::ailego::internal::CpuFeatures::static_flags_.SSE &&
+      if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX &&
           (cpu_arch_type == CpuArchType::kAuto ||
            cpu_arch_type == CpuArchType::kAVX)) {
         if (metric_type == MetricType::kSquaredEuclidean) {
@@ -193,42 +205,50 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
   // FP16
   if (data_type == DataType::kFp16) {
     if (quantize_type == QuantizeType::kDefault) {
-      if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX2 &&
+      if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512_FP16 &&
           (cpu_arch_type == CpuArchType::kAuto ||
-           cpu_arch_type == CpuArchType::kAVX2)) {
-        if (metric_type == MetricType::kSquaredEuclidean) {
-          return avx2::squared_euclidean_int4_distance;
-        }
-        if (metric_type == MetricType::kCosine) {
-          return avx2::cosine_int4_distance;
-        }
+           cpu_arch_type == CpuArchType::kAVX512FP16)) {
         if (metric_type == MetricType::kInnerProduct) {
-          return avx2::inner_product_int4_distance;
+          return avx512fp16::inner_product_fp16_distance;
         }
       }
 
-      if (zvec::ailego::internal::CpuFeatures::static_flags_.SSE &&
+      if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F &&
           (cpu_arch_type == CpuArchType::kAuto ||
-           cpu_arch_type == CpuArchType::kSSE)) {
+           cpu_arch_type == CpuArchType::kAVX512)) {
         if (metric_type == MetricType::kSquaredEuclidean) {
-          return sse::squared_euclidean_int4_distance;
+          return avx512::squared_euclidean_fp16_distance;
         }
         if (metric_type == MetricType::kCosine) {
-          return sse::cosine_int4_distance;
+          return avx512::cosine_fp16_distance;
         }
         if (metric_type == MetricType::kInnerProduct) {
-          return sse::inner_product_int4_distance;
+          return avx512::inner_product_fp16_distance;
+        }
+      }
+
+      if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX &&
+          (cpu_arch_type == CpuArchType::kAuto ||
+           cpu_arch_type == CpuArchType::kAVX)) {
+        if (metric_type == MetricType::kSquaredEuclidean) {
+          return avx::squared_euclidean_fp16_distance;
+        }
+        if (metric_type == MetricType::kCosine) {
+          return avx::cosine_fp16_distance;
+        }
+        if (metric_type == MetricType::kInnerProduct) {
+          return avx::inner_product_fp16_distance;
         }
       }
 
       if (metric_type == MetricType::kSquaredEuclidean) {
-        return scalar::squared_euclidean_int4_distance;
+        return scalar::squared_euclidean_fp16_distance;
       }
       if (metric_type == MetricType::kCosine) {
-        return scalar::cosine_int4_distance;
+        return scalar::cosine_fp16_distance;
       }
       if (metric_type == MetricType::kInnerProduct) {
-        return scalar::inner_product_int4_distance;
+        return scalar::inner_product_fp16_distance;
       }
     }
   }

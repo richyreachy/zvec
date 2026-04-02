@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "avx/float32/cosine.h"
-#include "avx/float32/common.h"
+#include "avx512/half_float/cosine.h"
+#include "avx512/half_float/common.h"
 
-#if defined(__AVX__)
+#if defined(__AVX512F__)
 #include <immintrin.h>
 #endif
 
-namespace zvec::turbo::avx {
+namespace zvec::turbo::avx512 {
 
-void cosine_fp32_distance(const void *a, const void *b, size_t dim,
+void cosine_fp16_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
-#if defined(__AVX__)
+#if defined(__AVX512F__)
 
 #else
   (void)a;
@@ -33,9 +33,9 @@ void cosine_fp32_distance(const void *a, const void *b, size_t dim,
 #endif  // __AVX__
 }
 
-void cosine_fp32_batch_distance(const void *const *vectors, const void *query,
+void cosine_fp16_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances) {
-#if defined(__AVX__)
+#if defined(__AVX512F__)
 
 #else
   (void)vectors;
@@ -46,4 +46,4 @@ void cosine_fp32_batch_distance(const void *const *vectors, const void *query,
 #endif  //__AVX__
 }
 
-}  // namespace zvec::turbo::avx
+}  // namespace zvec::turbo::avx512

@@ -16,7 +16,7 @@
 
 #include <cstddef>
 
-namespace zvec::turbo::avx512 {
+namespace zvec::turbo::avx512fp16 {
 
 // Compute cosine distance (negative inner product after normalization) between
 // a single quantized FP32 vector pair.
@@ -27,4 +27,4 @@ void cosine_fp16_distance(const void *a, const void *b, size_t dim,
 void cosine_fp16_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances);
 
-}  // namespace zvec::turbo::avx512
+}  // namespace zvec::turbo::avx512fp16

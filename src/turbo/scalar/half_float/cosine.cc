@@ -12,19 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "scalar/half_float/cosine.h"
+#include "scalar/half_float/inner_product.h"
 
-#include <cstddef>
+namespace zvec::turbo::scalar {
 
-namespace zvec::turbo::avx512 {
-
-// Compute cosine distance (negative inner product after normalization) between
-// a single quantized FP32 vector pair.
 void cosine_fp16_distance(const void *a, const void *b, size_t dim,
-                          float *distance);
+                          float *distance) {
+  constexpr size_t extra_dim = 2;
+  size_t original_dim = dim - extra_dim;
 
-// Batch version of cosine_fp32_distance.
+  float ip;
+  inner_product_fp16_distance(a, b, original_dim, &ip);
+
+  *distance = 1 - ip;
+}
+
 void cosine_fp16_batch_distance(const void *const *vectors, const void *query,
-                                size_t n, size_t dim, float *distances);
+                                size_t n, size_t dim, float *distances) {}
 
-}  // namespace zvec::turbo::avx512
+}  // namespace zvec::turbo::scalar

@@ -92,11 +92,11 @@ TEST(InnerProductMetric, TestFp16InnerProduct) {
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512);
 
   auto func_avx = turbo::get_distance_func(
-      turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp16,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX);
 
   auto func_scalar = turbo::get_distance_func(
-      turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp16,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 
   ailego::NumericalVector<float> query_vec(DIMENSION);

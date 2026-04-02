@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "avx512/half_float/squared_euclidean.h"
-#include "avx512/half_float/common.h"
+#include "avx512fp16/half_float/squared_euclidean.h"
+#include "avx512fp16/half_float/common.h"
 
 #if defined(__AVX512F__)
 #include <immintrin.h>
 #endif
 
-namespace zvec::turbo::avx512 {
+namespace zvec::turbo::avx512fp16 {
 
-void squared_euclidean_fp16_distance(const void *a, const void *b, size_t dim,
+void squared_euclidean_fp32_distance(const void *a, const void *b, size_t dim,
                                      float *distance) {
-#if defined(__AVX512F__)
+#if defined(__AVX512FP16__)
 
 #else
   (void)a;
@@ -33,10 +33,10 @@ void squared_euclidean_fp16_distance(const void *a, const void *b, size_t dim,
 #endif  // __AVX512F__
 }
 
-void squared_euclidean_fp16_batch_distance(const void *const *vectors,
+void squared_euclidean_fp32_batch_distance(const void *const *vectors,
                                            const void *query, size_t n,
                                            size_t dim, float *distances) {
-#if defined(__AVX512F__)
+#if defined(__AVX512FP16__)
 #else
   (void)vectors;
   (void)query;
@@ -46,4 +46,4 @@ void squared_euclidean_fp16_batch_distance(const void *const *vectors,
 #endif  //__AVX512F__
 }
 
-}  // namespace zvec::turbo::avx512
+}  // namespace zvec::turbo::avx512fp16
