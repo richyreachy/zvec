@@ -13,7 +13,8 @@
 // limitations under the License.
 
 #include "avx512/half_float/cosine.h"
-#include "avx512/half_float/common.h"
+#include "avx512/half_float/inner_product.h"
+#include "avx512/half_float/inner_product_common.h"
 
 #if defined(__AVX512F__)
 #include <immintrin.h>
@@ -24,7 +25,13 @@ namespace zvec::turbo::avx512 {
 void cosine_fp16_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
 #if defined(__AVX512F__)
+  constexpr size_t extra_dim = 2;
+  size_t original_dim = dim - extra_dim;
 
+  float ip;
+  inner_product_fp16_distance(a, b, original_dim, &ip);
+
+  *distance = 1 - ip;
 #else
   (void)a;
   (void)b;

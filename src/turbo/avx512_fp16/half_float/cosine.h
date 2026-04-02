@@ -12,38 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "avx512fp16/half_float/cosine.h"
-#include "avx512fp16/half_float/common.h"
+#pragma once
 
-#if defined(__AVX512FP16__)
-#include <immintrin.h>
-#endif
+#include <cstddef>
 
-namespace zvec::turbo::avx512fp16 {
+namespace zvec::turbo::avx512_fp16 {
 
+// Compute cosine distance (negative inner product after normalization) between
+// a single quantized FP32 vector pair.
 void cosine_fp16_distance(const void *a, const void *b, size_t dim,
-                          float *distance) {
-#if defined(__AVX512FP16__)
+                          float *distance);
 
-#else
-  (void)a;
-  (void)b;
-  (void)dim;
-  (void)distance;
-#endif  // __AVX__
-}
-
+// Batch version of cosine_fp32_distance.
 void cosine_fp16_batch_distance(const void *const *vectors, const void *query,
-                                size_t n, size_t dim, float *distances) {
-#if defined(__AVX512FP16__)
+                                size_t n, size_t dim, float *distances);
 
-#else
-  (void)vectors;
-  (void)query;
-  (void)n;
-  (void)dim;
-  (void)distances;
-#endif  //__AVX__
-}
-
-}  // namespace zvec::turbo::avx512fp16
+}  // namespace zvec::turbo::avx512_fp16

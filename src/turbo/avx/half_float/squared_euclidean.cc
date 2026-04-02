@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "avx/half_float/squared_euclidean.h"
-#include "avx/half_float/euclidean_squared_common.h"
+#include "avx/half_float/squared_euclidean_common.h"
 
 #if defined(__AVX__)
 #include <immintrin.h>

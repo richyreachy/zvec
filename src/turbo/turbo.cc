@@ -32,11 +32,11 @@
 #include "avx512/half_float/cosine.h"
 #include "avx512/half_float/inner_product.h"
 #include "avx512/half_float/squared_euclidean.h"
+#include "avx512_fp16/half_float/cosine.h"
+#include "avx512_fp16/half_float/inner_product.h"
+#include "avx512_fp16/half_float/squared_euclidean.h"
 #include "avx512_vnni/record_quantized_int8/cosine.h"
 #include "avx512_vnni/record_quantized_int8/squared_euclidean.h"
-#include "avx512fp16/half_float/cosine.h"
-#include "avx512fp16/half_float/inner_product.h"
-#include "avx512fp16/half_float/squared_euclidean.h"
 #include "scalar/float32/cosine.h"
 #include "scalar/float32/inner_product.h"
 #include "scalar/float32/squared_euclidean.h"
@@ -209,7 +209,13 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
           (cpu_arch_type == CpuArchType::kAuto ||
            cpu_arch_type == CpuArchType::kAVX512FP16)) {
         if (metric_type == MetricType::kInnerProduct) {
-          return avx512fp16::inner_product_fp16_distance;
+          return avx512_fp16::inner_product_fp16_distance;
+        }
+        if (metric_type == MetricType::kCosine) {
+          return avx512_fp16::cosine_fp16_distance;
+        }
+        if (metric_type == MetricType::kInnerProduct) {
+          return avx512_fp16::inner_product_fp16_distance;
         }
       }
 

@@ -22,16 +22,36 @@
 
 #pragma once
 
-#if defined(__AVX__)
-
+#if defined(__AVX512F__)
 #include <immintrin.h>
+#include <array>
+#include <cstdint>
 #include <zvec/ailego/utility/float_helper.h>
 
 using namespace zvec::ailego;
 
-namespace zvec::turbo::avx {
-//! Reverse sign of value (GENERAL)
-#define NEGATE_FP32_GENERAL(v) -(v)
+namespace zvec::turbo::avx512::internal {
+
+static inline float HorizontalAdd_FP32_V256(__m256 v) {
+  __m256 x1 = _mm256_hadd_ps(v, v);
+  __m256 x2 = _mm256_hadd_ps(x1, x1);
+  __m128 x3 = _mm256_extractf128_ps(x2, 1);
+  __m128 x4 = _mm_add_ss(_mm256_castps256_ps128(x2), x3);
+  return _mm_cvtss_f32(x4);
+}
+
+//! Iterative process of computing distance (FP16, M=1, N=1)
+#define MATRIX_FP16_ITER_1X1_AVX512(m, q, _RES, _LOAD, _PROC)       \
+  {                                                                 \
+    __m512i zmm_mi = _LOAD((const __m512i *)m);                     \
+    __m512i zmm_qi = _LOAD((const __m512i *)q);                     \
+    __m512 zmm_m = _mm512_cvtph_ps(_mm512_castsi512_si256(zmm_mi)); \
+    __m512 zmm_q = _mm512_cvtph_ps(_mm512_castsi512_si256(zmm_qi)); \
+    _PROC(zmm_m, zmm_q, _RES##_0_0);                                \
+    zmm_m = _mm512_cvtph_ps(_mm512_extracti64x4_epi64(zmm_mi, 1));  \
+    zmm_q = _mm512_cvtph_ps(_mm512_extracti64x4_epi64(zmm_qi, 1));  \
+    _PROC(zmm_m, zmm_q, _RES##_0_0);                                \
+  }
 
 //! Mask process of computing distance (FP16)
 #define MATRIX_FP16_MASK_AVX(lhs, rhs, cnt, _MASK, _RES, _PROC)              \
@@ -116,19 +136,23 @@ namespace zvec::turbo::avx {
     }                                                                        \
   }
 
-static inline float HorizontalAdd_FP32_V256(__m256 v) {
-  __m256 x1 = _mm256_hadd_ps(v, v);
-  __m256 x2 = _mm256_hadd_ps(x1, x1);
-  __m128 x3 = _mm256_extractf128_ps(x2, 1);
-  __m128 x4 = _mm_add_ss(_mm256_castps256_ps128(x2), x3);
-  return _mm_cvtss_f32(x4);
-}
+//! Calculate sum of squared difference (AVX)
+#define SSD_FP32_AVX(ymm_m, ymm_q, ymm_sum)           \
+  {                                                   \
+    __m256 ymm_d = _mm256_sub_ps(ymm_m, ymm_q);       \
+    ymm_sum = _mm256_fmadd_ps(ymm_d, ymm_d, ymm_sum); \
+  }
 
-//! Calculate Fused-Multiply-Add (AVX)
-#define FMA_FP32_AVX(ymm_m, ymm_q, ymm_sum) \
-  ymm_sum = _mm256_fmadd_ps(ymm_m, ymm_q, ymm_sum);
+#define ACCUM_FP32_STEP_AVX SSD_FP32_AVX
 
-#define ACCUM_FP32_STEP_AVX FMA_FP32_AVX
+//! Calculate sum of squared difference (AVX512)
+#define SSD_FP32_AVX512(zmm_m, zmm_q, zmm_sum)        \
+  {                                                   \
+    __m512 zmm_d = _mm512_sub_ps(zmm_m, zmm_q);       \
+    zmm_sum = _mm512_fmadd_ps(zmm_d, zmm_d, zmm_sum); \
+  }
+
+#define ACCUM_FP32_STEP_AVX512 SSD_FP32_AVX512
 
 #define MATRIX_VAR_INIT_1X1(_VAR_TYPE, _VAR_NAME, _VAR_INIT) \
   _VAR_TYPE _VAR_NAME##_0_0 = (_VAR_INIT);
@@ -136,52 +160,49 @@ static inline float HorizontalAdd_FP32_V256(__m256 v) {
 #define MATRIX_VAR_INIT(_M, _N, _VAR_TYPE, _VAR_NAME, _VAR_INIT) \
   MATRIX_VAR_INIT_##_M##X##_N(_VAR_TYPE, _VAR_NAME, _VAR_INIT)
 
-//! Iterative process of computing distance (FP16, M=1, N=1)
-#define MATRIX_FP16_ITER_1X1_AVX(m, q, _RES, _LOAD, _PROC)          \
-  {                                                                 \
-    __m256i ymm_mi = _LOAD((const __m256i *)m);                     \
-    __m256i ymm_qi = _LOAD((const __m256i *)q);                     \
-    __m256 ymm_m = _mm256_cvtph_ps(_mm256_castsi256_si128(ymm_mi)); \
-    __m256 ymm_q = _mm256_cvtph_ps(_mm256_castsi256_si128(ymm_qi)); \
-    _PROC(ymm_m, ymm_q, _RES##_0_0);                                \
-    ymm_m = _mm256_cvtph_ps(_mm256_extractf128_si256(ymm_mi, 1));   \
-    ymm_q = _mm256_cvtph_ps(_mm256_extractf128_si256(ymm_qi, 1));   \
-    _PROC(ymm_m, ymm_q, _RES##_0_0);                                \
-  }
-
 //! Compute the distance between matrix and query (FP16, M=1, N=1)
-#define ACCUM_FP16_1X1_AVX(m, q, dim, out, _MASK, _NORM)                    \
-  MATRIX_VAR_INIT(1, 1, __m256, ymm_sum, _mm256_setzero_ps())               \
-  const Float16 *qe = q + dim;                                              \
-  const Float16 *qe_aligned = q + ((dim >> 4) << 4);                        \
-  if (((uintptr_t)m & 0x1f) == 0 && ((uintptr_t)q & 0x1f) == 0) {           \
-    for (; q != qe_aligned; m += 16, q += 16) {                             \
-      MATRIX_FP16_ITER_1X1_AVX(m, q, ymm_sum, _mm256_load_si256,            \
-                               ACCUM_FP32_STEP_AVX)                         \
-    }                                                                       \
-    if (qe >= qe_aligned + 8) {                                             \
-      __m256 ymm_m = _mm256_cvtph_ps(_mm_load_si128((const __m128i *)m));   \
-      __m256 ymm_q = _mm256_cvtph_ps(_mm_load_si128((const __m128i *)q));   \
-      ACCUM_FP32_STEP_AVX(ymm_m, ymm_q, ymm_sum_0_0)                        \
-      m += 8;                                                               \
-      q += 8;                                                               \
-    }                                                                       \
-  } else {                                                                  \
-    for (; q != qe_aligned; m += 16, q += 16) {                             \
-      MATRIX_FP16_ITER_1X1_AVX(m, q, ymm_sum, _mm256_loadu_si256,           \
-                               ACCUM_FP32_STEP_AVX)                         \
-    }                                                                       \
-    if (qe >= qe_aligned + 8) {                                             \
-      __m256 ymm_m = _mm256_cvtph_ps(_mm_loadu_si128((const __m128i *)m));  \
-      __m256 ymm_q = _mm256_cvtph_ps(_mm_loadu_si128((const __m128i *)q));  \
-      ACCUM_FP32_STEP_AVX(ymm_m, ymm_q, ymm_sum_0_0)                        \
-      m += 8;                                                               \
-      q += 8;                                                               \
-    }                                                                       \
-  }                                                                         \
-  MATRIX_FP16_MASK_AVX(m, q, (qe - q), _MASK, ymm_sum, ACCUM_FP32_STEP_AVX) \
+#define ACCUM_FP16_1X1_AVX512(m, q, dim, out, _MASK, _NORM)                   \
+  MATRIX_VAR_INIT(1, 1, __m512, zmm_sum, _mm512_setzero_ps())                 \
+  const Float16 *qe = q + dim;                                                \
+  const Float16 *qe_aligned = q + ((dim >> 5) << 5);                          \
+  if (((uintptr_t)m & 0x3f) == 0 && ((uintptr_t)q & 0x3f) == 0) {             \
+    for (; q != qe_aligned; m += 32, q += 32) {                               \
+      MATRIX_FP16_ITER_1X1_AVX512(m, q, zmm_sum, _mm512_load_si512,           \
+                                  ACCUM_FP32_STEP_AVX512)                     \
+    }                                                                         \
+    if (qe >= qe_aligned + 16) {                                              \
+      __m512 zmm_m = _mm512_cvtph_ps(_mm256_load_si256((const __m256i *)m));  \
+      __m512 zmm_q = _mm512_cvtph_ps(_mm256_load_si256((const __m256i *)q));  \
+      ACCUM_FP32_STEP_AVX512(zmm_m, zmm_q, zmm_sum_0_0)                       \
+      m += 16;                                                                \
+      q += 16;                                                                \
+    }                                                                         \
+  } else {                                                                    \
+    for (; q != qe_aligned; m += 32, q += 32) {                               \
+      MATRIX_FP16_ITER_1X1_AVX512(m, q, zmm_sum, _mm512_loadu_si512,          \
+                                  ACCUM_FP32_STEP_AVX512)                     \
+    }                                                                         \
+    if (qe >= qe_aligned + 16) {                                              \
+      __m512 zmm_m = _mm512_cvtph_ps(_mm256_loadu_si256((const __m256i *)m)); \
+      __m512 zmm_q = _mm512_cvtph_ps(_mm256_loadu_si256((const __m256i *)q)); \
+      ACCUM_FP32_STEP_AVX512(zmm_m, zmm_q, zmm_sum_0_0)                       \
+      m += 16;                                                                \
+      q += 16;                                                                \
+    }                                                                         \
+  }                                                                           \
+  __m256 ymm_sum_0_0 = _mm256_add_ps(_mm512_castps512_ps256(zmm_sum_0_0),     \
+                                     _mm256_castpd_ps(_mm512_extractf64x4_pd( \
+                                         _mm512_castps_pd(zmm_sum_0_0), 1))); \
+  if (qe >= q + 8) {                                                          \
+    __m256 ymm_m = _mm256_cvtph_ps(_mm_loadu_si128((const __m128i *)m));      \
+    __m256 ymm_q = _mm256_cvtph_ps(_mm_loadu_si128((const __m128i *)q));      \
+    ACCUM_FP32_STEP_AVX(ymm_m, ymm_q, ymm_sum_0_0)                            \
+    m += 8;                                                                   \
+    q += 8;                                                                   \
+  }                                                                           \
+  MATRIX_FP16_MASK_AVX(m, q, (qe - q), _MASK, ymm_sum, ACCUM_FP32_STEP_AVX)   \
   *out = _NORM(HorizontalAdd_FP32_V256(ymm_sum_0_0));
 
-}  // namespace zvec::turbo::avx
+}  // namespace zvec::turbo::avx512::internal
 
-#endif
+#endif  // defined(__AVX512F__)

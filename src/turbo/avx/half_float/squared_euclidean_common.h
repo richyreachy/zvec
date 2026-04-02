@@ -30,8 +30,6 @@
 using namespace zvec::ailego;
 
 namespace zvec::turbo::avx {
-//! Reverse sign of value (GENERAL)
-#define NEGATE_FP32_GENERAL(v) -(v)
 
 //! Mask process of computing distance (FP16)
 #define MATRIX_FP16_MASK_AVX(lhs, rhs, cnt, _MASK, _RES, _PROC)              \
@@ -124,11 +122,14 @@ static inline float HorizontalAdd_FP32_V256(__m256 v) {
   return _mm_cvtss_f32(x4);
 }
 
-//! Calculate Fused-Multiply-Add (AVX)
-#define FMA_FP32_AVX(ymm_m, ymm_q, ymm_sum) \
-  ymm_sum = _mm256_fmadd_ps(ymm_m, ymm_q, ymm_sum);
+//! Calculate sum of squared difference (AVX)
+#define SSD_FP32_AVX(ymm_m, ymm_q, ymm_sum)           \
+  {                                                   \
+    __m256 ymm_d = _mm256_sub_ps(ymm_m, ymm_q);       \
+    ymm_sum = _mm256_fmadd_ps(ymm_d, ymm_d, ymm_sum); \
+  }
 
-#define ACCUM_FP32_STEP_AVX FMA_FP32_AVX
+#define ACCUM_FP32_STEP_AVX SSD_FP32_AVX
 
 #define MATRIX_VAR_INIT_1X1(_VAR_TYPE, _VAR_NAME, _VAR_INIT) \
   _VAR_TYPE _VAR_NAME##_0_0 = (_VAR_INIT);

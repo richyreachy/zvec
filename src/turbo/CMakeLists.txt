@@ -13,6 +13,17 @@ endif()
 
 file(GLOB_RECURSE ALL_SRCS *.cc *.c *.h)
 
+if(NOT ANDROID AND AUTO_DETECT_ARCH)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
+        file(GLOB_RECURSE AVX512_VNNI_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/avx512_fp16/*.cc)
+        set_source_files_properties(
+            ${AVX512_VNNI_SRCS}
+            PROPERTIES
+            COMPILE_FLAGS "${TURBO_MARCH_FLAG_AVX512FP16}"
+        )
+    endif()
+endif()
+
 # Set per-file compile flags for AVX512-VNNI sources.
 # set_source_files_properties is directory-scoped, so it must be called in the
 # same directory that adds the sources to a target (i.e. here, not in a

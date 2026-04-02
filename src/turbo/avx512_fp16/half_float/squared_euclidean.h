@@ -12,38 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "avx512fp16/half_float/squared_euclidean.h"
-#include "avx512fp16/half_float/common.h"
+#pragma once
 
-#if defined(__AVX512F__)
-#include <immintrin.h>
-#endif
+#include <cstddef>
 
-namespace zvec::turbo::avx512fp16 {
+namespace zvec::turbo::avx512_fp16 {
 
+// Compute squared euclidean distance between a single quantized FP32
+// vector pair.
 void squared_euclidean_fp32_distance(const void *a, const void *b, size_t dim,
-                                     float *distance) {
-#if defined(__AVX512FP16__)
+                                     float *distance);
 
-#else
-  (void)a;
-  (void)b;
-  (void)dim;
-  (void)distance;
-#endif  // __AVX512F__
-}
-
+// Batch version of squared euclidean FP32.
 void squared_euclidean_fp32_batch_distance(const void *const *vectors,
                                            const void *query, size_t n,
-                                           size_t dim, float *distances) {
-#if defined(__AVX512FP16__)
-#else
-  (void)vectors;
-  (void)query;
-  (void)n;
-  (void)dim;
-  (void)distances;
-#endif  //__AVX512F__
-}
+                                           size_t dim, float *distances);
 
-}  // namespace zvec::turbo::avx512fp16
+}  // namespace zvec::turbo::avx512_fp16

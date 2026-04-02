@@ -29,7 +29,7 @@ void inner_product_fp16_distance(const void *a, const void *b, size_t dim,
   const ailego::Float16 *lhs = reinterpret_cast<const ailego::Float16 *>(a);
   const ailego::Float16 *rhs = reinterpret_cast<const ailego::Float16 *>(b);
 
-  ACCUM_FP16_1X1_AVX(lhs, rhs, dim, distance, 0ull, )
+  ACCUM_FP16_1X1_AVX(lhs, rhs, dim, distance, 0ull, NEGATE_FP32_GENERAL)
 #else
   (void)a;
   (void)b;
