@@ -63,6 +63,7 @@ enum class IndexType {
   kIVF,  // it's actual a two-layer index
   kHNSW,
   kHNSWRabitq,
+  kDiskAnn,
 };
 
 enum class IVFSearchMethod { kBF, kHNSW };
@@ -355,6 +356,21 @@ struct HNSWRabitqIndexParam : public BaseIndexParam {
       : BaseIndexParam(IndexType::kHNSWRabitq, metric, dim),
         m(m),
         ef_construction(ef_construction) {}
+
+ protected:
+  bool DeserializeFromJsonObject(const ailego::JsonObject &json_obj) override;
+  ailego::JsonObject SerializeToJsonObject(
+      bool omit_empty_value = false) const override;
+};
+
+struct DiskAnnIndexParam : public BaseIndexParam {
+  using Pointer = std::shared_ptr<DiskAnnIndexParam>;
+
+  // Constructors with delegation
+  DiskAnnIndexParam() : BaseIndexParam(IndexType::kDiskAnn) {}
+
+  DiskAnnIndexParam(MetricType metric, int dim)
+      : BaseIndexParam(IndexType::kDiskAnn, metric, dim) {}
 
  protected:
   bool DeserializeFromJsonObject(const ailego::JsonObject &json_obj) override;
