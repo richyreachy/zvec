@@ -30,10 +30,6 @@ DiskAnnIndex::~DiskAnnIndex() {
   if (centroid_data_) {
     free(centroid_data_);
   }
-
-  if (neighbor_cache_buf_) {
-    delete[] neighbor_cache_buf_;
-  }
 }
 
 int DiskAnnIndex::init(DiskAnnSearcherEntity &entity) {
@@ -46,7 +42,6 @@ int DiskAnnIndex::init(DiskAnnSearcherEntity &entity) {
 
   index_segment_offset_ = vector_segment->data_offset();
 
-  // reopen file with directo
   bool with_direct_io = true;
   if (with_direct_io) {
     reader_.reset(new LinuxAlignedFileReader());
@@ -155,7 +150,6 @@ std::vector<bool> DiskAnnIndex::read_nodes(
       (void **)&buf, node_ids.size() * sector_num * DiskAnnUtil::kSectorSize,
       DiskAnnUtil::kSectorSize);
 
-  // create read requests
   for (size_t i = 0; i < node_ids.size(); ++i) {
     auto node_id = node_ids[i];
 
@@ -172,7 +166,6 @@ std::vector<bool> DiskAnnIndex::read_nodes(
 
   reader_->read(read_reqs, init_ctx_);
 
-  // copy reads into buffers
   for (uint32_t i = 0; i < read_reqs.size(); i++) {
     uint8_t *node_buf =
         DiskAnnUtil::offset_to_node(node_per_sector_, max_node_size_,
@@ -204,11 +197,8 @@ int DiskAnnIndex::load_cache_list(const std::vector<diskann_id_t> &node_list) {
 
   size_t num_cached_nodes = node_list.size();
 
-  // Allocate space for neighborhood cache
-  neighbor_cache_buf_ = new diskann_id_t[num_cached_nodes * (max_degree_ + 1)];
-  memset(neighbor_cache_buf_, 0, num_cached_nodes * (max_degree_ + 1));
+  neighbor_cache_buffer_.resize(num_cached_nodes * (max_degree_ + 1), 0);
 
-  // Allocate space for coordinate cache
   size_t coord_cache_buf_len = num_cached_nodes * aligned_dim_;
   DiskAnnUtil::alloc_aligned((void **)&coord_cache_buf_,
                              coord_cache_buf_len * meta_.unit_size(),
@@ -222,7 +212,6 @@ int DiskAnnIndex::load_cache_list(const std::vector<diskann_id_t> &node_list) {
     size_t start_idx = block * BLOCK_SIZE;
     size_t end_idx = std::min(num_cached_nodes, (block + 1) * BLOCK_SIZE);
 
-    // Copy offset into buffers to read into
     std::vector<diskann_id_t> nodes_to_read;
     std::vector<void *> coord_buffers;
     std::vector<std::pair<uint32_t, diskann_id_t *>> neighbor_buffers;
@@ -231,14 +220,12 @@ int DiskAnnIndex::load_cache_list(const std::vector<diskann_id_t> &node_list) {
       coord_buffers.push_back(reinterpret_cast<uint8_t *>(coord_cache_buf_) +
                               node_idx * meta_.element_size());
       neighbor_buffers.emplace_back(
-          0, neighbor_cache_buf_ + node_idx * (max_degree_ + 1));
+          0, neighbor_cache_buffer_.data() + node_idx * (max_degree_ + 1));
     }
 
-    // issue the reads
     auto read_status =
         read_nodes(nodes_to_read, coord_buffers, neighbor_buffers);
 
-    // check for success and insert into the cache.
     for (size_t i = 0; i < read_status.size(); i++) {
       if (read_status[i] == true) {
         coord_cache_.insert(std::make_pair(nodes_to_read[i], coord_buffers[i]));
@@ -477,7 +464,6 @@ int DiskAnnIndex::linear_search(DiskAnnContext *ctx) {
       stats.io_us += io_timer.micro_seconds();
     }
 
-    // process cached neighbors
     for (auto &cached_neighbor : cached_neighbors) {
       auto global_cache_iter = coord_cache_.find(cached_neighbor.first);
       void *node_fp_coords_copy = global_cache_iter->second;
@@ -618,7 +604,6 @@ int DiskAnnIndex::keys_search(const std::vector<uint64_t> &keys,
       stats.io_us += io_timer.micro_seconds();
     }
 
-    // process cached neighbors
     for (auto &cached_neighbor : cached_neighbors) {
       auto global_cache_iter = coord_cache_.find(cached_neighbor.first);
       void *node_fp_coords_copy = global_cache_iter->second;
@@ -672,8 +657,6 @@ int DiskAnnIndex::get_vector(diskann_id_t id, IndexContext::Pointer &context,
   auto &stats = ctx->query_stats();
 
   IOContext &io_ctx = ctx->io_ctx();
-  // void *aligned_query_raw = ctx->query();
-  // void *data_buf = reinterpret_cast<void *>(ctx->coord_buffer());
 
   uint8_t *sector_buffer = reinterpret_cast<uint8_t *>(ctx->sector_buffer());
 
@@ -880,7 +863,7 @@ int DiskAnnIndex::cached_beam_search(DiskAnnContext *ctx) {
 
       io_timer.reset();
 
-      reader_->read(frontier_read_reqs, io_ctx);  // synchronous IO linux
+      reader_->read(frontier_read_reqs, io_ctx);
       stats.io_us += io_timer.micro_seconds();
     }
 
@@ -913,7 +896,6 @@ int DiskAnnIndex::cached_beam_search(DiskAnnContext *ctx) {
       stats.dist_num += neighbor_num;
       stats.cpu_us += cpu_timer.micro_seconds();
 
-      // process prefetched neighbor
       for (uint64_t m = 0; m < neighbor_num; ++m) {
         diskann_id_t id = node_neighbors[m];
         visit_filter.set_visited(id);
@@ -981,7 +963,7 @@ int DiskAnnIndex::cached_beam_search(DiskAnnContext *ctx) {
   return 0;
 }
 
-int DiskAnnIndex::cached_beam_search_in_mem(DiskAnnContext *ctx) {
+int DiskAnnIndex::cached_beam_search_in_mem(DiskAnnContext * /*ctx*/) {
   return IndexError_NotImplemented;
 }
 

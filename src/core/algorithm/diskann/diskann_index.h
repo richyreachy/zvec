@@ -88,7 +88,7 @@ class DiskAnnIndex {
 
   IOContext init_ctx_{0};
 
-  diskann_id_t *neighbor_cache_buf_{nullptr};
+  std::vector<diskann_id_t> neighbor_cache_buffer_;
   void *coord_cache_buf_{nullptr};
 
   std::map<diskann_id_t, void *> coord_cache_;
