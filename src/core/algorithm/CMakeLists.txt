@@ -8,7 +8,6 @@ cc_directory(ivf)
 cc_directory(hnsw)
 cc_directory(hnsw_sparse)
 
-cc_directory(diskann)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
   message(STATUS "build diskann")
   cc_directory(diskann)
