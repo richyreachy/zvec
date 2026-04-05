@@ -392,7 +392,14 @@ if(NOT MSVC)
     )
   unset(_COMPILER_FLAGS)
 else()
-  # Replace the default compiling flags
+  option(ZVEC_USE_STATIC_CRT "Use static CRT (/MT) instead of dynamic CRT (/MD), default=ON" ON)
+
+  if(ZVEC_USE_STATIC_CRT)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "" FORCE)
+  else()
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>" CACHE STRING "" FORCE)
+  endif()
+
   set(
       _COMPILER_FLAGS
       CMAKE_CXX_FLAGS
@@ -406,14 +413,21 @@ else()
       CMAKE_C_FLAGS_RELWITHDEBINFO
       CMAKE_C_FLAGS_MINSIZEREL
     )
-  foreach(COMPILER_FLAG ${_COMPILER_FLAGS})
-    string(REPLACE "/MT" "/MD" ${COMPILER_FLAG} "${${COMPILER_FLAG}}")
-    string(REGEX REPLACE "/W[0-9]" "" ${COMPILER_FLAG} "${${COMPILER_FLAG}}")
-  endforeach()
+  if(ZVEC_USE_STATIC_CRT)
+    foreach(COMPILER_FLAG ${_COMPILER_FLAGS})
+      string(REPLACE "/MD" "/MT" ${COMPILER_FLAG} "${${COMPILER_FLAG}}")
+      string(REGEX REPLACE "/W[0-9]" "" ${COMPILER_FLAG} "${${COMPILER_FLAG}}")
+    endforeach()
+  else()
+    foreach(COMPILER_FLAG ${_COMPILER_FLAGS})
+      string(REPLACE "/MT" "/MD" ${COMPILER_FLAG} "${${COMPILER_FLAG}}")
+      string(REGEX REPLACE "/W[0-9]" "" ${COMPILER_FLAG} "${${COMPILER_FLAG}}")
+    endforeach()
+  endif()
   unset(_COMPILER_FLAGS)
+
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-  # Build shared library as default
-  set(BUILD_SHARED_LIBS ON)
+  set(BUILD_SHARED_LIBS OFF)
 endif()
 
 set(CMAKE_C_FLAGS_ASAN ${CMAKE_C_FLAGS_DEBUG})
@@ -621,6 +635,11 @@ function(_target_link_libraries _NAME)
       get_target_property(ALWAYS_LINK ${LIB} ALWAYS_LINK)
       if(ALWAYS_LINK)
         list(APPEND LOCAL_RESULT ${LIB})
+      elseif(MSVC AND TARGET ${LIB}_static)
+        get_target_property(_SIBLING_AL ${LIB}_static ALWAYS_LINK)
+        if(_SIBLING_AL)
+          list(APPEND LOCAL_RESULT ${LIB}_static)
+        endif()
       endif()
 
       get_target_property(DEP_LIBS ${LIB} INTERFACE_LINK_LIBRARIES)
@@ -652,6 +671,30 @@ function(_target_link_libraries _NAME)
 
   list(REMOVE_DUPLICATES ALL_LIBS_TO_PROCESS)
 
+  # On MSVC, each DLL has its own copy of template statics (e.g. Factory
+  # singletons), so registrations inside a DLL are invisible to the exe.
+  # Substitute SHARED libs with their ALWAYS_LINK _static counterparts and
+  # use /WHOLEARCHIVE so all registration code lives in the same module.
+  if(MSVC)
+    set(_SUBSTITUTED_LIBS "")
+    foreach(LIB ${ALL_LIBS_TO_PROCESS})
+      if(TARGET ${LIB} AND TARGET ${LIB}_static)
+        get_target_property(_LIB_TYPE ${LIB} TYPE)
+        get_target_property(_STATIC_AL ${LIB}_static ALWAYS_LINK)
+        if("${_LIB_TYPE}" STREQUAL "SHARED_LIBRARY" AND _STATIC_AL)
+          list(APPEND _SUBSTITUTED_LIBS ${LIB}_static)
+          list(APPEND ALL_ALWAYS_LINK_LIBS ${LIB}_static)
+          continue()
+        endif()
+      endif()
+      list(APPEND _SUBSTITUTED_LIBS ${LIB})
+    endforeach()
+    set(ALL_LIBS_TO_PROCESS ${_SUBSTITUTED_LIBS})
+    if(ALL_ALWAYS_LINK_LIBS)
+      list(REMOVE_DUPLICATES ALL_ALWAYS_LINK_LIBS)
+    endif()
+  endif()
+
   foreach(LIB ${ALL_LIBS_TO_PROCESS})
     if(NOT TARGET ${LIB})
       list(APPEND LINK_LIBS ${LIB})
@@ -671,8 +714,8 @@ function(_target_link_libraries _NAME)
         list(APPEND LINK_LIBS -Wl,-force_load ${LIB})
       endif()
     else()
-      # Microsoft Visual C++
-      list(APPEND LINK_LIBS /WHOLEARCHIVE:$<TARGET_FILE:${LIB}>)
+      # TODO(windows): revert maybe
+      list(APPEND MSVC_WHOLEARCHIVE_OPTS /WHOLEARCHIVE:$<TARGET_FILE:${LIB}>)
       get_target_property(OTHER_LINK_LIBS ${LIB} INTERFACE_LINK_LIBRARIES)
       if(OTHER_LINK_LIBS)
         foreach(OTHER_LIB ${OTHER_LINK_LIBS})
@@ -691,6 +734,9 @@ function(_target_link_libraries _NAME)
   endforeach()
 
   target_link_libraries(${_NAME} ${LINK_LIBS})
+  if(MSVC_WHOLEARCHIVE_OPTS)
+    target_link_options(${_NAME} PRIVATE ${MSVC_WHOLEARCHIVE_OPTS})
+  endif()
   if(LIBS_DEPS)
     add_dependencies(${_NAME} ${LIBS_DEPS})
     target_include_directories(${_NAME} PRIVATE "${LIBS_INCS}")
