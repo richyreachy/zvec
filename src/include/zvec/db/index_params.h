@@ -428,4 +428,36 @@ class IVFIndexParams : public VectorIndexParams {
   bool use_soar_;
 };
 
+class DiskAnnIndexParams : public VectorIndexParams {
+ public:
+  DiskAnnIndexParams(MetricType metric_type,
+                     QuantizeType quantize_type = QuantizeType::UNDEFINED)
+      : VectorIndexParams(IndexType::DISKANN, metric_type, quantize_type) {}
+
+  using OPtr = std::shared_ptr<DiskAnnIndexParams>;
+
+ public:
+  Ptr clone() const override {
+    return std::make_shared<DiskAnnIndexParams>(metric_type_, quantize_type_);
+  }
+
+  std::string to_string() const override {
+    auto base_str = vector_index_params_to_string("DiskAnnIndexParams",
+                                                  metric_type_, quantize_type_);
+    std::ostringstream oss;
+    oss << base_str << "}";
+    return oss.str();
+  }
+
+  bool operator==(const IndexParams &other) const override {
+    return type() == other.type() &&
+           metric_type() ==
+               static_cast<const DiskAnnIndexParams &>(other).metric_type() &&
+           quantize_type() ==
+               static_cast<const DiskAnnIndexParams &>(other).quantize_type();
+  }
+
+ private:
+};
+
 }  // namespace zvec

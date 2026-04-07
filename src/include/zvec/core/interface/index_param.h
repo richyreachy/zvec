@@ -215,6 +215,14 @@ struct IVFQueryParam : public BaseIndexQueryParam {
   }
 };
 
+struct DiskAnnQueryParam : public BaseIndexQueryParam {
+  using Pointer = std::shared_ptr<DiskAnnQueryParam>;
+
+  BaseIndexQueryParam::Pointer Clone() const override {
+    return std::make_shared<DiskAnnQueryParam>(*this);
+  }
+};
+
 // --- Construction Parameters ---
 // template<typename IndexQueryParamType>
 class BaseIndexParam : public SerializableBase {
