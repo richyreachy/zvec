@@ -191,6 +191,16 @@ class HNSWRabitqIndexParamBuilder
   }
 };
 
+class DiskAnnIndexParamBuilder
+    : public BaseIndexParamBuilder<DiskAnnIndexParamBuilder,
+                                   DiskAnnIndexParam> {
+ public:
+  DiskAnnIndexParamBuilder() = default;
+
+  std::shared_ptr<DiskAnnIndexParam> Build() override {
+    return param;
+  }
+};
 //     class CompositeIndexParamBuilder : public
 //     BaseIndexParamBuilder<CompositeIndexParamBuilder, CompositeIndexParam>
 //     { public:

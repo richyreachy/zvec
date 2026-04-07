@@ -393,6 +393,24 @@ class ProximaEngineHelper {
         return index_param_builder->Build();
       }
 
+      case IndexType::DISKANN: {
+        auto index_param_builder_result =
+            _build_common_index_param<DiskAnnIndexParams,
+                                      core_interface::DiskAnnIndexParamBuilder>(
+                field_schema);
+        if (!index_param_builder_result.has_value()) {
+          return tl::make_unexpected(Status::InvalidArgument(
+              "failed to build index param: " +
+              index_param_builder_result.error().message()));
+        }
+        auto index_param_builder = index_param_builder_result.value();
+
+        // auto db_index_params = dynamic_cast<const DiskAnnIndexParams *>(
+        //     field_schema.index_params().get());
+
+        return index_param_builder->Build();
+      }
+
       default:
         return tl::make_unexpected(Status::InvalidArgument("not supported"));
     }
