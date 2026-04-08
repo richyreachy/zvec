@@ -253,6 +253,13 @@ int DiskAnnBuilder::calculate_pq_chunk_num() {
     return IndexError_InvalidArgument;
   }
 
+  if (pq_chunk_num_ == kDefaultPqChunkNum) {
+    pq_chunk_num_ = build_meta_.dimension() / 2;
+    LOG_INFO(
+        "No Chunk Num input. Quantizing %u dimension data into %u dimension.",
+        build_meta_.dimension(), pq_chunk_num_);
+  }
+
   LOG_INFO("Quantizing %u dimension data into %u bytes.",
            build_meta_.dimension(), pq_chunk_num_);
 

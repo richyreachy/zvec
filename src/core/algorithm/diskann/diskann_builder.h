@@ -84,15 +84,18 @@ class DiskAnnBuilder : public IndexBuilder {
   };
 
   constexpr static uint32_t kDefaultLogIntervalSecs = 15U;
+  constexpr static uint32_t kDefaultListSize = 50U;
+  constexpr static uint32_t kDefaultMaxDegree = 100U;
+  constexpr static uint32_t kDefaultPqChunkNum = -1U;
 
   std::string data_file_;
 
-  uint32_t max_degree_{0};
-  uint32_t list_size_{0};
+  uint32_t max_degree_{kDefaultMaxDegree};
+  uint32_t list_size_{kDefaultListSize};
   double memory_limit_{0.0};
   bool memory_limit_set_{false};
-  uint32_t max_pq_chunk_num_{-1U};
-  uint32_t pq_chunk_num_{-1U};
+  uint32_t max_pq_chunk_num_{kDefaultPqChunkNum};
+  uint32_t pq_chunk_num_{kDefaultPqChunkNum};
   uint32_t build_thread_count_{0};
   uint32_t max_train_sample_count_{PQTable::kMaxTrainSampleCount};
   double train_sample_ratio_{PQTable::kTrainSampleRatio};

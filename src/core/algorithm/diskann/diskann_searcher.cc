@@ -14,7 +14,7 @@
 
 #include "diskann_searcher.h"
 #include "diskann_context.h"
-#include "diskann_index.h"
+#include "diskann_indexer.h"
 #include "diskann_params.h"
 
 namespace zvec {
@@ -58,9 +58,9 @@ int DiskAnnSearcher::load(IndexStorage::Pointer storage,
     return ret;
   }
 
-  diskann_index_ = std::make_shared<DiskAnnIndex>(meta_);
+  diskann_indexer_ = std::make_shared<DiskAnnIndexer>(meta_);
 
-  int res = diskann_index_->init(entity_);
+  int res = diskann_indexer_->init(entity_);
   if (res != 0) {
     return res;
   }
@@ -69,9 +69,9 @@ int DiskAnnSearcher::load(IndexStorage::Pointer storage,
     std::vector<diskann_id_t> node_list;
     LOG_INFO("Caching %u nodes around medoid(s)", cache_nodes_num_);
 
-    diskann_index_->cache_bfs_levels(cache_nodes_num_, node_list);
+    diskann_indexer_->cache_bfs_levels(cache_nodes_num_, node_list);
 
-    diskann_index_->load_cache_list(node_list);
+    diskann_indexer_->load_cache_list(node_list);
 
     node_list.clear();
     node_list.shrink_to_fit();
@@ -145,7 +145,7 @@ int DiskAnnSearcher::search_impl(const void *query, const IndexQueryMeta &qmeta,
   for (uint32_t i = 0; i < count; i++) {
     ctx->reset_query(query);
 
-    diskann_index_->knn_search(ctx);
+    diskann_indexer_->knn_search(ctx);
 
     ctx->topk_to_result(i);
 
@@ -183,7 +183,7 @@ int DiskAnnSearcher::search_bf_impl(const void *query,
   for (size_t i = 0; i < count; ++i) {
     ctx->reset_query(query);
 
-    diskann_index_->linear_search(ctx);
+    diskann_indexer_->linear_search(ctx);
 
     ctx->topk_to_result(i);
 
@@ -231,7 +231,7 @@ int DiskAnnSearcher::search_bf_by_p_keys_impl(
   for (size_t i = 0; i < count; ++i) {
     ctx->reset_query(query);
 
-    diskann_index_->keys_search(p_keys[i], ctx);
+    diskann_indexer_->keys_search(p_keys[i], ctx);
 
     ctx->topk_to_result(i);
 
@@ -247,7 +247,7 @@ int DiskAnnSearcher::search_bf_by_p_keys_impl(
 
 int DiskAnnSearcher::get_vector(uint64_t key, Context::Pointer &context,
                                 std::string &vector) const {
-  return diskann_index_->get_vector(key, context, vector);
+  return diskann_indexer_->get_vector(key, context, vector);
 }
 
 IndexSearcher::Context::Pointer DiskAnnSearcher::create_context() const {

@@ -15,7 +15,7 @@
 
 #include <zvec/core/framework/index_framework.h>
 #include "diskann_context.h"
-#include "diskann_index.h"
+#include "diskann_indexer.h"
 
 class LinuxAlignedFileReader;
 
@@ -156,7 +156,7 @@ class DiskAnnStreamer : public IndexStreamer {
   bool warm_up_{false};
   uint32_t beam_size_{2};
 
-  DiskAnnIndex::Pointer diskann_index_{nullptr};
+  DiskAnnIndexer::Pointer diskann_indexer_{nullptr};
   DiskAnnSearcherEntity entity_{};
 
   uint32_t magic_{0U};
