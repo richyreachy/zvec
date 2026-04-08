@@ -374,11 +374,19 @@ struct HNSWRabitqIndexParam : public BaseIndexParam {
 struct DiskAnnIndexParam : public BaseIndexParam {
   using Pointer = std::shared_ptr<DiskAnnIndexParam>;
 
+  int max_degree = kDefaultDiskAnnMaxDegree;
+  int list_size = kDefaultDiskAnnListSize;
+  int pq_chunk_num = kDefaultDiskAnnPqChunkNum;
+
   // Constructors with delegation
   DiskAnnIndexParam() : BaseIndexParam(IndexType::kDiskAnn) {}
 
-  DiskAnnIndexParam(MetricType metric, int dim)
-      : BaseIndexParam(IndexType::kDiskAnn, metric, dim) {}
+  DiskAnnIndexParam(MetricType metric, int dim, int max_degree, int list_size,
+                    int pq_chunk_num)
+      : BaseIndexParam(IndexType::kDiskAnn, metric, dim),
+        max_degree(max_degree),
+        list_size(list_size),
+        pq_chunk_num(pq_chunk_num) {}
 
  protected:
   bool DeserializeFromJsonObject(const ailego::JsonObject &json_obj) override;

@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <zvec/core/interface/index.h>
+#include "algorithm/diskann/diskann_params.h"
 
 namespace zvec::core_interface {
 
@@ -29,6 +30,16 @@ int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
   }
 
   param_ = dynamic_cast<const DiskAnnIndexParam &>(param);
+  param_.max_degree = std::max(1, std::min(100, param_.max_degree));
+  param_.list_size = std::max(10, std::min(100, param_.list_size));
+  param_.pq_chunk_num = std::max(1, std::min(1024, param_.pq_chunk_num));
+
+  proxima_index_params_.set(core::PARAM_DISKANN_BUILDER_MAX_DEGREE,
+                            param_.max_degree);
+  proxima_index_params_.set(core::PARAM_DISKANN_BUILDER_LIST_SIZE,
+                            param_.list_size);
+  proxima_index_params_.set(core::PARAM_DISKANN_BUILDER_MAX_PQ_CHUNK_NUM,
+                            param_.pq_chunk_num);
 
   builder_ = core::IndexFactory::CreateBuilder("DiskAnnBuilder");
   streamer_ = core::IndexFactory::CreateStreamer("DiskAnnStreamer");
@@ -79,29 +90,16 @@ int DiskAnnIndex::Open(const std::string &file_path,
   file_path_ = file_path;
   is_read_only_ = storage_options.read_only;
   switch (storage_options.type) {
+    // case StorageOptions::StorageType::kDisk:
     case StorageOptions::StorageType::kMMAP: {
-      storage_ = core::IndexFactory::CreateStorage("MMapFileReadStorage");
+      storage_ = core::IndexFactory::CreateStorage("FileReadStorage");
       if (storage_ == nullptr) {
-        LOG_ERROR("Failed to create MMapFileStorage");
+        LOG_ERROR("Failed to create FileReadStorage");
         return core::IndexError_Runtime;
       }
       int ret = storage_->init(storage_params);
       if (ret != 0) {
-        LOG_ERROR("Failed to init MMapFileStorage, path: %s, err: %s",
-                  file_path_.c_str(), core::IndexError::What(ret));
-        return ret;
-      }
-      break;
-    }
-    case StorageOptions::StorageType::kBufferPool: {
-      storage_ = core::IndexFactory::CreateStorage("BufferStorage");
-      if (storage_ == nullptr) {
-        LOG_ERROR("Failed to create BufferStorage");
-        return core::IndexError_Runtime;
-      }
-      int ret = storage_->init(storage_params);
-      if (ret != 0) {
-        LOG_ERROR("Failed to init BufferStorage, path: %s, err: %s",
+        LOG_ERROR("Failed to init FileReadStorage, path: %s, err: %s",
                   file_path_.c_str(), core::IndexError::What(ret));
         return ret;
       }

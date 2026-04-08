@@ -587,8 +587,6 @@ int DiskAnnBuilder::build(IndexThreads::Pointer threads,
   }
 
   LOG_INFO("Start to generate quantized data");
-  // auto test_threads = std::make_shared<SingleQueueIndexThreads>(1,
-  // false); ret = generate_quantized_data(test_threads);
   ret = generate_quantized_data(threads);
   if (ailego_unlikely(ret != 0)) {
     return ret;
