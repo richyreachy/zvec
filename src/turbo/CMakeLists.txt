@@ -15,7 +15,9 @@ file(GLOB_RECURSE ALL_SRCS *.cc *.c *.h)
 
 if(NOT ANDROID AND AUTO_DETECT_ARCH)
     if (HOST_ARCH MATCHES "^(x86|x64)$")
-        file(GLOB_RECURSE AVX512_AVX512FP16_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/avx512_fp16/*.cc)
+        file(GLOB_RECURSE AVX512_AVX512FP16_SRCS 
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx512_fp16/*.cc
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx512_fp16/*.c)
         set_source_files_properties(
             ${AVX512_AVX512FP16_SRCS}
             PROPERTIES
@@ -26,29 +28,38 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
         # set_source_files_properties is directory-scoped, so it must be called in the
         # same directory that adds the sources to a target (i.e. here, not in a
         # subdirectory).
-        file(GLOB_RECURSE AVX512_VNNI_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/avx512_vnni/*.cc)
+        file(GLOB_RECURSE AVX512_VNNI_SRCS 
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx512_vnni/*.cc
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx512_vnni/*.c)
         set_source_files_properties(
             ${AVX512_VNNI_SRCS}
             PROPERTIES
             COMPILE_FLAGS "${TURBO_MARCH_FLAG_AVX512}"
         )
 
-        file(GLOB_RECURSE AVX512_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/avx512/*.cc)
+        file(GLOB_RECURSE AVX512_SRCS 
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx512/*.cc
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx512/*.c)
         set_source_files_properties(
             ${AVX512_SRCS}
             PROPERTIES
             COMPILE_FLAGS "${TURBO_MARCH_FLAG_AVX512}"
         )
     
-        file(GLOB_RECURSE AVX2_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/avx2/*.cc)
-        file(GLOB_RECURSE AVX2_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/avx/*.cc)
+        file(GLOB_RECURSE AVX2_SRCS 
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx2/*.cc 
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx2/*.c
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx/*.cc
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx/*.c)
         set_source_files_properties(
             ${AVX2_SRCS}
             PROPERTIES
             COMPILE_FLAGS "${TURBO_MARCH_FLAG_AVX2}"
         )
 
-        file(GLOB_RECURSE SSE_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/sse/*.cc)
+        file(GLOB_RECURSE SSE_SRCS 
+          ${CMAKE_CURRENT_SOURCE_DIR}/sse/*.cc
+          ${CMAKE_CURRENT_SOURCE_DIR}/sse/*.c)
         set_source_files_properties(
             ${SSE_SRCS}
             PROPERTIES
