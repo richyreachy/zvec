@@ -111,7 +111,7 @@ int DiskAnnIndex::Open(const std::string &file_path,
     }
   }
 
-  if (is_read_only_ || !storage_options.create_new) {
+  if (!storage_options.create_new) {
     // read_options.create_new
     int ret = storage_->open(file_path_, false);
     if (ret != 0) {

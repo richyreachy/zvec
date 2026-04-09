@@ -33,6 +33,8 @@ static std::string index_type_to_string(const IndexType type) {
       return "HNSW";
     case IndexType::HNSW_RABITQ:
       return "HNSW_RABITQ";
+    case IndexType::DISKANN:
+      return "DISKANN";
     default:
       return "UNDEFINED";
   }
@@ -643,6 +645,100 @@ Args:
                 t[0].cast<MetricType>(), t[1].cast<int>(), t[2].cast<int>(),
                 t[3].cast<bool>(), t[4].cast<QuantizeType>());
           }));
+
+  // DiskAnnIndexParams
+  py::class_<DiskAnnIndexParams, VectorIndexParams,
+             std::shared_ptr<DiskAnnIndexParams>>
+      diskann_params(m, "DiskAnnIndexParams", R"pbdoc(
+Parameters for configuring an DiskAnn index.
+
+DiskAnn stores compressed vector in memory and high-definition vector on disk. At query time, 
+only compressed vector will be loaded into memory. By this way, search memory at runtime is diminished. 
+
+Attributes:
+    metric_type (MetricType): Distance metric used for similarity computation.
+        Default is ``MetricType.IP`` (inner product).
+    max_degree (int):.
+    list_size (int): .
+    pq_chunk_num (bool): .
+    quantize_type (QuantizeType): Optional quantization type for vector
+        compression (e.g., FP16, INT8). Default is ``QuantizeType.UNDEFINED``.
+
+Examples:
+    >>> from zvec.typing import MetricType, QuantizeType
+    >>> params = DiskAnnIndexParams(
+    ...     metric_type=MetricType.COSINE,
+    ...     max_degree=100,
+    ...     list_size=15,
+    ...     pq_chunk_num=True,
+    ...     quantize_type=QuantizeType.FP16
+    ... )
+    >>> print(params.n_list)
+    100
+)pbdoc");
+  diskann_params
+      .def(py::init<MetricType, int, int, int, QuantizeType>(),
+           py::arg("metric_type") = MetricType::IP, py::arg("max_degree") = 0,
+           py::arg("n_iters") = 10, py::arg("use_soar") = false,
+           py::arg("quantize_type") = QuantizeType::UNDEFINED,
+           R"pbdoc(
+Constructs an DiskAnnIndexParams instance.
+
+Args:
+    metric_type (MetricType, optional): Distance metric. Defaults to MetricType.IP.
+    max_degree (int, optional): Number of inverted lists (clusters). Set to 0 for auto.
+        Defaults to 100.
+    list_size (int, optional): the list size to construct graph.
+        Defaults to 50.
+    pq chunk num (int, optional): The chunk num of production quantization.
+    quantize_type (QuantizeType, optional): Vector quantization type.
+        Defaults to QuantizeType.UNDEFINED.
+)pbdoc")
+      .def_property_readonly("max_degree", &DiskAnnIndexParams::max_degree,
+                             "int: max node degree.")
+      .def_property_readonly("list_size", &DiskAnnIndexParams::list_size,
+                             "int: list size of graph construction")
+      .def_property_readonly("pq chunk num", &DiskAnnIndexParams::pq_chunk_num,
+                             "int: chunk num of production quantization.")
+      .def(
+          "to_dict",
+          [](const DiskAnnIndexParams &self) -> py::dict {
+            py::dict dict;
+            dict["type"] = index_type_to_string(self.type());
+            dict["metric_type"] = metric_type_to_string(self.metric_type());
+            dict["max_degree"] = self.max_degree();
+            dict["list_size"] = self.list_size();
+            dict["pq_chunk_num"] = self.pq_chunk_num();
+            dict["quantize_type"] =
+                quantize_type_to_string(self.quantize_type());
+            return dict;
+          },
+          "Convert to dictionary with all fields")
+      .def(
+          "__repr__",
+          [](const DiskAnnIndexParams &self) {
+            return "{"
+                   "\"metric_type\":" +
+                   metric_type_to_string(self.metric_type()) +
+                   ", \"max_degree\":" + std::to_string(self.max_degree()) +
+                   ", \"list_size\":" + std::to_string(self.list_size()) +
+                   ", \"pq_chunk_num\":" + std::to_string(self.pq_chunk_num()) +
+                   ", \"quantize_type\":" +
+                   quantize_type_to_string(self.quantize_type()) + "}";
+          })
+      .def(py::pickle(
+          [](const DiskAnnIndexParams &self) {
+            return py::make_tuple(self.metric_type(), self.max_degree(),
+                                  self.list_size(), self.pq_chunk_num(),
+                                  self.quantize_type());
+          },
+          [](py::tuple t) {
+            if (t.size() != 5)
+              throw std::runtime_error("Invalid state for DiskAnnIndexParams");
+            return std::make_shared<DiskAnnIndexParams>(
+                t[0].cast<MetricType>(), t[1].cast<int>(), t[2].cast<int>(),
+                t[3].cast<int>(), t[4].cast<QuantizeType>());
+          }));
 }
 
 void ZVecPyParams::bind_query_params(py::module_ &m) {
@@ -882,6 +978,53 @@ Args:
             obj->set_radius(t[1].cast<float>());
             obj->set_is_linear(t[2].cast<bool>());
             obj->set_is_using_refiner(t[3].cast<bool>());
+            return obj;
+          }));
+
+  // binding diskann query params
+  py::class_<DiskAnnQueryParams, QueryParams,
+             std::shared_ptr<DiskAnnQueryParams>>
+      diskann_params(m, "DiskAnnQueryParams", R"pbdoc(
+Query parameters for DiskAnn index.
+
+Attributes:
+    type (IndexType): Always ``IndexType.DiskAnn``.
+    list_size (int): Number of closest clusters (inverted lists) to search.
+        Higher values improve recall but increase latency.
+        Default is 10.
+
+Examples:
+    >>> params = DiskAnnQueryParams(list_size=20)
+    >>> print(params.nprobe)
+    20
+)pbdoc");
+  diskann_params
+      .def(py::init<int>(), py::arg("list_size") = 10, R"pbdoc(
+Constructs an DiskAnnQueryParams instance.
+
+Args:
+    list_size (int, optional): list size during graph search. Defaults to 300.
+)pbdoc")
+      .def_property_readonly(
+          "list_size",
+          [](const DiskAnnQueryParams &self) -> int { return self.nprobe(); },
+          "int: Number of inverted lists to search during DiskAnn query.")
+      .def("__repr__",
+           [](const DiskAnnQueryParams &self) -> std::string {
+             return "{"
+                    "\"type\":" +
+                    index_type_to_string(self.type()) +
+                    ", \"list_size\":" + std::to_string(self.list_size()) + "}";
+           })
+      .def(py::pickle(
+          [](const DiskAnnQueryParams &self) {
+            return py::make_tuple(self.list_size());
+          },
+          [](py::tuple t) {
+            if (t.size() != 2)
+              throw std::runtime_error("Invalid state for DiskAnnQueryParams");
+            auto obj = std::make_shared<DiskAnnQueryParams>(t[0].cast<int>());
+            obj->set_list_size(t[1].cast<int>());
             return obj;
           }));
 }
