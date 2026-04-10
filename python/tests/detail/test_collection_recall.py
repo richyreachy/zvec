@@ -22,8 +22,10 @@ from zvec.model.param import (
     HnswIndexParam,
     FlatIndexParam,
     IVFIndexParam,
+    DiskAnnIndexParam,
     HnswQueryParam,
     IVFQueryParam,
+    DiskAnnQueryParam,
 )
 
 from zvec.model.schema import FieldSchema, VectorSchema

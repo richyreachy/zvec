@@ -649,7 +649,7 @@ Args:
   // DiskAnnIndexParams
   py::class_<DiskAnnIndexParams, VectorIndexParams,
              std::shared_ptr<DiskAnnIndexParams>>
-      diskann_params(m, "DiskAnnIndexParams", R"pbdoc(
+      diskann_params(m, "DiskAnnIndexParam", R"pbdoc(
 Parameters for configuring an DiskAnn index.
 
 DiskAnn stores compressed vector in memory and high-definition vector on disk. At query time, 
@@ -678,8 +678,8 @@ Examples:
 )pbdoc");
   diskann_params
       .def(py::init<MetricType, int, int, int, QuantizeType>(),
-           py::arg("metric_type") = MetricType::IP, py::arg("max_degree") = 0,
-           py::arg("n_iters") = 10, py::arg("use_soar") = false,
+           py::arg("metric_type") = MetricType::IP, py::arg("max_degree") = 100,
+           py::arg("list_size") = 50, py::arg("pq_chunk_num") = 0,
            py::arg("quantize_type") = QuantizeType::UNDEFINED,
            R"pbdoc(
 Constructs an DiskAnnIndexParams instance.
@@ -698,8 +698,12 @@ Args:
                              "int: max node degree.")
       .def_property_readonly("list_size", &DiskAnnIndexParams::list_size,
                              "int: list size of graph construction")
-      .def_property_readonly("pq chunk num", &DiskAnnIndexParams::pq_chunk_num,
-                             "int: chunk num of production quantization.")
+      .def_property_readonly(
+          "pq_chunk_num",
+          [](const DiskAnnIndexParams &self) -> int {
+            return self.pq_chunk_num();
+          },
+          "int: chunk num of production quantization.")
       .def(
           "to_dict",
           [](const DiskAnnIndexParams &self) -> py::dict {
@@ -984,7 +988,7 @@ Args:
   // binding diskann query params
   py::class_<DiskAnnQueryParams, QueryParams,
              std::shared_ptr<DiskAnnQueryParams>>
-      diskann_params(m, "DiskAnnQueryParams", R"pbdoc(
+      diskann_params(m, "DiskAnnQueryParam", R"pbdoc(
 Query parameters for DiskAnn index.
 
 Attributes:
@@ -1007,7 +1011,9 @@ Args:
 )pbdoc")
       .def_property_readonly(
           "list_size",
-          [](const DiskAnnQueryParams &self) -> int { return self.nprobe(); },
+          [](const DiskAnnQueryParams &self) -> int {
+            return self.list_size();
+          },
           "int: Number of inverted lists to search during DiskAnn query.")
       .def("__repr__",
            [](const DiskAnnQueryParams &self) -> std::string {
@@ -1021,11 +1027,9 @@ Args:
             return py::make_tuple(self.list_size());
           },
           [](py::tuple t) {
-            if (t.size() != 2)
+            if (t.size() != 1)
               throw std::runtime_error("Invalid state for DiskAnnQueryParams");
-            auto obj = std::make_shared<DiskAnnQueryParams>(t[0].cast<int>());
-            obj->set_list_size(t[1].cast<int>());
-            return obj;
+            return std::make_shared<DiskAnnQueryParams>(t[0].cast<int>());
           }));
 }
 
