@@ -379,20 +379,31 @@ diskann_key_t DiskAnnSearcherEntity::get_key(diskann_id_t id) const {
   return key_data_ptr[id];
 }
 
-const void *DiskAnnSearcherEntity::get_vector(diskann_id_t /*id*/) const {
-  size_t read_size = meta_.element_size();
-  size_t offset = 0;  // node_size() * id;
+const void *DiskAnnSearcherEntity::get_vector(diskann_id_t id) const {
+  if (!vector_segment_) {
+    LOG_ERROR("Vector segment is null");
+    return nullptr;
+  }
 
+  uint64_t sector_offset =
+      DiskAnnUtil::get_node_sector(node_per_sector(), max_node_size(),
+                                   DiskAnnUtil::kSectorSize, id) *
+      DiskAnnUtil::kSectorSize;
+  uint64_t within_sector_offset =
+      (node_per_sector() == 0 ? 0 : (id % node_per_sector()) * max_node_size());
+  uint64_t total_offset = sector_offset + within_sector_offset;
+
+  size_t read_size = meta_.element_size();
   const void *vec;
-  if (ailego_unlikely(vector_segment_->read(offset, &vec, read_size) !=
+  if (ailego_unlikely(vector_segment_->read(total_offset, &vec, read_size) !=
                       read_size)) {
-    LOG_ERROR("Read vector from segment failed");
+    LOG_ERROR("Read vector from segment failed, id: %u, offset: %lu", id,
+              total_offset);
     return nullptr;
   }
 
   return vec;
 }
-
 
 std::pair<uint32_t, const diskann_id_t *> DiskAnnSearcherEntity::get_neighbors(
     diskann_id_t id) const {

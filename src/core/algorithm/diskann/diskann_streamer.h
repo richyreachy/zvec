@@ -105,6 +105,13 @@ class DiskAnnStreamer : public IndexStreamer {
   int get_vector(uint64_t key, Context::Pointer &context,
                  std::string &vector) const override;
 
+  //! Fetch vector by id
+  const void *get_vector_by_id(uint32_t id) const override;
+
+  //! Fetch vector by id into memory block
+  int get_vector_by_id(const uint32_t id,
+                       IndexStorage::MemoryBlock &block) const override;
+
   //! Create a searcher context
   ContextPointer create_context() const override;
 
@@ -158,6 +165,10 @@ class DiskAnnStreamer : public IndexStreamer {
 
   DiskAnnIndexer::Pointer diskann_indexer_{nullptr};
   DiskAnnSearcherEntity entity_{};
+
+  // Mutable members for get_vector_by_id (caches context and buffer)
+  mutable ContextPointer fetch_ctx_{};
+  mutable std::string fetch_vector_buffer_;
 
   uint32_t magic_{0U};
 

@@ -139,6 +139,20 @@ int DiskAnnSearcher::search_impl(const void *query, const IndexQueryMeta &qmeta,
     return IndexError_Cast;
   }
 
+  // Context is pooled per index type. When switching between DiskAnn indexes
+  // with different element sizes (e.g., fp16 vs fp32), the cached context has
+  // undersized buffers. Recreate it to ensure correct buffer allocations.
+  if (ctx->magic() != magic_) {
+    uint32_t saved_topk = ctx->topk();
+    context = create_context();
+    if (!context) {
+      LOG_ERROR("Failed to recreate context for current streamer");
+      return IndexError_Runtime;
+    }
+    ctx = dynamic_cast<DiskAnnContext *>(context.get());
+    ctx->set_topk(saved_topk);
+  }
+
   ctx->clear();
   ctx->resize_results(count);
 
@@ -170,11 +184,16 @@ int DiskAnnSearcher::search_bf_impl(const void *query,
   }
 
   if (ctx->magic() != magic_) {
-    //! context is created by another searcher or streamer
-    int ret = update_context(ctx);
-    if (ret != 0) {
-      return ret;
+    //! context is created by another searcher or streamer, recreate it
+    //! to ensure buffers are correctly sized for this index's parameters.
+    uint32_t saved_topk = ctx->topk();
+    context = create_context();
+    if (!context) {
+      LOG_ERROR("Failed to recreate context for current streamer");
+      return IndexError_Runtime;
     }
+    ctx = dynamic_cast<DiskAnnContext *>(context.get());
+    ctx->set_topk(saved_topk);
   }
 
   ctx->clear();
@@ -218,11 +237,16 @@ int DiskAnnSearcher::search_bf_by_p_keys_impl(
   }
 
   if (ctx->magic() != magic_) {
-    //! context is created by another searcher or streamer
-    int ret = update_context(ctx);
-    if (ret != 0) {
-      return ret;
+    //! context is created by another searcher or streamer, recreate it
+    //! to ensure buffers are correctly sized for this index's parameters.
+    uint32_t saved_topk = ctx->topk();
+    context = create_context();
+    if (!context) {
+      LOG_ERROR("Failed to recreate context for current streamer");
+      return IndexError_Runtime;
     }
+    ctx = dynamic_cast<DiskAnnContext *>(context.get());
+    ctx->set_topk(saved_topk);
   }
 
   ctx->clear();

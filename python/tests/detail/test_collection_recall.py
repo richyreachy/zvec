@@ -294,6 +294,7 @@ class TestRecall:
         [
             (True, True, HnswIndexParam()),
             (False, True, IVFIndexParam()),
+            (False, True, DiskAnnIndexParam()),
             (False, True, FlatIndexParam()),  # ——ok
             (
                 True,
@@ -372,6 +373,24 @@ class TestRecall:
                     n_iters=15,
                     use_soar=False,
                 ),
+            ),
+            (
+                True,
+                True,
+                DiskAnnIndexParam(
+                    metric_type=MetricType.IP,
+                    max_degree=32,
+                ),
+            ),
+            (
+                True,
+                True,
+                DiskAnnIndexParam(metric_type=MetricType.L2, max_degree=32),
+            ),
+            (
+                True,
+                True,
+                DiskAnnIndexParam(metric_type=MetricType.COSINE, max_degree=32),
             ),
         ],
         indirect=True,
@@ -554,7 +573,21 @@ class TestRecall:
                     use_soar=True,
                 ),
             ),
-            # (True, True, IVFIndexParam(metric_type=MetricType.COSINE, n_list=150, n_iters=15, use_soar=False, )),
+            (
+                True,
+                True,
+                DiskAnnIndexParam(metric_type=MetricType.IP, max_degree=32),
+            ),
+            (
+                True,
+                True,
+                DiskAnnIndexParam(metric_type=MetricType.L2, max_degree=32),
+            ),
+            (
+                True,
+                True,
+                DiskAnnIndexParam(metric_type=MetricType.COSINE, max_degree=32),
+            ),
         ],
         indirect=True,
     )

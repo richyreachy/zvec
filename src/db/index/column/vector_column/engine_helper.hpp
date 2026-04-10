@@ -200,6 +200,18 @@ class ProximaEngineHelper {
         }
         return std::move(ivf_query_param);
       }
+
+      case IndexType::DISKANN: {
+        auto diskann_query_param_result =
+            _build_common_query_param<core_interface::DiskAnnQueryParam>(
+                query_params);
+        if (!diskann_query_param_result.has_value()) {
+          return tl::make_unexpected(Status::InvalidArgument(
+              "failed to build query param: " +
+              diskann_query_param_result.error().message()));
+        }
+        return std::move(diskann_query_param_result.value());
+      }
       default:
         return tl::make_unexpected(Status::InvalidArgument("not supported"));
     }

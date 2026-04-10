@@ -27,6 +27,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
             $<TARGET_FILE:core_knn_hnsw_rabitq_static>
             $<TARGET_FILE:core_knn_hnsw_sparse_static>
             $<TARGET_FILE:core_knn_ivf_static>
+            $<TARGET_FILE:core_knn_diskann_static>
             $<TARGET_FILE:core_knn_cluster_static>
             $<TARGET_FILE:core_mix_reducer_static>
             $<TARGET_FILE:core_metric_static>
@@ -34,6 +35,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
             $<TARGET_FILE:core_quantizer_static>
             -Wl,--no-whole-archive
             zvec_db
+            aio
     )
     target_link_options(_zvec PRIVATE
             "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
@@ -46,6 +48,7 @@ elseif (APPLE)
             -Wl,-force_load,$<TARGET_FILE:core_knn_hnsw_rabitq_static>
             -Wl,-force_load,$<TARGET_FILE:core_knn_hnsw_sparse_static>
             -Wl,-force_load,$<TARGET_FILE:core_knn_ivf_static>
+            -Wl,-force_load,$<TARGET_FILE:core_knn_diskann_static>
             -Wl,-force_load,$<TARGET_FILE:core_knn_cluster_static>
             -Wl,-force_load,$<TARGET_FILE:core_mix_reducer_static>
             -Wl,-force_load,$<TARGET_FILE:core_metric_static>

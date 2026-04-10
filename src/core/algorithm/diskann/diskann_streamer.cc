@@ -136,6 +136,20 @@ int DiskAnnStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
     return IndexError_Cast;
   }
 
+  // Context is pooled per index type. When switching between DiskAnn indexes
+  // with different element sizes (e.g., fp16 vs fp32), the cached context has
+  // undersized buffers. Recreate it to ensure correct buffer allocations.
+  if (ctx->magic() != magic_) {
+    uint32_t saved_topk = ctx->topk();
+    context = create_context();
+    if (!context) {
+      LOG_ERROR("Failed to recreate context for current streamer");
+      return IndexError_Runtime;
+    }
+    ctx = dynamic_cast<DiskAnnContext *>(context.get());
+    ctx->set_topk(saved_topk);
+  }
+
   ctx->clear();
   ctx->resize_results(count);
 
@@ -167,11 +181,16 @@ int DiskAnnStreamer::search_bf_impl(const void *query,
   }
 
   if (ctx->magic() != magic_) {
-    //! context is created by another searcher or streamer
-    int ret = update_context(ctx);
-    if (ret != 0) {
-      return ret;
+    //! context is created by another searcher or streamer, recreate it
+    //! to ensure buffers are correctly sized for this index's parameters.
+    uint32_t saved_topk = ctx->topk();
+    context = create_context();
+    if (!context) {
+      LOG_ERROR("Failed to recreate context for current streamer");
+      return IndexError_Runtime;
     }
+    ctx = dynamic_cast<DiskAnnContext *>(context.get());
+    ctx->set_topk(saved_topk);
   }
 
   ctx->clear();
@@ -215,11 +234,16 @@ int DiskAnnStreamer::search_bf_by_p_keys_impl(
   }
 
   if (ctx->magic() != magic_) {
-    //! context is created by another searcher or streamer
-    int ret = update_context(ctx);
-    if (ret != 0) {
-      return ret;
+    //! context is created by another searcher or streamer, recreate it
+    //! to ensure buffers are correctly sized for this index's parameters.
+    uint32_t saved_topk = ctx->topk();
+    context = create_context();
+    if (!context) {
+      LOG_ERROR("Failed to recreate context for current streamer");
+      return IndexError_Runtime;
     }
+    ctx = dynamic_cast<DiskAnnContext *>(context.get());
+    ctx->set_topk(saved_topk);
   }
 
   ctx->clear();
@@ -245,6 +269,32 @@ int DiskAnnStreamer::search_bf_by_p_keys_impl(
 int DiskAnnStreamer::get_vector(uint64_t key, Context::Pointer &context,
                                 std::string &vector) const {
   return diskann_indexer_->get_vector(key, context, vector);
+}
+
+const void *DiskAnnStreamer::get_vector_by_id(uint32_t id) const {
+  // DiskAnn vectors are stored on disk in sector format;
+  // a const void* access requires sector I/O via create_context
+  // Return nullptr to indicate this path is not supported.
+  return nullptr;
+}
+
+int DiskAnnStreamer::get_vector_by_id(const uint32_t id,
+                                      IndexStorage::MemoryBlock &block) const {
+  // Lazily create a reusable context for fetch operations
+  if (!fetch_ctx_) {
+    fetch_ctx_ = create_context();
+    if (!fetch_ctx_) {
+      LOG_ERROR("Failed to create context for get_vector_by_id");
+      return IndexError_Runtime;
+    }
+  }
+  int ret = diskann_indexer_->get_vector(id, fetch_ctx_, fetch_vector_buffer_);
+  if (ret != 0) {
+    LOG_ERROR("Failed to get vector by id: %u", id);
+    return IndexError_Runtime;
+  }
+  block.reset((void *)fetch_vector_buffer_.data());
+  return 0;
 }
 
 IndexSearcher::Context::Pointer DiskAnnStreamer::create_context() const {
