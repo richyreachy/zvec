@@ -27,7 +27,6 @@ void cosine_int4_distance(const void *a, const void *b, size_t dim,
   }
 
   internal::inner_product_int4_scalar(a, b, original_dim, distance);
-  *distance = -*distance;
 
   const float *a_tail = reinterpret_cast<const float *>(
       reinterpret_cast<const uint8_t *>(a) + original_dim);

@@ -193,9 +193,9 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
 
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
     ASSERT_NEAR(score_float32, score_sse, 0.2 * DIMENSION);
-    // ASSERT_NEAR(score_float32, score_scalar, 0.2 * DIMENSION);
-    // ASSERT_NEAR(score_scalar, score_avx2, 0.001);
-    // ASSERT_NEAR(score_scalar, score_sse, 0.001);
+    ASSERT_NEAR(score_float32, score_scalar, 0.2 * DIMENSION);
+    ASSERT_NEAR(score_scalar, score_avx2, 0.001);
+    ASSERT_NEAR(score_scalar, score_sse, 0.001);
   }
 }
 
@@ -357,9 +357,9 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
 
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
     ASSERT_NEAR(score_float32, score_sse, 0.2 * DIMENSION);
-    // ASSERT_NEAR(score_float32, score_scalar, 0.2 * DIMENSION);
-    // ASSERT_NEAR(score_scalar, score_avx2, 0.001);
-    // ASSERT_NEAR(score_scalar, score_sse, 0.001);
+    ASSERT_NEAR(score_float32, score_scalar, 0.2 * DIMENSION);
+    ASSERT_NEAR(score_scalar, score_avx2, 0.001);
+    ASSERT_NEAR(score_scalar, score_sse, 0.001);
   }
 }
 
@@ -583,8 +583,8 @@ TEST(QuantizedIntegerMetric, TestInt4Cosine) {
 
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
     ASSERT_NEAR(score_float32, score_sse, 0.2 * DIMENSION);
-    // ASSERT_NEAR(score_float32, score_scalar, 0.2 * DIMENSION);
-    // ASSERT_NEAR(score_scalar, score_avx2, 0.001);
-    // ASSERT_NEAR(score_scalar, score_sse, 0.001);
+    ASSERT_NEAR(score_float32, score_scalar, 0.2 * DIMENSION);
+    ASSERT_NEAR(score_scalar, score_avx2, 0.001);
+    ASSERT_NEAR(score_scalar, score_sse, 0.001);
   }
 }

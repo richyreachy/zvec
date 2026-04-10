@@ -54,7 +54,7 @@ static __attribute__((always_inline)) void inner_product_int4_scalar(
   const uint8_t *q = reinterpret_cast<const uint8_t *>(b);
 
   float sum = 0.0;
-  for (size_t i = 0; i < (dim >> 1); ++i) {
+  for (size_t i = 0; i < dim; ++i) {
     uint8_t m_val = m[i];
     uint8_t q_val = q[i];
     sum += Int4MulTable[((m_val << 4) & 0xf0) | ((q_val >> 0) & 0xf)] +
