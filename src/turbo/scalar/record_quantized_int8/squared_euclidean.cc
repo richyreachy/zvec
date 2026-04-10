@@ -25,6 +25,7 @@ void squared_euclidean_int8_distance(const void *a, const void *b, size_t dim,
   }
 
   internal::inner_product_int8_scalar(a, b, original_dim, distance);
+  *distance = -*distance;
 
   const float *a_tail = reinterpret_cast<const float *>(
       reinterpret_cast<const int8_t *>(a) + original_dim);

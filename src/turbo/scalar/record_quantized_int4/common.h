@@ -61,7 +61,7 @@ static __attribute__((always_inline)) void inner_product_int4_scalar(
            Int4MulTable[((m_val >> 0) & 0xf0) | ((q_val >> 4) & 0xf)];
   }
 
-  *distance = -sum;
+  *distance = sum;
 }
 
 }  // namespace zvec::turbo::scalar::internal

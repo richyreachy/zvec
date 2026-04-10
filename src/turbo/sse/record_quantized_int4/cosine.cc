@@ -14,7 +14,7 @@
 
 #include "sse/record_quantized_int4/cosine.h"
 #include "sse/record_quantized_int4/common.h"
-#if defined(__SSE__)
+#if defined(__SSE4_1__)
 #include <immintrin.h>
 #endif
 
@@ -22,19 +22,41 @@ namespace zvec::turbo::sse {
 
 void cosine_int4_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
-#if defined(__SSE__)
+#if defined(__SSE4_1__)
+  const int d = dim - 40;
+  const size_t original_dim = d >> 1;
+  if (original_dim <= 0) {
+    return;
+  }
 
+  internal::inner_product_int4_sse(a, b, original_dim, distance);
+
+  const float *a_tail = reinterpret_cast<const float *>(
+      reinterpret_cast<const uint8_t *>(a) + original_dim);
+  const float *b_tail = reinterpret_cast<const float *>(
+      reinterpret_cast<const uint8_t *>(b) + original_dim);
+
+  float qa = a_tail[0];
+  float qb = a_tail[1];
+  float qs = a_tail[2];
+
+  float ma = b_tail[0];
+  float mb = b_tail[1];
+  float ms = b_tail[2];
+
+  *distance = -(ma * qa * *distance + mb * qa * qs + qb * ma * ms +
+                static_cast<float>(d) * qb * mb);
 #else
   (void)a;
   (void)b;
   (void)dim;
   (void)distance;
-#endif  // __SSE__
+#endif  // __SSE4_1__
 }
 
 void cosine_int4_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances) {
-#if defined(__SSE__)
+#if defined(__SSE4_1__)
 
 #else
   (void)vectors;
@@ -42,7 +64,7 @@ void cosine_int4_batch_distance(const void *const *vectors, const void *query,
   (void)n;
   (void)dim;
   (void)distances;
-#endif  //__SSE__
+#endif  //__SSE4_1__
 }
 
 }  // namespace zvec::turbo::sse
