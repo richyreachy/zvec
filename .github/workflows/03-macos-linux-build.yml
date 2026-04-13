@@ -54,6 +54,14 @@ jobs:
           sudo apt-get install -y clang libomp-dev
         shell: bash
 
+      - name: Install AIO 
+        if: runner.os == 'Linux' && runner.arch == 'x86_64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libaio-dev
+        shell: bash
+
       - name: Print CPU info
         if: runner.os == 'Linux'
         run: lscpu
@@ -89,10 +97,6 @@ jobs:
             pytest \
             scikit-build-core \
             setuptools_scm
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libaio-dev
-        shell: bash
 
       - name: Build from source
         run: |
