@@ -22,14 +22,20 @@
 
 using namespace zvec::ailego;
 
+//! Calculate Sum-of-Squared-Differences (GENERAL)
+#define SSD_FP32_GENERAL(m, q, sum) \
+  {                                 \
+    float x = m - q;                \
+    sum += (x * x);                 \
+  }
+
 namespace zvec::turbo::armv8::internal {
 
-static __attribute__((always_inline)) void squared_euclidean_fp_armv8(const void *a,
-                                                    const void *b, size_t size,
-                                                    float *distance) {
+static __attribute__((always_inline)) void squared_euclidean_fp32_armv8(
+    const void *a, const void *b, size_t size, float *distance) {
   const float *lhs = reinterpret_cast<const float *>(a);
   const float *rhs = reinterpret_cast<const float *>(b);
-  
+
   const float *last = lhs + size;
   const float *last_aligned = lhs + ((size >> 3) << 3);
 
@@ -37,16 +43,16 @@ static __attribute__((always_inline)) void squared_euclidean_fp_armv8(const void
   float32x4_t v_sum_1 = vdupq_n_f32(0);
 
   for (; lhs != last_aligned; lhs += 8, rhs += 8) {
-  float32x4_t v_d_0 = vsubq_f32(vld1q_f32(lhs + 0), vld1q_f32(rhs + 0));
-  float32x4_t v_d_1 = vsubq_f32(vld1q_f32(lhs + 4), vld1q_f32(rhs + 4));
-  v_sum_0 = vfmaq_f32(v_sum_0, v_d_0, v_d_0);
-  v_sum_1 = vfmaq_f32(v_sum_1, v_d_1, v_d_1);
+    float32x4_t v_d_0 = vsubq_f32(vld1q_f32(lhs + 0), vld1q_f32(rhs + 0));
+    float32x4_t v_d_1 = vsubq_f32(vld1q_f32(lhs + 4), vld1q_f32(rhs + 4));
+    v_sum_0 = vfmaq_f32(v_sum_0, v_d_0, v_d_0);
+    v_sum_1 = vfmaq_f32(v_sum_1, v_d_1, v_d_1);
   }
   if (last >= last_aligned + 4) {
-  float32x4_t v_d = vsubq_f32(vld1q_f32(lhs), vld1q_f32(rhs));
-  v_sum_0 = vfmaq_f32(v_sum_0, v_d, v_d);
-  lhs += 4;
-  rhs += 4;
+    float32x4_t v_d = vsubq_f32(vld1q_f32(lhs), vld1q_f32(rhs));
+    v_sum_0 = vfmaq_f32(v_sum_0, v_d, v_d);
+    lhs += 4;
+    rhs += 4;
   }
 
   float result = vaddvq_f32(vaddq_f32(v_sum_0, v_sum_1));
@@ -60,7 +66,8 @@ static __attribute__((always_inline)) void squared_euclidean_fp_armv8(const void
     case 1:
       SSD_FP32_GENERAL(lhs[0], rhs[0], result)
   }
-  *out = result;
+  *distance = result;
+}
 
 }  // namespace zvec::turbo::armv8::internal
 

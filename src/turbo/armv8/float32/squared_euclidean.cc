@@ -17,8 +17,8 @@
 #if defined(__ARM_NEON)
 #include <arm_neon.h>
 #include <zvec/ailego/utility/float_helper.h>
-#include "armv8/half_float/squared_euclidean.h"
-#include "armv8/half_float/squared_euclidean_common.h"
+#include "armv8/float32/squared_euclidean.h"
+#include "armv8/float32/squared_euclidean_common.h"
 
 using namespace zvec::turbo::armv8::internal;
 #endif
@@ -28,10 +28,7 @@ namespace zvec::turbo::armv8 {
 void squared_euclidean_fp32_distance(const void *a, const void *b, size_t dim,
                                      float *distance) {
 #if defined(__ARM_NEON)
-  const float *lhs = reinterpret_cast<const float *>(a);
-  const float *rhs = reinterpret_cast<const float *>(b);
-
-  squared_euclidean_fp32_armv8(lhs, rhs, dim, distance, 0ull, )
+  squared_euclidean_fp32_armv8(a, b, dim, distance);
 #else
   (void)a;
   (void)b;
