@@ -27,9 +27,8 @@ using namespace zvec::ailego;
 
 namespace zvec::turbo::armv8::internal {
 
-static __attribute__((always_inline)) void inner_product_fp32_armv8(const void *a,
-                                                    const void *b, size_t size,
-                                                    float *distance) {
+static __attribute__((always_inline)) void inner_product_fp32_armv8(
+    const void *a, const void *b, size_t size, float *distance) {
   const float *lhs = reinterpret_cast<const float *>(a);
   const float *rhs = reinterpret_cast<const float *>(b);
 
@@ -40,27 +39,27 @@ static __attribute__((always_inline)) void inner_product_fp32_armv8(const void *
   float32x4_t v_sum_1 = vdupq_n_f32(0);
 
   for (; lhs != last_aligned; lhs += 8, rhs += 8) {
-  v_sum_0 = vfmaq_f32(v_sum_0, vld1q_f32(lhs + 0), vld1q_f32(rhs + 0));
-  v_sum_1 = vfmaq_f32(v_sum_1, vld1q_f32(lhs + 4), vld1q_f32(rhs + 4));
+    v_sum_0 = vfmaq_f32(v_sum_0, vld1q_f32(lhs + 0), vld1q_f32(rhs + 0));
+    v_sum_1 = vfmaq_f32(v_sum_1, vld1q_f32(lhs + 4), vld1q_f32(rhs + 4));
   }
   if (last >= last_aligned + 4) {
-  v_sum_0 = vfmaq_f32(v_sum_0, vld1q_f32(lhs), vld1q_f32(rhs));
-  lhs += 4;
-  rhs += 4;
+    v_sum_0 = vfmaq_f32(v_sum_0, vld1q_f32(lhs), vld1q_f32(rhs));
+    lhs += 4;
+    rhs += 4;
   }
 
   float result = vaddvq_f32(vaddq_f32(v_sum_0, v_sum_1));
   switch (last - lhs) {
-  case 3:
-    FMA_FP32_GENERAL(lhs[2], rhs[2], result)
-    /* FALLTHRU */
-  case 2:
-    FMA_FP32_GENERAL(lhs[1], rhs[1], result)
-    /* FALLTHRU */
-  case 1:
-    FMA_FP32_GENERAL(lhs[0], rhs[0], result)
+    case 3:
+      FMA_FP32_GENERAL(lhs[2], rhs[2], result)
+      /* FALLTHRU */
+    case 2:
+      FMA_FP32_GENERAL(lhs[1], rhs[1], result)
+      /* FALLTHRU */
+    case 1:
+      FMA_FP32_GENERAL(lhs[0], rhs[0], result)
   }
-  *distance = result;
+  *distance = -result;
 }
 
 }  // namespace zvec::turbo::armv8::internal
