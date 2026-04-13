@@ -14,6 +14,12 @@
 
 #include <ailego/internal/cpu_features.h>
 #include <zvec/turbo/turbo.h>
+#include "armv8/float32/cosine.h"
+#include "armv8/float32/inner_product.h"
+#include "armv8/float32/squared_euclidean.h"
+#include "armv8/half_float/cosine.h"
+#include "armv8/half_float/inner_product.h"
+#include "armv8/half_float/squared_euclidean.h"
 #include "avx/float32/cosine.h"
 #include "avx/float32/inner_product.h"
 #include "avx/float32/squared_euclidean.h"
@@ -36,6 +42,7 @@
 #include "avx512_fp16/half_float/inner_product.h"
 #include "avx512_fp16/half_float/squared_euclidean.h"
 #include "avx512_vnni/record_quantized_int8/cosine.h"
+#include "avx512_vnni/record_quantized_int8/inner_product.h"
 #include "avx512_vnni/record_quantized_int8/squared_euclidean.h"
 #include "scalar/float32/cosine.h"
 #include "scalar/float32/inner_product.h"
@@ -55,12 +62,6 @@
 #include "sse/record_quantized_int8/cosine.h"
 #include "sse/record_quantized_int8/inner_product.h"
 #include "sse/record_quantized_int8/squared_euclidean.h"
-#include "armv8/float32/cosine.h"
-#include "armv8/float32/inner_product.h"
-#include "armv8/float32/squared_euclidean.h"  
-#include "armv8/half_float/cosine.h"
-#include "armv8/half_float/inner_product.h"
-#include "armv8/half_float/squared_euclidean.h"
 
 namespace zvec::turbo {
 
@@ -147,6 +148,10 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
         }
         if (metric_type == MetricType::kCosine) {
           return avx512_vnni::cosine_int8_distance;
+        }
+
+        if (metric_type == MetricType::kInnerProduct) {
+          return avx512_vnni::inner_product_int8_distance;
         }
       }
 

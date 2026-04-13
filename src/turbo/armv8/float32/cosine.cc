@@ -19,7 +19,7 @@
 namespace zvec::turbo::armv8 {
 
 void cosine_fp32_distance(const void *a, const void *b, size_t dim,
-                          float *distance) {
+                          size_t extra_size, float *distance) {
 #if defined(__ARM_NEON)
   constexpr size_t extra_dim = 2;
   size_t original_dim = dim - extra_dim;
