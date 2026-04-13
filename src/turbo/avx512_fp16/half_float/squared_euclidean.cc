@@ -28,7 +28,7 @@ using namespace zvec::turbo::avx512_fp16::internal;
 
 namespace zvec::turbo::avx512_fp16 {
 
-void squared_euclidean_fp32_distance(const void *a, const void *b, size_t dim,
+void squared_euclidean_fp16_distance(const void *a, const void *b, size_t dim,
                                      float *distance) {
 #if defined(__AVX512FP16__)
   const Float16 *lhs = reinterpret_cast<const Float16 *>(a);

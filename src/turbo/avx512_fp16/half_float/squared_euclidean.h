@@ -20,11 +20,11 @@ namespace zvec::turbo::avx512_fp16 {
 
 // Compute squared euclidean distance between a single quantized FP32
 // vector pair.
-void squared_euclidean_fp32_distance(const void *a, const void *b, size_t dim,
+void squared_euclidean_fp16_distance(const void *a, const void *b, size_t dim,
                                      float *distance);
 
 // Batch version of squared euclidean FP32.
-void squared_euclidean_fp32_batch_distance(const void *const *vectors,
+void squared_euclidean_fp16_batch_distance(const void *const *vectors,
                                            const void *query, size_t n,
                                            size_t dim, float *distances);
 

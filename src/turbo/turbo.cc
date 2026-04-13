@@ -61,6 +61,55 @@ namespace zvec::turbo {
 DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
                                QuantizeType quantize_type,
                                CpuArchType cpu_arch_type) {
+#if defined(__ARM_NEON)
+  // INT8
+  if (data_type == DataType::kInt8) {
+    if (metric_type == MetricType::kSquaredEuclidean) {
+    }
+
+    if (metric_type == MetricType::kCosine) {
+    }
+
+    if (metric_type == MetricType::kInnerProduct) {
+    }
+  }
+
+  // INT$
+  if (data_type == DataType::kInt4) {
+    if (metric_type == MetricType::kSquaredEuclidean) {
+    }
+
+    if (metric_type == MetricType::kCosine) {
+    }
+
+    if (metric_type == MetricType::kInnerProduct) {
+    }
+  }
+
+  // FP32
+  if (data_type == DataType::kFp32) {
+    if (metric_type == MetricType::kSquaredEuclidean) {
+    }
+
+    if (metric_type == MetricType::kCosine) {
+    }
+
+    if (metric_type == MetricType::kInnerProduct) {
+    }
+  }
+
+  // FP16
+  if (data_type == DataType::kFp16) {
+    if (metric_type == MetricType::kSquaredEuclidean) {
+    }
+
+    if (metric_type == MetricType::kCosine) {
+    }
+
+    if (metric_type == MetricType::kInnerProduct) {
+    }
+  }
+#else
   // INT8
   if (data_type == DataType::kInt8) {
     if (quantize_type == QuantizeType::kDefault) {
@@ -214,8 +263,8 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
         if (metric_type == MetricType::kCosine) {
           return avx512_fp16::cosine_fp16_distance;
         }
-        if (metric_type == MetricType::kInnerProduct) {
-          return avx512_fp16::inner_product_fp16_distance;
+        if (metric_type == MetricType::kSquaredEuclidean) {
+          return avx512_fp16::squared_euclidean_fp16_distance;
         }
       }
 
@@ -258,6 +307,8 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
       }
     }
   }
+#endif
+
   return nullptr;
 }
 

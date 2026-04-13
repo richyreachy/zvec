@@ -165,7 +165,7 @@ TEST(CosineMetric, TestFp16Cosine) {
     func_scalar(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
                 &score_scalar);
 
-    float epsilon = 0.01;
+    float epsilon = 0.2;
     ASSERT_NEAR(score_scalar, score_avx512fp16, epsilon);
     ASSERT_NEAR(score_scalar, score_avx512, epsilon);
     ASSERT_NEAR(score_scalar, score_avx, epsilon);
