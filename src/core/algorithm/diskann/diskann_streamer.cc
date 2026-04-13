@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "diskann_searcher.h"
+#include "diskann_streamer.h"
 #include "diskann_context.h"
 #include "diskann_indexer.h"
 #include "diskann_params.h"
@@ -20,29 +20,30 @@
 namespace zvec {
 namespace core {
 
-DiskAnnSearcher::DiskAnnSearcher() {}
+DiskAnnStreamer::DiskAnnStreamer() {}
 
-DiskAnnSearcher::~DiskAnnSearcher() {}
+DiskAnnStreamer::~DiskAnnStreamer() {}
 
-int DiskAnnSearcher::init(const ailego::Params &search_params) {
+int DiskAnnStreamer::init(const IndexMeta &meta,
+                          const ailego::Params &search_params) {
+  meta_ = meta;
   search_params.get(PARAM_DISKANN_SEARCHER_LIST_SIZE, &list_size_);
   search_params.get(PARAM_DISKANN_SEARCHER_CACHE_NODE_NUM, &cache_nodes_num_);
   return 0;
 }
 
-void DiskAnnSearcher::print_debug_info() {}
+void DiskAnnStreamer::print_debug_info() {}
 
-int DiskAnnSearcher::cleanup() {
-  LOG_INFO("Begin DiskAnnSearcher:cleanup");
+int DiskAnnStreamer::cleanup() {
+  LOG_INFO("Begin DiskAnnStreamer:cleanup");
 
-  LOG_INFO("End DiskAnnSearcher:cleanup");
+  LOG_INFO("End DiskAnnStreamer:cleanup");
 
   return 0;
 }
 
-int DiskAnnSearcher::load(IndexStorage::Pointer storage,
-                          IndexMetric::Pointer measure) {
-  LOG_INFO("DiskAnnSearcher::load Begin");
+int DiskAnnStreamer::open(IndexStorage::Pointer storage) {
+  LOG_INFO("DiskAnnStreamer::load Begin");
 
   auto start_time = ailego::Monotime::MilliSeconds();
 
@@ -77,22 +78,18 @@ int DiskAnnSearcher::load(IndexStorage::Pointer storage,
     node_list.shrink_to_fit();
   }
 
-  if (measure) {
-    measure_ = measure;
-  } else {
-    measure_ = IndexFactory::CreateMetric(meta_.metric_name());
-    if (!measure_) {
-      LOG_ERROR("CreateMetric failed, name: %s", meta_.metric_name().c_str());
-      return IndexError_NoExist;
-    }
-    ret = measure_->init(meta_, meta_.metric_params());
-    if (ret != 0) {
-      LOG_ERROR("IndexMetric init failed, ret=%d", ret);
-      return ret;
-    }
-    if (measure_->query_metric()) {
-      measure_ = measure_->query_metric();
-    }
+  measure_ = IndexFactory::CreateMetric(meta_.metric_name());
+  if (!measure_) {
+    LOG_ERROR("CreateMetric failed, name: %s", meta_.metric_name().c_str());
+    return IndexError_NoExist;
+  }
+  ret = measure_->init(meta_, meta_.metric_params());
+  if (ret != 0) {
+    LOG_ERROR("IndexMetric init failed, ret=%d", ret);
+    return ret;
+  }
+  if (measure_->query_metric()) {
+    measure_ = measure_->query_metric();
   }
 
   stats_.set_loaded_costtime(ailego::Monotime::MilliSeconds() - start_time);
@@ -100,20 +97,20 @@ int DiskAnnSearcher::load(IndexStorage::Pointer storage,
 
   magic_ = IndexContext::GenerateMagic();
 
-  LOG_INFO("DiskAnnSearcher::load Done");
+  LOG_INFO("DiskAnnStreamer::load Done");
 
   return 0;
 }
 
-int DiskAnnSearcher::unload() {
-  LOG_INFO("DiskAnnSearcher unload index");
+int DiskAnnStreamer::unload() {
+  LOG_INFO("DiskAnnStreamer unload index");
 
   state_ = STATE_INITED;
 
   return 0;
 }
 
-int DiskAnnSearcher::update_context(DiskAnnContext *ctx) const {
+int DiskAnnStreamer::update_context(DiskAnnContext *ctx) const {
   const DiskAnnEntity::Pointer entity = entity_.clone();
   if (!entity) {
     LOG_ERROR("Failed to clone search context entity");
@@ -124,7 +121,7 @@ int DiskAnnSearcher::update_context(DiskAnnContext *ctx) const {
                              entity, magic_);
 }
 
-int DiskAnnSearcher::search_impl(const void *query, const IndexQueryMeta &qmeta,
+int DiskAnnStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
                                  uint32_t count,
                                  Context::Pointer &context) const {
   // do search
@@ -169,7 +166,7 @@ int DiskAnnSearcher::search_impl(const void *query, const IndexQueryMeta &qmeta,
   return 0;
 }
 
-int DiskAnnSearcher::search_bf_impl(const void *query,
+int DiskAnnStreamer::search_bf_impl(const void *query,
                                     const IndexQueryMeta &qmeta, uint32_t count,
                                     Context::Pointer &context) const {
   if (ailego_unlikely(!query || !context)) {
@@ -216,7 +213,7 @@ int DiskAnnSearcher::search_bf_impl(const void *query,
   return 0;
 }
 
-int DiskAnnSearcher::search_bf_by_p_keys_impl(
+int DiskAnnStreamer::search_bf_by_p_keys_impl(
     const void *query, const std::vector<std::vector<uint64_t>> &p_keys,
     const IndexQueryMeta &qmeta, uint32_t count,
     Context::Pointer &context) const {
@@ -269,12 +266,38 @@ int DiskAnnSearcher::search_bf_by_p_keys_impl(
   return 0;
 }
 
-int DiskAnnSearcher::get_vector(uint64_t key, Context::Pointer &context,
+int DiskAnnStreamer::get_vector(uint64_t key, Context::Pointer &context,
                                 std::string &vector) const {
   return diskann_indexer_->get_vector(key, context, vector);
 }
 
-IndexSearcher::Context::Pointer DiskAnnSearcher::create_context() const {
+const void *DiskAnnStreamer::get_vector_by_id(uint32_t id) const {
+  // DiskAnn vectors are stored on disk in sector format;
+  // a const void* access requires sector I/O via create_context
+  // Return nullptr to indicate this path is not supported.
+  return nullptr;
+}
+
+int DiskAnnStreamer::get_vector_by_id(const uint32_t id,
+                                      IndexStorage::MemoryBlock &block) const {
+  // Lazily create a reusable context for fetch operations
+  if (!fetch_ctx_) {
+    fetch_ctx_ = create_context();
+    if (!fetch_ctx_) {
+      LOG_ERROR("Failed to create context for get_vector_by_id");
+      return IndexError_Runtime;
+    }
+  }
+  int ret = diskann_indexer_->get_vector(id, fetch_ctx_, fetch_vector_buffer_);
+  if (ret != 0) {
+    LOG_ERROR("Failed to get vector by id: %u", id);
+    return IndexError_Runtime;
+  }
+  block.reset((void *)fetch_vector_buffer_.data());
+  return 0;
+}
+
+IndexSearcher::Context::Pointer DiskAnnStreamer::create_context() const {
   const DiskAnnEntity::Pointer search_ctx_entity = entity_.clone();
   if (!search_ctx_entity) {
     LOG_ERROR("Failed to create search context entity");
@@ -297,7 +320,7 @@ IndexSearcher::Context::Pointer DiskAnnSearcher::create_context() const {
   return Context::Pointer(ctx);
 }
 
-INDEX_FACTORY_REGISTER_SEARCHER(DiskAnnSearcher);
+INDEX_FACTORY_REGISTER_STREAMER(DiskAnnStreamer);
 
 }  // namespace core
 }  // namespace zvec

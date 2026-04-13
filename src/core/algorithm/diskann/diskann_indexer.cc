@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "diskann_index.h"
+#include "diskann_indexer.h"
 #include <algorithm>
 #include <iostream>
 #include <memory>
@@ -22,17 +22,17 @@
 namespace zvec {
 namespace core {
 
-DiskAnnIndex::DiskAnnIndex(const IndexMeta &meta) {
+DiskAnnIndexer::DiskAnnIndexer(const IndexMeta &meta) {
   meta_ = meta;
 }
 
-DiskAnnIndex::~DiskAnnIndex() {
+DiskAnnIndexer::~DiskAnnIndexer() {
   if (centroid_data_) {
     free(centroid_data_);
   }
 }
 
-int DiskAnnIndex::init(DiskAnnSearcherEntity &entity) {
+int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
   entity_ = &entity;
 
   auto storage = entity.get_storage();
@@ -98,7 +98,7 @@ int DiskAnnIndex::init(DiskAnnSearcherEntity &entity) {
   return 0;
 }
 
-int DiskAnnIndex::use_medroids_data_as_centroids() {
+int DiskAnnIndexer::use_medroids_data_as_centroids() {
   LOG_INFO("Loading centroid data from medoid vector data");
 
   std::vector<diskann_id_t> nodes_to_read;
@@ -126,15 +126,15 @@ int DiskAnnIndex::use_medroids_data_as_centroids() {
   return 0;
 }
 
-diskann_key_t DiskAnnIndex::get_key(diskann_id_t id) const {
+diskann_key_t DiskAnnIndexer::get_key(diskann_id_t id) const {
   return entity_->get_key(id);
 }
 
-diskann_id_t DiskAnnIndex::get_id(diskann_key_t key) const {
+diskann_id_t DiskAnnIndexer::get_id(diskann_key_t key) const {
   return entity_->get_id(key);
 }
 
-std::vector<bool> DiskAnnIndex::read_nodes(
+std::vector<bool> DiskAnnIndexer::read_nodes(
     const std::vector<diskann_id_t> &node_ids,
     std::vector<void *> &coord_buffers,
     std::vector<std::pair<uint32_t, diskann_id_t *>> &neighbor_buffers) {
@@ -192,7 +192,8 @@ std::vector<bool> DiskAnnIndex::read_nodes(
   return retval;
 }
 
-int DiskAnnIndex::load_cache_list(const std::vector<diskann_id_t> &node_list) {
+int DiskAnnIndexer::load_cache_list(
+    const std::vector<diskann_id_t> &node_list) {
   LOG_INFO("Loading the cache list into memory");
 
   size_t num_cached_nodes = node_list.size();
@@ -240,8 +241,8 @@ int DiskAnnIndex::load_cache_list(const std::vector<diskann_id_t> &node_list) {
   return 0;
 }
 
-void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
-                                    std::vector<diskann_id_t> &node_list) {
+void DiskAnnIndexer::cache_bfs_levels(uint64_t num_nodes_to_cache,
+                                      std::vector<diskann_id_t> &node_list) {
   std::set<diskann_id_t> node_set;
 
   size_t tenp_cnt = static_cast<uint64_t>(std::round(doc_cnt_ * 0.1));
@@ -373,7 +374,7 @@ void DiskAnnIndex::cache_bfs_levels(uint64_t num_nodes_to_cache,
   return;
 }
 
-int DiskAnnIndex::linear_search(DiskAnnContext *ctx) {
+int DiskAnnIndexer::linear_search(DiskAnnContext *ctx) {
   auto &stats = ctx->query_stats();
   auto &dc = ctx->dist_calculator();
   auto &topk_heap = ctx->topk_heap();
@@ -510,8 +511,8 @@ int DiskAnnIndex::linear_search(DiskAnnContext *ctx) {
   return 0;
 }
 
-int DiskAnnIndex::keys_search(const std::vector<uint64_t> &keys,
-                              DiskAnnContext *ctx) {
+int DiskAnnIndexer::keys_search(const std::vector<uint64_t> &keys,
+                                DiskAnnContext *ctx) {
   auto &stats = ctx->query_stats();
   auto &dc = ctx->dist_calculator();
   auto &topk_heap = ctx->topk_heap();
@@ -650,8 +651,8 @@ int DiskAnnIndex::keys_search(const std::vector<uint64_t> &keys,
   return 0;
 }
 
-int DiskAnnIndex::get_vector(diskann_id_t id, IndexContext::Pointer &context,
-                             std::string &vector) {
+int DiskAnnIndexer::get_vector(diskann_id_t id, IndexContext::Pointer &context,
+                               std::string &vector) {
   DiskAnnContext *ctx = dynamic_cast<DiskAnnContext *>(context.get());
 
   auto &stats = ctx->query_stats();
@@ -729,7 +730,7 @@ int DiskAnnIndex::get_vector(diskann_id_t id, IndexContext::Pointer &context,
   return 0;
 }
 
-int DiskAnnIndex::knn_search(DiskAnnContext *ctx) {
+int DiskAnnIndexer::knn_search(DiskAnnContext *ctx) {
   int ret = cached_beam_search(ctx);
   if (ret != 0) {
     return ret;
@@ -745,7 +746,7 @@ int DiskAnnIndex::knn_search(DiskAnnContext *ctx) {
   return 0;
 }
 
-int DiskAnnIndex::cached_beam_search(DiskAnnContext *ctx) {
+int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
   auto &stats = ctx->query_stats();
   auto &dc = ctx->dist_calculator();
   auto &topk_heap = ctx->topk_heap();
@@ -963,11 +964,11 @@ int DiskAnnIndex::cached_beam_search(DiskAnnContext *ctx) {
   return 0;
 }
 
-int DiskAnnIndex::cached_beam_search_in_mem(DiskAnnContext * /*ctx*/) {
+int DiskAnnIndexer::cached_beam_search_in_mem(DiskAnnContext * /*ctx*/) {
   return IndexError_NotImplemented;
 }
 
-int DiskAnnIndex::cached_beam_search_by_group(DiskAnnContext *ctx) {
+int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
   if (!ctx->group_by().is_valid()) {
     return 0;
   }

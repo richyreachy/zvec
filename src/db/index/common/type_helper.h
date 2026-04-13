@@ -71,6 +71,8 @@ struct IndexTypeCodeBook {
         return "FLAT";
       case IndexType::IVF:
         return "IVF";
+      case IndexType::DISKANN:
+        return "DISKANN";
       case IndexType::INVERT:
         return "INVERT";
       default:

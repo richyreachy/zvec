@@ -58,6 +58,8 @@ enum IndexType {
   IT_FLAT = 3;
   // Proxima HNSW RABITQ Index
   IT_HNSW_RABITQ = 4;
+  // Proxima DiskAnn Index
+  IT_DISKANN = 5;
   // Invert Index
   IT_INVERT = 10;
 };
@@ -112,6 +114,13 @@ message IVFIndexParams {
   bool use_soar = 4;
 }
 
+message DiskAnnIndexParams {
+  BaseIndexParams base = 1;
+  int32 max_degree = 2;
+  int32 list_size = 3;
+  int32 pq_chunk_num = 4;
+}
+
 message IndexParams {
   oneof params {
     InvertIndexParams invert = 1;
@@ -119,6 +128,7 @@ message IndexParams {
     FlatIndexParams flat = 3;
     IVFIndexParams ivf = 4;
     HnswRabitqIndexParams hnsw_rabitq = 5;
+    DiskAnnIndexParams diskann = 6;
   };
 };
 

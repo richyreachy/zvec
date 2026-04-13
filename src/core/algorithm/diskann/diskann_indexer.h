@@ -24,13 +24,13 @@
 namespace zvec {
 namespace core {
 
-class DiskAnnIndex {
+class DiskAnnIndexer {
  public:
-  typedef std::shared_ptr<DiskAnnIndex> Pointer;
+  typedef std::shared_ptr<DiskAnnIndexer> Pointer;
 
  public:
-  DiskAnnIndex(const IndexMeta &meta);
-  ~DiskAnnIndex();
+  DiskAnnIndexer(const IndexMeta &meta);
+  ~DiskAnnIndexer();
 
  public:
   int init(DiskAnnSearcherEntity &entity);
