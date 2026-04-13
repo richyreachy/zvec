@@ -16,10 +16,6 @@
 #include "armv8/half_float/inner_product.h"
 #include "armv8/half_float/inner_product_common.h"
 
-#if defined(__ARM_NEON)
-#include <immintrin.h>
-#endif
-
 namespace zvec::turbo::armv8 {
 
 void cosine_fp32_distance(const void *a, const void *b, size_t dim,

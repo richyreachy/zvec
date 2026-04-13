@@ -23,7 +23,7 @@ namespace zvec::turbo::armv8 {
 void inner_product_fp16_distance(const void *a, const void *b, size_t dim,
                                  float *distance);
 
-// Batch version of inner_product_fp32_distance.
+// Batch version of inner_product_fp16_distance.
 void inner_product_fp16_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances);
