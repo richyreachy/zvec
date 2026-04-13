@@ -33,7 +33,7 @@ void squared_euclidean_fp16_distance(const void *a, const void *b, size_t dim,
   const zvec::ailego::Float16 *rhs =
       reinterpret_cast<const zvec::ailego::Float16 *>(b);
 
-  ACCUM_FP16_1X1_NEON(lhs, rhs, dim, &distance, 0ull, )
+  ACCUM_FP16_1X1_NEON(lhs, rhs, dim, distance, 0ull, )
 #else
   (void)a;
   (void)b;

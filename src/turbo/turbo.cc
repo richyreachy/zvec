@@ -55,6 +55,12 @@
 #include "sse/record_quantized_int8/cosine.h"
 #include "sse/record_quantized_int8/inner_product.h"
 #include "sse/record_quantized_int8/squared_euclidean.h"
+#include "armv8/float32/cosine.h"
+#include "armv8/float32/inner_product.h"
+#include "armv8/float32/squared_euclidean.h"  
+#include "armv8/half_float/cosine.h"
+#include "armv8/half_float/inner_product.h"
+#include "armv8/half_float/squared_euclidean.h"
 
 namespace zvec::turbo {
 

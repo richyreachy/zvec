@@ -12,13 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "armv8/half_float/cosine.h"
-#include "armv8/half_float/inner_product.h"
-#include "armv8/half_float/inner_product_common.h"
-
-#if defined(__ARM_NEON)
-#include <immintrin.h>
-#endif
+#include "armv8/float32/cosine.h"
+#include "armv8/float32/inner_product.h"
+#include "armv8/float32/inner_product_common.h"
 
 namespace zvec::turbo::armv8 {
 

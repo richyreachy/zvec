@@ -20,10 +20,10 @@
 #include "armv8/half_float/inner_product.h"
 #include "armv8/half_float/inner_product_common.h"
 
-using namespace zvec::turbo::avx512::internal;
+using namespace zvec::turbo::armv8::internal;
 #endif
 
-namespace zvec::turbo::avx512 {
+namespace zvec::turbo::armv8 {
 
 // Compute squared Euclidean distance between a single quantized FP16
 // vector pair.
@@ -51,4 +51,4 @@ void inner_product_fp16_batch_distance(const void *const *vectors,
   (void)distances;
 }
 
-}  // namespace zvec::turbo::avx512
+}  // namespace zvec::turbo::armv8

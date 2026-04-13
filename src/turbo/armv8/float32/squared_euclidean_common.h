@@ -24,8 +24,13 @@ using namespace zvec::ailego;
 
 namespace zvec::turbo::armv8::internal {
 
-static __attribute__((always_inline)) void squared_euclidean_fp_armv8(
-    const float *last = lhs + size;
+static __attribute__((always_inline)) void squared_euclidean_fp_armv8(const void *a,
+                                                    const void *b, size_t size,
+                                                    float *distance) {
+  const float *lhs = reinterpret_cast<const float *>(a);
+  const float *rhs = reinterpret_cast<const float *>(b);
+  
+  const float *last = lhs + size;
   const float *last_aligned = lhs + ((size >> 3) << 3);
 
   float32x4_t v_sum_0 = vdupq_n_f32(0);

@@ -22,9 +22,17 @@
 
 using namespace zvec::ailego;
 
+//! Calculate Fused-Multiply-Add (GENERAL)
+#define FMA_FP32_GENERAL(m, q, sum) sum += (m * q);
+
 namespace zvec::turbo::armv8::internal {
 
-static __attribute__((always_inline)) void inner_product_fp32_armv8(
+static __attribute__((always_inline)) void inner_product_fp32_armv8(const void *a,
+                                                    const void *b, size_t size,
+                                                    float *distance) {
+  const float *lhs = reinterpret_cast<const float *>(a);
+  const float *rhs = reinterpret_cast<const float *>(b);
+
   const float *last = lhs + size;
   const float *last_aligned = lhs + ((size >> 3) << 3);
 
@@ -52,7 +60,9 @@ static __attribute__((always_inline)) void inner_product_fp32_armv8(
   case 1:
     FMA_FP32_GENERAL(lhs[0], rhs[0], result)
   }
-  return result;
+  *distance = result;
+}
+
 }  // namespace zvec::turbo::armv8::internal
 
 #endif  // defined(__ARM_NEON)

@@ -24,7 +24,35 @@ using namespace zvec::ailego;
 
 namespace zvec::turbo::armv8::internal {
 
+#define MATRIX_VAR_INIT_1X1(_VAR_TYPE, _VAR_NAME, _VAR_INIT) \
+  _VAR_TYPE _VAR_NAME##_0_0 = (_VAR_INIT);
+
+#define MATRIX_VAR_INIT(_M, _N, _VAR_TYPE, _VAR_NAME, _VAR_INIT) \
+  MATRIX_VAR_INIT_##_M##X##_N(_VAR_TYPE, _VAR_NAME, _VAR_INIT)
+
+//! Scalar sum of squared difference (FP16 general)
+#define ACCUM_FP16_STEP_GENERAL(m, q, sum) \
+  {                                        \
+    float x = m - q;                       \
+    sum += (x * x);                        \
+  }
+
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+
+//! NEON sum of squared difference (FP16)
+#define ACCUM_FP16_STEP_NEON(v_m, v_q, v_sum)     \
+  {                                               \
+    float16x8_t v_d = vsubq_f16(v_m, v_q);        \
+    v_sum = vfmaq_f16(v_sum, v_d, v_d);           \
+  }
+
+//! Iterative process of computing distance (FP16, M=1, N=1)
+#define MATRIX_FP16_ITER_1X1_NEON(m, q, _RES, _PROC)   \
+  {                                                    \
+    float16x8_t v_m = vld1q_f16((const float16_t *)m); \
+    float16x8_t v_q = vld1q_f16((const float16_t *)q); \
+    _PROC(v_m, v_q, _RES##_0_0)                        \
+  }
 //! Compute the distance between matrix and query (FP16, M=1, N=1)
 #define ACCUM_FP16_1X1_NEON(m, q, dim, out, _MASK, _NORM)                    \
   MATRIX_VAR_INIT(1, 1, float16x8_t, v_sum, vdupq_n_f16(0))                  \
@@ -59,6 +87,27 @@ namespace zvec::turbo::armv8::internal {
   *out = _NORM(result);
 
 #else
+
+//! NEON sum of squared difference (FP32)
+#define ACCUM_FP32_STEP_NEON(v_m, v_q, v_sum)     \
+  {                                               \
+    float32x4_t v_d = vsubq_f32(v_m, v_q);        \
+    v_sum = vfmaq_f32(v_sum, v_d, v_d);           \
+  }
+
+//! Iterative process of computing distance (FP16, M=1, N=1)
+#define MATRIX_FP16_ITER_1X1_NEON(m, q, _RES, _PROC)     \
+  {                                                      \
+    float16x8_t v_m = vld1q_f16((const float16_t *)m);   \
+    float16x8_t v_q = vld1q_f16((const float16_t *)q);   \
+    float32x4_t v_m_0 = vcvt_f32_f16(vget_low_f16(v_m)); \
+    float32x4_t v_q_0 = vcvt_f32_f16(vget_low_f16(v_q)); \
+    _PROC(v_m_0, v_q_0, _RES##_0_0)                      \
+    v_m_0 = vcvt_high_f32_f16(v_m);                      \
+    v_q_0 = vcvt_high_f32_f16(v_q);                      \
+    _PROC(v_m_0, v_q_0, _RES##_0_0)                      \
+  }
+
 //! Compute the distance between matrix and query (FP16, M=1, N=1)
 #define ACCUM_FP16_1X1_NEON(m, q, dim, out, _MASK, _NORM)           \
   MATRIX_VAR_INIT(1, 1, float32x4_t, v_sum, vdupq_n_f32(0))         \

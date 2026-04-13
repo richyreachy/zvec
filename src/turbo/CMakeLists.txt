@@ -65,6 +65,19 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
             PROPERTIES
             COMPILE_FLAGS "${TURBO_MARCH_FLAG_SSE}"
         )
+    elseif (HOST_ARCH MATCHES "^(arm|arm64)$")
+        set(TURBO_MARCH_FLAG_NEON "-march=armv8-a")
+
+        file(GLOB_RECURSE NEON_SRCS
+          ${CMAKE_CURRENT_SOURCE_DIR}/armv8/*.cc
+          ${CMAKE_CURRENT_SOURCE_DIR}/armv8/*.c
+        )
+
+        set_source_files_properties(
+            ${NEON_SRCS}
+            PROPERTIES
+            COMPILE_FLAGS "${TURBO_MARCH_FLAG_NEON}"
+        )
     endif()
 endif()
 
