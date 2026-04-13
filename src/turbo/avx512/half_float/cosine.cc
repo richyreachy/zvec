@@ -37,7 +37,7 @@ void cosine_fp16_distance(const void *a, const void *b, size_t dim,
   (void)b;
   (void)dim;
   (void)distance;
-#endif  // __AVX__
+#endif  // __AVX512F__
 }
 
 void cosine_fp16_batch_distance(const void *const *vectors, const void *query,
@@ -50,7 +50,7 @@ void cosine_fp16_batch_distance(const void *const *vectors, const void *query,
   (void)n;
   (void)dim;
   (void)distances;
-#endif  //__AVX__
+#endif  //__AVX512F__
 }
 
 }  // namespace zvec::turbo::avx512

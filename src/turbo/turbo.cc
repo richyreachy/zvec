@@ -64,49 +64,69 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
 #if defined(__ARM_NEON)
   // INT8
   if (data_type == DataType::kInt8) {
-    if (metric_type == MetricType::kSquaredEuclidean) {
-    }
+    if (quantize_type == QuantizeType::kDefault) {
+      if (metric_type == MetricType::kSquaredEuclidean) {
+        return scalar::squared_euclidean_int8_distance;
+      }
 
-    if (metric_type == MetricType::kCosine) {
-    }
+      if (metric_type == MetricType::kCosine) {
+        return scalar::cosine_int8_distance;
+      }
 
-    if (metric_type == MetricType::kInnerProduct) {
+      if (metric_type == MetricType::kInnerProduct) {
+        return scalar::inner_product_int8_distance;
+      }
     }
   }
 
   // INT$
   if (data_type == DataType::kInt4) {
-    if (metric_type == MetricType::kSquaredEuclidean) {
-    }
+    if (quantize_type == QuantizeType::kDefault) {
+      if (metric_type == MetricType::kSquaredEuclidean) {
+        return scalar::squared_euclidean_int4_distance;
+      }
 
-    if (metric_type == MetricType::kCosine) {
-    }
+      if (metric_type == MetricType::kCosine) {
+        return scalar::cosine_int4_distance;
+      }
 
-    if (metric_type == MetricType::kInnerProduct) {
+      if (metric_type == MetricType::kInnerProduct) {
+        return scalar::inner_product_int4_distance;
+      }
     }
   }
 
   // FP32
   if (data_type == DataType::kFp32) {
-    if (metric_type == MetricType::kSquaredEuclidean) {
-    }
+    if (quantize_type == QuantizeType::kDefault) {
+      if (metric_type == MetricType::kSquaredEuclidean) {
+        return armv8::squared_euclidean_fp32_distance;
+      }
 
-    if (metric_type == MetricType::kCosine) {
-    }
+      if (metric_type == MetricType::kCosine) {
+        return armv8::cosine_fp32_distance;
+      }
 
-    if (metric_type == MetricType::kInnerProduct) {
+      if (metric_type == MetricType::kInnerProduct) {
+        return armv8::inner_product_fp32_distance;
+      }
     }
   }
 
   // FP16
   if (data_type == DataType::kFp16) {
-    if (metric_type == MetricType::kSquaredEuclidean) {
-    }
+    if (quantize_type == QuantizeType::kDefault) {
+      if (metric_type == MetricType::kSquaredEuclidean) {
+        return armv8::squared_euclidean_fp16_distance;
+      }
 
-    if (metric_type == MetricType::kCosine) {
-    }
+      if (metric_type == MetricType::kCosine) {
+        return armv8::cosine_fp16_distance;
+      }
 
-    if (metric_type == MetricType::kInnerProduct) {
+      if (metric_type == MetricType::kInnerProduct) {
+        return armv8::inner_product_fp16_distance;
+      }
     }
   }
 #else
