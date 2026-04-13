@@ -48,7 +48,6 @@ elseif (APPLE)
             -Wl,-force_load,$<TARGET_FILE:core_knn_hnsw_rabitq_static>
             -Wl,-force_load,$<TARGET_FILE:core_knn_hnsw_sparse_static>
             -Wl,-force_load,$<TARGET_FILE:core_knn_ivf_static>
-            -Wl,-force_load,$<TARGET_FILE:core_knn_diskann_static>
             -Wl,-force_load,$<TARGET_FILE:core_knn_cluster_static>
             -Wl,-force_load,$<TARGET_FILE:core_mix_reducer_static>
             -Wl,-force_load,$<TARGET_FILE:core_metric_static>
