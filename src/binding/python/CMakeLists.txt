@@ -19,7 +19,7 @@ set(SRC_LISTS
 pybind11_add_module(_zvec ${SRC_LISTS})
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64|arm64|arm")
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|arm")
         target_link_libraries(_zvec PRIVATE
                 -Wl,--whole-archive
                 $<TARGET_FILE:core_knn_flat_static>
