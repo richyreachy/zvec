@@ -39,6 +39,12 @@ if(NOT RABITQ_SUPPORTED)
   list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/hnsw_rabitq/.*")
 endif()
 
+# Remove algorithm/diskann implementation files on non-x86 platforms.
+# diskann depends on libaio which is only available on x86 Linux.
+if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
+  list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/diskann/.*")
+endif()
+
 cc_library(
     NAME zvec_core STATIC STRICT PACKED
     SRCS ${ALL_CORE_SRCS}

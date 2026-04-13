@@ -35,7 +35,6 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
                 $<TARGET_FILE:core_quantizer_static>
                 -Wl,--no-whole-archive
                 zvec_db
-                aio
         )
         target_link_options(_zvec PRIVATE
                 "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
