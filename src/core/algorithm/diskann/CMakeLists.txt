@@ -14,7 +14,7 @@ file(GLOB_RECURSE ALL_SRCS *.cc *.c)
 
 set(CORE_KNN_DISKANN_LIBS zvec_ailego core_framework core_knn_cluster)
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386")
     list(APPEND CORE_KNN_DISKANN_LIBS aio)
 endif()
 

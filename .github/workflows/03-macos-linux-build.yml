@@ -55,7 +55,7 @@ jobs:
         shell: bash
 
       - name: Install AIO 
-        if: runner.os == 'Linux' && runner.arch == 'x86_64'
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \

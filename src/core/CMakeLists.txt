@@ -39,9 +39,9 @@ if(NOT RABITQ_SUPPORTED)
   list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/hnsw_rabitq/.*")
 endif()
 
-# Remove algorithm/diskann implementation files on non-x86 platforms.
+# Remove algorithm/diskann implementation files on non-x86-Linux platforms.
 # diskann depends on libaio which is only available on x86 Linux.
-if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386|x64")
+if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386" AND NOT ANDROID))
   list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/diskann/.*")
 endif()
 
