@@ -109,17 +109,10 @@ LinuxAlignedFileReader::LinuxAlignedFileReader() {
 }
 
 LinuxAlignedFileReader::~LinuxAlignedFileReader() {
-  int64_t ret;
-  ret = ::fcntl(this->file_desc, F_GETFD);
-  if (ret == -1) {
-    if (errno != EBADF) {
-      std::cerr << "close() not called" << std::endl;
-      ret = ::close(this->file_desc);
-      if (ret == -1) {
-        std::cerr << "close() failed; returned " << ret << ", errno=" << errno
-                  << ":" << ::strerror(errno) << std::endl;
-      }
-    }
+  deregister_all_threads();
+  if (file_desc >= 0) {
+    ::close(file_desc);
+    file_desc = -1;
   }
 }
 
@@ -215,8 +208,10 @@ void LinuxAlignedFileReader::open(const std::string &fname) {
 }
 
 void LinuxAlignedFileReader::close() {
-  ::fcntl(this->file_desc, F_GETFD);
-  ::close(this->file_desc);
+  if (file_desc >= 0) {
+    ::close(file_desc);
+    file_desc = -1;
+  }
 }
 
 int LinuxAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,

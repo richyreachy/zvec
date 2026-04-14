@@ -27,9 +27,11 @@ DiskAnnIndexer::DiskAnnIndexer(const IndexMeta &meta) {
 }
 
 DiskAnnIndexer::~DiskAnnIndexer() {
+  destroy_io_ctx(init_ctx_);
   if (centroid_data_) {
     free(centroid_data_);
   }
+  DiskAnnUtil::free_aligned(coord_cache_buf_);
 }
 
 int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
