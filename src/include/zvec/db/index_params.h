@@ -473,11 +473,11 @@ class DiskAnnIndexParams : public VectorIndexParams {
     list_size_ = list_size;
   }
 
-  bool pq_chunk_num() const {
+  int pq_chunk_num() const {
     return pq_chunk_num_;
   }
 
-  void pq_chunk_num(bool pq_chunk_num) {
+  void pq_chunk_num(int pq_chunk_num) {
     pq_chunk_num_ = pq_chunk_num;
   }
 

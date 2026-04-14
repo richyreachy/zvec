@@ -20,14 +20,27 @@ else()
     "namespace zvec { namespace core { /* empty namespace for compatibility */ } }\n"
   )
 
-  cc_library(
-      NAME core_knn_diskann
-      STATIC SHARED STRICT ALWAYS_LINK
-      SRCS ${CMAKE_CURRENT_BINARY_DIR}/diskann_stub.cc
-      LIBS core_framework
-      INCS . ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm
-      VERSION "${PROXIMA_ZVEC_VERSION}"
-    )
+  if(MSVC)
+    # MSVC: STATIC-only stub to avoid creating an empty DLL with no exports
+    # (MSVC linker fails to produce an import library when there are zero exports)
+    cc_library(
+        NAME core_knn_diskann
+        STATIC STRICT ALWAYS_LINK
+        SRCS ${CMAKE_CURRENT_BINARY_DIR}/diskann_stub.cc
+        LIBS core_framework
+        INCS . ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm
+        VERSION "${PROXIMA_ZVEC_VERSION}"
+      )
+  else()
+    cc_library(
+        NAME core_knn_diskann
+        STATIC SHARED STRICT ALWAYS_LINK
+        SRCS ${CMAKE_CURRENT_BINARY_DIR}/diskann_stub.cc
+        LIBS core_framework
+        INCS . ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm
+        VERSION "${PROXIMA_ZVEC_VERSION}"
+      )
+  endif()
 endif()
 
 if(RABITQ_SUPPORTED)
@@ -42,12 +55,24 @@ else()
     "namespace zvec { namespace core { /* empty namespace for compatibility */ } }\n"
   )
 
-  cc_library(
-      NAME core_knn_hnsw_rabitq
-      STATIC SHARED STRICT ALWAYS_LINK
-      SRCS ${CMAKE_CURRENT_BINARY_DIR}/rabitq_stub.cc
-      LIBS core_framework
-      INCS . ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm
-      VERSION "${PROXIMA_ZVEC_VERSION}"
-    )
+  if(MSVC)
+    # MSVC: STATIC-only stub to avoid creating an empty DLL with no exports
+    cc_library(
+        NAME core_knn_hnsw_rabitq
+        STATIC STRICT ALWAYS_LINK
+        SRCS ${CMAKE_CURRENT_BINARY_DIR}/rabitq_stub.cc
+        LIBS core_framework
+        INCS . ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm
+        VERSION "${PROXIMA_ZVEC_VERSION}"
+      )
+  else()
+    cc_library(
+        NAME core_knn_hnsw_rabitq
+        STATIC SHARED STRICT ALWAYS_LINK
+        SRCS ${CMAKE_CURRENT_BINARY_DIR}/rabitq_stub.cc
+        LIBS core_framework
+        INCS . ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm
+        VERSION "${PROXIMA_ZVEC_VERSION}"
+      )
+  endif()
 endif()

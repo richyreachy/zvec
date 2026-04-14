@@ -71,17 +71,6 @@ int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
   }
 
   return 0;
-
-  if (ailego_unlikely(!streamer_)) {
-    LOG_ERROR("Failed to create streamer");
-    return core::IndexError_Runtime;
-  }
-  if (ailego_unlikely(
-          streamer_->init(proxima_index_meta_, proxima_index_params_) != 0)) {
-    LOG_ERROR("Failed to init streamer");
-    return core::IndexError_Runtime;
-  }
-  return 0;
 }
 
 int DiskAnnIndex::Open(const std::string &file_path,
