@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "multi_chunk_cluster.h"
+#include <chrono>
 
 namespace zvec {
 namespace core {
