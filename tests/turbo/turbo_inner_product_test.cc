@@ -148,3 +148,170 @@ TEST(InnerProductMetric, TestFp16InnerProduct) {
     ASSERT_NEAR(score_scalar, score_avx, epsilon);
   }
 }
+
+// Target Test Type: avx, avx512, scalar
+TEST(InnerProductMetric, TestFp32InnerProductBatch) {
+  std::mt19937 gen(15583);
+  std::uniform_real_distribution<float> dist(-1.0, 2.0);
+
+  const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
+  const size_t COUNT = 1024;
+  const size_t BATCH_SIZE = 16;
+
+  auto batch_func_avx512 = turbo::get_batch_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512);
+
+  auto batch_func_avx = turbo::get_batch_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX);
+
+  auto batch_func_scalar = turbo::get_batch_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
+
+  ailego::NumericalVector<float> query_vec(DIMENSION);
+  for (size_t j = 0; j < DIMENSION; ++j) {
+    query_vec[j] = dist(gen);
+  }
+
+  std::vector<ailego::NumericalVector<float>> doc_vecs;
+
+  for (size_t i = 0; i < COUNT; ++i) {
+    ailego::NumericalVector<float> doc_vec(DIMENSION);
+    for (size_t j = 0; j < DIMENSION; ++j) {
+      doc_vec[j] = dist(gen);
+    }
+
+    doc_vecs.push_back(doc_vec);
+
+    if (doc_vecs.size() == BATCH_SIZE) {
+      std::vector<const void *> doc_ptrs(BATCH_SIZE);
+      for (size_t k = 0; k < BATCH_SIZE; ++k) {
+        doc_ptrs[k] = doc_vecs[k].data();
+      }
+
+      std::vector<float> score_scalar(BATCH_SIZE, 0.0f);
+      std::vector<float> score_avx(BATCH_SIZE, 0.0f);
+      std::vector<float> score_avx512(BATCH_SIZE, 0.0f);
+
+      batch_func_scalar(doc_ptrs.data(), query_vec.data(), DIMENSION,
+                        BATCH_SIZE, &score_scalar[0]);
+      batch_func_avx512(doc_ptrs.data(), query_vec.data(), DIMENSION,
+                        BATCH_SIZE, &score_avx512[0]);
+      batch_func_avx(doc_ptrs.data(), query_vec.data(), DIMENSION, BATCH_SIZE,
+                     &score_avx[0]);
+
+      for (size_t j = 0; j < BATCH_SIZE; ++j) {
+        float epsilon = 0.001;
+        ASSERT_NEAR(score_scalar[j], score_avx512[j], epsilon);
+        ASSERT_NEAR(score_scalar[j], score_avx[j], epsilon);
+      }
+
+      doc_vecs.clear();
+    }
+  }
+}
+
+// Target Test Type: avx, avx512, avx512fp16, scalar
+TEST(InnerProductMetric, TestFp16InnerProductBatch) {
+  std::mt19937 gen(15583);
+  std::uniform_real_distribution<float> dist(-1.0, 2.0);
+
+  const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
+  const size_t COUNT = 1024;
+  const size_t BATCH_SIZE = 16;
+
+  auto converter = IndexFactory::CreateConverter("HalfFloatConverter");
+  IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
+  meta.set_metric("InnerProduct", 0, Params());
+  ASSERT_TRUE(!!converter);
+  ASSERT_EQ(0u, converter->init(meta, Params()));
+  auto &convert_meta = converter->meta();
+  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
+
+  auto batch_func_avx512fp16 = turbo::get_batch_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp16,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512FP16);
+
+  auto batch_func_avx512 = turbo::get_batch_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp16,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512);
+
+  auto batch_func_avx = turbo::get_batch_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp16,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX);
+
+  auto batch_func_scalar = turbo::get_batch_distance_func(
+      turbo::MetricType::kInnerProduct, turbo::DataType::kFp16,
+      turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
+
+  ailego::NumericalVector<float> query_vec(DIMENSION);
+  for (size_t j = 0; j < DIMENSION; ++j) {
+    query_vec[j] = dist(gen);
+  }
+
+  IndexQueryMeta qmeta;
+  qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
+  IndexQueryMeta qmeta_reformer;
+
+  std::string query_out;
+  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+                                   &qmeta_reformer));
+  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+
+  std::vector<ailego::NumericalVector<float>> doc_vecs;
+  std::vector<std::string> doc_outs;
+
+  for (size_t i = 0; i < COUNT; ++i) {
+    ailego::NumericalVector<float> doc_vec(DIMENSION);
+    for (size_t j = 0; j < DIMENSION; ++j) {
+      doc_vec[j] = dist(gen);
+    }
+
+    doc_vecs.push_back(doc_vec);
+
+    std::string doc_out;
+    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+                                     &qmeta_reformer));
+    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+    doc_outs.push_back(doc_out);
+
+    if (doc_vecs.size() == BATCH_SIZE) {
+      std::vector<const void *> doc_ptrs(BATCH_SIZE);
+      for (size_t k = 0; k < BATCH_SIZE; ++k) {
+        doc_ptrs[k] = doc_outs[k].data();
+      }
+
+      std::vector<float> score_avx512fp16(BATCH_SIZE, 0.0f);
+      std::vector<float> score_avx512(BATCH_SIZE, 0.0f);
+      std::vector<float> score_avx(BATCH_SIZE, 0.0f);
+      std::vector<float> score_scalar(BATCH_SIZE, 0.0f);
+
+      batch_func_avx512fp16(doc_ptrs.data(), query_out.data(),
+                            qmeta_reformer.dimension(), BATCH_SIZE,
+                            &score_avx512fp16[0]);
+
+      batch_func_avx512(doc_ptrs.data(), query_out.data(),
+                        qmeta_reformer.dimension(), BATCH_SIZE,
+                        &score_avx512[0]);
+
+      batch_func_avx(doc_ptrs.data(), query_out.data(),
+                     qmeta_reformer.dimension(), BATCH_SIZE, &score_avx[0]);
+
+      batch_func_scalar(doc_ptrs.data(), query_out.data(),
+                        qmeta_reformer.dimension(), BATCH_SIZE,
+                        &score_scalar[0]);
+
+      for (size_t j = 0; j < BATCH_SIZE; ++j) {
+        float epsilon = 0.2;
+        ASSERT_NEAR(score_scalar[j], score_avx512fp16[j], epsilon);
+        ASSERT_NEAR(score_scalar[j], score_avx512[j], epsilon);
+        ASSERT_NEAR(score_scalar[j], score_avx[j], epsilon);
+      }
+
+      doc_vecs.clear();
+      doc_outs.clear();
+    }
+  }
+}

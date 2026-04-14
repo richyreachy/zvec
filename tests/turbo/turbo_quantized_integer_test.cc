@@ -595,7 +595,7 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProductBatch) {
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
   const size_t COUNT = 1024;
-  const size_t BATCH_SIZE = 128;
+  const size_t BATCH_SIZE = 16;
 
   auto converter = IndexFactory::CreateConverter("Int8StreamingConverter");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
@@ -710,7 +710,7 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProductBatch) {
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen) * 2;
   const size_t COUNT = 1024;
-  const size_t BATCH_SIZE = 128;
+  const size_t BATCH_SIZE = 16;
 
   auto converter = IndexFactory::CreateConverter("Int4StreamingConverter");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
@@ -816,7 +816,7 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclideanBatch) {
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
   const size_t COUNT = 1024;
-  const size_t BATCH_SIZE = 128;
+  const size_t BATCH_SIZE = 16;
 
   auto converter = IndexFactory::CreateConverter("Int8StreamingConverter");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
@@ -922,7 +922,7 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclideanBatch) {
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen) * 2;
   const size_t COUNT = 1024;
-  const size_t BATCH_SIZE = 128;
+  const size_t BATCH_SIZE = 16;
 
   auto converter = IndexFactory::CreateConverter("Int4StreamingConverter");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
@@ -1028,7 +1028,7 @@ TEST(QuantizedIntegerMetric, TestInt8CosineBatch) {
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
   const size_t COUNT = 1024;
-  const size_t BATCH_SIZE = 128;
+  const size_t BATCH_SIZE = 16;
 
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("Cosine", 0, Params());
@@ -1172,7 +1172,7 @@ TEST(QuantizedIntegerMetric, TestInt4CosineBatch) {
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen) * 2;
   const size_t COUNT = 1024;
-  const size_t BATCH_SIZE = 128;
+  const size_t BATCH_SIZE = 16;
 
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("Cosine", 0, Params());
