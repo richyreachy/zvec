@@ -41,8 +41,9 @@ endif()
 
 # Remove algorithm/diskann implementation files on non-x86-Linux platforms.
 # diskann depends on libaio which is only available on x86 Linux.
-if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386" AND NOT ANDROID))
+if(NOT DISKANN_SUPPORTED)
   list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/diskann/.*")
+  list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/interface/indexes/diskann_index\\.cc")
 endif()
 
 cc_library(

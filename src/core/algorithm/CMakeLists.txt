@@ -8,7 +8,7 @@ cc_directory(ivf)
 cc_directory(hnsw)
 cc_directory(hnsw_sparse)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386" AND NOT ANDROID)
+if(DISKANN_SUPPORTED)
   message(STATUS "build diskann")
   cc_directory(diskann)
 else()

@@ -4187,6 +4187,7 @@ TEST_F(CollectionTest, Feature_Optimize_HNSW_RABITQ) {
 }
 #endif
 
+#if DISKANN_SUPPORTED
 TEST_F(CollectionTest, Feature_Optimize_DiskAnn) {
   auto func = [](MetricType metric_type, int concurrency) {
     FileHelper::RemoveDirectory(col_path);
@@ -4259,6 +4260,7 @@ TEST_F(CollectionTest, Feature_Optimize_DiskAnn) {
   func(MetricType::COSINE, 0);
   func(MetricType::COSINE, 4);
 }
+#endif
 
 // **** CORNER CASES **** //
 TEST_F(CollectionTest, CornerCase_CreateAndOpen) {
