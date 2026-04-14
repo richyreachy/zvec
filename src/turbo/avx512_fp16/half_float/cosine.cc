@@ -43,7 +43,7 @@ void cosine_fp16_distance(const void *a, const void *b, size_t dim,
 void cosine_fp16_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances) {
 #if defined(__AVX512FP16__)
-
+  cosine_fp16_batch_avx512(vectors, query, n, dim, distances);
 #else
   (void)vectors;
   (void)query;

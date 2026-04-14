@@ -44,11 +44,15 @@ void inner_product_fp16_distance(const void *a, const void *b, size_t dim,
 void inner_product_fp16_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances) {
+#if defined(__ARM_NEON)
+  inner_product_fp16_batch_armv8(vectors, query, n, dim, distances);
+#else
   (void)vectors;
   (void)query;
   (void)n;
   (void)dim;
   (void)distances;
+#endif  //__ARM_NEON
 }
 
 }  // namespace zvec::turbo::armv8

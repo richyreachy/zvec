@@ -106,13 +106,14 @@ void squared_euclidean_fp32_batch_distance(const void *const *vectors,
                                            const void *query, size_t n,
                                            size_t dim, float *distances) {
 #if defined(__AVX__)
+  squared_euclidean_fp32_batch_avx(vectors, query, n, dim, distances);
 #else
   (void)vectors;
+  (void)distances;
   (void)query;
   (void)n;
   (void)dim;
-  (void)distances;
-#endif  //__AVX__
+#endif  // __AVX__
 }
 
 }  // namespace zvec::turbo::avx

@@ -46,6 +46,7 @@ void squared_euclidean_fp16_batch_distance(const void *const *vectors,
                                            const void *query, size_t n,
                                            size_t dim, float *distances) {
 #if defined(__ARM_NEON)
+  squared_euclidean_fp16_batch_armv8(vectors, query, n, dim, distances);
 #else
   (void)vectors;
   (void)query;

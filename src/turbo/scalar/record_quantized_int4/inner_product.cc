@@ -51,11 +51,9 @@ void inner_product_int4_distance(const void *a, const void *b, size_t dim,
 void inner_product_int4_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances) {
-  (void)vectors;
-  (void)query;
-  (void)n;
-  (void)dim;
-  (void)distances;
+  for (size_t i = 0; i < n; ++i) {
+    inner_product_int4_distance(vectors[i], query, dim, &distances[i]);
+  }
 }
 
 }  // namespace zvec::turbo::scalar

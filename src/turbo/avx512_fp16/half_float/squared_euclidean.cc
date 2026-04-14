@@ -92,20 +92,21 @@ void squared_euclidean_fp16_distance(const void *a, const void *b, size_t dim,
   (void)b;
   (void)dim;
   (void)distance;
-#endif  // __AVX512F__
+#endif  // __AVX512FP16__
 }
 
 void squared_euclidean_fp32_batch_distance(const void *const *vectors,
                                            const void *query, size_t n,
                                            size_t dim, float *distances) {
 #if defined(__AVX512FP16__)
+  squared_euclidean_fp32_batch_avx512fp16(vectors, query, n, dim, distances);
 #else
   (void)vectors;
   (void)query;
   (void)n;
   (void)dim;
   (void)distances;
-#endif  //__AVX512F__
+#endif  //__AVX512FP16__
 }
 
 }  // namespace zvec::turbo::avx512_fp16

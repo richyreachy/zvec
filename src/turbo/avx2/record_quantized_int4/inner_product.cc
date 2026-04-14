@@ -63,7 +63,7 @@ void inner_product_int4_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances) {
 #if defined(__AVX2__)
-
+  inner_product_int4_batch_avx2(vectors, query, n, dim, distances);
 #else
   (void)vectors;
   (void)query;
