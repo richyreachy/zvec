@@ -27,7 +27,7 @@ TEST(SquaredEuclideanMetric, TestFp32SquaredEuclidean) {
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
-  const size_t COUNT = 1000;
+  const size_t COUNT = 1024;
 
   auto func_avx512 = turbo::get_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
@@ -74,7 +74,7 @@ TEST(SquaredEuclideanMetric, TestFp16SquaredEuclidean) {
   std::uniform_real_distribution<float> dist(-1.0, 2.0);
 
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
-  const size_t COUNT = 1000;
+  const size_t COUNT = 1024;
 
   auto converter = IndexFactory::CreateConverter("HalfFloatConverter");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
@@ -105,20 +105,20 @@ TEST(SquaredEuclideanMetric, TestFp16SquaredEuclidean) {
     query_vec[j] = dist(gen);
   }
 
+  IndexQueryMeta qmeta;
+  qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
+  IndexQueryMeta qmeta_reformer;
+
+  std::string query_out;
+  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+                                   &qmeta_reformer));
+  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+
   for (size_t i = 0; i < COUNT; ++i) {
     ailego::NumericalVector<float> doc_vec(DIMENSION);
     for (size_t j = 0; j < DIMENSION; ++j) {
       doc_vec[j] = dist(gen);
     }
-
-    IndexQueryMeta qmeta;
-    qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-    IndexQueryMeta qmeta_reformer;
-
-    std::string query_out;
-    ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
