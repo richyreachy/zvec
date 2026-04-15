@@ -14,7 +14,9 @@
 
 #include "diskann_file_reader.h"
 #include <cassert>
+#include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <iostream>
 
 #define MAX_EVENTS 1024
@@ -47,6 +49,24 @@ int destroy_io_ctx(IOContext &ctx) {
 #endif
 }
 
+static int execute_io_pread(int fd, std::vector<AlignedRead> &read_reqs) {
+  for (auto &req : read_reqs) {
+    ssize_t bytes_read = ::pread(fd, req.buf, req.len, req.offset);
+    if (bytes_read < 0) {
+      LOG_ERROR("pread failed; errno=%d, %s, offset=%lu, len=%lu", errno,
+                ::strerror(errno), (unsigned long)req.offset,
+                (unsigned long)req.len);
+      return IndexError_Runtime;
+    }
+    if ((size_t)bytes_read != req.len) {
+      LOG_ERROR("pread short read; got=%zd, expected=%lu", bytes_read,
+                (unsigned long)req.len);
+      return IndexError_Runtime;
+    }
+  }
+  return 0;
+}
+
 int execute_io(IOContext ctx, int fd, std::vector<AlignedRead> &read_reqs,
                uint64_t n_retries = 0) {
 #if (defined(__linux) || defined(__linux__))
@@ -75,29 +95,32 @@ int execute_io(IOContext ctx, int fd, std::vector<AlignedRead> &read_reqs,
       int ret = io_submit(ctx, (int64_t)n_ops, cbs.data());
 
       if (ret != (int)n_ops) {
-        LOG_ERROR(
-            "io_submit failed; returned: %d, expected=%lu, ernno=%d, %s, try "
-            "#: %lu",
-            ret, n_ops, errno, ::strerror(-ret), n_tries + 1);
-        return IndexError_Runtime;
+        LOG_WARN(
+            "io_submit failed; returned: %d, expected=%lu, errno=%d, %s, "
+            "falling back to pread",
+            ret, n_ops, errno, ::strerror(-ret));
+        return execute_io_pread(fd, read_reqs);
       } else {
         ret = io_getevents(ctx, (int64_t)n_ops, (int64_t)n_ops, evts.data(),
                            nullptr);
         if (ret != (int64_t)n_ops) {
-          LOG_ERROR(
-              "io_getevents failed; returned: %d, expected=%lu, ernno=%d, %s, "
-              "try #: %lu",
-              ret, n_ops, errno, ::strerror(-ret), n_tries + 1);
-          return IndexError_Runtime;
+          LOG_WARN(
+              "io_getevents failed; returned: %d, expected=%lu, errno=%d, %s, "
+              "falling back to pread",
+              ret, n_ops, errno, ::strerror(-ret));
+          return execute_io_pread(fd, read_reqs);
         } else {
           break;
         }
       }
+      n_tries++;
     }
   }
 
-#endif
   return 0;
+#else
+  return execute_io_pread(fd, read_reqs);
+#endif
 }
 
 LinuxAlignedFileReader::LinuxAlignedFileReader(int file_desc) {
@@ -194,17 +217,28 @@ void LinuxAlignedFileReader::open(const std::string &fname) {
 
 #if defined(__linux__) || defined(__linux)
   flags |= O_DIRECT | O_LARGEFILE;
-#elif defined(__APPLE__) || defined(__MACH__)
-
 #endif
 
   this->file_desc = ::open(fname.c_str(), flags);
 
-  // error checks
-  ailego_assert(this->file_desc != -1);
+#if defined(__linux__) || defined(__linux)
+  // O_DIRECT may not be supported on all filesystems (e.g. tmpfs, overlay).
+  // Fall back to regular buffered I/O when it fails.
+  if (this->file_desc == -1) {
+    LOG_WARN(
+        "open with O_DIRECT failed for %s (errno=%d: %s), "
+        "falling back to buffered I/O",
+        fname.c_str(), errno, ::strerror(errno));
+    this->file_desc = ::open(fname.c_str(), O_RDONLY | O_LARGEFILE);
+  }
+#endif
+
+  if (this->file_desc == -1) {
+    LOG_ERROR("Failed to open file: %s (errno=%d: %s)", fname.c_str(), errno,
+              ::strerror(errno));
+  }
 
   LOG_INFO("Opened file : %s", fname.c_str());
-  // #endif
 }
 
 void LinuxAlignedFileReader::close() {
@@ -220,7 +254,10 @@ int LinuxAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,
     LOG_WARN("Async currently not supported");
   }
 
-  assert(this->file_desc != -1);
+  if (this->file_desc == -1) {
+    LOG_ERROR("Attempt to read from invalid file descriptor");
+    return IndexError_Runtime;
+  }
 
   int ret = execute_io(ctx, this->file_desc, read_reqs);
 
