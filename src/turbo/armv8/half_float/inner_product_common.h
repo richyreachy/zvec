@@ -36,7 +36,8 @@ namespace zvec::turbo::armv8::internal {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 
 //! NEON fused multiply-add for inner product (FP16)
-#define ACCUM_FP16_STEP_NEON(v_m, v_q, v_sum) v_sum = vfmaq_f16(v_sum, v_m, v_q);
+#define ACCUM_FP16_STEP_NEON(v_m, v_q, v_sum) \
+  v_sum = vfmaq_f16(v_sum, v_m, v_q);
 
 //! Iterative process of computing distance (FP16, M=1, N=1)
 #define MATRIX_FP16_ITER_1X1_NEON(m, q, _RES, _PROC)   \
@@ -82,7 +83,8 @@ namespace zvec::turbo::armv8::internal {
 #else
 
 //! NEON fused multiply-add for inner product (FP32)
-#define ACCUM_FP32_STEP_NEON(v_m, v_q, v_sum) v_sum = vfmaq_f32(v_sum, v_m, v_q);
+#define ACCUM_FP32_STEP_NEON(v_m, v_q, v_sum) \
+  v_sum = vfmaq_f32(v_sum, v_m, v_q);
 
 //! Iterative process of computing distance (FP16, M=1, N=1)
 #define MATRIX_FP16_ITER_1X1_NEON(m, q, _RES, _PROC)     \
@@ -126,6 +128,82 @@ namespace zvec::turbo::armv8::internal {
   *out = _NORM(result);
 
 #endif  // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
+
+template <size_t batch_size>
+static __attribute__((always_inline)) void inner_product_fp16_batch_armv8_impl(
+    const void *query, const void *const *vectors,
+    const std::array<const void *, batch_size> &prefetch_ptrs,
+    size_t dimensionality, float *distances) {
+  float32x4_t v_sum[batch_size] for (size_t i = 0; i < batch_size; ++i) {
+    v_sum[i] = vdupq_n_f32(0);
+  }
+
+  size_t dim = 0;
+  for (; dim + 64 <= dimensionality; dim += 4) {
+    for (size_t i = 0; i < batch_size; ++i) {
+      v_sum[i] = vfmaq_f32(
+          v_sum[i], vld1q_f32(reinterpret_cast<const float *>(query) + dim),
+          vld1q_f32(reinterpret_cast<const float *>(vectors[i]) + dim));
+    }
+  }
+
+  if (dim >= dimensionality + 4) {
+    for (size_t i = 0; i < batch_size; ++i) {
+      v_sum[i] = vfmaq_f32(v_sum[i], vld1q_f32(reinterpret_cast<const float *>(query)+dim), vld1q_f32(reinterpret_cast<const float *>(vectors[i])+dim)));
+    }
+
+    dim += 4;
+  }
+
+  for (size_t i = 0; i < batch_size; ++i) {
+    float result = vaddvq_f32(v_sum[i]);
+    switch (last - lhs) {
+      case 3:
+        FMA_FP32_GENERAL(reinterpret_cast<const float *>(query)[dim + 2],
+                         reinterpret_cast<const float *>(vectors[i])[dim + 2],
+                         result)
+        /* FALLTHRU */
+      case 2:
+        FMA_FP32_GENERAL(reinterpret_cast<const float *>(query)[dim + 1],
+                         reinterpret_cast<const float *>(vectors[i])[dim + 1],
+                         result)
+        /* FALLTHRU */
+      case 1:
+        FMA_FP32_GENERAL(reinterpret_cast<const float *>(query)[dim + 0],
+                         reinterpret_cast<const float *>(vectors[i])[dim + 0],
+                         result)
+    }
+
+    distances[i] = -result;
+  }
+}
+
+// Dispatch batched inner product over all `n` vectors with prefetching.
+static __attribute__((always_inline)) void inner_product_fp16_batch_armv8(
+    const void *const *vectors, const void *query, size_t n, size_t dim,
+    float *distances) {
+  static constexpr size_t batch_size = 2;
+  static constexpr size_t prefetch_step = 2;
+  size_t i = 0;
+  for (; i + batch_size <= n; i += batch_size) {
+    std::array<const void *, batch_size> prefetch_ptrs;
+    for (size_t j = 0; j < batch_size; ++j) {
+      if (i + j + batch_size * prefetch_step < n) {
+        prefetch_ptrs[j] = vectors[i + j + batch_size * prefetch_step];
+      } else {
+        prefetch_ptrs[j] = nullptr;
+      }
+    }
+    inner_product_fp16_batch_armv8_impl<batch_size>(
+        query, &vectors[i], prefetch_ptrs, dim, distances + i);
+  }
+  for (; i < n; i++) {
+    std::array<const void *, 1> prefetch_ptrs{nullptr};
+    inner_product_fp16_batch_armv8_impl<1>(query, &vectors[i], prefetch_ptrs,
+                                           dim, distances + i);
+  }
+}
 
 }  // namespace zvec::turbo::armv8::internal
 

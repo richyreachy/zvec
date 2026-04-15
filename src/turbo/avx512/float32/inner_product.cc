@@ -89,14 +89,16 @@ void inner_product_fp32_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances) {
 #if defined(__AVX512F__)
-
+  for (size_t i = 0; i < n; ++i) {
+    inner_product_fp32_distance(vectors[i], query, dim, &distances[i]);
+  }
 #else
   (void)vectors;
   (void)query;
   (void)n;
   (void)dim;
   (void)distances;
-#endif  //__AVX2__
+#endif  //__AVX512F__
 }
 
 }  // namespace zvec::turbo::avx512

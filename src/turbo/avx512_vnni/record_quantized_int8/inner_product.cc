@@ -52,7 +52,7 @@ void inner_product_int8_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances) {
 #if defined(__AVX512VNNI__)
-  inner_product_int8_batch_avx512_vnni(vectors, query, n, dim, distances);
+  internal::ip_int8_batch_avx512_vnni(vectors, query, n, dim, distances);
 #else
   (void)vectors;
   (void)query;

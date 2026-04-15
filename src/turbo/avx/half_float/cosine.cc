@@ -43,7 +43,18 @@ void cosine_fp16_distance(const void *a, const void *b, size_t dim,
 void cosine_fp16_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances) {
 #if defined(__AVX__)
-  cosine_fp16_batch_avx(vectors, query, n, dim, distances);
+  constexpr size_t extra_dim = 2;
+  const int original_dim = dim - extra_dim;
+  if (original_dim <= 0) {
+    return;
+  }
+
+  inner_product_fp16_batch_distance(vectors, query, n, original_dim, distances);
+
+  for (size_t i = 0; i < n; ++i) {
+    distances[i] = 1 - distances[i];
+  }
+
 #else
   (void)vectors;
   (void)query;

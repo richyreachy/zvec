@@ -99,7 +99,9 @@ void squared_euclidean_fp32_batch_distance(const void *const *vectors,
                                            const void *query, size_t n,
                                            size_t dim, float *distances) {
 #if defined(__AVX512FP16__)
-  squared_euclidean_fp32_batch_avx512fp16(vectors, query, n, dim, distances);
+  for (size_t i = 0; i < n; ++i) {
+    squared_euclidean_fp16_distance(vectors[i], query, dim, &distances[i]);
+  }
 #else
   (void)vectors;
   (void)query;

@@ -43,7 +43,18 @@ void cosine_fp32_distance(const void *a, const void *b, size_t dim,
 void cosine_fp32_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances) {
 #if defined(__AVX512F__)
-  cosine_fp32_batch_avx512(vectors, query, n, dim, distances);
+  // `dim` is the full encoded size; the original vector occupies dim-24 bytes.
+  const int original_dim = dim - 1;
+  if (original_dim <= 0) {
+    return;
+  }
+
+  inner_product_fp32_batch_distance(vectors, query, n, original_dim, distances);
+
+  for (size_t i = 0; i < n; ++i) {
+    distances[i] = 1 - distances[i];
+  }
+
 #else
   (void)vectors;
   (void)query;
