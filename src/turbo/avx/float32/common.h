@@ -128,7 +128,7 @@ inner_product_fp32_batch_avx_impl(
     }
   }
   for (size_t i = 0; i < dp_batch; ++i) {
-    results[i] = -res[i];
+    results[i] = res[i];
   }
 }
 

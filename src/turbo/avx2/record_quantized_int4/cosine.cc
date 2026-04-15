@@ -57,31 +57,8 @@ void cosine_int4_distance(const void *a, const void *b, size_t dim,
 void cosine_int4_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances) {
 #if defined(__AVX2__)
-  const int d = dim - 40;
-  const size_t original_dim = d >> 1;
-  if (original_dim <= 0) {
-    return;
-  }
-
-  internal::inner_product_int4_batch_avx2(vectors, query, n, original_dim,
-                                          distances);
-
-  const float *q_tail = reinterpret_cast<const float *>(
-      reinterpret_cast<const uint8_t *>(query) + original_dim);
-  float qa = q_tail[0];
-  float qb = q_tail[1];
-  float qs = q_tail[2];
-
-  for (int i = 0; i < n; ++i) {
-    const float *m_tail = reinterpret_cast<const float *>(
-        reinterpret_cast<const uint8_t *>(vectors[i]) + original_dim);
-    float ma = m_tail[0];
-    float mb = m_tail[1];
-    float ms = m_tail[2];
-
-    float &result = distances[i];
-    result = -(ma * qa * result + mb * qa * qs + qb * ma * ms +
-               static_cast<float>(d) * qb * mb);
+  for (size_t i = 0; i < n; ++i) {
+    cosine_int4_distance(vectors[i], query, dim, &distances[i]);
   }
 #else
   (void)vectors;

@@ -48,18 +48,15 @@ void inner_product_int8_distance(const void *a, const void *b, size_t dim,
 }
 
 // Batch version of inner_product_int8_distance.
+// Uses a simple fallback loop over the single-distance function because the
+// dpbusd-based batch kernel requires the query to be preprocessed (int8→uint8
+// via +128 shift), but callers may invoke this without preprocessing.
 void inner_product_int8_batch_distance(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances) {
-#if defined(__AVX512VNNI__)
-  internal::ip_int8_batch_avx512_vnni(vectors, query, n, dim, distances);
-#else
-  (void)vectors;
-  (void)query;
-  (void)n;
-  (void)dim;
-  (void)distances;
-#endif  // __AVX512VNNI__
+  for (size_t i = 0; i < n; ++i) {
+    inner_product_int8_distance(vectors[i], query, dim, &distances[i]);
+  }
 }
 
 }  // namespace zvec::turbo::avx512_vnni

@@ -1011,8 +1011,8 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclideanBatch) {
         ASSERT_NEAR(scores_float32[j], scores_avx2[j], 0.2 * DIMENSION);
         ASSERT_NEAR(scores_float32[j], scores_sse[j], 0.2 * DIMENSION);
         ASSERT_NEAR(scores_float32[j], scores_scalar[j], 0.2 * DIMENSION);
-        ASSERT_NEAR(scores_float32[j], scores_avx2[j], 0.001);
-        ASSERT_NEAR(scores_float32[j], scores_sse[j], 0.001);
+        ASSERT_NEAR(scores_scalar[j], scores_avx2[j], 0.001);
+        ASSERT_NEAR(scores_scalar[j], scores_sse[j], 0.001);
       }
 
       doc_outs.clear();

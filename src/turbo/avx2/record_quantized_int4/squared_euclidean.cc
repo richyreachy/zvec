@@ -65,39 +65,8 @@ void squared_euclidean_int4_batch_distance(const void *const *vectors,
                                            const void *query, size_t n,
                                            size_t dim, float *distances) {
 #if defined(__AVX2__)
-  const int d = dim - 32;
-  const size_t original_dim = d >> 1;
-
-  if (original_dim <= 0) {
-    return;
-  }
-
-  internal::inner_product_int4_batch_avx2(vectors, query, n, original_dim,
-                                          distances);
-
-  const float *q_tail = reinterpret_cast<const float *>(
-      reinterpret_cast<const int8_t *>(query) + original_dim);
-
-  float qa = q_tail[0];
-  float qb = q_tail[1];
-  float qs = q_tail[2];
-  float qs2 = q_tail[3];
-
-  const float sum = qa * qs;
-  const float sum2 = qa * qa * qs2;
-
-  for (int i = 0; i < n; ++i) {
-    const float *m_tail = reinterpret_cast<const float *>(
-        reinterpret_cast<const int8_t *>(vectors[i]) + original_dim);
-
-    float ma = m_tail[0];
-    float mb = m_tail[1];
-    float ms = m_tail[2];
-    float ms2 = m_tail[3];
-
-    float &result = distances[i];
-    result = ma * ma * ms2 + sum2 - 2 * ma * qa * result +
-             (mb - qb) * (mb - qb) * d + 2 * (mb - qb) * (ms * ma - sum);
+  for (size_t i = 0; i < n; ++i) {
+    squared_euclidean_int4_distance(vectors[i], query, dim, &distances[i]);
   }
 #else
   (void)vectors;

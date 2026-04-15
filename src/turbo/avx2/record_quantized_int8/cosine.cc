@@ -56,7 +56,9 @@ void cosine_int8_distance(const void *a, const void *b, size_t dim,
 void cosine_int8_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances) {
 #if defined(__AVX2__)
-
+  for (size_t i = 0; i < n; ++i) {
+    cosine_int8_distance(vectors[i], query, dim, &distances[i]);
+  }
 #else
   (void)vectors;
   (void)query;
