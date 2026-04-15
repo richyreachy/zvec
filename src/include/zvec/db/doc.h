@@ -323,8 +323,8 @@ class Doc {
  private:
   std::string pk_;
   float score_{0.0f};
-  uint64_t doc_id_;
-  Operator op_;
+  uint64_t doc_id_{0};
+  Operator op_{};
 
   template <typename T>
   static constexpr bool is_valid_type_v =
