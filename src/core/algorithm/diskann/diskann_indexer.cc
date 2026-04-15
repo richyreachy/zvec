@@ -166,7 +166,15 @@ std::vector<bool> DiskAnnIndexer::read_nodes(
     read_reqs.push_back(read);
   }
 
-  reader_->read(read_reqs, init_ctx_);
+  int read_ret = reader_->read(read_reqs, init_ctx_);
+  if (read_ret != 0) {
+    LOG_ERROR("read_nodes: reader_->read failed, ret=%d", read_ret);
+    for (size_t i = 0; i < retval.size(); i++) {
+      retval[i] = false;
+    }
+    DiskAnnUtil::free_aligned(buf);
+    return retval;
+  }
 
   for (uint32_t i = 0; i < read_reqs.size(); i++) {
     uint8_t *node_buf =
@@ -463,8 +471,13 @@ int DiskAnnIndexer::linear_search(DiskAnnContext *ctx) {
 
       io_timer.reset();
 
-      reader_->read(frontier_read_reqs, io_ctx);
+      int read_ret = reader_->read(frontier_read_reqs, io_ctx);
       stats.io_us += io_timer.micro_seconds();
+      if (read_ret != 0) {
+        LOG_ERROR("linear_search: reader_->read failed, ret=%d", read_ret);
+        ctx->set_error(true);
+        return IndexError_Runtime;
+      }
     }
 
     for (auto &cached_neighbor : cached_neighbors) {
@@ -603,8 +616,13 @@ int DiskAnnIndexer::keys_search(const std::vector<uint64_t> &keys,
 
       io_timer.reset();
 
-      reader_->read(frontier_read_reqs, io_ctx);
+      int read_ret = reader_->read(frontier_read_reqs, io_ctx);
       stats.io_us += io_timer.micro_seconds();
+      if (read_ret != 0) {
+        LOG_ERROR("keys_search: reader_->read failed, ret=%d", read_ret);
+        ctx->set_error(true);
+        return IndexError_Runtime;
+      }
     }
 
     for (auto &cached_neighbor : cached_neighbors) {
@@ -866,8 +884,13 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
 
       io_timer.reset();
 
-      reader_->read(frontier_read_reqs, io_ctx);
+      int read_ret = reader_->read(frontier_read_reqs, io_ctx);
       stats.io_us += io_timer.micro_seconds();
+      if (read_ret != 0) {
+        LOG_ERROR("cached_beam_search: reader_->read failed, ret=%d", read_ret);
+        ctx->set_error(true);
+        return IndexError_Runtime;
+      }
     }
 
     for (auto &cached_neighbor : cached_neighbors) {

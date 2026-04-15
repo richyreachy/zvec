@@ -190,7 +190,11 @@ class DiskAnnContext : public IndexContext {
   }
 
   inline bool error() const {
-    return false;
+    return has_error_;
+  }
+
+  inline void set_error(bool err) {
+    has_error_ = err;
   }
 
   inline void clear() {
@@ -201,6 +205,7 @@ class DiskAnnContext : public IndexContext {
     best_list_nodes_.clear();
     expanded_nodes_.clear();
     visit_filter_.clear();
+    has_error_ = false;
   }
 
   SearchStats &query_stats() {
@@ -415,6 +420,7 @@ class DiskAnnContext : public IndexContext {
   std::vector<IndexGroupDocumentList> group_results_{};
 
   bool fetch_vector_{false};
+  bool has_error_{false};
 
   NeighborPriorityQueue best_list_nodes_;
   std::vector<Neighbor> expanded_nodes_;
