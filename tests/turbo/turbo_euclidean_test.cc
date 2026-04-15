@@ -287,16 +287,14 @@ TEST(SquaredEuclideanMetric, TestFp16SquaredEuclideanBatch) {
       std::vector<float> score_avx(BATCH_SIZE, 0.0f);
       std::vector<float> score_scalar(BATCH_SIZE, 0.0f);
 
-      batch_func_avx512fp16(doc_ptrs.data(), query_out.data(),
-                            qmeta_reformer.dimension(), BATCH_SIZE,
-                            &score_avx512fp16[0]);
+      batch_func_avx512fp16(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
+                            qmeta_reformer.dimension(), &score_avx512fp16[0]);
 
-      batch_func_avx512(doc_ptrs.data(), query_out.data(),
-                        qmeta_reformer.dimension(), BATCH_SIZE,
-                        &score_avx512[0]);
+      batch_func_avx512(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
+                        qmeta_reformer.dimension(), &score_avx512[0]);
 
-      batch_func_avx(doc_ptrs.data(), query_out.data(),
-                     qmeta_reformer.dimension(), BATCH_SIZE, &score_avx[0]);
+      batch_func_avx(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
+                     qmeta_reformer.dimension(), &score_avx[0]);
 
       batch_func_scalar(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
                         qmeta_reformer.dimension(), &score_scalar[0]);
