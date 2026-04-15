@@ -293,6 +293,7 @@ IndexSearcher::Context::Pointer DiskAnnSearcher::create_context() const {
   }
 
   ctx->set_list_size(list_size_);
+  ctx->set_magic(magic_);
 
   return Context::Pointer(ctx);
 }

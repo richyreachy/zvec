@@ -304,7 +304,8 @@ int DiskAnnSearcherEntity::load_entrypoint_segment() {
   if (entrypoint_cnt != 0) {
     size_t entrypoint_data_len = entrypoint_cnt * sizeof(diskann_id_t);
 
-    if (entrypoint_segment_->read(0, reinterpret_cast<const void **>(&data),
+    if (entrypoint_segment_->read(sizeof(uint32_t),
+                                  reinterpret_cast<const void **>(&data),
                                   entrypoint_data_len) != entrypoint_data_len) {
       LOG_ERROR("Read segment %s failed", kDiskAnnEntryPointSegmentId.c_str());
       return IndexError_ReadData;
@@ -418,9 +419,8 @@ std::pair<uint32_t, const diskann_id_t *> DiskAnnSearcherEntity::get_neighbors(
                                    DiskAnnUtil::kSectorSize, id) *
       DiskAnnUtil::kSectorSize;
   uint64_t node_vec_offset =
-      read_sector_offset + (node_per_sector() == 0
-                                ? 0
-                                : (id % node_per_sector()) * node_per_sector());
+      read_sector_offset +
+      (node_per_sector() == 0 ? 0 : (id % node_per_sector()) * max_node_size());
 
   const void *data;
   if (ailego_unlikely(

@@ -94,6 +94,10 @@ class DiskAnnContext : public IndexContext {
     return magic_;
   }
 
+  void set_magic(uint32_t magic) {
+    magic_ = magic;
+  }
+
   //! Set mode of debug
   virtual void set_debug_mode(bool enable) override {
     debug_mode_ = enable;
