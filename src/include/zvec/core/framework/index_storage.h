@@ -16,6 +16,7 @@
 
 #include <zvec/ailego/buffer/buffer_pool.h>
 #include <zvec/ailego/container/params.h>
+#include <zvec/ailego/io/file.h>
 #include <zvec/core/framework/index_error.h>
 #include <zvec/core/framework/index_module.h>
 
@@ -184,6 +185,11 @@ class IndexStorage : public IndexModule {
     //! Retrieve size of data
     virtual size_t data_size(void) const = 0;
 
+    //! Retrieve offset of data
+    virtual size_t data_offset(void) const {
+      return 0;
+    }
+
     //! Retrieve crc of data
     virtual uint32_t data_crc(void) const = 0;
 
@@ -263,6 +269,15 @@ class IndexStorage : public IndexModule {
   //! huge page
   virtual bool isHugePage(void) const {
     return false;
+  }
+
+  //! Retrieve file ptr if has
+  virtual std::shared_ptr<ailego::File> file(void) const {
+    return nullptr;
+  }
+
+  virtual std::string file_path(void) const {
+    return "";
   }
 };
 

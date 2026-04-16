@@ -116,6 +116,28 @@ proto::InvertIndexParams ProtoConverter::ToPb(const InvertIndexParams *params) {
   return params_pb;
 }
 
+// DiskAnnIndexParams
+DiskAnnIndexParams::OPtr ProtoConverter::FromPb(
+    const proto::DiskAnnIndexParams &params_pb) {
+  return std::make_shared<DiskAnnIndexParams>(
+      MetricTypeCodeBook::Get(params_pb.base().metric_type()),
+      params_pb.max_degree(), params_pb.list_size(), params_pb.pq_chunk_num(),
+      QuantizeTypeCodeBook::Get(params_pb.base().quantize_type()));
+}
+
+proto::DiskAnnIndexParams ProtoConverter::ToPb(
+    const DiskAnnIndexParams *params) {
+  proto::DiskAnnIndexParams params_pb;
+  params_pb.mutable_base()->set_metric_type(
+      MetricTypeCodeBook::Get(params->metric_type()));
+  params_pb.mutable_base()->set_quantize_type(
+      QuantizeTypeCodeBook::Get(params->quantize_type()));
+  params_pb.set_max_degree(params->max_degree());
+  params_pb.set_list_size(params->list_size());
+  params_pb.set_pq_chunk_num(params->pq_chunk_num());
+  return params_pb;
+}
+
 // FieldSchema
 FieldSchema::Ptr ProtoConverter::FromPb(const proto::FieldSchema &schema_pb) {
   auto schema = std::make_shared<FieldSchema>();
@@ -185,6 +207,8 @@ IndexParams::Ptr ProtoConverter::FromPb(const proto::IndexParams &params_pb) {
     return ProtoConverter::FromPb(params_pb.flat());
   } else if (params_pb.has_hnsw_rabitq()) {
     return ProtoConverter::FromPb(params_pb.hnsw_rabitq());
+  } else if (params_pb.has_diskann()) {
+    return ProtoConverter::FromPb(params_pb.diskann());
   }
 
   return nullptr;
@@ -246,6 +270,15 @@ proto::IndexParams ProtoConverter::ToPb(const IndexParams *params) {
         params_pb.mutable_hnsw_rabitq()->CopyFrom(
             ProtoConverter::ToPb(hnsw_rabitq_params));
       }
+      break;
+    }
+    case IndexType::DISKANN: {
+      auto diskann_params = dynamic_cast<const DiskAnnIndexParams *>(params);
+      if (diskann_params) {
+        params_pb.mutable_diskann()->CopyFrom(
+            ProtoConverter::ToPb(diskann_params));
+      }
+      break;
     }
     default:
       break;

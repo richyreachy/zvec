@@ -202,6 +202,18 @@ class ProximaEngineHelper {
         }
         return std::move(ivf_query_param);
       }
+
+      case IndexType::DISKANN: {
+        auto diskann_query_param_result =
+            _build_common_query_param<core_interface::DiskAnnQueryParam>(
+                query_params);
+        if (!diskann_query_param_result.has_value()) {
+          return tl::make_unexpected(Status::InvalidArgument(
+              "failed to build query param: " +
+              diskann_query_param_result.error().message()));
+        }
+        return std::move(diskann_query_param_result.value());
+      }
       default:
         return tl::make_unexpected(Status::InvalidArgument("not supported"));
     }
@@ -391,6 +403,24 @@ class ProximaEngineHelper {
         index_param_builder->WithNList(db_index_params->n_list());
         index_param_builder->WithNiters(db_index_params->n_iters());
         index_param_builder->WithUseSoar(db_index_params->use_soar());
+
+        return index_param_builder->Build();
+      }
+
+      case IndexType::DISKANN: {
+        auto index_param_builder_result =
+            _build_common_index_param<DiskAnnIndexParams,
+                                      core_interface::DiskAnnIndexParamBuilder>(
+                field_schema);
+        if (!index_param_builder_result.has_value()) {
+          return tl::make_unexpected(Status::InvalidArgument(
+              "failed to build index param: " +
+              index_param_builder_result.error().message()));
+        }
+        auto index_param_builder = index_param_builder_result.value();
+
+        // auto db_index_params = dynamic_cast<const DiskAnnIndexParams *>(
+        //     field_schema.index_params().get());
 
         return index_param_builder->Build();
       }

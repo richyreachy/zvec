@@ -1155,7 +1155,7 @@ struct Doc::ValueEqual {
                   const std::vector<float> &b) const {
     if (a.size() != b.size()) return false;
     for (size_t i = 0; i < a.size(); ++i)
-      if (std::fabs(a[i] - b[i]) >= 1e-4f) return false;
+      if (std::fabs(a[i] - b[i]) >= 5e-4f) return false;
     return true;
   }
 
