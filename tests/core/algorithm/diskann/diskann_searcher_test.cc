@@ -933,10 +933,11 @@ TEST_F(DiskAnnSearcherTest, TestGeneralFp16) {
     ASSERT_EQ(0, reformer->transform(vec.data(), qmeta, &new_query, &new_meta));
 
     auto t1 = Realtime::MicroSeconds();
-    ASSERT_EQ(0, searcher->search_impl(new_query.data(), qmeta, knnCtx));
+    ASSERT_EQ(0, searcher->search_impl(new_query.data(), new_meta, knnCtx));
     auto t2 = Realtime::MicroSeconds();
 
-    ASSERT_EQ(0, searcher->search_bf_impl(new_query.data(), qmeta, linearCtx));
+    ASSERT_EQ(0,
+              searcher->search_bf_impl(new_query.data(), new_meta, linearCtx));
     auto t3 = Realtime::MicroSeconds();
     knnTotalTime += t2 - t1;
     linearTotalTime += t3 - t2;
@@ -1110,8 +1111,8 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
       std::shuffle(p_keys[0].begin(), p_keys[0].end(), gen);
     }
 
-    ASSERT_EQ(0, searcher->search_bf_by_p_keys_impl(new_query.data(), p_keys,
-                                                    qmeta, linearByPKeysCtx));
+    ASSERT_EQ(0, searcher->search_bf_by_p_keys_impl(
+                     new_query.data(), p_keys, new_meta, linearByPKeysCtx));
     auto &linearByPKeysResult = linearByPKeysCtx->result();
     ASSERT_EQ(10, linearByPKeysResult.size());
     ASSERT_EQ(order_keys[0], linearByPKeysResult[0].key());
@@ -1123,7 +1124,7 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
     ASSERT_EQ(order_keys[6], linearByPKeysResult[6].key());
     ASSERT_EQ(order_keys[7], linearByPKeysResult[7].key());
 
-    ASSERT_EQ(0, searcher->search_impl(new_query.data(), qmeta, knnCtx));
+    ASSERT_EQ(0, searcher->search_impl(new_query.data(), new_meta, knnCtx));
 
     auto &knnResult = knnCtx->result();
     // TODO: check
@@ -1289,8 +1290,8 @@ TEST_F(DiskAnnSearcherTest, TestCosineFp16) {
       std::shuffle(p_keys[0].begin(), p_keys[0].end(), gen);
     }
 
-    ASSERT_EQ(0, searcher->search_bf_by_p_keys_impl(new_query.data(), p_keys,
-                                                    qmeta, linearByPKeysCtx));
+    ASSERT_EQ(0, searcher->search_bf_by_p_keys_impl(
+                     new_query.data(), p_keys, new_meta, linearByPKeysCtx));
     auto &linearByPKeysResult = linearByPKeysCtx->result();
     ASSERT_EQ(10, linearByPKeysResult.size());
     ASSERT_EQ(order_keys[0], linearByPKeysResult[0].key());
@@ -1302,7 +1303,7 @@ TEST_F(DiskAnnSearcherTest, TestCosineFp16) {
     ASSERT_EQ(order_keys[6], linearByPKeysResult[6].key());
     ASSERT_EQ(order_keys[7], linearByPKeysResult[7].key());
 
-    ASSERT_EQ(0, searcher->search_impl(new_query.data(), qmeta, knnCtx));
+    ASSERT_EQ(0, searcher->search_impl(new_query.data(), new_meta, knnCtx));
 
     auto &knnResult = knnCtx->result();
     // TODO: check
