@@ -137,6 +137,9 @@ struct IndexMetric : public IndexModule {
   virtual DistanceBatchQueryPreprocessFunc get_query_preprocess_func() const {
     return nullptr;
   }
+
+ private:
+  int quantize_type_{0};
 };
 
 }  // namespace core

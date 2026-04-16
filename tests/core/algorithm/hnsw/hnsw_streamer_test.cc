@@ -3471,93 +3471,6 @@ TEST_F(HnswStreamerTest, TestGroupInBruteforceSearch) {
   }
 }
 
-#if 0
-TEST_F(HnswStreamerTest, TestBinaryConverter) {
-  uint32_t dimension = 2560;
-
-  IndexStreamer::Pointer streamer =
-      IndexFactory::CreateStreamer("HnswStreamer");
-  ASSERT_TRUE(streamer != nullptr);
-
-  ailego::Params params;
-  // params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 10);
-  // params.set(PARAM_HNSW_STREAMER_SCALING_FACTOR, 16);
-  // params.set(PARAM_HNSW_STREAMER_EFCONSTRUCTION, 10);
-  // params.set(PARAM_HNSW_STREAMER_EF, 5);
-  params.set(PARAM_HNSW_STREAMER_BRUTE_FORCE_THRESHOLD, 1000U);
-
-  ailego::Params stg_params;
-
-  IndexMeta index_meta_raw(IndexMeta::DataType::DT_FP32, dimension);
-  index_meta_raw.set_metric("InnerProduct", 0, ailego::Params());
-
-  ailego::Params converter_params;
-  auto converter = IndexFactory::CreateConverter("BinaryConverter");
-  ASSERT_TRUE(converter != nullptr);
-
-  converter->init(index_meta_raw, converter_params);
-
-  IndexMeta index_meta = converter->meta();
-
-  auto reformer = IndexFactory::CreateReformer(index_meta.reformer_name());
-  ASSERT_TRUE(reformer != nullptr);
-
-  ASSERT_EQ(0, reformer->init(index_meta.reformer_params()));
-
-  auto storage = IndexFactory::CreateStorage("MMapFileStorage");
-  ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestBinaryConverter.index", true));
-  ASSERT_EQ(0, streamer->init(index_meta, params));
-  ASSERT_EQ(0, streamer->open(storage));
-
-  size_t cnt = 5000U;
-  auto ctx = streamer->create_context();
-  ASSERT_TRUE(!!ctx);
-
-  IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dimension);
-
-  std::random_device rd;
-  std::mt19937 gen(rd());
-
-  std::uniform_real_distribution<float> dist(-2.0, 2.0);
-  std::vector<NumericalVector<float>> vecs;
-
-  for (size_t i = 0; i < cnt; i++) {
-    NumericalVector<float> vec(dimension);
-    for (size_t j = 0; j < dimension; ++j) {
-      vec[j] = dist(gen);
-    }
-
-    std::string new_vec;
-    IndexQueryMeta new_meta;
-
-    ASSERT_EQ(0, reformer->convert(vec.data(), qmeta, &new_vec, &new_meta));
-    ASSERT_EQ(0, streamer->add_impl(i, new_vec.data(), new_meta, ctx));
-
-    vecs.push_back(vec);
-  }
-
-  size_t query_cnt = 200U;
-  auto knnCtx = streamer->create_context();
-
-  float epison = 1e-6;
-  for (size_t i = 0; i < query_cnt; i++) {
-    auto &vec = vecs[i];
-    std::string new_query;
-    IndexQueryMeta new_meta;
-    ASSERT_EQ(0, reformer->transform(vec.data(), qmeta, &new_query, &new_meta));
-
-    size_t topk = 50;
-    knnCtx->set_topk(topk);
-    ASSERT_EQ(0, streamer->search_impl(new_query.data(), new_meta, knnCtx));
-    auto &results = knnCtx->result();
-    ASSERT_EQ(topk, results.size());
-    ASSERT_EQ(i, results[0].key());
-    ASSERT_NEAR(0, results[0].score(), epison);
-  }
-}
-#endif
-
 TEST_F(HnswStreamerTest, TestAddAndSearchWithID) {
   IndexStreamer::Pointer streamer =
       IndexFactory::CreateStreamer("HnswStreamer");
@@ -3671,131 +3584,134 @@ TEST_F(HnswStreamerTest, TestAddAndSearchWithID) {
   // EXPECT_GT(cost, 2.0f);
 }
 
-#if 0
-TEST_F(HnswStreamerTest, TestBasicRefiner) {
-  uint32_t dimension = 1120;
-
-  IndexStreamer::Pointer base_streamer =
+TEST_F(HnswStreamerTest, TestTurboCosineInt8Quantizer) {
+  IndexStreamer::Pointer streamer =
       IndexFactory::CreateStreamer("HnswStreamer");
-  ASSERT_TRUE(base_streamer != nullptr);
-
-  IndexStreamer::Pointer refine_streamer =
-      IndexFactory::CreateStreamer("FlatStreamer");
-  ASSERT_TRUE(refine_streamer != nullptr);
-
-  IndexRefiner::Pointer refiner = IndexFactory::CreateRefiner("BasicRefiner");
-  ASSERT_TRUE(refiner != nullptr);
+  ASSERT_TRUE(streamer != nullptr);
 
   ailego::Params params;
-  IndexMeta index_meta(IndexMeta::DataType::DT_FP32, dimension);
-  index_meta.set_metric("InnerProduct", 0, ailego::Params());
+  params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 50);
+  params.set(PARAM_HNSW_STREAMER_SCALING_FACTOR, 16);
+  params.set(PARAM_HNSW_STREAMER_EFCONSTRUCTION, 100);
+  params.set(PARAM_HNSW_STREAMER_EF, 100);
+  params.set(PARAM_HNSW_STREAMER_BRUTE_FORCE_THRESHOLD, 1000U);
+  params.set(PARAM_HNSW_STREAMER_GET_VECTOR_ENABLE, true);
+
+  ailego::Params stg_params;
+
+  IndexMeta index_meta_raw(IndexMeta::DataType::DT_FP32, dim);
+  index_meta_raw.set_metric("Cosine", 0, ailego::Params());
 
   ailego::Params converter_params;
-  auto converter = IndexFactory::CreateConverter("BinaryConverter");
-  ASSERT_TRUE(converter != nullptr);
+  auto quantizer = IndexFactory::CreateQuantier("Int8Quantizer");
+  ASSERT_TRUE(quantizer != nullptr);
 
-  converter->init(index_meta, converter_params);
+  quantizer->init(index_meta_raw, quantizer_params);
 
-  IndexMeta index_meta_binary = converter->meta();
+  IndexMeta index_meta = quantizer->meta();
 
-  auto reformer =
-      IndexFactory::CreateReformer(index_meta_binary.reformer_name());
-  ASSERT_TRUE(reformer != nullptr);
-
-  ASSERT_EQ(0, reformer->init(index_meta_binary.reformer_params()));
-
-  // base streamer
-  ailego::Params base_stg_params;
-  auto base_storage = IndexFactory::CreateStorage("MMapFileStorage");
-  ASSERT_EQ(0, base_storage->init(base_stg_params));
-  ASSERT_EQ(0, base_storage->open(dir_ + "TestBasicRefinerBase.index", true));
-  ASSERT_EQ(0, base_streamer->init(index_meta_binary, params));
-  ASSERT_EQ(0, base_streamer->open(base_storage));
-
-  auto base_ctx = base_streamer->create_context();
-  ASSERT_TRUE(!!base_ctx);
-
-  // refine streamer
-  ailego::Params refine_stg_params;
-  auto refine_storage = IndexFactory::CreateStorage("MMapFileStorage");
-  ASSERT_EQ(0, refine_storage->init(refine_stg_params));
+  auto storage = IndexFactory::CreateStorage("MMapFileStorage");
+  ASSERT_EQ(0, storage->init(stg_params));
   ASSERT_EQ(0,
-            refine_storage->open(dir_ + "TestBasicRefinerRefine.index", true));
-  ASSERT_EQ(0, refine_streamer->init(index_meta, params));
-  ASSERT_EQ(0, refine_streamer->open(refine_storage));
-  auto refine_ctx = refine_streamer->create_context();
-  ASSERT_TRUE(!!refine_ctx);
+            storage->open(dir_ + "TestTurboCosineInt8Quantizer.index", true));
+  ASSERT_EQ(0, streamer->init(index_meta, params));
+  ASSERT_EQ(0, streamer->open(storage));
 
-  ailego::Params refiner_params;
-  ASSERT_EQ(0, refiner->init(base_streamer, refine_streamer, refiner_params));
-
-  auto ctx = refiner->create_context();
+  NumericalVector<float> vec(dim);
+  size_t cnt = 2000U;
+  auto ctx = streamer->create_context();
   ASSERT_TRUE(!!ctx);
 
-  IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dimension);
+  IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dim);
+  IndexQueryMeta new_meta;
 
-  std::random_device rd;
-  std::mt19937 gen(rd());
-
-  std::uniform_real_distribution<float> dist(-2.0, 2.0);
-  std::vector<NumericalVector<float>> vecs;
-
-  size_t cnt = 5000U;
+  const float epsilon = 1e-2;
+  float fixed_value = float(cnt) / 2;
   for (size_t i = 0; i < cnt; i++) {
-    NumericalVector<float> vec(dimension);
-    for (size_t j = 0; j < dimension; ++j) {
-      vec[j] = dist(gen);
+    float add_on = i * 10;
+    for (size_t j = 0; j < dim; ++j) {
+      if (j < dim / 4)
+        vec[j] = fixed_value;
+      else
+        vec[j] = fixed_value + add_on;
     }
 
-    std::string binary_vec;
-    IndexQueryMeta binary_qmeta;
+    std::string new_vec;
 
-    ASSERT_EQ(0,
-              reformer->convert(vec.data(), qmeta, &binary_vec, &binary_qmeta));
-    ASSERT_EQ(0, refiner->add_impl(i, binary_vec.data(), binary_qmeta,
-                                   vec.data(), qmeta, ctx));
-
-    vecs.push_back(vec);
+    ASSERT_EQ(0, quantizer->convert(vec.data(), qmeta, &new_vec, &new_meta));
+    ASSERT_EQ(0, streamer->add_impl(i, new_vec.data(), new_meta, ctx));
   }
+
+  for (size_t i = 0; i < cnt; i++) {
+    float add_on = i * 10;
+
+    const void *vector = streamer->get_vector(i);
+    ASSERT_NE(vector, nullptr);
+
+    std::string denormalized_vec;
+    denormalized_vec.resize(dim * sizeof(float));
+    quantizer->revert(vector, new_meta, &denormalized_vec);
+
+    float vector_value = *((float *)(denormalized_vec.data()) + dim - 1);
+    EXPECT_NEAR(vector_value, fixed_value + add_on, epsilon);
+  }
+
+  auto linearCtx = streamer->create_context();
+  linearCtx->set_fetch_vector(true);
+  auto knnCtx = streamer->create_context();
+  knnCtx->set_fetch_vector(true);
 
   size_t query_cnt = 200U;
-  // size_t query_cnt = 1U;
-
-  auto searcherCtx = refiner->create_context();
-
+  size_t topk = 200;
+  linearCtx->set_topk(topk);
+  knnCtx->set_topk(topk);
+  uint64_t knnTotalTime = 0;
+  uint64_t linearTotalTime = 0;
   for (size_t i = 0; i < query_cnt; i++) {
-    auto &vec = vecs[i];
-
-    // float abs_value{0};
-    // for (size_t j = 0; j < dimension; ++j) {
-    //   std::cout << "dim: " << j << ", value: " << vec[j] << std::endl;
-
-    //   abs_value += std::abs(vec[j]);
-    // }
-    // std::cout << "abs value: " << abs_value << std::endl;
+    float add_on = i * 10;
+    for (size_t j = 0; j < dim; ++j) {
+      if (j < dim / 4)
+        vec[j] = fixed_value;
+      else
+        vec[j] = fixed_value + add_on;
+    }
 
     std::string new_query;
-    IndexQueryMeta binary_qmeta;
-    ASSERT_EQ(
-        0, reformer->transform(vec.data(), qmeta, &new_query, &binary_qmeta));
+    IndexQueryMeta new_meta;
+    ASSERT_EQ(0, quantizer->quantize(vec.data(), qmeta, &new_query, &new_meta));
 
-    size_t topk = 50;
-    searcherCtx->set_topk(topk);
-    ASSERT_EQ(0, refiner->search_impl(new_query.data(), binary_qmeta,
-                                      vec.data(), qmeta, searcherCtx));
-    auto &results = searcherCtx->result();
-    ASSERT_EQ(topk, results.size());
-    ASSERT_EQ(i, results[0].key());
+    auto t1 = ailego::Realtime::MicroSeconds();
+    ASSERT_EQ(0, streamer->search_impl(new_query.data(), new_meta, knnCtx));
+    auto t2 = ailego::Realtime::MicroSeconds();
+    ASSERT_EQ(0,
+              streamer->search_bf_impl(new_query.data(), new_meta, linearCtx));
+    auto t3 = ailego::Realtime::MicroSeconds();
 
-    // for (size_t i = 0; i < results.size(); ++i) {
-    //   std::cout << i << ", id: " << results[i].index()
-    //             << ", score: " << results[i].score() << std::endl;
-    // }
+    knnTotalTime += t2 - t1;
+    linearTotalTime += t3 - t2;
+
+    auto &knnResult = knnCtx->result();
+    ASSERT_EQ(topk, knnResult.size());
+
+    auto &linearResult = linearCtx->result();
+    ASSERT_EQ(topk, linearResult.size());
+    ASSERT_EQ(i, linearResult[0].key());
+
+    ASSERT_NE(knnResult[0].vector(), nullptr);
+    ASSERT_NE(linearResult[0].vector(), nullptr);
+
+    std::string denormalized_vec;
+    denormalized_vec.resize(dim * sizeof(float));
+    quantizer->dequantize(linearResult[0].vector(), new_meta,
+                          &denormalized_vec);
+
+    float vector_value = *(((float *)(denormalized_vec.data()) + dim - 1));
+    EXPECT_NEAR(vector_value, fixed_value + add_on, epsilon);
   }
+
+  std::cout << "knnTotalTime: " << knnTotalTime << std::endl;
+  std::cout << "linearTotalTime: " << linearTotalTime << std::endl;
 }
-
-#endif
-
 }  // namespace core
 }  // namespace zvec
 

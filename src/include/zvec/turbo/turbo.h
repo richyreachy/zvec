@@ -43,6 +43,13 @@ enum class DataType {
 
 enum class QuantizeType {
   kDefault,
+  kRecordInt8,
+  kRecordInt4,
+  kInt8,
+  kInt4,
+  kFp16,
+  kPQ,
+  kRabit
 };
 
 enum class CpuArchType {

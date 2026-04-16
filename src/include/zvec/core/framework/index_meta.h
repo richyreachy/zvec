@@ -38,17 +38,8 @@ class IndexMeta {
     DT_INT4 = 6,
     DT_BINARY32 = 7,
     DT_BINARY64 = 8,
-
-    // new data type for turboss
-    // DT_ZVEC_FP16_ = 11,
-    // DT_ZVEC_FP32 = 12,
-    // DT_ZVEC_FP64 = 13,
-    // DT_ZVEC_INT8 = 14,
-    // DT_ZVEC_INT16 = 15,
-    // DT_ZVEC_INT4 = 16,
-    // DT_ZVEC_BINARY32 = 7,
-    // DT_ZVEC_BINARY64 = 8,
   };
+
 
   /*! Major Orders
    */
@@ -719,6 +710,8 @@ class IndexQueryMeta {
   uint32_t dimension_{0};
   uint32_t unit_size_{0};
   uint32_t element_size_{0};
+  uint32_t extra_meta_size_{0};
+  uint32_t quantize_type_{0};
 };
 
 }  // namespace core

@@ -96,18 +96,18 @@ class QuantizedIntegerMetric : public IndexMetric {
     switch (origin_metric_type_) {
       case MetricType::kSquaredEuclidean:
         if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
-          auto turbo_ret = turbo::get_distance_func(
-              turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt8,
-              turbo::QuantizeType::kDefault);
+          auto turbo_ret =
+              turbo::get_distance_func(turbo::MetricType::kSquaredEuclidean,
+                                       turbo::DataType::kInt8, quantize_type_);
           if (turbo_ret && m == 1 && n == 1) {
             return turbo_ret;
           }
           return DistanceMatrixCompute<SquaredEuclidean, int8_t>(m, n);
         }
         if (meta_.data_type() == IndexMeta::DataType::DT_INT4) {
-          auto turbo_ret = turbo::get_distance_func(
-              turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt4,
-              turbo::QuantizeType::kDefault);
+          auto turbo_ret =
+              turbo::get_distance_func(turbo::MetricType::kSquaredEuclidean,
+                                       turbo::DataType::kInt4, quantize_type_);
           if (turbo_ret && m == 1 && n == 1) {
             return turbo_ret;
           }
@@ -118,9 +118,9 @@ class QuantizedIntegerMetric : public IndexMetric {
 
       case MetricType::kInnerProduct:
         if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
-          auto turbo_ret = turbo::get_distance_func(
-              turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
-              turbo::QuantizeType::kDefault);
+          auto turbo_ret =
+              turbo::get_distance_func(turbo::MetricType::kInnerProduct,
+                                       turbo::DataType::kInt8, quantize_type_);
           if (turbo_ret && m == 1 && n == 1) {
             return turbo_ret;
           }
@@ -128,9 +128,9 @@ class QuantizedIntegerMetric : public IndexMetric {
         }
 
         if (meta_.data_type() == IndexMeta::DataType::DT_INT4) {
-          auto turbo_ret = turbo::get_distance_func(
-              turbo::MetricType::kInnerProduct, turbo::DataType::kInt4,
-              turbo::QuantizeType::kDefault);
+          auto turbo_ret =
+              turbo::get_distance_func(turbo::MetricType::kInnerProduct,
+                                       turbo::DataType::kInt4, quantize_type_);
           if (turbo_ret && m == 1 && n == 1) {
             return turbo_ret;
           }
@@ -157,9 +157,9 @@ class QuantizedIntegerMetric : public IndexMetric {
         break;
       case MetricType::kCosine:
         if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
-          auto turbo_ret = turbo::get_distance_func(
-              turbo::MetricType::kCosine, turbo::DataType::kInt8,
-              turbo::QuantizeType::kDefault);
+          auto turbo_ret =
+              turbo::get_distance_func(turbo::MetricType::kCosine,
+                                       turbo::DataType::kInt8, quantize_type_);
           if (turbo_ret) {
             return turbo_ret;
           }
@@ -180,7 +180,7 @@ class QuantizedIntegerMetric : public IndexMetric {
         if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
           auto turbo_ret = turbo::get_batch_distance_func(
               turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt8,
-              turbo::QuantizeType::kDefault);
+              quantize_type_);
           if (turbo_ret) {
             return turbo_ret;
           }
@@ -235,7 +235,7 @@ class QuantizedIntegerMetric : public IndexMetric {
         if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
           auto turbo_ret = turbo::get_batch_distance_func(
               turbo::MetricType::kCosine, turbo::DataType::kInt8,
-              turbo::QuantizeType::kDefault);
+              quantize_type_);
           if (turbo_ret) {
             return turbo_ret;
           }
