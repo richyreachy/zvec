@@ -25,6 +25,7 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
 #include "tests/test_util.h"
+#include "turbo/quantizer/quantizer.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -3603,10 +3604,10 @@ TEST_F(HnswStreamerTest, TestTurboCosineInt8Quantizer) {
   index_meta_raw.set_metric("Cosine", 0, ailego::Params());
 
   ailego::Params converter_params;
-  auto quantizer = IndexFactory::CreateQuantier("Int8Quantizer");
+  auto quantizer = IndexFactory::CreateQuantizer("RecordInt8Quantizer");
   ASSERT_TRUE(quantizer != nullptr);
 
-  quantizer->init(index_meta_raw, quantizer_params);
+  quantizer->init(index_meta_raw, converter_params);
 
   IndexMeta index_meta = quantizer->meta();
 

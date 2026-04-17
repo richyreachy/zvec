@@ -14,8 +14,10 @@
 
 #pragma once
 
+#include <zvec/core/framework/index_converter.h>
 #include <zvec/core/framework/index_holder.h>
 #include <zvec/core/framework/index_meta.h>
+#include <zvec/core/framework/index_reformer.h>
 #include <zvec/core/framework/index_stats.h>
 #include "quantizer/quantizer.h"
 
@@ -35,14 +37,31 @@ class RecordInt8Quantizer : public Quantizer {
     return type_;
   }
 
+  int init(const core::IndexMeta &meta, const ailego::Params &params) override;
+
   const core::IndexMeta &meta(void) const override {
     return meta_;
   }
 
+  int convert(const void *record, const core::IndexQueryMeta &rmeta,
+              std::string *out, core::IndexQueryMeta *ometa) const override;
+
+  int revert(const void *in, const core::IndexQueryMeta &qmeta,
+             std::string *out) const override;
+
+  int quantize(const void *query, const core::IndexQueryMeta &qmeta,
+               std::string *out, core::IndexQueryMeta *ometa) const override;
+
+  int dequantize(const void *in, const core::IndexQueryMeta &qmeta,
+                 std::string *out) const override;
+
  private:
+  static constexpr uint32_t EXTRA_DIMS_INT8 = 24;
   core::IndexMeta meta_{};
+  uint32_t original_dim_{0};
+  core::IndexConverter::Pointer converter_{};
+  core::IndexReformer::Pointer reformer_{};
   core::IndexHolder::Pointer holder_{};
-  std::shared_ptr<Quantizer> quantizer_{};
   core::IndexStats stats_{};
   core::IndexMeta::DataType data_type_{};
 };

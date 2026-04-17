@@ -14,6 +14,9 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+#include <zvec/ailego/container/params.h>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/turbo/turbo.h>
 
@@ -22,6 +25,8 @@ namespace turbo {
 
 class Quantizer {
  public:
+  typedef std::shared_ptr<Quantizer> Pointer;
+
   Quantizer() {}
   virtual ~Quantizer() {}
 
@@ -29,7 +34,28 @@ class Quantizer {
     return type_;
   }
 
+  //! Initialize quantizer with index metadata and parameters
+  virtual int init(const core::IndexMeta &meta,
+                   const ailego::Params &params) = 0;
+
+  //! Get the output metadata after initialization
   virtual const core::IndexMeta &meta() const = 0;
+
+  //! Convert a record for indexing (quantize a stored vector)
+  virtual int convert(const void *record, const core::IndexQueryMeta &rmeta,
+                      std::string *out, core::IndexQueryMeta *ometa) const = 0;
+
+  //! Revert a quantized record back to original format
+  virtual int revert(const void *in, const core::IndexQueryMeta &qmeta,
+                     std::string *out) const = 0;
+
+  //! Quantize a query vector for search
+  virtual int quantize(const void *query, const core::IndexQueryMeta &qmeta,
+                       std::string *out, core::IndexQueryMeta *ometa) const = 0;
+
+  //! Dequantize a result vector back to original format
+  virtual int dequantize(const void *in, const core::IndexQueryMeta &qmeta,
+                         std::string *out) const = 0;
 
  protected:
   QuantizeType type_{QuantizeType::kDefault};

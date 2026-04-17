@@ -257,5 +257,18 @@ std::vector<std::string> IndexFactory::AllRefiners(void) {
   return ailego::Factory<IndexRefiner>::Classes();
 }
 
+std::shared_ptr<turbo::Quantizer> IndexFactory::CreateQuantizer(
+    const std::string &name) {
+  return ailego::Factory<zvec::turbo::Quantizer>::MakeShared(name.c_str());
+}
+
+bool IndexFactory::HasQuantizer(const std::string &name) {
+  return ailego::Factory<turbo::Quantizer>::Has(name.c_str());
+}
+
+std::vector<std::string> IndexFactory::AllQuantizers(void) {
+  return ailego::Factory<turbo::Quantizer>::Classes();
+}
+
 }  // namespace core
 }  // namespace zvec
