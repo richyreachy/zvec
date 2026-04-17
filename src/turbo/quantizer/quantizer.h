@@ -12,20 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/turbo/turbo.h>
-
-#pragma once
 
 namespace zvec {
 namespace turbo {
 
 class Quantizer {
  public:
-  Quantizer() {};
-  virtual ~Quantizer() {};
+  Quantizer() {}
+  virtual ~Quantizer() {}
 
- private:
+  virtual QuantizeType type() const {
+    return type_;
+  }
+
+  virtual const core::IndexMeta &meta() const = 0;
+
+ protected:
   QuantizeType type_{QuantizeType::kDefault};
 };
 

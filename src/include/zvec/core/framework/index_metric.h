@@ -138,7 +138,7 @@ struct IndexMetric : public IndexModule {
     return nullptr;
   }
 
- private:
+ protected:
   int quantize_type_{0};
 };
 

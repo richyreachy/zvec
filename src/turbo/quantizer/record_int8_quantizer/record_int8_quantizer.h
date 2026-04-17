@@ -12,17 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <zvec/core/framework/index_meta.h>
-#include <zvec/turbo/quantizer/quantizer.h>
-
 #pragma once
+
+#include <zvec/core/framework/index_holder.h>
+#include <zvec/core/framework/index_meta.h>
+#include <zvec/core/framework/index_stats.h>
+#include "quantizer/quantizer.h"
 
 namespace zvec {
 namespace turbo {
 
 class RecordInt8Quantizer : public Quantizer {
  public:
-  RecordInt8Quantizer() : type_{QuantizeType::kRecordInt8} {}
+  RecordInt8Quantizer() {
+    type_ = QuantizeType::kRecordInt8;
+  }
 
   virtual ~RecordInt8Quantizer() {}
 
@@ -31,16 +35,16 @@ class RecordInt8Quantizer : public Quantizer {
     return type_;
   }
 
-  const IndexMeta &meta(void) const override {
+  const core::IndexMeta &meta(void) const override {
     return meta_;
   }
 
  private:
-  IndexMeta meta_{};
-  IndexHolder::Pointer holder_{};
+  core::IndexMeta meta_{};
+  core::IndexHolder::Pointer holder_{};
   std::shared_ptr<Quantizer> quantizer_{};
-  Stats stats_{};
-  IndexMeta::DataType data_type_{};
+  core::IndexStats stats_{};
+  core::IndexMeta::DataType data_type_{};
 };
 
 
