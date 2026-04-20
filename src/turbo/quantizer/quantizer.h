@@ -17,6 +17,8 @@
 #include <memory>
 #include <string>
 #include <zvec/ailego/container/params.h>
+#include <zvec/core/framework/index_error.h>
+#include <zvec/core/framework/index_holder.h>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/turbo/turbo.h>
 
@@ -41,13 +43,22 @@ class Quantizer {
   //! Get the output metadata after initialization
   virtual const core::IndexMeta &meta() const = 0;
 
+  //! Train the quantizer with data from an IndexHolder
+  virtual int train(core::IndexHolder::Pointer holder) const {
+    return core::IndexError_NotImplemented;
+  }
+
   //! Convert a record for indexing (quantize a stored vector)
   virtual int convert(const void *record, const core::IndexQueryMeta &rmeta,
-                      std::string *out, core::IndexQueryMeta *ometa) const = 0;
+                      std::string *out, core::IndexQueryMeta *ometa) const {
+    return core::IndexError_NotImplemented;
+  }
 
-  //! Revert a quantized record back to original format
+  //! Revert a quantized vector back to original format
   virtual int revert(const void *in, const core::IndexQueryMeta &qmeta,
-                     std::string *out) const = 0;
+                     std::string *out) const {
+    return core::IndexError_NotImplemented;
+  }
 
   //! Quantize a query vector for search
   virtual int quantize(const void *query, const core::IndexQueryMeta &qmeta,

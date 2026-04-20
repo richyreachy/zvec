@@ -24,13 +24,13 @@
 namespace zvec {
 namespace turbo {
 
-class RecordInt8Quantizer : public Quantizer {
+class Int8Quantizer : public Quantizer {
  public:
-  RecordInt8Quantizer() {
+  Int8Quantizer() {
     type_ = QuantizeType::kRecordInt8;
   }
 
-  virtual ~RecordInt8Quantizer() {}
+  virtual ~Int8Quantizer() {}
 
  public:
   QuantizeType type() const override {
@@ -50,17 +50,10 @@ class RecordInt8Quantizer : public Quantizer {
                  std::string *out) const override;
 
  private:
-  static constexpr uint32_t EXTMETA_SIZE_INT8 = 20;
-  static constexpr uint32_t EXTRA_META_SIZE_COSINE = 4;
-  static constexpr uint32_t EXTRA_DIMENSIONS =
-      EXTMETA_SIZE_INT8 + EXTRA_META_SIZE_COSINE;
-
-  bool is_cosine_{false};
   uint32_t extra_meta_size_{0};
   core::IndexMeta meta_{};
   uint32_t original_dim_{0};
-  core::IndexConverter::Pointer converter_{};
-  core::IndexReformer::Pointer reformer_{};
+
   core::IndexHolder::Pointer holder_{};
   core::IndexStats stats_{};
   core::IndexMeta::DataType data_type_{};

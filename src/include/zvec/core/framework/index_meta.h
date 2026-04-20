@@ -452,6 +452,11 @@ class IndexMeta {
     this->set_meta(data_type, UnitSizeof(data_type), dim);
   }
 
+  //! Set extra meta size
+  void set_extra_meta_size(uint32_t size) {
+    extra_meta_size_ = size;
+  }
+
   //! Set information of metric
   template <typename TName, typename TParams>
   void set_metric(TName &&name, uint32_t rev, TParams &&params) {
@@ -704,13 +709,13 @@ class IndexQueryMeta {
     this->set_meta(data_type, IndexMeta::UnitSizeof(data_type), dim);
   }
 
+
  private:
   IndexMeta::MetaType meta_type_{IndexMeta::MetaType::MT_DENSE};
   IndexMeta::DataType data_type_{IndexMeta::DataType::DT_UNDEFINED};
   uint32_t dimension_{0};
   uint32_t unit_size_{0};
   uint32_t element_size_{0};
-  uint32_t extra_meta_size_{0};
   uint32_t quantize_type_{0};
 };
 

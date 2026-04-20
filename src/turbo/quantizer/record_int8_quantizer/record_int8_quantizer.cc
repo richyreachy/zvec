@@ -25,7 +25,7 @@ namespace zvec {
 namespace turbo {
 
 int RecordInt8Quantizer::init(const core::IndexMeta &meta,
-                              const ailego::Params &params) {
+                              const ailego::Params & /*params*/) {
   if (meta.data_type() != core::IndexMeta::DataType::DT_FP32 ||
       meta.unit_size() !=
           core::IndexMeta::UnitSizeof(core::IndexMeta::DataType::DT_FP32)) {
@@ -37,7 +37,12 @@ int RecordInt8Quantizer::init(const core::IndexMeta &meta,
   meta_ = meta;
   original_dim_ = meta.dimension();
   data_type_ = core::IndexMeta::DataType::DT_INT8;
-  meta_.set_meta(data_type_, original_dim_ + EXTRA_DIMS_INT8);
+  is_cosine_ = (meta.metric_name() == "Cosine");
+
+  // Include extra dimensions in the dimension field so that element_size()
+  // and the distance function (which computes original_dim = dim - 24)
+  // both work correctly.  This matches CosineConverter::init().
+  meta_.set_meta(data_type_, original_dim_ + EXTRA_DIMENSIONS);
 
   ailego::Params metric_params;
   metric_params.set("proxima.quantized_integer.metric.origin_metric_name",
@@ -49,115 +54,43 @@ int RecordInt8Quantizer::init(const core::IndexMeta &meta,
   return 0;
 }
 
-int RecordInt8Quantizer::convert(const void *record,
-                                 const core::IndexQueryMeta &rmeta,
-                                 std::string *out,
-                                 core::IndexQueryMeta *ometa) const {
-  const float *src = reinterpret_cast<const float *>(record);
-
-  // L2-normalize the input vector (cosine distance requires normalization)
-  float norm = 0.0f;
-  for (uint32_t i = 0; i < original_dim_; ++i) {
-    norm += src[i] * src[i];
-  }
-  norm = std::sqrt(norm);
-
-  std::vector<float> normalized(original_dim_);
-  if (norm > 0.0f) {
-    for (uint32_t i = 0; i < original_dim_; ++i) {
-      normalized[i] = src[i] / norm;
-    }
-  } else {
-    std::memset(normalized.data(), 0, original_dim_ * sizeof(float));
-  }
-
-  // Quantize normalized vector to INT8
-  out->resize(meta_.element_size(), 0);
-  core::RecordQuantizer::quantize_record(normalized.data(), original_dim_,
-                                         core::IndexMeta::DataType::DT_INT8,
-                                         false, &(*out)[0]);
-
-  // Renormalize extras so dequantized vector has exact unit norm.
-  // This guarantees self-match always ranks first (by Cauchy-Schwarz).
-  {
-    const int8_t *qvals = reinterpret_cast<const int8_t *>(out->data());
-    float *extras = reinterpret_cast<float *>(&(*out)[original_dim_]);
-    float qa = extras[0];  // 1/scale
-    float qb = extras[1];  // -bias/scale
-    float dequant_norm_sq = 0.0f;
-    for (uint32_t i = 0; i < original_dim_; ++i) {
-      float val = static_cast<float>(qvals[i]) * qa + qb;
-      dequant_norm_sq += val * val;
-    }
-    float dequant_norm = std::sqrt(dequant_norm_sq);
-    if (dequant_norm > 0.0f) {
-      extras[0] = qa / dequant_norm;
-      extras[1] = qb / dequant_norm;
-      norm *= dequant_norm;  // adjust so revert recovers original values
-    }
-  }
-
-  // Store the adjusted norm in the last 4 bytes of extras
-  std::memcpy(&(*out)[meta_.element_size() - sizeof(float)], &norm,
-              sizeof(float));
-
-  *ometa = core::IndexQueryMeta(core::IndexMeta::DataType::DT_INT8,
-                                meta_.dimension());
-  return 0;
-}
-
-int RecordInt8Quantizer::revert(const void *in,
-                                const core::IndexQueryMeta &qmeta,
-                                std::string *out) const {
-  out->resize(original_dim_ * sizeof(float));
-  float *dst = reinterpret_cast<float *>(&(*out)[0]);
-
-  // Unquantize INT8 to normalized float
-  core::RecordQuantizer::unquantize_record(
-      in, original_dim_, core::IndexMeta::DataType::DT_INT8, dst);
-
-  // Read the stored L2 norm and denormalize
-  float norm = 0.0f;
-  std::memcpy(&norm,
-              reinterpret_cast<const uint8_t *>(in) + meta_.element_size() -
-                  sizeof(float),
-              sizeof(float));
-  for (uint32_t i = 0; i < original_dim_; ++i) {
-    dst[i] *= norm;
-  }
-  return 0;
-}
-
-int RecordInt8Quantizer::quantize(const void *query,
-                                  const core::IndexQueryMeta &qmeta,
+// Helper: quantize a FP32 vector to INT8 (shared by convert and quantize)
+int RecordInt8Quantizer::quantize(const void *record,
+                                  const core::IndexQueryMeta & /*rmeta*/,
                                   std::string *out,
                                   core::IndexQueryMeta *ometa) const {
-  const float *src = reinterpret_cast<const float *>(query);
+  const float *src = reinterpret_cast<const float *>(record);
+  const float *quantize_input = src;
+  float norm = 1.0f;
+  std::vector<float> normalized;
 
-  // L2-normalize the query vector
-  float norm = 0.0f;
-  for (uint32_t i = 0; i < original_dim_; ++i) {
-    norm += src[i] * src[i];
-  }
-  norm = std::sqrt(norm);
-
-  std::vector<float> normalized(original_dim_);
-  if (norm > 0.0f) {
+  if (is_cosine_) {
+    // L2-normalize the input vector
+    float sq = 0.0f;
     for (uint32_t i = 0; i < original_dim_; ++i) {
-      normalized[i] = src[i] / norm;
+      sq += src[i] * src[i];
     }
-  } else {
-    std::memset(normalized.data(), 0, original_dim_ * sizeof(float));
+    norm = std::sqrt(sq);
+
+    normalized.resize(original_dim_);
+    if (norm > 0.0f) {
+      for (uint32_t i = 0; i < original_dim_; ++i) {
+        normalized[i] = src[i] / norm;
+      }
+    } else {
+      std::memset(normalized.data(), 0, original_dim_ * sizeof(float));
+    }
+    quantize_input = normalized.data();
   }
 
-  // Quantize normalized vector to INT8
+  // Quantize to INT8
   out->resize(meta_.element_size(), 0);
-  core::RecordQuantizer::quantize_record(normalized.data(), original_dim_,
+  core::RecordQuantizer::quantize_record(quantize_input, original_dim_,
                                          core::IndexMeta::DataType::DT_INT8,
                                          false, &(*out)[0]);
 
-  // Renormalize extras so dequantized vector has exact unit norm.
-  {
+  if (is_cosine_) {
+    // Renormalize extras so dequantized vector has exact unit norm.
     const int8_t *qvals = reinterpret_cast<const int8_t *>(out->data());
     float *extras = reinterpret_cast<float *>(&(*out)[original_dim_]);
     float qa = extras[0];
@@ -173,11 +106,11 @@ int RecordInt8Quantizer::quantize(const void *query,
       extras[1] = qb / dequant_norm;
       norm *= dequant_norm;
     }
-  }
 
-  // Store the adjusted norm in the last 4 bytes of extras
-  std::memcpy(&(*out)[meta_.element_size() - sizeof(float)], &norm,
-              sizeof(float));
+    // Store the adjusted norm in the last 4 bytes of extras
+    std::memcpy(&(*out)[meta_.element_size() - sizeof(float)], &norm,
+                sizeof(float));
+  }
 
   *ometa = core::IndexQueryMeta(core::IndexMeta::DataType::DT_INT8,
                                 meta_.dimension());
@@ -185,24 +118,27 @@ int RecordInt8Quantizer::quantize(const void *query,
 }
 
 int RecordInt8Quantizer::dequantize(const void *in,
-                                    const core::IndexQueryMeta &qmeta,
+                                    const core::IndexQueryMeta & /*qmeta*/,
                                     std::string *out) const {
   out->resize(original_dim_ * sizeof(float));
   float *dst = reinterpret_cast<float *>(&(*out)[0]);
 
-  // Unquantize INT8 to normalized float
+  // Unquantize INT8 to float
   core::RecordQuantizer::unquantize_record(
       in, original_dim_, core::IndexMeta::DataType::DT_INT8, dst);
 
-  // Read the stored L2 norm and denormalize
-  float norm = 0.0f;
-  std::memcpy(&norm,
-              reinterpret_cast<const uint8_t *>(in) + meta_.element_size() -
-                  sizeof(float),
-              sizeof(float));
-  for (uint32_t i = 0; i < original_dim_; ++i) {
-    dst[i] *= norm;
+  if (is_cosine_) {
+    // Read the stored L2 norm and denormalize
+    float norm = 0.0f;
+    std::memcpy(&norm,
+                reinterpret_cast<const uint8_t *>(in) + meta_.element_size() -
+                    sizeof(float),
+                sizeof(float));
+    for (uint32_t i = 0; i < original_dim_; ++i) {
+      dst[i] *= norm;
+    }
   }
+
   return 0;
 }
 
