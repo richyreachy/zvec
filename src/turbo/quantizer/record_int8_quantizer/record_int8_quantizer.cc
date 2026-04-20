@@ -77,7 +77,27 @@ int RecordInt8Quantizer::convert(const void *record,
                                          core::IndexMeta::DataType::DT_INT8,
                                          false, &(*out)[0]);
 
-  // Store the original L2 norm in the last 4 bytes of extras
+  // Renormalize extras so dequantized vector has exact unit norm.
+  // This guarantees self-match always ranks first (by Cauchy-Schwarz).
+  {
+    const int8_t *qvals = reinterpret_cast<const int8_t *>(out->data());
+    float *extras = reinterpret_cast<float *>(&(*out)[original_dim_]);
+    float qa = extras[0];  // 1/scale
+    float qb = extras[1];  // -bias/scale
+    float dequant_norm_sq = 0.0f;
+    for (uint32_t i = 0; i < original_dim_; ++i) {
+      float val = static_cast<float>(qvals[i]) * qa + qb;
+      dequant_norm_sq += val * val;
+    }
+    float dequant_norm = std::sqrt(dequant_norm_sq);
+    if (dequant_norm > 0.0f) {
+      extras[0] = qa / dequant_norm;
+      extras[1] = qb / dequant_norm;
+      norm *= dequant_norm;  // adjust so revert recovers original values
+    }
+  }
+
+  // Store the adjusted norm in the last 4 bytes of extras
   std::memcpy(&(*out)[meta_.element_size() - sizeof(float)], &norm,
               sizeof(float));
 
@@ -136,7 +156,26 @@ int RecordInt8Quantizer::quantize(const void *query,
                                          core::IndexMeta::DataType::DT_INT8,
                                          false, &(*out)[0]);
 
-  // Store the original L2 norm in the last 4 bytes of extras
+  // Renormalize extras so dequantized vector has exact unit norm.
+  {
+    const int8_t *qvals = reinterpret_cast<const int8_t *>(out->data());
+    float *extras = reinterpret_cast<float *>(&(*out)[original_dim_]);
+    float qa = extras[0];
+    float qb = extras[1];
+    float dequant_norm_sq = 0.0f;
+    for (uint32_t i = 0; i < original_dim_; ++i) {
+      float val = static_cast<float>(qvals[i]) * qa + qb;
+      dequant_norm_sq += val * val;
+    }
+    float dequant_norm = std::sqrt(dequant_norm_sq);
+    if (dequant_norm > 0.0f) {
+      extras[0] = qa / dequant_norm;
+      extras[1] = qb / dequant_norm;
+      norm *= dequant_norm;
+    }
+  }
+
+  // Store the adjusted norm in the last 4 bytes of extras
   std::memcpy(&(*out)[meta_.element_size() - sizeof(float)], &norm,
               sizeof(float));
 
