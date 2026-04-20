@@ -123,17 +123,17 @@ int RecordInt8Quantizer::dequantize(const void *in,
   out->resize(original_dim_ * sizeof(float));
   float *dst = reinterpret_cast<float *>(&(*out)[0]);
 
-  // Unquantize INT8 to float
   core::RecordQuantizer::unquantize_record(
       in, original_dim_, core::IndexMeta::DataType::DT_INT8, dst);
 
   if (is_cosine_) {
-    // Read the stored L2 norm and denormalize
+    // Restore the original magnitude using the norm stored in the last
+    // 4 bytes of the element.
     float norm = 0.0f;
-    std::memcpy(&norm,
-                reinterpret_cast<const uint8_t *>(in) + meta_.element_size() -
-                    sizeof(float),
-                sizeof(float));
+    std::memcpy(
+        &norm,
+        static_cast<const char *>(in) + meta_.element_size() - sizeof(float),
+        sizeof(float));
     for (uint32_t i = 0; i < original_dim_; ++i) {
       dst[i] *= norm;
     }

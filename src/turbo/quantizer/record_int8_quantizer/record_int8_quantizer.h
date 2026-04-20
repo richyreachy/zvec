@@ -45,7 +45,6 @@ class RecordInt8Quantizer : public Quantizer {
 
   int quantize(const void *query, const core::IndexQueryMeta &qmeta,
                std::string *out, core::IndexQueryMeta *ometa) const override;
-
   int dequantize(const void *in, const core::IndexQueryMeta &qmeta,
                  std::string *out) const override;
 

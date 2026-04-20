@@ -3651,7 +3651,7 @@ TEST_F(HnswStreamerTest, TestTurboCosineRecordInt8Quantizer) {
 
     std::string denormalized_vec;
     denormalized_vec.resize(dim * sizeof(float));
-    quantizer->revert(vector, new_meta, &denormalized_vec);
+    quantizer->dequantize(vector, new_meta, &denormalized_vec);
 
     float vector_value = *((float *)(denormalized_vec.data()) + dim - 1);
     EXPECT_NEAR(vector_value, fixed_value + add_on, epsilon);
@@ -3780,7 +3780,7 @@ TEST_F(HnswStreamerTest, TestTurboSquaredEuclideanRecordInt8Quantizer) {
 
     std::string denormalized_vec;
     denormalized_vec.resize(dim * sizeof(float));
-    quantizer->revert(vector, new_meta, &denormalized_vec);
+    quantizer->dequantize(vector, new_meta, &denormalized_vec);
 
     float vector_value = *((float *)(denormalized_vec.data()) + dim - 1);
     EXPECT_NEAR(vector_value, fixed_value + add_on, epsilon);
