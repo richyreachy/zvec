@@ -49,10 +49,10 @@ class RecordInt8Quantizer : public Quantizer {
                  std::string *out) const override;
 
  private:
-  static constexpr uint32_t EXTMETA_SIZE_INT8 = 20;
+  static constexpr uint32_t EXTRA_META_SIZE_INT8 = 20;
   static constexpr uint32_t EXTRA_META_SIZE_COSINE = 4;
-  static constexpr uint32_t EXTRA_DIMENSIONS =
-      EXTMETA_SIZE_INT8 + EXTRA_META_SIZE_COSINE;
+  static constexpr uint32_t EXTRA_META_SIZE =
+      EXTRA_META_SIZE_INT8 + EXTRA_META_SIZE_COSINE;
 
   bool is_cosine_{false};
   uint32_t extra_meta_size_{0};

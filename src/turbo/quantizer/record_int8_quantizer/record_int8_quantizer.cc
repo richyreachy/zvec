@@ -39,10 +39,14 @@ int RecordInt8Quantizer::init(const core::IndexMeta &meta,
   data_type_ = core::IndexMeta::DataType::DT_INT8;
   is_cosine_ = (meta.metric_name() == "Cosine");
 
-  // Include extra dimensions in the dimension field so that element_size()
-  // and the distance function (which computes original_dim = dim - 24)
-  // both work correctly.  This matches CosineConverter::init().
-  meta_.set_meta(data_type_, original_dim_ + EXTRA_DIMENSIONS);
+  // The QuantizedInteger distance functions subtract a fixed number of
+  // extra-metadata bytes from the stored dimension to recover original_dim:
+  //   SquaredEuclidean / InnerProduct:  original_dim = dim - 20
+  //   Cosine:                           original_dim = dim - 24
+  // We must add the matching offset so the metric recovers original_dim.
+  const uint32_t extra_dims =
+      is_cosine_ ? EXTRA_META_SIZE : EXTRA_META_SIZE_INT8;
+  meta_.set_meta(data_type_, original_dim_ + extra_dims);
 
   ailego::Params metric_params;
   metric_params.set("proxima.quantized_integer.metric.origin_metric_name",
