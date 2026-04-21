@@ -25,58 +25,63 @@ namespace zvec {
 namespace turbo {
 
 int Int8Quantizer::init(const core::IndexMeta &meta,
-                        const ailego::Params & /*params*/) {
-  if (meta.data_type() != core::IndexMeta::DataType::DT_FP32 ||
-      meta.unit_size() !=
-          core::IndexMeta::UnitSizeof(core::IndexMeta::DataType::DT_FP32)) {
-    LOG_ERROR("Unsupported type %d with unit size %u", meta.data_type(),
-              meta.unit_size());
-    return core::IndexError_Unsupported;
+                        const ailego::Params &params) {
+  if (!params.get(INT8_QUANTIZER_BIAS, &bias_) ||
+      !params.get(INT8_QUANTIZER_SCALE, &scale_)) {
+    LOG_ERROR("Init IntegerReformer failed, required params bias and scale");
+    return IndexError_InvalidArgument;
   }
 
-  meta_ = meta;
-  original_dim_ = meta.dimension();
-  data_type_ = core::IndexMeta::DataType::DT_INT8;
+  quantizer_.set_bias(bias_);
+  quantizer_.set_scale(scale_);
 
-  // Include extra dimensions in the dimension field so that element_size()
-  // and the QuantizedInteger distance function both work correctly.
-  // For SquaredEuclidean / InnerProduct:  original_dim = dim - 20
-  meta_.set_meta(data_type_, original_dim_ + EXTRA_META_SIZE_INT8);
-
-  ailego::Params metric_params;
-  metric_params.set("proxima.quantized_integer.metric.origin_metric_name",
-                    meta.metric_name());
-  metric_params.set("proxima.quantized_integer.metric.origin_metric_params",
-                    meta.metric_params());
-  meta_.set_metric("QuantizedInteger", 0, metric_params);
-
+  auto metric_name = meta.metric_name();
+  auto reciprocal = scale_ == 0.0 ? 1.0f : (1.0f / scale_);
+  if (metric_name == "SquaredEuclidean") {
+    scale_reciprocal_ = reciprocal * reciprocal;
+  } else if (metric_name == "Euclidean") {
+    scale_reciprocal_ = reciprocal;
+  } else if (metric_name == "InnerProduct" ||
+             metric_name == "MipsSquaredEuclidean") {
+    inner_product_ = true;
+    scale_reciprocal_ = reciprocal;  // missing query part
+  } else {
+    LOG_WARN("Unsupported normalize the score for %s", metric_name.c_str());
+    scale_reciprocal_ = 1.0f;
+  }
+  LOG_DEBUG("Init integer reformer, bias %f, scale %f", bias_, scale_);
   return 0;
 }
 
-int Int8Quantizer::quantize(const void *record,
-                            const core::IndexQueryMeta & /*rmeta*/,
-                            std::string *out,
-                            core::IndexQueryMeta *ometa) const {
-  const float *src = reinterpret_cast<const float *>(record);
+int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
+                            std::string *out, IndexQueryMeta *ometa) const {
+  IndexMeta::DataType ft = qmeta.data_type();
 
-  out->resize(meta_.element_size(), 0);
-  core::RecordQuantizer::quantize_record(src, original_dim_,
-                                         core::IndexMeta::DataType::DT_INT8,
-                                         false, &(*out)[0]);
+  if (ft != IndexMeta::DataType::DT_FP32 ||
+      qmeta.unit_size() !=
+          IndexMeta::UnitSizeof(IndexMeta::DataType::DT_FP32)) {
+    return IndexError_Unsupported;
+  }
 
-  *ometa = core::IndexQueryMeta(core::IndexMeta::DataType::DT_INT8,
-                                meta_.dimension());
-  return 0;
-}
+  *ometa = qmeta;
+  ometa->set_meta(data_type_, qmeta.dimension());
+  out->resize(IndexMeta::ElementSizeof(ometa->data_type(), ometa->dimension()));
+  const float *vec = reinterpret_cast<const float *>(query);
+  auto ovec = reinterpret_cast<typename Quantizer::ValueType *>(&(*out)[0]);
 
-int Int8Quantizer::dequantize(const void *in,
-                              const core::IndexQueryMeta & /*qmeta*/,
-                              std::string *out) const {
-  out->resize(original_dim_ * sizeof(float));
-  float *dst = reinterpret_cast<float *>(&(*out)[0]);
-
-  core::RecordQuantizer::unquantize_record(
-      in, original_dim_, core::IndexMeta::DataType::DT_INT8, dst);
+  if (!inner_product_) {
+    quantizer_.encode(vec, qmeta.dimension(), ovec);
+  } else {
+    float abs_max = 0.0f;
+    for (size_t i = 0; i < dim; ++i) {
+      float abs = std::abs(in[i]);
+      abs_max = std::max(abs, abs_max);
+    }
+    float scale = 127 / abs_max;
+    for (size_t i = 0; i < dim; ++i) {
+      out[i] = static_cast<int8_t>(std::round(in[i] * scale));
+    }
+  }
 
   return 0;
 }

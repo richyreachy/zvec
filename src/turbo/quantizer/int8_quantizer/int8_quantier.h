@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <zvec/core/framework/index_converter.h>
+#include <ailego/algorithm/integer_quantizer.h>
 #include <zvec/core/framework/index_holder.h>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_reformer.h>
@@ -53,10 +53,17 @@ class Int8Quantizer : public Quantizer {
 
  private:
   static constexpr uint32_t EXTRA_META_SIZE_INT8 = 20;
+  const std::string INT8_QUANTIZER_BIAS = "int8_quantizer.bias";
+  const std::string INT8_QUANTIZER_SCALE = "int8_quantizer.scale";
 
-  core::IndexMeta meta_{};
+  float bias_{0.0f};
+  float scale_{1.0f};
+  float scale_reiprocal_{1.0f};
+
+  ailego::EntropyInt8Quantizer quantizer_;
+  IndexMeta meta_{};
   uint32_t original_dim_{0};
-  core::IndexMeta::DataType data_type_{};
+  IndexMeta::DataType data_type_{};
 };
 
 

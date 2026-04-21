@@ -14,12 +14,13 @@
 
 #pragma once
 
-#include <zvec/core/framework/index_converter.h>
 #include <zvec/core/framework/index_holder.h>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_reformer.h>
 #include <zvec/core/framework/index_stats.h>
 #include "quantizer/quantizer.h"
+
+using namespace zvec::core;
 
 namespace zvec {
 namespace turbo {
@@ -37,15 +38,15 @@ class RecordInt8Quantizer : public Quantizer {
     return type_;
   }
 
-  int init(const core::IndexMeta &meta, const ailego::Params &params) override;
+  int init(const IndexMeta &meta, const ailego::Params &params) override;
 
-  const core::IndexMeta &meta(void) const override {
+  const IndexMeta &meta(void) const override {
     return meta_;
   }
 
-  int quantize(const void *query, const core::IndexQueryMeta &qmeta,
-               std::string *out, core::IndexQueryMeta *ometa) const override;
-  int dequantize(const void *in, const core::IndexQueryMeta &qmeta,
+  int quantize(const void *query, const IndexQueryMeta &qmeta, std::string *out,
+               IndexQueryMeta *ometa) const override;
+  int dequantize(const void *in, const IndexQueryMeta &qmeta,
                  std::string *out) const override;
 
  private:
@@ -56,13 +57,11 @@ class RecordInt8Quantizer : public Quantizer {
 
   bool is_cosine_{false};
   uint32_t extra_meta_size_{0};
-  core::IndexMeta meta_{};
+
   uint32_t original_dim_{0};
-  core::IndexConverter::Pointer converter_{};
-  core::IndexReformer::Pointer reformer_{};
-  core::IndexHolder::Pointer holder_{};
-  core::IndexStats stats_{};
-  core::IndexMeta::DataType data_type_{};
+  IndexHolder::Pointer holder_{};
+  IndexMeta meta_{};
+  IndexMeta::DataType data_type_{};
 };
 
 
