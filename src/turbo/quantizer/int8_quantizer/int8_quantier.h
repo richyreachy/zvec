@@ -24,6 +24,8 @@
 namespace zvec {
 namespace turbo {
 
+using namespace zvec::core;
+
 class Int8Quantizer : public Quantizer {
  public:
   Int8Quantizer() {
@@ -50,12 +52,10 @@ class Int8Quantizer : public Quantizer {
                  std::string *out) const override;
 
  private:
-  uint32_t extra_meta_size_{0};
+  static constexpr uint32_t EXTRA_META_SIZE_INT8 = 20;
+
   core::IndexMeta meta_{};
   uint32_t original_dim_{0};
-
-  core::IndexHolder::Pointer holder_{};
-  core::IndexStats stats_{};
   core::IndexMeta::DataType data_type_{};
 };
 

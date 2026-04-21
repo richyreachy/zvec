@@ -19,7 +19,7 @@
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_logger.h>
 #include "core/quantizer/record_quantizer.h"
-#include "quantizer/record_int8_quantizer/record_int8_quantizer.h"
+#include "quantizer/int8_quantizer/int8_quantier.h"
 
 namespace zvec {
 namespace turbo {
@@ -38,11 +38,10 @@ int Int8Quantizer::init(const core::IndexMeta &meta,
   original_dim_ = meta.dimension();
   data_type_ = core::IndexMeta::DataType::DT_INT8;
 
-
   // Include extra dimensions in the dimension field so that element_size()
-  // and the distance function (which computes original_dim = dim - 24)
-  // both work correctly.  This matches CosineConverter::init().
-  meta_.set_meta(data_type_, original_dim_ + EXTRA_DIMENSIONS);
+  // and the QuantizedInteger distance function both work correctly.
+  // For SquaredEuclidean / InnerProduct:  original_dim = dim - 20
+  meta_.set_meta(data_type_, original_dim_ + EXTRA_META_SIZE_INT8);
 
   ailego::Params metric_params;
   metric_params.set("proxima.quantized_integer.metric.origin_metric_name",
@@ -54,16 +53,32 @@ int Int8Quantizer::init(const core::IndexMeta &meta,
   return 0;
 }
 
-
-int Int8Quantizer::quantize(const void *query,
-                            const core::IndexQueryMeta &qmeta, std::string *out,
+int Int8Quantizer::quantize(const void *record,
+                            const core::IndexQueryMeta & /*rmeta*/,
+                            std::string *out,
                             core::IndexQueryMeta *ometa) const {
-  return convert(query, qmeta, out, ometa);
+  const float *src = reinterpret_cast<const float *>(record);
+
+  out->resize(meta_.element_size(), 0);
+  core::RecordQuantizer::quantize_record(src, original_dim_,
+                                         core::IndexMeta::DataType::DT_INT8,
+                                         false, &(*out)[0]);
+
+  *ometa = core::IndexQueryMeta(core::IndexMeta::DataType::DT_INT8,
+                                meta_.dimension());
+  return 0;
 }
 
-int Int8Quantizer::dequantize(const void *in, const core::IndexQueryMeta &qmeta,
+int Int8Quantizer::dequantize(const void *in,
+                              const core::IndexQueryMeta & /*qmeta*/,
                               std::string *out) const {
-  return revert(in, qmeta, out);
+  out->resize(original_dim_ * sizeof(float));
+  float *dst = reinterpret_cast<float *>(&(*out)[0]);
+
+  core::RecordQuantizer::unquantize_record(
+      in, original_dim_, core::IndexMeta::DataType::DT_INT8, dst);
+
+  return 0;
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(Int8Quantizer);

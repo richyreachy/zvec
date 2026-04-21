@@ -22,6 +22,8 @@
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/turbo/turbo.h>
 
+using namespace zvec::core;
+
 namespace zvec {
 namespace turbo {
 
@@ -37,36 +39,38 @@ class Quantizer {
   }
 
   //! Initialize quantizer with index metadata and parameters
-  virtual int init(const core::IndexMeta &meta,
-                   const ailego::Params &params) = 0;
+  virtual int init(const IndexMeta &meta, const ailego::Params &params) = 0;
 
   //! Get the output metadata after initialization
-  virtual const core::IndexMeta &meta() const = 0;
+  virtual const IndexMeta &meta() const = 0;
 
   //! Train the quantizer with data from an IndexHolder
-  virtual int train(core::IndexHolder::Pointer holder) const {
-    return core::IndexError_NotImplemented;
-  }
-
-  //! Convert a record for indexing (quantize a stored vector)
-  virtual int convert(const void *record, const core::IndexQueryMeta &rmeta,
-                      std::string *out, core::IndexQueryMeta *ometa) const {
-    return core::IndexError_NotImplemented;
-  }
-
-  //! Revert a quantized vector back to original format
-  virtual int revert(const void *in, const core::IndexQueryMeta &qmeta,
-                     std::string *out) const {
-    return core::IndexError_NotImplemented;
+  virtual int train(IndexHolder::Pointer holder) const {
+    return IndexError_NotImplemented;
   }
 
   //! Quantize a query vector for search
-  virtual int quantize(const void *query, const core::IndexQueryMeta &qmeta,
-                       std::string *out, core::IndexQueryMeta *ometa) const = 0;
+  virtual int quantize(const void *query, const IndexQueryMeta &qmeta,
+                       std::string *out, IndexQueryMeta *ometa) const {
+    return IndexError_NotImplemented;
+  }
 
   //! Dequantize a result vector back to original format
-  virtual int dequantize(const void *in, const core::IndexQueryMeta &qmeta,
-                         std::string *out) const = 0;
+  virtual int dequantize(const void *in, const IndexQueryMeta &qmeta,
+                         std::string *out) const {
+    return IndexError_NotImplemented;
+  }
+
+  //! Dequantize a result vector back to original format
+  virtual int serialize(std::string *out) const {
+    return IndexError_NotImplemented;
+  }
+
+  //! Deserialize
+  virtual int deserialize(std::string &in) const {
+    return IndexError_NotImplemented;
+  }
+
 
  protected:
   QuantizeType type_{QuantizeType::kDefault};
