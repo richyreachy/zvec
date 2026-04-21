@@ -24,7 +24,8 @@
 namespace zvec {
 namespace turbo {
 
-int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
+int Int4Quantizer::init(const core::IndexMeta &meta,
+                        const ailego::Params &params) {
   if (!params.get(INT8_QUANTIZER_BIAS, &bias_) ||
       !params.get(INT8_QUANTIZER_SCALE, &scale_)) {
     LOG_ERROR("Init IntegerReformer failed, required params bias and scale");
@@ -52,7 +53,7 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   return 0;
 }
 
-int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
+int Int4Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
                             std::string *out, IndexQueryMeta *ometa) const {
   IndexMeta::DataType ft = qmeta.data_type();
 
@@ -65,50 +66,27 @@ int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
   *ometa = qmeta;
   ometa->set_meta(data_type_, qmeta.dimension());
   out->resize(IndexMeta::ElementSizeof(ometa->data_type(), ometa->dimension()));
-  const float *vec = reinterpret_cast<const float *>(record);
-  auto ovec = reinterpret_cast<int8_t *>(&(*out)[0]);
+  const float *vec = reinterpret_cast<const float *>(query);
+  auto ovec = reinterpret_cast<typename Quantizer::ValueType *>(&(*out)[0]);
 
   if (!inner_product_) {
     quantizer_.encode(vec, qmeta.dimension(), ovec);
   } else {
-    size_t dim = qmeta.dimension();
     float abs_max = 0.0f;
     for (size_t i = 0; i < dim; ++i) {
-      float abs = std::abs(vec[i]);
+      float abs = std::abs(in[i]);
       abs_max = std::max(abs, abs_max);
     }
-    float scale = 127.0f / abs_max;
+    float scale = 127 / abs_max;
     for (size_t i = 0; i < dim; ++i) {
-      ovec[i] = static_cast<int8_t>(std::round(vec[i] * scale));
+      out[i] = static_cast<int8_t>(std::round(in[i] * scale));
     }
   }
 
   return 0;
 }
 
-int Int8Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
-                              std::string *out) const {
-  if (!in || !out) {
-    return IndexError_InvalidArgument;
-  }
-
-  size_t dim = qmeta.dimension();
-  const int8_t *ivec = reinterpret_cast<const int8_t *>(in);
-  out->resize(dim * sizeof(float));
-  float *ovec = reinterpret_cast<float *>(&(*out)[0]);
-
-  if (!inner_product_) {
-    quantizer_.decode(ivec, dim, ovec);
-  } else {
-    for (size_t i = 0; i < dim; ++i) {
-      ovec[i] = static_cast<float>(ivec[i]);
-    }
-  }
-
-  return 0;
-}
-
-INDEX_FACTORY_REGISTER_QUANTIZER(Int8Quantizer);
+INDEX_FACTORY_REGISTER_QUANTIZER(Int4Quantizer);
 
 }  // namespace turbo
 }  // namespace zvec

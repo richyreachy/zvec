@@ -14,7 +14,8 @@
 
 #pragma once
 
-#include <ailego/algorithm/integer_quantizer.h>
+#include <zvec/ailego/algorithm/integer_quantizer.h>
+#include <zvec/core/framework/index_converter.h>
 #include <zvec/core/framework/index_holder.h>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_reformer.h>
@@ -26,40 +27,39 @@ namespace turbo {
 
 using namespace zvec::core;
 
-class Int8Quantizer : public Quantizer {
+class Int4Quantizer : public Quantizer {
  public:
-  Int8Quantizer() {
-    type_ = QuantizeType::kRecordInt8;
+  Int4Quantizer() {
+    type_ = QuantizeType::kRecordInt4;
   }
 
-  virtual ~Int8Quantizer() {}
+  virtual ~Int4Quantizer() {}
 
  public:
   QuantizeType type() const override {
     return type_;
   }
 
-  int init(const core::IndexMeta &meta, const ailego::Params &params) override;
+  int init(const IndexMeta &meta, const ailego::Params &params) override;
 
-  const core::IndexMeta &meta(void) const override {
+  const IndexMeta &meta(void) const override {
     return meta_;
   }
 
-  int quantize(const void *query, const core::IndexQueryMeta &qmeta,
-               std::string *out, core::IndexQueryMeta *ometa) const override;
+  int quantize(const void *query, const IndexQueryMeta &qmeta, std::string *out,
+               IndexQueryMeta *ometa) const override;
 
-  int dequantize(const void *in, const core::IndexQueryMeta &qmeta,
+  int dequantize(const void *in, const IndexQueryMeta &qmeta,
                  std::string *out) const override;
 
  private:
-  static constexpr uint32_t EXTRA_META_SIZE_INT8 = 20;
-  const std::string INT8_QUANTIZER_BIAS = "int8_quantizer.bias";
-  const std::string INT8_QUANTIZER_SCALE = "int8_quantizer.scale";
+  static constexpr uint32_t EXTRA_META_SIZE = 20;
+  const std::string INT4_QUANTIZER_BIAS = "int4_quantizer.bias";
+  const std::string INT4_QUANTIZER_SCALE = "int4_quantizer.scale";
 
   float bias_{0.0f};
   float scale_{1.0f};
-  float scale_reciprocal_{1.0f};
-  bool inner_product_{false};
+  float scale_reiprocal_{1.0f};
 
   ailego::EntropyInt8Quantizer quantizer_;
   IndexMeta meta_{};
