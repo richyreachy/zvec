@@ -87,6 +87,28 @@ int Int4Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
   return 0;
 }
 
+int Int4Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
+                              std::string *out) const {
+  if (!in || !out) {
+    return IndexError_InvalidArgument;
+  }
+
+  size_t dim = qmeta.dimension();
+  const int8_t *ivec = reinterpret_cast<const int8_t *>(in);
+  out->resize(dim * sizeof(float));
+  float *ovec = reinterpret_cast<float *>(&(*out)[0]);
+
+  if (!inner_product_) {
+    quantizer_.decode(ivec, dim, ovec);
+  } else {
+    for (size_t i = 0; i < dim; ++i) {
+      ovec[i] = static_cast<float>(ivec[i]);
+    }
+  }
+
+  return 0;
+}
+
 INDEX_FACTORY_REGISTER_QUANTIZER(Int4Quantizer);
 
 }  // namespace turbo
