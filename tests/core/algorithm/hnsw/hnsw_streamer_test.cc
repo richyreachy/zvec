@@ -14,17 +14,12 @@
 #include "hnsw_streamer.h"
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <atomic>
-#ifndef _MSC_VER
 #include <fcntl.h>
-#include <unistd.h>
-#endif
 #include <future>
 #include <iostream>
 #include <memory>
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
-#include "tests/test_util.h"
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -49,7 +44,7 @@ class HnswStreamerTest : public testing::Test {
   static shared_ptr<IndexMeta> index_meta_ptr_;
 };
 
-std::string HnswStreamerTest::dir_("hnsw_streamer_test_dir/");
+std::string HnswStreamerTest::dir_("streamer_test/");
 shared_ptr<IndexMeta> HnswStreamerTest::index_meta_ptr_;
 
 void HnswStreamerTest::SetUp(void) {
@@ -57,11 +52,15 @@ void HnswStreamerTest::SetUp(void) {
                             IndexMeta(IndexMeta::DataType::DT_FP32, dim));
   index_meta_ptr_->set_metric("SquaredEuclidean", 0, ailego::Params());
 
-  zvec::test_util::RemoveTestPath(dir_);
+  char cmdBuf[100];
+  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
+  system(cmdBuf);
 }
 
 void HnswStreamerTest::TearDown(void) {
-  zvec::test_util::RemoveTestPath(dir_);
+  char cmdBuf[100];
+  snprintf(cmdBuf, 100, "rm -rf %s", dir_.c_str());
+  system(cmdBuf);
 }
 
 TEST_F(HnswStreamerTest, TestAddVector) {
@@ -78,7 +77,7 @@ TEST_F(HnswStreamerTest, TestAddVector) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "Test/AddVector", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/Test/AddVector", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   auto ctx = streamer->create_context();
@@ -110,7 +109,7 @@ TEST_F(HnswStreamerTest, TestLinearSearch) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestLinearSearch.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestLinearSearch.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -180,7 +179,7 @@ TEST_F(HnswStreamerTest, TestLinearSearchByKeys) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestLinearSearchByKeys.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestLinearSearchByKeys.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -296,7 +295,7 @@ TEST_F(HnswStreamerTest, TestKnnSearch) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestKnnSearch.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestKnnSearch.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -380,7 +379,7 @@ TEST_F(HnswStreamerTest, TestAddAndSearch) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestAddAndSearch.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestAddAndSearch.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -471,7 +470,7 @@ TEST_F(HnswStreamerTest, TestKnnSearchRandomData) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestKnnSearchRandomData", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestKnnSearchRandomData", true));
   ASSERT_EQ(0, streamer->init(meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -645,7 +644,7 @@ TEST_F(HnswStreamerTest, TestCreateIterator) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestCreateIterator", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestCreateIterator", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -718,7 +717,7 @@ TEST_F(HnswStreamerTest, TestForceFlush) {
   stg_params.set("proxima.mmap_file.storage.copy_on_write", true);
   stg_params.set("proxima.mmap_file.storage.force_flush", true);
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestForceFlush", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestForceFlush", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -759,7 +758,7 @@ TEST_F(HnswStreamerTest, TestForceFlush) {
   storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_NE(nullptr, storage);
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestForceFlush", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestForceFlush", true));
   ASSERT_EQ(0, streamer->open(storage));
   checkIter(cnt, streamer);
 
@@ -1435,7 +1434,7 @@ TEST_F(HnswStreamerTest, TestCheckStats) {
   ASSERT_NE(nullptr, storage);
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
-  std::string path = dir_ + "TestCheckStats.index";
+  std::string path = dir_ + "/TestCheckStats.index";
   ASSERT_EQ(0, storage->open(path, true));
   ailego::Params params;
   params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 100);
@@ -1531,7 +1530,7 @@ TEST_F(HnswStreamerTest, TestCheckStats) {
   ASSERT_EQ(createTime3, createTime1);
   ASSERT_GT(updateTime3, updateTime2);
 
-  auto dpath = dir_ + "dumpIndex";
+  auto dpath = dir_ + "/dumpIndex";
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper, nullptr);
   ASSERT_EQ(0, dumper->create(dpath));
@@ -1640,12 +1639,10 @@ TEST_F(HnswStreamerTest, TestDumpIndexAndAdd) {
   IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dim);
   ASSERT_NE(nullptr, ctx);
   int code = 0;
-  std::atomic<bool> async_started{false};
-  auto addVector = [&](int a, int b, bool signal_start) {
+  std::mutex mutex;
+  auto addVector = [&](int a, int b) {
     int success = 0;
-    if (signal_start) {
-      async_started.store(true, std::memory_order_release);
-    }
+    mutex.unlock();
     for (int i = a; i < b; i++) {
       for (size_t j = 0; j < dim; ++j) {
         vec[j] = i;
@@ -1662,22 +1659,23 @@ TEST_F(HnswStreamerTest, TestDumpIndexAndAdd) {
     }
     std::cout << "addVector: " << success << " success" << std::endl;
   };
-  addVector(0, 2000, false);
-  auto t2 = std::async(std::launch::async, addVector, 2000, 3000, true);
-  auto path1 = dir_ + "dumpIndex1";
+  mutex.lock();
+  addVector(0, 2000);
+  mutex.lock();
+  auto t2 = std::async(std::launch::async, addVector, 2000, 3000);
+  auto path1 = dir_ + "/dumpIndex1";
   auto dumper1 = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper1, nullptr);
   ASSERT_EQ(0, dumper1->create(path1));
-  while (!async_started.load(std::memory_order_acquire)) {
-    std::this_thread::yield();
-  }
+  mutex.lock();  // sync: wait addVector start and release lock
   auto test_dumper = std::make_shared<TestDumper>();
   ASSERT_EQ(0, streamer->dump(test_dumper));
+  mutex.unlock();
   ASSERT_EQ(0, streamer->dump(dumper1));
   ASSERT_EQ(0, dumper1->close());
   t2.get();
   streamer->close();
-  ASSERT_TRUE(code == IndexError_Unsupported || code == 0);
+  ASSERT_EQ(IndexError_Unsupported, code);
 
   // check dump index
   IndexSearcher::Pointer searcher =
@@ -1770,7 +1768,7 @@ TEST_F(HnswStreamerTest, TestProvider) {
     streamer->add_impl(keys[i], vec.data(), qmeta, ctx);
   }
 
-  auto path1 = dir_ + "TestGetVector1";
+  auto path1 = dir_ + "/TestGetVector1";
   auto dumper1 = IndexFactory::CreateDumper("FileDumper");
   ASSERT_NE(dumper1, nullptr);
   ASSERT_EQ(0, dumper1->create(path1));
@@ -2005,7 +2003,7 @@ TEST_F(HnswStreamerTest, TestBruteForceSetupInContext) {
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
   ASSERT_EQ(0,
-            storage->open(dir_ + "TestBruteForceSetupInContext.index", true));
+            storage->open(dir_ + "/TestBruteForceSetupInContext.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -2138,7 +2136,7 @@ TEST_F(HnswStreamerTest, TestKnnSearchCosine) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestKnnSearchCosine.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestKnnSearchCosine.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -2254,7 +2252,7 @@ TEST_F(HnswStreamerTest, TestFetchVector) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestFetchVector.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestFetchVector.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -2351,7 +2349,7 @@ TEST_F(HnswStreamerTest, TestFetchVectorCosine) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestFetchVectorCosine.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestFetchVectorCosine.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -2480,7 +2478,7 @@ TEST_F(HnswStreamerTest, TestFetchVectorCosineHalfFloatConverter) {
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
   ASSERT_EQ(
-      0, storage->open(dir_ + "TestFetchVectorCosineHalfFloatConverter.index",
+      0, storage->open(dir_ + "/TestFetchVectorCosineHalfFloatConverter.index",
                        true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
@@ -2620,7 +2618,7 @@ TEST_F(HnswStreamerTest, TestFetchVectorCosineFp16Converter) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestFetchVectorCosineFp16Converter.index",
+  ASSERT_EQ(0, storage->open(dir_ + "/TestFetchVectorCosineFp16Converter.index",
                              true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
@@ -2754,7 +2752,7 @@ TEST_F(HnswStreamerTest, TestFetchVectorCosineInt8Converter) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestFetchVectorCosineInt8Converter.index",
+  ASSERT_EQ(0, storage->open(dir_ + "/TestFetchVectorCosineInt8Converter.index",
                              true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
@@ -2799,7 +2797,6 @@ TEST_F(HnswStreamerTest, TestFetchVectorCosineInt8Converter) {
   }
 
   auto linearCtx = streamer->create_context();
-  linearCtx->set_fetch_vector(true);
   auto knnCtx = streamer->create_context();
   knnCtx->set_fetch_vector(true);
 
@@ -2840,11 +2837,10 @@ TEST_F(HnswStreamerTest, TestFetchVectorCosineInt8Converter) {
     ASSERT_EQ(i, linearResult[0].key());
 
     ASSERT_NE(knnResult[0].vector(), nullptr);
-    ASSERT_NE(linearResult[0].vector(), nullptr);
 
     std::string denormalized_vec;
     denormalized_vec.resize(dim * sizeof(float));
-    reformer->revert(linearResult[0].vector(), new_meta, &denormalized_vec);
+    reformer->revert(knnResult[0].vector(), new_meta, &denormalized_vec);
 
     float vector_value = *(((float *)(denormalized_vec.data()) + dim - 1));
     EXPECT_NEAR(vector_value, fixed_value + add_on, epsilon);
@@ -2887,7 +2883,7 @@ TEST_F(HnswStreamerTest, TestFetchVectorCosineInt4Converter) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestFetchVectorCosineInt4Converter.index",
+  ASSERT_EQ(0, storage->open(dir_ + "/TestFetchVectorCosineInt4Converter.index",
                              true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
@@ -3002,7 +2998,7 @@ TEST_F(HnswStreamerTest, TestRnnSearch) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestRnnSearchInnerProduct.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestRnnSearchInnerProduct.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -3065,7 +3061,7 @@ TEST_F(HnswStreamerTest, TestRnnSearchInnerProduct) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestRnnSearchInnerProduct.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestRnnSearchInnerProduct.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -3142,7 +3138,7 @@ TEST_F(HnswStreamerTest, TestRnnSearchCosine) {
 
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestRnnSearchCosine.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestRnnSearchCosine.index", true));
   ASSERT_EQ(0, streamer->init(index_meta, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -3217,7 +3213,7 @@ TEST_F(HnswStreamerTest, TestGroup) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestGroup.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestGroup.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -3332,7 +3328,7 @@ TEST_F(HnswStreamerTest, TestGroupNotEnoughNum) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestGroupNotEnoughNum.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestGroupNotEnoughNum.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -3410,7 +3406,8 @@ TEST_F(HnswStreamerTest, TestGroupInBruteforceSearch) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestGroupInBruteforceSearch.index", true));
+  ASSERT_EQ(0,
+            storage->open(dir_ + "/TestGroupInBruteforceSearch.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -3471,93 +3468,6 @@ TEST_F(HnswStreamerTest, TestGroupInBruteforceSearch) {
   }
 }
 
-#if 0
-TEST_F(HnswStreamerTest, TestBinaryConverter) {
-  uint32_t dimension = 2560;
-
-  IndexStreamer::Pointer streamer =
-      IndexFactory::CreateStreamer("HnswStreamer");
-  ASSERT_TRUE(streamer != nullptr);
-
-  ailego::Params params;
-  // params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 10);
-  // params.set(PARAM_HNSW_STREAMER_SCALING_FACTOR, 16);
-  // params.set(PARAM_HNSW_STREAMER_EFCONSTRUCTION, 10);
-  // params.set(PARAM_HNSW_STREAMER_EF, 5);
-  params.set(PARAM_HNSW_STREAMER_BRUTE_FORCE_THRESHOLD, 1000U);
-
-  ailego::Params stg_params;
-
-  IndexMeta index_meta_raw(IndexMeta::DataType::DT_FP32, dimension);
-  index_meta_raw.set_metric("InnerProduct", 0, ailego::Params());
-
-  ailego::Params converter_params;
-  auto converter = IndexFactory::CreateConverter("BinaryConverter");
-  ASSERT_TRUE(converter != nullptr);
-
-  converter->init(index_meta_raw, converter_params);
-
-  IndexMeta index_meta = converter->meta();
-
-  auto reformer = IndexFactory::CreateReformer(index_meta.reformer_name());
-  ASSERT_TRUE(reformer != nullptr);
-
-  ASSERT_EQ(0, reformer->init(index_meta.reformer_params()));
-
-  auto storage = IndexFactory::CreateStorage("MMapFileStorage");
-  ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestBinaryConverter.index", true));
-  ASSERT_EQ(0, streamer->init(index_meta, params));
-  ASSERT_EQ(0, streamer->open(storage));
-
-  size_t cnt = 5000U;
-  auto ctx = streamer->create_context();
-  ASSERT_TRUE(!!ctx);
-
-  IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dimension);
-
-  std::random_device rd;
-  std::mt19937 gen(rd());
-
-  std::uniform_real_distribution<float> dist(-2.0, 2.0);
-  std::vector<NumericalVector<float>> vecs;
-
-  for (size_t i = 0; i < cnt; i++) {
-    NumericalVector<float> vec(dimension);
-    for (size_t j = 0; j < dimension; ++j) {
-      vec[j] = dist(gen);
-    }
-
-    std::string new_vec;
-    IndexQueryMeta new_meta;
-
-    ASSERT_EQ(0, reformer->convert(vec.data(), qmeta, &new_vec, &new_meta));
-    ASSERT_EQ(0, streamer->add_impl(i, new_vec.data(), new_meta, ctx));
-
-    vecs.push_back(vec);
-  }
-
-  size_t query_cnt = 200U;
-  auto knnCtx = streamer->create_context();
-
-  float epison = 1e-6;
-  for (size_t i = 0; i < query_cnt; i++) {
-    auto &vec = vecs[i];
-    std::string new_query;
-    IndexQueryMeta new_meta;
-    ASSERT_EQ(0, reformer->transform(vec.data(), qmeta, &new_query, &new_meta));
-
-    size_t topk = 50;
-    knnCtx->set_topk(topk);
-    ASSERT_EQ(0, streamer->search_impl(new_query.data(), new_meta, knnCtx));
-    auto &results = knnCtx->result();
-    ASSERT_EQ(topk, results.size());
-    ASSERT_EQ(i, results[0].key());
-    ASSERT_NEAR(0, results[0].score(), epison);
-  }
-}
-#endif
-
 TEST_F(HnswStreamerTest, TestAddAndSearchWithID) {
   IndexStreamer::Pointer streamer =
       IndexFactory::CreateStreamer("HnswStreamer");
@@ -3572,7 +3482,7 @@ TEST_F(HnswStreamerTest, TestAddAndSearchWithID) {
   ailego::Params stg_params;
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_EQ(0, storage->init(stg_params));
-  ASSERT_EQ(0, storage->open(dir_ + "TestAddAndSearch.index", true));
+  ASSERT_EQ(0, storage->open(dir_ + "/TestAddAndSearch.index", true));
   ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, streamer->open(storage));
 
@@ -3670,131 +3580,6 @@ TEST_F(HnswStreamerTest, TestAddAndSearchWithID) {
   EXPECT_GT(topk1Recall, 0.80f);
   // EXPECT_GT(cost, 2.0f);
 }
-
-#if 0
-TEST_F(HnswStreamerTest, TestBasicRefiner) {
-  uint32_t dimension = 1120;
-
-  IndexStreamer::Pointer base_streamer =
-      IndexFactory::CreateStreamer("HnswStreamer");
-  ASSERT_TRUE(base_streamer != nullptr);
-
-  IndexStreamer::Pointer refine_streamer =
-      IndexFactory::CreateStreamer("FlatStreamer");
-  ASSERT_TRUE(refine_streamer != nullptr);
-
-  IndexRefiner::Pointer refiner = IndexFactory::CreateRefiner("BasicRefiner");
-  ASSERT_TRUE(refiner != nullptr);
-
-  ailego::Params params;
-  IndexMeta index_meta(IndexMeta::DataType::DT_FP32, dimension);
-  index_meta.set_metric("InnerProduct", 0, ailego::Params());
-
-  ailego::Params converter_params;
-  auto converter = IndexFactory::CreateConverter("BinaryConverter");
-  ASSERT_TRUE(converter != nullptr);
-
-  converter->init(index_meta, converter_params);
-
-  IndexMeta index_meta_binary = converter->meta();
-
-  auto reformer =
-      IndexFactory::CreateReformer(index_meta_binary.reformer_name());
-  ASSERT_TRUE(reformer != nullptr);
-
-  ASSERT_EQ(0, reformer->init(index_meta_binary.reformer_params()));
-
-  // base streamer
-  ailego::Params base_stg_params;
-  auto base_storage = IndexFactory::CreateStorage("MMapFileStorage");
-  ASSERT_EQ(0, base_storage->init(base_stg_params));
-  ASSERT_EQ(0, base_storage->open(dir_ + "TestBasicRefinerBase.index", true));
-  ASSERT_EQ(0, base_streamer->init(index_meta_binary, params));
-  ASSERT_EQ(0, base_streamer->open(base_storage));
-
-  auto base_ctx = base_streamer->create_context();
-  ASSERT_TRUE(!!base_ctx);
-
-  // refine streamer
-  ailego::Params refine_stg_params;
-  auto refine_storage = IndexFactory::CreateStorage("MMapFileStorage");
-  ASSERT_EQ(0, refine_storage->init(refine_stg_params));
-  ASSERT_EQ(0,
-            refine_storage->open(dir_ + "TestBasicRefinerRefine.index", true));
-  ASSERT_EQ(0, refine_streamer->init(index_meta, params));
-  ASSERT_EQ(0, refine_streamer->open(refine_storage));
-  auto refine_ctx = refine_streamer->create_context();
-  ASSERT_TRUE(!!refine_ctx);
-
-  ailego::Params refiner_params;
-  ASSERT_EQ(0, refiner->init(base_streamer, refine_streamer, refiner_params));
-
-  auto ctx = refiner->create_context();
-  ASSERT_TRUE(!!ctx);
-
-  IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dimension);
-
-  std::random_device rd;
-  std::mt19937 gen(rd());
-
-  std::uniform_real_distribution<float> dist(-2.0, 2.0);
-  std::vector<NumericalVector<float>> vecs;
-
-  size_t cnt = 5000U;
-  for (size_t i = 0; i < cnt; i++) {
-    NumericalVector<float> vec(dimension);
-    for (size_t j = 0; j < dimension; ++j) {
-      vec[j] = dist(gen);
-    }
-
-    std::string binary_vec;
-    IndexQueryMeta binary_qmeta;
-
-    ASSERT_EQ(0,
-              reformer->convert(vec.data(), qmeta, &binary_vec, &binary_qmeta));
-    ASSERT_EQ(0, refiner->add_impl(i, binary_vec.data(), binary_qmeta,
-                                   vec.data(), qmeta, ctx));
-
-    vecs.push_back(vec);
-  }
-
-  size_t query_cnt = 200U;
-  // size_t query_cnt = 1U;
-
-  auto searcherCtx = refiner->create_context();
-
-  for (size_t i = 0; i < query_cnt; i++) {
-    auto &vec = vecs[i];
-
-    // float abs_value{0};
-    // for (size_t j = 0; j < dimension; ++j) {
-    //   std::cout << "dim: " << j << ", value: " << vec[j] << std::endl;
-
-    //   abs_value += std::abs(vec[j]);
-    // }
-    // std::cout << "abs value: " << abs_value << std::endl;
-
-    std::string new_query;
-    IndexQueryMeta binary_qmeta;
-    ASSERT_EQ(
-        0, reformer->transform(vec.data(), qmeta, &new_query, &binary_qmeta));
-
-    size_t topk = 50;
-    searcherCtx->set_topk(topk);
-    ASSERT_EQ(0, refiner->search_impl(new_query.data(), binary_qmeta,
-                                      vec.data(), qmeta, searcherCtx));
-    auto &results = searcherCtx->result();
-    ASSERT_EQ(topk, results.size());
-    ASSERT_EQ(i, results[0].key());
-
-    // for (size_t i = 0; i < results.size(); ++i) {
-    //   std::cout << i << ", id: " << results[i].index()
-    //             << ", score: " << results[i].score() << std::endl;
-    // }
-  }
-}
-
-#endif
 
 }  // namespace core
 }  // namespace zvec
