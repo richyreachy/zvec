@@ -26,6 +26,7 @@
 using namespace zvec;
 using namespace zvec::core;
 using namespace zvec::ailego;
+using namespace zvec::turbo;
 
 // Target Test Type: avx2, sse, scalar
 TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
@@ -44,23 +45,23 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
   ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
 
-  auto func_float32 = turbo::get_distance_func(
+  auto func_float32 = get_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
-  auto func_avx512vnni = turbo::get_distance_func(
+  auto func_avx512vnni = get_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512VNNI);
 
-  auto func_avx2 = turbo::get_distance_func(
+  auto func_avx2 = get_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX2);
 
-  auto func_sse = turbo::get_distance_func(
+  auto func_sse = get_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kSSE);
 
-  auto func_scalar = turbo::get_distance_func(
+  auto func_scalar = get_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 
@@ -135,19 +136,19 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
   ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
 
-  auto func_float32 = turbo::get_distance_func(
+  auto func_float32 = get_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
-  auto func_avx2 = turbo::get_distance_func(
+  auto func_avx2 = get_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX2);
 
-  auto func_sse = turbo::get_distance_func(
+  auto func_sse = get_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kSSE);
 
-  auto func_scalar = turbo::get_distance_func(
+  auto func_scalar = get_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 
@@ -217,19 +218,19 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
   ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
 
-  auto func_float32 = turbo::get_distance_func(
+  auto func_float32 = get_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
-  auto func_avx2 = turbo::get_distance_func(
+  auto func_avx2 = get_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX2);
 
-  auto func_sse = turbo::get_distance_func(
+  auto func_sse = get_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kSSE);
 
-  auto func_scalar = turbo::get_distance_func(
+  auto func_scalar = get_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 
@@ -299,19 +300,19 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
   ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
 
-  auto func_float32 = turbo::get_distance_func(
+  auto func_float32 = get_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
-  auto func_avx2 = turbo::get_distance_func(
+  auto func_avx2 = get_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX2);
 
-  auto func_sse = turbo::get_distance_func(
+  auto func_sse = get_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kSSE);
 
-  auto func_scalar = turbo::get_distance_func(
+  auto func_scalar = get_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 
@@ -394,23 +395,23 @@ TEST(QuantizedIntegerMetric, TestInt8Cosine) {
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
   ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
 
-  auto func_float32 = turbo::get_distance_func(
+  auto func_float32 = get_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
-  auto func_avx512vnni = turbo::get_distance_func(
+  auto func_avx512vnni = get_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512VNNI);
 
-  auto func_avx2 = turbo::get_distance_func(
+  auto func_avx2 = get_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX2);
 
-  auto func_sse = turbo::get_distance_func(
+  auto func_sse = get_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kSSE);
 
-  auto func_scalar = turbo::get_distance_func(
+  auto func_scalar = get_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 
@@ -510,19 +511,19 @@ TEST(QuantizedIntegerMetric, TestInt4Cosine) {
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
   ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
 
-  auto func_float32 = turbo::get_distance_func(
+  auto func_float32 = get_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
-  auto func_avx2 = turbo::get_distance_func(
+  auto func_avx2 = get_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX2);
 
-  auto func_sse = turbo::get_distance_func(
+  auto func_sse = get_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kSSE);
 
-  auto func_scalar = turbo::get_distance_func(
+  auto func_scalar = get_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 
@@ -606,23 +607,23 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProductBatch) {
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
   ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
 
-  auto batch_func_float32 = turbo::get_batch_distance_func(
+  auto batch_func_float32 = get_batch_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
-  auto batch_func_avx512vnni = turbo::get_batch_distance_func(
+  auto batch_func_avx512vnni = get_batch_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512VNNI);
 
-  auto batch_func_avx2 = turbo::get_batch_distance_func(
+  auto batch_func_avx2 = get_batch_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX2);
 
-  auto batch_func_sse = turbo::get_batch_distance_func(
+  auto batch_func_sse = get_batch_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kSSE);
 
-  auto batch_func_scalar = turbo::get_batch_distance_func(
+  auto batch_func_scalar = get_batch_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 
@@ -721,19 +722,19 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProductBatch) {
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
   ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
 
-  auto batch_func_float32 = turbo::get_batch_distance_func(
+  auto batch_func_float32 = get_batch_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
-  auto batch_func_avx2 = turbo::get_batch_distance_func(
+  auto batch_func_avx2 = get_batch_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX2);
 
-  auto batch_func_sse = turbo::get_batch_distance_func(
+  auto batch_func_sse = get_batch_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kSSE);
 
-  auto batch_func_scalar = turbo::get_batch_distance_func(
+  auto batch_func_scalar = get_batch_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 
@@ -827,19 +828,19 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclideanBatch) {
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
   ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
 
-  auto batch_func_float32 = turbo::get_batch_distance_func(
+  auto batch_func_float32 = get_batch_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
-  auto batch_func_avx2 = turbo::get_batch_distance_func(
+  auto batch_func_avx2 = get_batch_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX2);
 
-  auto batch_func_sse = turbo::get_batch_distance_func(
+  auto batch_func_sse = get_batch_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kSSE);
 
-  auto batch_func_scalar = turbo::get_batch_distance_func(
+  auto batch_func_scalar = get_batch_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 
@@ -933,19 +934,19 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclideanBatch) {
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
   ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
 
-  auto batch_func_float32 = turbo::get_batch_distance_func(
+  auto batch_func_float32 = get_batch_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
-  auto batch_func_avx2 = turbo::get_batch_distance_func(
+  auto batch_func_avx2 = get_batch_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX2);
 
-  auto batch_func_sse = turbo::get_batch_distance_func(
+  auto batch_func_sse = get_batch_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kSSE);
 
-  auto batch_func_scalar = turbo::get_batch_distance_func(
+  auto batch_func_scalar = get_batch_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 
@@ -1052,23 +1053,23 @@ TEST(QuantizedIntegerMetric, TestInt8CosineBatch) {
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
   ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
 
-  auto batch_func_float32 = turbo::get_batch_distance_func(
+  auto batch_func_float32 = get_batch_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
-  auto batch_func_avx512vnni = turbo::get_batch_distance_func(
+  auto batch_func_avx512vnni = get_batch_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512VNNI);
 
-  auto batch_func_avx2 = turbo::get_batch_distance_func(
+  auto batch_func_avx2 = get_batch_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX2);
 
-  auto batch_func_sse = turbo::get_batch_distance_func(
+  auto batch_func_sse = get_batch_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kSSE);
 
-  auto batch_func_scalar = turbo::get_batch_distance_func(
+  auto batch_func_scalar = get_batch_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt8,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 
@@ -1195,19 +1196,19 @@ TEST(QuantizedIntegerMetric, TestInt4CosineBatch) {
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
   ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
 
-  auto batch_func_float32 = turbo::get_batch_distance_func(
+  auto batch_func_float32 = get_batch_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kFp32,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAuto);
 
-  auto batch_func_avx2 = turbo::get_batch_distance_func(
+  auto batch_func_avx2 = get_batch_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX2);
 
-  auto batch_func_sse = turbo::get_batch_distance_func(
+  auto batch_func_sse = get_batch_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kSSE);
 
-  auto batch_func_scalar = turbo::get_batch_distance_func(
+  auto batch_func_scalar = get_batch_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kInt4,
       turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
 

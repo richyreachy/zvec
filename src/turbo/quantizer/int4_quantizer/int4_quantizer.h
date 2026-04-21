@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <zvec/ailego/algorithm/integer_quantizer.h>
+#include <ailego/algorithm/integer_quantizer.h>
 #include <zvec/core/framework/index_converter.h>
 #include <zvec/core/framework/index_holder.h>
 #include <zvec/core/framework/index_meta.h>
@@ -59,7 +59,8 @@ class Int4Quantizer : public Quantizer {
 
   float bias_{0.0f};
   float scale_{1.0f};
-  float scale_reiprocal_{1.0f};
+  float scale_reciprocal_{1.0f};
+  bool inner_product_{false};
 
   ailego::EntropyInt8Quantizer quantizer_;
   IndexMeta meta_{};

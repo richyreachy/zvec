@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "quantizer/int4_quantizer/int4_quantizer.h"
 #include <cmath>
 #include <cstring>
 #include <vector>
@@ -19,15 +20,14 @@
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_logger.h>
 #include "core/quantizer/record_quantizer.h"
-#include "quantizer/int8_quantizer/int8_quantier.h"
 
 namespace zvec {
 namespace turbo {
 
 int Int4Quantizer::init(const core::IndexMeta &meta,
                         const ailego::Params &params) {
-  if (!params.get(INT8_QUANTIZER_BIAS, &bias_) ||
-      !params.get(INT8_QUANTIZER_SCALE, &scale_)) {
+  if (!params.get(INT4_QUANTIZER_BIAS, &bias_) ||
+      !params.get(INT4_QUANTIZER_SCALE, &scale_)) {
     LOG_ERROR("Init IntegerReformer failed, required params bias and scale");
     return IndexError_InvalidArgument;
   }
@@ -66,20 +66,21 @@ int Int4Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
   *ometa = qmeta;
   ometa->set_meta(data_type_, qmeta.dimension());
   out->resize(IndexMeta::ElementSizeof(ometa->data_type(), ometa->dimension()));
-  const float *vec = reinterpret_cast<const float *>(query);
-  auto ovec = reinterpret_cast<typename Quantizer::ValueType *>(&(*out)[0]);
+  const float *vec = reinterpret_cast<const float *>(record);
+  auto ovec = reinterpret_cast<int8_t *>(&(*out)[0]);
 
   if (!inner_product_) {
     quantizer_.encode(vec, qmeta.dimension(), ovec);
   } else {
+    size_t dim = qmeta.dimension();
     float abs_max = 0.0f;
     for (size_t i = 0; i < dim; ++i) {
-      float abs = std::abs(in[i]);
+      float abs = std::abs(vec[i]);
       abs_max = std::max(abs, abs_max);
     }
-    float scale = 127 / abs_max;
+    float scale = 127.0f / abs_max;
     for (size_t i = 0; i < dim; ++i) {
-      out[i] = static_cast<int8_t>(std::round(in[i] * scale));
+      ovec[i] = static_cast<int8_t>(std::round(vec[i] * scale));
     }
   }
 

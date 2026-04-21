@@ -20,6 +20,7 @@
 using namespace zvec;
 using namespace zvec::core;
 using namespace zvec::ailego;
+using namespace zvec::turbo;
 
 // Target Test Type: avx, avx512, scalar
 TEST(SquaredEuclideanMetric, TestFp32SquaredEuclidean) {
@@ -29,17 +30,17 @@ TEST(SquaredEuclideanMetric, TestFp32SquaredEuclidean) {
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
   const size_t COUNT = 1024;
 
-  auto func_avx512 = turbo::get_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512);
+  auto func_avx512 =
+      get_distance_func(MetricType::kSquaredEuclidean, DataType::kFp32,
+                        QuantizeType::kDefault, CpuArchType::kAVX512);
 
-  auto func_avx = turbo::get_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX);
+  auto func_avx =
+      get_distance_func(MetricType::kSquaredEuclidean, DataType::kFp32,
+                        QuantizeType::kDefault, CpuArchType::kAVX);
 
-  auto func_scalar = turbo::get_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
+  auto func_scalar =
+      get_distance_func(MetricType::kSquaredEuclidean, DataType::kFp32,
+                        QuantizeType::kDefault, CpuArchType::kScalar);
 
   ailego::NumericalVector<float> query_vec(DIMENSION);
   for (size_t j = 0; j < DIMENSION; ++j) {
@@ -84,21 +85,21 @@ TEST(SquaredEuclideanMetric, TestFp16SquaredEuclidean) {
   auto &convert_meta = converter->meta();
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
 
-  auto func_avx512fp16 = turbo::get_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp16,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512FP16);
+  auto func_avx512fp16 =
+      get_distance_func(MetricType::kSquaredEuclidean, DataType::kFp16,
+                        QuantizeType::kDefault, CpuArchType::kAVX512FP16);
 
-  auto func_avx512 = turbo::get_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp16,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512);
+  auto func_avx512 =
+      get_distance_func(MetricType::kSquaredEuclidean, DataType::kFp16,
+                        QuantizeType::kDefault, CpuArchType::kAVX512);
 
-  auto func_avx = turbo::get_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp16,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX);
+  auto func_avx =
+      get_distance_func(MetricType::kSquaredEuclidean, DataType::kFp16,
+                        QuantizeType::kDefault, CpuArchType::kAVX);
 
-  auto func_scalar = turbo::get_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp16,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
+  auto func_scalar =
+      get_distance_func(MetricType::kSquaredEuclidean, DataType::kFp16,
+                        QuantizeType::kDefault, CpuArchType::kScalar);
 
   ailego::NumericalVector<float> query_vec(DIMENSION);
   for (size_t j = 0; j < DIMENSION; ++j) {
@@ -158,17 +159,17 @@ TEST(SquaredEuclideanMetric, TestFp32SquaredEuclideanBatch) {
   const size_t COUNT = 1024;
   const size_t BATCH_SIZE = 16;
 
-  auto batch_func_avx512 = turbo::get_batch_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512);
+  auto batch_func_avx512 =
+      get_batch_distance_func(MetricType::kSquaredEuclidean, DataType::kFp32,
+                              QuantizeType::kDefault, CpuArchType::kAVX512);
 
-  auto batch_func_avx = turbo::get_batch_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX);
+  auto batch_func_avx =
+      get_batch_distance_func(MetricType::kSquaredEuclidean, DataType::kFp32,
+                              QuantizeType::kDefault, CpuArchType::kAVX);
 
-  auto batch_func_scalar = turbo::get_batch_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
+  auto batch_func_scalar =
+      get_batch_distance_func(MetricType::kSquaredEuclidean, DataType::kFp32,
+                              QuantizeType::kDefault, CpuArchType::kScalar);
 
   ailego::NumericalVector<float> query_vec(DIMENSION);
   for (size_t j = 0; j < DIMENSION; ++j) {
@@ -230,21 +231,21 @@ TEST(SquaredEuclideanMetric, TestFp16SquaredEuclideanBatch) {
   auto &convert_meta = converter->meta();
   auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
 
-  auto batch_func_avx512fp16 = turbo::get_batch_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp16,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512FP16);
+  auto batch_func_avx512fp16 =
+      get_batch_distance_func(MetricType::kSquaredEuclidean, DataType::kFp16,
+                              QuantizeType::kDefault, CpuArchType::kAVX512FP16);
 
-  auto batch_func_avx512 = turbo::get_batch_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp16,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX512);
+  auto batch_func_avx512 =
+      get_batch_distance_func(MetricType::kSquaredEuclidean, DataType::kFp16,
+                              QuantizeType::kDefault, CpuArchType::kAVX512);
 
-  auto batch_func_avx = turbo::get_batch_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp16,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kAVX);
+  auto batch_func_avx =
+      get_batch_distance_func(MetricType::kSquaredEuclidean, DataType::kFp16,
+                              QuantizeType::kDefault, CpuArchType::kAVX);
 
-  auto batch_func_scalar = turbo::get_batch_distance_func(
-      turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp16,
-      turbo::QuantizeType::kDefault, turbo::CpuArchType::kScalar);
+  auto batch_func_scalar =
+      get_batch_distance_func(MetricType::kSquaredEuclidean, DataType::kFp16,
+                              QuantizeType::kDefault, CpuArchType::kScalar);
 
   ailego::NumericalVector<float> query_vec(DIMENSION);
   for (size_t j = 0; j < DIMENSION; ++j) {

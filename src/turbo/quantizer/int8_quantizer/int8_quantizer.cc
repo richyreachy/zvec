@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "quantizer/int8_quantizer/int8_quantizer.h"
 #include <cmath>
 #include <cstring>
 #include <vector>
@@ -19,7 +20,6 @@
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_logger.h>
 #include "core/quantizer/record_quantizer.h"
-#include "quantizer/int8_quantizer/int8_quantier.h"
 
 namespace zvec {
 namespace turbo {
