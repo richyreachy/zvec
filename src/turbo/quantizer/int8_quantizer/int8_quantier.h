@@ -58,7 +58,7 @@ class Int8Quantizer : public Quantizer {
 
   float bias_{0.0f};
   float scale_{1.0f};
-  float scale_reiprocal_{1.0f};
+  float scale_reciprocal_{1.0f};
 
   ailego::EntropyInt8Quantizer quantizer_;
   IndexMeta meta_{};
