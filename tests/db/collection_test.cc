@@ -4180,6 +4180,81 @@ TEST_F(CollectionTest, Feature_Optimize_HNSW_RABITQ) {
 }
 #endif
 
+#if DISKANN_SUPPORTED
+TEST_F(CollectionTest, Feature_Optimize_DiskAnn) {
+  auto func = [](MetricType metric_type, int concurrency) {
+    FileHelper::RemoveDirectory(col_path);
+
+    int doc_count = 10000;
+
+    auto schema = std::make_shared<CollectionSchema>("diskann_demo");
+    schema->set_max_doc_count_per_segment(MAX_DOC_COUNT_PER_SEGMENT);
+
+    auto diskann_params = std::make_shared<DiskAnnIndexParams>(metric_type);
+    schema->add_field(std::make_shared<FieldSchema>(
+        "dense_fp32", DataType::VECTOR_FP32, 128, false, diskann_params));
+
+    auto options = CollectionOptions{false, true, 64 * 1024 * 1024};
+    auto collection = TestHelper::CreateCollectionWithDoc(
+        col_path, *schema, options, 0, doc_count, false);
+
+    auto check_doc = [&]() {
+      for (int i = 0; i < doc_count; i++) {
+        auto expect_doc = TestHelper::CreateDoc(i, *schema);
+        auto result = collection->Fetch({expect_doc.pk()});
+        ASSERT_TRUE(result.has_value());
+        ASSERT_EQ(result.value().size(), 1);
+        ASSERT_EQ(result.value().count(expect_doc.pk()), 1);
+        auto doc = result.value()[expect_doc.pk()];
+        ASSERT_NE(doc, nullptr);
+        if (*doc != expect_doc) {
+          std::cout << "       doc:" << doc->to_detail_string() << std::endl;
+          std::cout << "expect_doc:" << expect_doc.to_detail_string()
+                    << std::endl;
+        }
+        ASSERT_EQ(*doc, expect_doc);
+      }
+    };
+
+    check_doc();
+    std::cout << "check success 1" << std::endl;
+
+    ASSERT_TRUE(collection->Flush().ok());
+    auto stats = collection->Stats().value();
+    ASSERT_EQ(stats.doc_count, doc_count);
+    ASSERT_EQ(stats.index_completeness["dense_fp32"], 0);
+
+    auto s = collection->Optimize(OptimizeOptions{concurrency});
+    if (!s.ok()) {
+      std::cout << s.message() << std::endl;
+    }
+    ASSERT_TRUE(s.ok());
+
+    stats = collection->Stats().value();
+    ASSERT_EQ(stats.doc_count, doc_count);
+    ASSERT_EQ(stats.index_completeness["dense_fp32"], 1);
+
+    // check_doc();
+    std::cout << "check success 2" << std::endl;
+
+    collection.reset();
+    auto result = Collection::Open(col_path, options);
+    ASSERT_TRUE(result.has_value());
+    collection = std::move(result.value());
+
+    // check_doc();
+    std::cout << "check success 3" << std::endl;
+  };
+
+  func(MetricType::L2, 0);
+  func(MetricType::L2, 4);
+  func(MetricType::IP, 0);
+  func(MetricType::IP, 4);
+  func(MetricType::COSINE, 0);
+  func(MetricType::COSINE, 4);
+}
+#endif
+
 // **** CORNER CASES **** //
 TEST_F(CollectionTest, CornerCase_CreateAndOpen) {
   // Collection::CreateAndOpen

@@ -47,6 +47,10 @@ Index::Pointer IndexFactory::CreateAndInitIndex(const BaseIndexParam &param) {
     ptr = std::make_shared<IVFIndex>();
   } else if (param.index_type == IndexType::kHNSWRabitq) {
     ptr = std::make_shared<HNSWRabitqIndex>();
+#if DISKANN_SUPPORTED
+  } else if (param.index_type == IndexType::kDiskAnn) {
+    ptr = std::make_shared<DiskAnnIndex>();
+#endif
   } else {
     LOG_ERROR("Unsupported index type: ");
     return nullptr;
