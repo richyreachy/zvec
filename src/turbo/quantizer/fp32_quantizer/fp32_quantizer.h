@@ -25,13 +25,13 @@ namespace turbo {
 
 using namespace zvec::core;
 
-class Fp16Quantizer : public Quantizer {
+class Fp32Quantizer : public Quantizer {
  public:
-  Fp16Quantizer() {
+  Fp32Quantizer() {
     type_ = QuantizeType::kRecordInt8;
   }
 
-  virtual ~Fp16Quantizer() {}
+  virtual ~Fp32Quantizer() {}
 
  public:
   QuantizeType type() const override {
@@ -56,11 +56,6 @@ class Fp16Quantizer : public Quantizer {
 
  private:
   static constexpr uint32_t EXTRA_META_SIZE_COSINE = 4;
-
-  float bias_{0.0f};
-  float scale_{1.0f};
-  float scale_reciprocal_{1.0f};
-  bool inner_product_{false};
 
   IndexMeta meta_{};
   uint32_t original_dim_{0};

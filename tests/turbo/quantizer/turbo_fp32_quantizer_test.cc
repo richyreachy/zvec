@@ -22,7 +22,7 @@ using namespace zvec;
 using namespace zvec::core;
 using namespace zvec::ailego;
 
-TEST(Fp16Quantizer, TestCosine) {
+TEST(Fp16Quantizer, General) {
   std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(0.0, 1.0);
 
@@ -31,6 +31,7 @@ TEST(Fp16Quantizer, TestCosine) {
 
   IndexMeta meta;
   meta.set_meta(IndexMeta::DataType::DT_FP32, DIMENSION);
+  meta.set_metric("Cosine", 0, Params());
 
   auto quantizer = IndexFactory::CreateQuantizer("Fp32Quantizer");
   ASSERT_TRUE(quantizer);

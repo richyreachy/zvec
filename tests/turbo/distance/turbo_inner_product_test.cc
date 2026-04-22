@@ -76,13 +76,12 @@ TEST(InnerProductMetric, TestFp16InnerProduct) {
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
   const size_t COUNT = 1024;
 
-  auto converter = IndexFactory::CreateConverter("HalfFloatConverter");
+  auto quantizer = IndexFactory::CreateQuantizer("Fp16Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("InnerProduct", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto func_avx512fp16 =
       get_distance_func(MetricType::kInnerProduct, DataType::kFp16,
@@ -109,7 +108,7 @@ TEST(InnerProductMetric, TestFp16InnerProduct) {
   IndexQueryMeta qmeta_reformer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_reformer));
   ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
 
@@ -120,7 +119,7 @@ TEST(InnerProductMetric, TestFp16InnerProduct) {
     }
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_reformer));
     ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
 
@@ -221,13 +220,12 @@ TEST(InnerProductMetric, TestFp16InnerProductBatch) {
   const size_t COUNT = 1024;
   const size_t BATCH_SIZE = 16;
 
-  auto converter = IndexFactory::CreateConverter("HalfFloatConverter");
+  auto quantizer = IndexFactory::CreateQuantizer("Fp16Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("InnerProduct", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto batch_func_avx512fp16 =
       get_batch_distance_func(MetricType::kInnerProduct, DataType::kFp16,
@@ -255,7 +253,7 @@ TEST(InnerProductMetric, TestFp16InnerProductBatch) {
   IndexQueryMeta qmeta_reformer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_reformer));
   ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
 
@@ -271,7 +269,7 @@ TEST(InnerProductMetric, TestFp16InnerProductBatch) {
     doc_vecs.push_back(doc_vec);
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_reformer));
     ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
     doc_outs.push_back(doc_out);

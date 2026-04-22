@@ -24,8 +24,7 @@ using namespace zvec::core;
 using namespace zvec::ailego;
 
 TEST(Int8Quantizer, Int8General) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(0.0, 1.0);
 
   const size_t COUNT = 10000;
@@ -87,8 +86,7 @@ TEST(Int8Quantizer, Int8General) {
 
 
 TEST(Int8Quantizer, TestSerialize) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(0.0, 1.0);
 
   const size_t COUNT = 10000;

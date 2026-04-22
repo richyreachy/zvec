@@ -31,13 +31,12 @@ TEST(CosineMetric, TestFp32Cosine) {
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
   const size_t COUNT = 1024;
 
-  auto converter = IndexFactory::CreateConverter("CosineFp32Converter");
+  auto quantizer = IndexFactory::CreateQuantizer("Fp32Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("Cosine", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto func_avx512 = get_distance_func(MetricType::kCosine, DataType::kFp32,
                                        turbo::QuantizeType::kDefault,
@@ -58,12 +57,12 @@ TEST(CosineMetric, TestFp32Cosine) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   for (size_t i = 0; i < COUNT; ++i) {
     ailego::NumericalVector<float> doc_vec(DIMENSION);
@@ -72,9 +71,9 @@ TEST(CosineMetric, TestFp32Cosine) {
     }
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     float score_scalar{0.0f};
     float score_avx{0.0f};
@@ -100,13 +99,12 @@ TEST(CosineMetric, TestFp16Cosine) {
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
   const size_t COUNT = 1024;
 
-  auto converter = IndexFactory::CreateConverter("CosineFp16Converter");
+  auto quantizer = IndexFactory::CreateQuantizer("Fp16Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("Cosine", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto func_avx512fp16 = get_distance_func(
       MetricType::kCosine, turbo::DataType::kFp16,
@@ -131,12 +129,12 @@ TEST(CosineMetric, TestFp16Cosine) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   for (size_t i = 0; i < COUNT; ++i) {
     ailego::NumericalVector<float> doc_vec(DIMENSION);
@@ -145,9 +143,9 @@ TEST(CosineMetric, TestFp16Cosine) {
     }
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     float score_avx512fp16{0.0f};
     float score_avx512{0.0f};
@@ -155,15 +153,15 @@ TEST(CosineMetric, TestFp16Cosine) {
     float score_scalar{0.0f};
 
     func_avx512fp16(doc_out.data(), query_out.data(),
-                    qmeta_reformer.dimension(), &score_avx512fp16);
+                    qmeta_quantizer.dimension(), &score_avx512fp16);
 
-    func_avx512(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_avx512(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
                 &score_avx512);
 
-    func_avx(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_avx(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
              &score_avx);
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
                 &score_scalar);
 
     float epsilon = 0.2;
@@ -182,13 +180,12 @@ TEST(CosineMetric, TestFp32CosineBatch) {
   const size_t COUNT = 1024;
   const size_t BATCH_SIZE = 16;
 
-  auto converter = IndexFactory::CreateConverter("CosineFp32Converter");
+  auto quantizer = IndexFactory::CreateQuantizer("Fp32Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("Cosine", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto batch_func_avx512 = get_batch_distance_func(
       MetricType::kCosine, DataType::kFp32, turbo::QuantizeType::kDefault,
@@ -209,12 +206,12 @@ TEST(CosineMetric, TestFp32CosineBatch) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   std::vector<ailego::NumericalVector<float>> doc_vecs;
   std::vector<std::string> doc_outs;
@@ -227,9 +224,9 @@ TEST(CosineMetric, TestFp32CosineBatch) {
     doc_vecs.push_back(doc_vec);
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     doc_outs.push_back(doc_out);
 
@@ -273,13 +270,12 @@ TEST(CosineMetric, TestFp16CosineBatch) {
   const size_t COUNT = 1024;
   const size_t BATCH_SIZE = 16;
 
-  auto converter = IndexFactory::CreateConverter("CosineFp16Converter");
+  auto quantizer = IndexFactory::CreateQuantizer("Fp16Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("Cosine", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto batch_func_avx512fp16 = get_batch_distance_func(
       MetricType::kCosine, DataType::kFp16, QuantizeType::kDefault,
@@ -304,12 +300,12 @@ TEST(CosineMetric, TestFp16CosineBatch) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   std::vector<ailego::NumericalVector<float>> doc_vecs;
   std::vector<std::string> doc_outs;
@@ -322,9 +318,9 @@ TEST(CosineMetric, TestFp16CosineBatch) {
     doc_vecs.push_back(doc_vec);
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
     doc_outs.push_back(doc_out);
 
     if (doc_vecs.size() == BATCH_SIZE) {
@@ -339,18 +335,18 @@ TEST(CosineMetric, TestFp16CosineBatch) {
       std::vector<float> score_scalar(BATCH_SIZE, 0.0f);
 
       batch_func_avx512fp16(doc_ptrs.data(), query_out.data(),
-                            qmeta_reformer.dimension(), BATCH_SIZE,
+                            qmeta_quantizer.dimension(), BATCH_SIZE,
                             &score_avx512fp16[0]);
 
       batch_func_avx512(doc_ptrs.data(), query_out.data(),
-                        qmeta_reformer.dimension(), BATCH_SIZE,
+                        qmeta_quantizer.dimension(), BATCH_SIZE,
                         &score_avx512[0]);
 
       batch_func_avx(doc_ptrs.data(), query_out.data(),
-                     qmeta_reformer.dimension(), BATCH_SIZE, &score_avx[0]);
+                     qmeta_quantizer.dimension(), BATCH_SIZE, &score_avx[0]);
 
       batch_func_scalar(doc_ptrs.data(), query_out.data(),
-                        qmeta_reformer.dimension(), BATCH_SIZE,
+                        qmeta_quantizer.dimension(), BATCH_SIZE,
                         &score_scalar[0]);
 
       for (size_t j = 0; j < BATCH_SIZE; ++j) {

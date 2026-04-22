@@ -72,12 +72,12 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
   ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   for (size_t i = 0; i < COUNT; ++i) {
     ailego::NumericalVector<float> doc_vec(DIMENSION);
@@ -87,8 +87,8 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     float score_float32{0.0f};
     float score_scalar{0.0f};
@@ -98,16 +98,16 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
 
     func_float32(query_vec.data(), doc_vec.data(), DIMENSION, &score_float32);
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
                 &score_scalar);
 
     func_avx512vnni(doc_out.data(), query_out.data(),
-                    qmeta_reformer.dimension(), &score_avx512vnni);
+                    qmeta_quantizer.dimension(), &score_avx512vnni);
 
-    func_avx2(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_avx2(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
               &score_avx2);
 
-    func_sse(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_sse(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
              &score_sse);
 
     ASSERT_NEAR(score_float32, score_avx512vnni, 0.2 * DIMENSION);
@@ -159,12 +159,12 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
   ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   for (size_t i = 0; i < COUNT; ++i) {
     ailego::NumericalVector<float> doc_vec(DIMENSION);
@@ -174,8 +174,8 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     float score_float32{0.0f};
     float score_scalar{0.0f};
@@ -184,13 +184,13 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
 
     func_float32(query_vec.data(), doc_vec.data(), DIMENSION, &score_float32);
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
                 &score_scalar);
 
-    func_avx2(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_avx2(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
               &score_avx2);
 
-    func_sse(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_sse(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
              &score_sse);
 
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
@@ -241,12 +241,12 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
   ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   for (size_t i = 0; i < COUNT; ++i) {
     ailego::NumericalVector<float> doc_vec(DIMENSION);
@@ -256,8 +256,8 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     float score_float32{0.0f};
     float score_scalar{0.0f};
@@ -266,13 +266,13 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
 
     func_float32(query_vec.data(), doc_vec.data(), DIMENSION, &score_float32);
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
                 &score_scalar);
 
-    func_avx2(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_avx2(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
               &score_avx2);
 
-    func_sse(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_sse(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
              &score_sse);
 
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
@@ -323,12 +323,12 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
   ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   for (size_t i = 0; i < COUNT; ++i) {
     ailego::NumericalVector<float> doc_vec(DIMENSION);
@@ -338,8 +338,8 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     float score_float32{0.0f};
     float score_scalar{0.0f};
@@ -348,13 +348,13 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
 
     func_float32(query_vec.data(), doc_vec.data(), DIMENSION, &score_float32);
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
                 &score_scalar);
 
-    func_avx2(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_avx2(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
               &score_avx2);
 
-    func_sse(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_sse(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
              &score_sse);
 
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
@@ -422,19 +422,20 @@ TEST(QuantizedIntegerMetric, TestInt8Cosine) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta fp32_qmeta_reformer;
+  IndexQueryMeta fp32_qmeta_quantizer;
 
   std::string fp32_query_out;
-  ASSERT_EQ(0, fp32_reformer->transform(query_vec.data(), qmeta,
-                                        &fp32_query_out, &fp32_qmeta_reformer));
-  ASSERT_EQ(fp32_qmeta_reformer.dimension(), fp32_convert_meta.dimension());
+  ASSERT_EQ(0,
+            fp32_reformer->transform(query_vec.data(), qmeta, &fp32_query_out,
+                                     &fp32_qmeta_quantizer));
+  ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
   ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   for (size_t i = 0; i < COUNT; ++i) {
     ailego::NumericalVector<float> doc_vec(DIMENSION);
@@ -450,27 +451,27 @@ TEST(QuantizedIntegerMetric, TestInt8Cosine) {
 
     std::string fp32_doc_out;
     ASSERT_EQ(0, fp32_reformer->transform(doc_vec.data(), qmeta, &fp32_doc_out,
-                                          &fp32_qmeta_reformer));
-    ASSERT_EQ(fp32_qmeta_reformer.dimension(), fp32_convert_meta.dimension());
+                                          &fp32_qmeta_quantizer));
+    ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
     func_float32(fp32_query_out.data(), fp32_doc_out.data(),
-                 fp32_qmeta_reformer.dimension(), &score_float32);
+                 fp32_qmeta_quantizer.dimension(), &score_float32);
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
                 &score_scalar);
 
     func_avx512vnni(doc_out.data(), query_out.data(),
-                    qmeta_reformer.dimension(), &score_avx512vnni);
+                    qmeta_quantizer.dimension(), &score_avx512vnni);
 
-    func_avx2(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_avx2(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
               &score_avx2);
 
-    func_sse(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_sse(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
              &score_sse);
 
     ASSERT_NEAR(score_float32, score_avx512vnni, 0.2 * DIMENSION);
@@ -534,19 +535,20 @@ TEST(QuantizedIntegerMetric, TestInt4Cosine) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta fp32_qmeta_reformer;
+  IndexQueryMeta fp32_qmeta_quantizer;
 
   std::string fp32_query_out;
-  ASSERT_EQ(0, fp32_reformer->transform(query_vec.data(), qmeta,
-                                        &fp32_query_out, &fp32_qmeta_reformer));
-  ASSERT_EQ(fp32_qmeta_reformer.dimension(), fp32_convert_meta.dimension());
+  ASSERT_EQ(0,
+            fp32_reformer->transform(query_vec.data(), qmeta, &fp32_query_out,
+                                     &fp32_qmeta_quantizer));
+  ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
   ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   for (size_t i = 0; i < COUNT; ++i) {
     ailego::NumericalVector<float> doc_vec(DIMENSION);
@@ -561,24 +563,24 @@ TEST(QuantizedIntegerMetric, TestInt4Cosine) {
 
     std::string fp32_doc_out;
     ASSERT_EQ(0, fp32_reformer->transform(doc_vec.data(), qmeta, &fp32_doc_out,
-                                          &fp32_qmeta_reformer));
-    ASSERT_EQ(fp32_qmeta_reformer.dimension(), fp32_convert_meta.dimension());
+                                          &fp32_qmeta_quantizer));
+    ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
     func_float32(fp32_query_out.data(), fp32_doc_out.data(),
-                 fp32_qmeta_reformer.dimension(), &score_float32);
+                 fp32_qmeta_quantizer.dimension(), &score_float32);
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
                 &score_scalar);
 
-    func_avx2(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_avx2(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
               &score_avx2);
 
-    func_sse(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_sse(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
              &score_sse);
 
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
@@ -634,12 +636,12 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProductBatch) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
   ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   std::vector<ailego::NumericalVector<float>> doc_vecs;
   std::vector<std::string> doc_outs;
@@ -654,8 +656,8 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProductBatch) {
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     doc_outs.push_back(doc_out);
 
@@ -678,16 +680,16 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProductBatch) {
                          DIMENSION, &scores_float32[0]);
 
       batch_func_scalar(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                        qmeta_reformer.dimension(), &scores_scalar[0]);
+                        qmeta_quantizer.dimension(), &scores_scalar[0]);
 
       batch_func_avx512vnni(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                            qmeta_reformer.dimension(), &scores_avx512vnni[0]);
+                            qmeta_quantizer.dimension(), &scores_avx512vnni[0]);
 
       batch_func_avx2(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                      qmeta_reformer.dimension(), &scores_avx2[0]);
+                      qmeta_quantizer.dimension(), &scores_avx2[0]);
 
       batch_func_sse(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                     qmeta_reformer.dimension(), &scores_sse[0]);
+                     qmeta_quantizer.dimension(), &scores_sse[0]);
 
       for (size_t j = 0; j < BATCH_SIZE; ++j) {
         ASSERT_NEAR(scores_float32[j], scores_avx512vnni[j], 0.2 * DIMENSION);
@@ -745,12 +747,12 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProductBatch) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
   ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   std::vector<ailego::NumericalVector<float>> doc_vecs;
   std::vector<std::string> doc_outs;
@@ -765,8 +767,8 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProductBatch) {
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     doc_outs.push_back(doc_out);
 
@@ -788,13 +790,13 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProductBatch) {
                          DIMENSION, &scores_float32[0]);
 
       batch_func_scalar(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                        qmeta_reformer.dimension(), &scores_scalar[0]);
+                        qmeta_quantizer.dimension(), &scores_scalar[0]);
 
       batch_func_avx2(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                      qmeta_reformer.dimension(), &scores_avx2[0]);
+                      qmeta_quantizer.dimension(), &scores_avx2[0]);
 
       batch_func_sse(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                     qmeta_reformer.dimension(), &scores_sse[0]);
+                     qmeta_quantizer.dimension(), &scores_sse[0]);
 
       for (size_t j = 0; j < BATCH_SIZE; ++j) {
         ASSERT_NEAR(scores_float32[j], scores_avx2[j], 0.2 * DIMENSION);
@@ -851,12 +853,12 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclideanBatch) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
   ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   std::vector<ailego::NumericalVector<float>> doc_vecs;
   std::vector<std::string> doc_outs;
@@ -871,8 +873,8 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclideanBatch) {
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     doc_outs.push_back(doc_out);
 
@@ -894,13 +896,13 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclideanBatch) {
                          DIMENSION, &scores_float32[0]);
 
       batch_func_scalar(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                        qmeta_reformer.dimension(), &scores_scalar[0]);
+                        qmeta_quantizer.dimension(), &scores_scalar[0]);
 
       batch_func_avx2(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                      qmeta_reformer.dimension(), &scores_avx2[0]);
+                      qmeta_quantizer.dimension(), &scores_avx2[0]);
 
       batch_func_sse(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                     qmeta_reformer.dimension(), &scores_sse[0]);
+                     qmeta_quantizer.dimension(), &scores_sse[0]);
 
       for (size_t j = 0; j < BATCH_SIZE; ++j) {
         ASSERT_NEAR(scores_float32[j], scores_avx2[j], 0.2 * DIMENSION);
@@ -957,12 +959,12 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclideanBatch) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
   ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   std::vector<ailego::NumericalVector<float>> doc_vecs;
   std::vector<std::string> doc_outs;
@@ -977,8 +979,8 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclideanBatch) {
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     doc_outs.push_back(doc_out);
 
@@ -1000,13 +1002,13 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclideanBatch) {
                          DIMENSION, &scores_float32[0]);
 
       batch_func_scalar(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                        qmeta_reformer.dimension(), &scores_scalar[0]);
+                        qmeta_quantizer.dimension(), &scores_scalar[0]);
 
       batch_func_avx2(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                      qmeta_reformer.dimension(), &scores_avx2[0]);
+                      qmeta_quantizer.dimension(), &scores_avx2[0]);
 
       batch_func_sse(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                     qmeta_reformer.dimension(), &scores_sse[0]);
+                     qmeta_quantizer.dimension(), &scores_sse[0]);
 
       for (size_t j = 0; j < BATCH_SIZE; ++j) {
         ASSERT_NEAR(scores_float32[j], scores_avx2[j], 0.2 * DIMENSION);
@@ -1080,18 +1082,19 @@ TEST(QuantizedIntegerMetric, TestInt8CosineBatch) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta fp32_qmeta_reformer;
+  IndexQueryMeta fp32_qmeta_quantizer;
 
   std::string fp32_query_out;
-  ASSERT_EQ(0, fp32_reformer->transform(query_vec.data(), qmeta,
-                                        &fp32_query_out, &fp32_qmeta_reformer));
-  ASSERT_EQ(fp32_qmeta_reformer.dimension(), fp32_convert_meta.dimension());
+  ASSERT_EQ(0,
+            fp32_reformer->transform(query_vec.data(), qmeta, &fp32_query_out,
+                                     &fp32_qmeta_quantizer));
+  ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
   std::string query_out;
   ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   std::vector<ailego::NumericalVector<float>> doc_vecs;
   std::vector<std::string> doc_outs;
@@ -1107,15 +1110,15 @@ TEST(QuantizedIntegerMetric, TestInt8CosineBatch) {
 
     std::string fp32_doc_out;
     ASSERT_EQ(0, fp32_reformer->transform(doc_vec.data(), qmeta, &fp32_doc_out,
-                                          &fp32_qmeta_reformer));
-    ASSERT_EQ(fp32_qmeta_reformer.dimension(), fp32_convert_meta.dimension());
+                                          &fp32_qmeta_quantizer));
+    ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
     fp32_doc_outs.push_back(fp32_doc_out);
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     doc_outs.push_back(doc_out);
 
@@ -1135,20 +1138,20 @@ TEST(QuantizedIntegerMetric, TestInt8CosineBatch) {
       }
 
       batch_func_float32(fp32_doc_ptrs.data(), fp32_query_out.data(),
-                         BATCH_SIZE, fp32_qmeta_reformer.dimension(),
+                         BATCH_SIZE, fp32_qmeta_quantizer.dimension(),
                          &score_float32[0]);
 
       batch_func_scalar(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                        qmeta_reformer.dimension(), &score_scalar[0]);
+                        qmeta_quantizer.dimension(), &score_scalar[0]);
 
       batch_func_avx512vnni(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                            qmeta_reformer.dimension(), &score_avx512vnni[0]);
+                            qmeta_quantizer.dimension(), &score_avx512vnni[0]);
 
       batch_func_avx2(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                      qmeta_reformer.dimension(), &score_avx2[0]);
+                      qmeta_quantizer.dimension(), &score_avx2[0]);
 
       batch_func_sse(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                     qmeta_reformer.dimension(), &score_sse[0]);
+                     qmeta_quantizer.dimension(), &score_sse[0]);
 
       for (size_t j = 0; j < BATCH_SIZE; ++j) {
         ASSERT_NEAR(score_float32[j], score_avx512vnni[j], 0.2 * DIMENSION);
@@ -1219,18 +1222,19 @@ TEST(QuantizedIntegerMetric, TestInt4CosineBatch) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta fp32_qmeta_reformer;
+  IndexQueryMeta fp32_qmeta_quantizer;
 
   std::string fp32_query_out;
-  ASSERT_EQ(0, fp32_reformer->transform(query_vec.data(), qmeta,
-                                        &fp32_query_out, &fp32_qmeta_reformer));
-  ASSERT_EQ(fp32_qmeta_reformer.dimension(), fp32_convert_meta.dimension());
+  ASSERT_EQ(0,
+            fp32_reformer->transform(query_vec.data(), qmeta, &fp32_query_out,
+                                     &fp32_qmeta_quantizer));
+  ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
   std::string query_out;
   ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   std::vector<ailego::NumericalVector<float>> doc_vecs;
   std::vector<std::string> doc_outs;
@@ -1246,15 +1250,15 @@ TEST(QuantizedIntegerMetric, TestInt4CosineBatch) {
 
     std::string fp32_doc_out;
     ASSERT_EQ(0, fp32_reformer->transform(doc_vec.data(), qmeta, &fp32_doc_out,
-                                          &fp32_qmeta_reformer));
-    ASSERT_EQ(fp32_qmeta_reformer.dimension(), fp32_convert_meta.dimension());
+                                          &fp32_qmeta_quantizer));
+    ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
     fp32_doc_outs.push_back(fp32_doc_out);
 
     std::string doc_out;
     ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     doc_outs.push_back(doc_out);
 
@@ -1273,17 +1277,17 @@ TEST(QuantizedIntegerMetric, TestInt4CosineBatch) {
       }
 
       batch_func_float32(fp32_doc_ptrs.data(), fp32_query_out.data(),
-                         BATCH_SIZE, fp32_qmeta_reformer.dimension(),
+                         BATCH_SIZE, fp32_qmeta_quantizer.dimension(),
                          &score_float32[0]);
 
       batch_func_scalar(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                        qmeta_reformer.dimension(), &score_scalar[0]);
+                        qmeta_quantizer.dimension(), &score_scalar[0]);
 
       batch_func_avx2(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                      qmeta_reformer.dimension(), &score_avx2[0]);
+                      qmeta_quantizer.dimension(), &score_avx2[0]);
 
       batch_func_sse(doc_ptrs.data(), query_out.data(), BATCH_SIZE,
-                     qmeta_reformer.dimension(), &score_sse[0]);
+                     qmeta_quantizer.dimension(), &score_sse[0]);
 
       for (size_t j = 0; j < BATCH_SIZE; ++j) {
         ASSERT_NEAR(score_float32[j], score_avx2[j], 0.2 * DIMENSION);
