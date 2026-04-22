@@ -22,7 +22,7 @@ using namespace zvec;
 using namespace zvec::core;
 using namespace zvec::ailego;
 
-TEST(Int8Quantizer, Int8General) {
+TEST(Fp16Quantizer, General) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_real_distribution<float> dist(0.0, 1.0);
@@ -33,10 +33,9 @@ TEST(Int8Quantizer, Int8General) {
   IndexMeta meta;
   meta.set_meta(IndexMeta::DataType::DT_FP32, DIMENSION);
 
-  auto quantizer = IndexFactory::CreateQuantizer("Int8Quantizer");
+  auto quantizer = IndexFactory::CreateQuantizer("Fp16Quantizer");
   ASSERT_TRUE(quantizer);
   zvec::ailego::Params params;
-  params.set("proxima.int8_quantizer.converter.histogram_bins_count", 10000);
   ASSERT_EQ(0u, quantizer->init(meta, params));
 
   auto holder =
@@ -78,3 +77,4 @@ TEST(Int8Quantizer, Int8General) {
       EXPECT_NEAR(iter->data()[i], buffer[i], 1e-6);
     }
   }
+}
