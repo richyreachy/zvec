@@ -42,7 +42,7 @@ class Int4Quantizer : public Quantizer {
 
   int init(const IndexMeta &meta, const ailego::Params &params) override;
 
-  int train(IndexHolder::Pointer holder) const override;
+  int train(IndexHolder::Pointer holder) override;
 
   const IndexMeta &meta(void) const override {
     return meta_;
@@ -53,6 +53,17 @@ class Int4Quantizer : public Quantizer {
 
   int dequantize(const void *in, const IndexQueryMeta &qmeta,
                  std::string *out) const override;
+
+  int serialize(std::string *out) const override;
+
+  int deserialize(std::string &in) override;
+
+  float bias() const {
+    return bias_;
+  }
+  float scale() const {
+    return scale_;
+  }
 
  private:
   static constexpr uint32_t EXTRA_META_SIZE = 20;

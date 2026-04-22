@@ -40,7 +40,7 @@ class Fp16Quantizer : public Quantizer {
 
   int init(const core::IndexMeta &meta, const ailego::Params &params) override;
 
-  int train(core::IndexHolder::Pointer /*holder*/) const override {
+  int train(core::IndexHolder::Pointer /*holder*/) override {
     return 0;
   }
 

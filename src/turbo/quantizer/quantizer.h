@@ -45,7 +45,7 @@ class Quantizer {
   virtual const IndexMeta &meta() const = 0;
 
   //! Train the quantizer with data from an IndexHolder
-  virtual int train(IndexHolder::Pointer /*holder*/) const {
+  virtual int train(IndexHolder::Pointer /*holder*/) {
     return IndexError_NotImplemented;
   }
 
@@ -68,10 +68,9 @@ class Quantizer {
   }
 
   //! Deserialize
-  virtual int deserialize(std::string & /*in*/) const {
+  virtual int deserialize(std::string & /*in*/) {
     return IndexError_NotImplemented;
   }
-
 
  protected:
   QuantizeType type_{QuantizeType::kDefault};

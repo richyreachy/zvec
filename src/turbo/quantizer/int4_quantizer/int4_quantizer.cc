@@ -54,7 +54,7 @@ int Int4Quantizer::init(const core::IndexMeta &meta,
   return 0;
 }
 
-int Int4Quantizer::train(core::IndexHolder::Pointer holder) const {
+int Int4Quantizer::train(core::IndexHolder::Pointer holder) {
   if (holder->dimension() != meta_.dimension() ||
       holder->data_type() != IndexMeta::DataType::DT_FP32) {
     return IndexError_Mismatch;
@@ -93,10 +93,13 @@ int Int4Quantizer::train(core::IndexHolder::Pointer holder) const {
     return IndexError_Runtime;
   }
 
+  bias_ = quantizer_.bias();
+  scale_ = quantizer_.scale();
+
   LOG_DEBUG(
       "IntegerQuantizerConverter train done, costtime %zums, scale %f, bias "
       "%f",
-      (size_t)timer.milli_seconds(), quantizer_.scale(), quantizer_.bias());
+      (size_t)timer.milli_seconds(), scale_, bias_);
 
   return 0;
 }
@@ -154,6 +157,29 @@ int Int4Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
     }
   }
 
+  return 0;
+}
+
+int Int4Quantizer::serialize(std::string *out) const {
+  if (!out) {
+    return IndexError_InvalidArgument;
+  }
+  out->resize(sizeof(float) * 2);
+  float *buf = reinterpret_cast<float *>(&(*out)[0]);
+  buf[0] = quantizer_.bias();
+  buf[1] = quantizer_.scale();
+  return 0;
+}
+
+int Int4Quantizer::deserialize(std::string &in) {
+  if (in.size() < sizeof(float) * 2) {
+    return IndexError_InvalidArgument;
+  }
+  const float *buf = reinterpret_cast<const float *>(in.data());
+  bias_ = buf[0];
+  scale_ = buf[1];
+  quantizer_.set_bias(bias_);
+  quantizer_.set_scale(scale_);
   return 0;
 }
 

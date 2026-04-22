@@ -16,6 +16,7 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/params.h>
 #include <zvec/turbo/turbo.h>
+#include "quantizer/int4_quantizer/int4_quantizer.h"
 #include "zvec/core/framework/index_factory.h"
 
 using namespace zvec;
@@ -73,6 +74,110 @@ TEST(Int4Quantizer, General) {
         0, quantizer->dequantize(quant_buffer.data(), qmeta, &dequant_buffer));
 
     const float *original_data = reinterpret_cast<const float *>(iter->data());
+    const float *dequantize_data =
+        reinterpret_cast<const float *>(dequant_buffer.data());
+    for (size_t i = 0; i < holder->dimension(); ++i) {
+      EXPECT_NEAR(original_data[i], dequantize_data[i], 0.15);
+    }
+  }
+}
+
+TEST(Int4Quantizer, TestSerialize) {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<float> dist(0.0, 1.0);
+
+  const size_t COUNT = 10000;
+  const size_t DIMENSION = 12;
+
+  IndexMeta meta;
+  meta.set_meta(IndexMeta::DataType::DT_FP32, DIMENSION);
+
+  auto quantizer = IndexFactory::CreateQuantizer("Int4Quantizer");
+  ASSERT_TRUE(quantizer);
+  zvec::ailego::Params params;
+  ASSERT_EQ(0u, quantizer->init(meta, params));
+
+  auto holder =
+      std::make_shared<MultiPassIndexHolder<IndexMeta::DataType::DT_FP32>>(
+          DIMENSION);
+  for (size_t i = 0; i < COUNT; ++i) {
+    zvec::ailego::NumericalVector<float> vec(DIMENSION);
+    for (size_t j = 0; j < DIMENSION; ++j) {
+      vec[j] = dist(gen);
+    }
+    holder->emplace(i + 1, vec);
+  }
+  EXPECT_EQ(COUNT, holder->count());
+  EXPECT_EQ(IndexMeta::DataType::DT_FP32, holder->data_type());
+
+  ASSERT_EQ(0u, quantizer->train(holder));
+
+  std::string param_buffer;
+  ASSERT_EQ(0u, quantizer->serialize(&param_buffer));
+
+  // new quantizer
+  auto quantizer_new = IndexFactory::CreateQuantizer("Int4Quantizer");
+  ASSERT_TRUE(quantizer_new);
+  zvec::ailego::Params params_new;
+  ASSERT_EQ(0u, quantizer_new->init(meta, params_new));
+  ASSERT_EQ(0u, quantizer_new->deserialize(param_buffer));
+
+  zvec::turbo::Int4Quantizer *int4_quantizer =
+      reinterpret_cast<zvec::turbo::Int4Quantizer *>(quantizer.get());
+
+  zvec::turbo::Int4Quantizer *int4_quantizer_new =
+      reinterpret_cast<zvec::turbo::Int4Quantizer *>(quantizer_new.get());
+
+  ASSERT_EQ(int4_quantizer->bias(), int4_quantizer_new->bias());
+  ASSERT_EQ(int4_quantizer->scale(), int4_quantizer_new->scale());
+
+  auto iter = holder->create_iterator();
+  std::string quant_buffer;
+  std::string dequant_buffer;
+
+  for (; iter->is_valid(); iter->next()) {
+    EXPECT_TRUE(iter->data());
+
+    IndexQueryMeta qmeta;
+    quant_buffer.clear();
+    EXPECT_EQ(0, quantizer->quantize(
+                     iter->data(),
+                     IndexQueryMeta(holder->data_type(), holder->dimension()),
+                     &quant_buffer, &qmeta));
+    EXPECT_EQ(IndexMeta::DataType::DT_INT4, qmeta.data_type());
+    EXPECT_EQ(holder->dimension(), qmeta.dimension());
+
+    dequant_buffer.clear();
+    EXPECT_EQ(
+        0, quantizer->dequantize(quant_buffer.data(), qmeta, &dequant_buffer));
+
+    const float *original_data = reinterpret_cast<const float *>(iter->data());
+    const float *dequantize_data =
+        reinterpret_cast<const float *>(dequant_buffer.data());
+    for (size_t i = 0; i < holder->dimension(); ++i) {
+      EXPECT_NEAR(original_data[i], dequantize_data[i], 0.15);
+    }
+  }
+
+  auto iter2 = holder->create_iterator();
+  for (; iter2->is_valid(); iter2->next()) {
+    EXPECT_TRUE(iter2->data());
+
+    IndexQueryMeta qmeta;
+    quant_buffer.clear();
+    EXPECT_EQ(0, quantizer_new->quantize(
+                     iter2->data(),
+                     IndexQueryMeta(holder->data_type(), holder->dimension()),
+                     &quant_buffer, &qmeta));
+    EXPECT_EQ(IndexMeta::DataType::DT_INT4, qmeta.data_type());
+    EXPECT_EQ(holder->dimension(), qmeta.dimension());
+
+    dequant_buffer.clear();
+    EXPECT_EQ(0, quantizer_new->dequantize(quant_buffer.data(), qmeta,
+                                           &dequant_buffer));
+
+    const float *original_data = reinterpret_cast<const float *>(iter2->data());
     const float *dequantize_data =
         reinterpret_cast<const float *>(dequant_buffer.data());
     for (size_t i = 0; i < holder->dimension(); ++i) {

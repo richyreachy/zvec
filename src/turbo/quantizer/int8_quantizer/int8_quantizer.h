@@ -41,7 +41,7 @@ class Int8Quantizer : public Quantizer {
 
   int init(const core::IndexMeta &meta, const ailego::Params &params) override;
 
-  int train(core::IndexHolder::Pointer holder) const override;
+  int train(core::IndexHolder::Pointer holder) override;
 
   const core::IndexMeta &meta(void) const override {
     return meta_;
@@ -53,13 +53,24 @@ class Int8Quantizer : public Quantizer {
   int dequantize(const void *in, const core::IndexQueryMeta &qmeta,
                  std::string *out) const override;
 
+  int serialize(std::string *out) const override;
+
+  int deserialize(std::string &in) override;
+
+  float bias() const {
+    return bias_;
+  }
+  float scale() const {
+    return scale_;
+  }
+
  private:
   static constexpr uint32_t EXTRA_META_SIZE_INT8 = 20;
   const std::string INT8_QUANTIZER_BIAS = "int8_quantizer.bias";
   const std::string INT8_QUANTIZER_SCALE = "int8_quantizer.scale";
 
-  float bias_{0.0f};
-  float scale_{1.0f};
+  mutable float bias_{0.0f};
+  mutable float scale_{1.0f};
   float scale_reciprocal_{1.0f};
   bool inner_product_{false};
 
