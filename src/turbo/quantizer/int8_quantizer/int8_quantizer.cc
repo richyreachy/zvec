@@ -38,17 +38,26 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
 
   auto metric_name = meta.metric_name();
   auto reciprocal = scale_ == 0.0 ? 1.0f : (1.0f / scale_);
+
   if (metric_name == "SquaredEuclidean") {
     scale_reciprocal_ = reciprocal * reciprocal;
+    meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8);
   } else if (metric_name == "Euclidean") {
     scale_reciprocal_ = reciprocal;
+    meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8);
   } else if (metric_name == "InnerProduct") {
     inner_product_ = true;
     scale_reciprocal_ = reciprocal;  // missing query part
+    meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8);
+  } else if (metric_name == "Cosine") {
+    inner_product_ = true;
+    scale_reciprocal_ = reciprocal;  // missing query part
+    meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8 + EXTRA_META_SIZE_COSINE);
   } else {
     LOG_WARN("Unsupported normalize the score for %s", metric_name.c_str());
     scale_reciprocal_ = 1.0f;
   }
+
   LOG_DEBUG("Init integer reformer, bias %f, scale %f", bias_, scale_);
   return 0;
 }

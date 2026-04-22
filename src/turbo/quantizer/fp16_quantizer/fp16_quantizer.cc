@@ -30,6 +30,11 @@ int Fp16Quantizer::init(const IndexMeta &meta,
 
   meta_.set_meta(IndexMeta::DataType::DT_FP16, meta.dimension());
 
+  auto metric_name = meta.metric_name();
+  if (metric_name == "Cosine") {
+    meta_.set_extra_meta_size(EXTRA_META_SIZE_COSINE);
+  }
+
   return 0;
 }
 

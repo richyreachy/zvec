@@ -66,7 +66,8 @@ class Int4Quantizer : public Quantizer {
   }
 
  private:
-  static constexpr uint32_t EXTRA_META_SIZE = 20;
+  static constexpr uint32_t EXTRA_META_SIZE_INT4 = 20;
+  static constexpr uint32_t EXTRA_META_SIZE_COSINE = 4;
   const std::string INT4_QUANTIZER_BIAS = "int4_quantizer.bias";
   const std::string INT4_QUANTIZER_SCALE = "int4_quantizer.scale";
 

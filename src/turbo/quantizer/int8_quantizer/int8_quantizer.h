@@ -66,6 +66,7 @@ class Int8Quantizer : public Quantizer {
 
  private:
   static constexpr uint32_t EXTRA_META_SIZE_INT8 = 20;
+  static constexpr uint32_t EXTRA_META_SIZE_COSINE = 4;
   const std::string INT8_QUANTIZER_BIAS = "int8_quantizer.bias";
   const std::string INT8_QUANTIZER_SCALE = "int8_quantizer.scale";
 

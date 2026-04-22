@@ -55,7 +55,7 @@ class Fp16Quantizer : public Quantizer {
                  std::string *out) const override;
 
  private:
-  static constexpr uint32_t EXTRA_META_SIZE_COSINE = 20;
+  static constexpr uint32_t EXTRA_META_SIZE_COSINE = 2;
 
   float bias_{0.0f};
   float scale_{1.0f};

@@ -3852,8 +3852,8 @@ TEST_F(HnswStreamerTest, TestTurboSquaredEuclideanInt8Quantizer) {
   ailego::Params params;
   params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 50);
   params.set(PARAM_HNSW_STREAMER_SCALING_FACTOR, 16);
-  params.set(PARAM_HNSW_STREAMER_EFCONSTRUCTION, 100);
-  params.set(PARAM_HNSW_STREAMER_EF, 100);
+  params.set(PARAM_HNSW_STREAMER_EFCONSTRUCTION, 200);
+  params.set(PARAM_HNSW_STREAMER_EF, 200);
   params.set(PARAM_HNSW_STREAMER_BRUTE_FORCE_THRESHOLD, 1000U);
   params.set(PARAM_HNSW_STREAMER_GET_VECTOR_ENABLE, true);
 
