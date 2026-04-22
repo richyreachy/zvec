@@ -32,7 +32,7 @@ TEST(Fp16Quantizer, TestCosine) {
   IndexMeta meta;
   meta.set_meta(IndexMeta::DataType::DT_FP32, DIMENSION);
 
-  auto quantizer = IndexFactory::CreateQuantizer("Fp32Quantizer");
+  auto quantizer = IndexFactory::CreateQuantizer("Fp16Quantizer");
   ASSERT_TRUE(quantizer);
   zvec::ailego::Params params;
   ASSERT_EQ(0u, quantizer->init(meta, params));

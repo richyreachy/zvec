@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "quantizer/fp32_quantizer/fp32_quantizer.h"
 #include <cmath>
 #include <cstring>
 #include <vector>
@@ -19,23 +20,20 @@
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_logger.h>
 #include "core/quantizer/record_quantizer.h"
-#include "quantizer/fp16_quantizer/fp16_quantizer.h"
 
 namespace zvec {
 namespace turbo {
 
-int Fp16Quantizer::init(const IndexMeta &meta,
+int Fp32Quantizer::init(const IndexMeta &meta,
                         const ailego::Params & /*params*/) {
   meta_ = meta;
 
   meta_.set_meta(IndexMeta::DataType::DT_FP32, meta.dimension());
 
   auto metric_name = meta.metric_name();
-  if (metric_name != "Cosine") {
-    return IndexError_InvalidArgument;
+  if (metric_name == "Cosine") {
+    meta_.set_extra_meta_size(EXTRA_META_SIZE_COSINE);
   }
-
-  meta_.set_extra_meta_size(EXTRA_META_SIZE_COSINE);
 
   return 0;
 }
@@ -46,14 +44,21 @@ int Fp32Quantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
     return IndexError_Unsupported;
   }
 
+  size_t byte_size = qmeta.dimension() * sizeof(float);
+  out->resize(byte_size);
+  std::memcpy(&(*out)[0], query, byte_size);
+
   *ometa = qmeta;
-  ometa->set_meta(IndexMeta::DataType::DT_FP16, qmeta.dimension());
+  ometa->set_meta(IndexMeta::DataType::DT_FP32, qmeta.dimension());
 
   return 0;
 }
 
 int Fp32Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
                               std::string *out) const {
+  size_t byte_size = qmeta.dimension() * sizeof(float);
+  out->resize(byte_size);
+  std::memcpy(out->data(), in, byte_size);
   return 0;
 }
 

@@ -37,16 +37,14 @@ int RecordInt8Quantizer::init(const core::IndexMeta &meta,
   meta_ = meta;
   original_dim_ = meta.dimension();
   data_type_ = core::IndexMeta::DataType::DT_INT8;
-  is_cosine_ = (meta.metric_name() == "Cosine");
+  meta_.set_meta(data_type_, meta_.dimension());
 
-  // The QuantizedInteger distance functions subtract a fixed number of
-  // extra-metadata bytes from the stored dimension to recover original_dim:
-  //   SquaredEuclidean / InnerProduct:  original_dim = dim - 20
-  //   Cosine:                           original_dim = dim - 24
-  // We must add the matching offset so the metric recovers original_dim.
-  const uint32_t extra_dims =
-      is_cosine_ ? EXTRA_META_SIZE : EXTRA_META_SIZE_INT8;
-  meta_.set_meta(data_type_, original_dim_ + extra_dims);
+  if (meta.metric_name() == "Cosine") {
+    is_cosine_ = true;
+    meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8 + EXTRA_META_SIZE_COSINE);
+  } else {
+    meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8);
+  }
 
   ailego::Params metric_params;
   metric_params.set("proxima.quantized_integer.metric.origin_metric_name",
@@ -88,7 +86,8 @@ int RecordInt8Quantizer::quantize(const void *record,
   }
 
   // Quantize to INT8
-  out->resize(meta_.element_size(), 0);
+  out->resize(
+      original_dim_ + (is_cosine_ ? EXTRA_META_SIZE : EXTRA_META_SIZE_INT8), 0);
   core::RecordQuantizer::quantize_record(quantize_input, original_dim_,
                                          core::IndexMeta::DataType::DT_INT8,
                                          false, &(*out)[0]);
@@ -111,8 +110,8 @@ int RecordInt8Quantizer::quantize(const void *record,
       norm *= dequant_norm;
     }
 
-    // Store the adjusted norm in the last 4 bytes of extras
-    std::memcpy(&(*out)[meta_.element_size() - sizeof(float)], &norm,
+    // Store the adjusted norm after the INT8 extras
+    std::memcpy(&(*out)[original_dim_ + EXTRA_META_SIZE_INT8], &norm,
                 sizeof(float));
   }
 
@@ -136,7 +135,7 @@ int RecordInt8Quantizer::dequantize(const void *in,
     float norm = 0.0f;
     std::memcpy(
         &norm,
-        static_cast<const char *>(in) + meta_.element_size() - sizeof(float),
+        static_cast<const char *>(in) + original_dim_ + EXTRA_META_SIZE_INT8,
         sizeof(float));
     for (uint32_t i = 0; i < original_dim_; ++i) {
       dst[i] *= norm;
