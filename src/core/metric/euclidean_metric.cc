@@ -601,22 +601,22 @@ class SquaredEuclideanMetric : public IndexMetric {
       case IndexMeta::DataType::DT_FP16:
         return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
             ailego::BaseDistance<ailego::SquaredEuclideanDistanceMatrix,
-                                 ailego::Float16, 1, 1>::ComputeBatch);
+                                 ailego::Float16, 12, 2>::ComputeBatch);
 
       case IndexMeta::DataType::DT_FP32:
         return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
             ailego::BaseDistance<ailego::SquaredEuclideanDistanceMatrix, float,
-                                 1, 1>::ComputeBatch);
+                                 12, 2>::ComputeBatch);
 
       case IndexMeta::DataType::DT_INT8:
         return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
             ailego::BaseDistance<ailego::SquaredEuclideanDistanceMatrix, int8_t,
-                                 1, 1>::ComputeBatch);
+                                 12, 2>::ComputeBatch);
 
       case IndexMeta::DataType::DT_INT4:
         return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
             ailego::BaseDistance<ailego::SquaredEuclideanDistanceMatrix,
-                                 uint8_t, 1, 1>::ComputeBatch);
+                                 uint8_t, 12, 2>::ComputeBatch);
 
       default:
         return nullptr;
@@ -716,6 +716,34 @@ class EuclideanMetric : public IndexMetric {
 
       case IndexMeta::DataType::DT_INT4:
         return EuclideanDistanceMatrixInt4(m, n);
+
+      default:
+        return nullptr;
+    }
+  }
+
+  //! Retrieve distance function for query
+  MatrixBatchDistance batch_distance(void) const override {
+    switch (data_type_) {
+      case IndexMeta::DataType::DT_FP16:
+        return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
+            ailego::BaseDistance<ailego::EuclideanDistanceMatrix,
+                                 ailego::Float16, 12, 2>::ComputeBatch);
+
+      case IndexMeta::DataType::DT_FP32:
+        return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
+            ailego::BaseDistance<ailego::EuclideanDistanceMatrix, float, 12,
+                                 2>::ComputeBatch);
+
+      case IndexMeta::DataType::DT_INT8:
+        return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
+            ailego::BaseDistance<ailego::EuclideanDistanceMatrix, int8_t, 12,
+                                 2>::ComputeBatch);
+
+      case IndexMeta::DataType::DT_INT4:
+        return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
+            ailego::BaseDistance<ailego::EuclideanDistanceMatrix, uint8_t, 12,
+                                 2>::ComputeBatch);
 
       default:
         return nullptr;
