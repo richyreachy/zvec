@@ -68,8 +68,8 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
         )
 
         file(GLOB_RECURSE SSE_SRCS 
-          ${CMAKE_CURRENT_SOURCE_DIR}/sse/*.cc
-          ${CMAKE_CURRENT_SOURCE_DIR}/sse/*.c)
+          ${CMAKE_CURRENT_SOURCE_DIR}/*/sse/*.cc
+          ${CMAKE_CURRENT_SOURCE_DIR}/*/sse/*.c)
         set_source_files_properties(
             ${SSE_SRCS}
             PROPERTIES
