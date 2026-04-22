@@ -31,6 +31,11 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
     return IndexError_InvalidArgument;
   }
 
+  data_type_ = IndexMeta::DataType::DT_INT8;
+  meta_ = meta;
+  meta_.set_meta(data_type_, meta.dimension());
+  original_dim_ = meta.dimension();
+
   quantizer_.set_bias(bias_);
   quantizer_.set_scale(scale_);
 
@@ -40,8 +45,7 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
     scale_reciprocal_ = reciprocal * reciprocal;
   } else if (metric_name == "Euclidean") {
     scale_reciprocal_ = reciprocal;
-  } else if (metric_name == "InnerProduct" ||
-             metric_name == "MipsSquaredEuclidean") {
+  } else if (metric_name == "InnerProduct") {
     inner_product_ = true;
     scale_reciprocal_ = reciprocal;  // missing query part
   } else {
@@ -49,6 +53,53 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
     scale_reciprocal_ = 1.0f;
   }
   LOG_DEBUG("Init integer reformer, bias %f, scale %f", bias_, scale_);
+  return 0;
+}
+
+int Int8Quantizer::train(core::IndexHolder::Pointer holder) const {
+  if (holder->dimension() != meta_.dimension() ||
+      holder->data_type() != IndexMeta::DataType::DT_FP32) {
+    return IndexError_Mismatch;
+  }
+
+  ailego::ElapsedTime timer;
+
+  //! step1: compute max/min value
+  auto iter = holder->create_iterator();
+  if (!iter) {
+    LOG_ERROR("Failed to create iterator of holder");
+    return IndexError_Runtime;
+  }
+  std::vector<float> features;
+  float max = -std::numeric_limits<float>::max();
+  float min = std::numeric_limits<float>::max();
+  for (; iter->is_valid(); iter->next()) {
+    const float *vec = reinterpret_cast<const float *>(iter->data());
+    for (size_t i = 0; i < meta_.dimension(); ++i) {
+      max = std::max(max, vec[i]);
+      min = std::min(min, vec[i]);
+      features.emplace_back(vec[i]);
+    }
+  }
+  quantizer_.set_max(max);
+  quantizer_.set_min(min);
+
+  //! step2: feed quantizer with training data
+  for (size_t i = 0; i < features.size(); i += meta_.dimension()) {
+    quantizer_.feed(&features[i], meta_.dimension());
+  }
+
+  //! step3: feed quantizer with training data
+  if (!quantizer_.train()) {
+    LOG_ERROR("Quantizer train failed");
+    return IndexError_Runtime;
+  }
+
+  LOG_DEBUG(
+      "IntegerQuantizerConverter train done, costtime %zums, scale %f, bias "
+      "%f",
+      (size_t)timer.milli_seconds(), quantizer_.scale(), quantizer_.bias());
+
   return 0;
 }
 

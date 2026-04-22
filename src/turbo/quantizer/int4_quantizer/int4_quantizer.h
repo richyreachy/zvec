@@ -42,6 +42,8 @@ class Int4Quantizer : public Quantizer {
 
   int init(const IndexMeta &meta, const ailego::Params &params) override;
 
+  int train(IndexHolder::Pointer holder) const override;
+
   const IndexMeta &meta(void) const override {
     return meta_;
   }
@@ -62,7 +64,7 @@ class Int4Quantizer : public Quantizer {
   float scale_reciprocal_{1.0f};
   bool inner_product_{false};
 
-  ailego::EntropyInt8Quantizer quantizer_;
+  mutable ailego::EntropyInt4Quantizer quantizer_;
   IndexMeta meta_{};
   uint32_t original_dim_{0};
   IndexMeta::DataType data_type_{};

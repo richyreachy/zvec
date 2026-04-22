@@ -26,14 +26,16 @@ namespace turbo {
 
 int Int4Quantizer::init(const core::IndexMeta &meta,
                         const ailego::Params &params) {
-  if (!params.get(INT4_QUANTIZER_BIAS, &bias_) ||
-      !params.get(INT4_QUANTIZER_SCALE, &scale_)) {
-    LOG_ERROR("Init IntegerReformer failed, required params bias and scale");
-    return IndexError_InvalidArgument;
-  }
+  data_type_ = IndexMeta::DataType::DT_INT4;
+  meta_ = meta;
+  meta_.set_meta(data_type_, meta.dimension());
+  original_dim_ = meta.dimension();
 
-  quantizer_.set_bias(bias_);
-  quantizer_.set_scale(scale_);
+  if (params.get(INT4_QUANTIZER_BIAS, &bias_) &&
+      params.get(INT4_QUANTIZER_SCALE, &scale_)) {
+    quantizer_.set_bias(bias_);
+    quantizer_.set_scale(scale_);
+  }
 
   auto metric_name = meta.metric_name();
   auto reciprocal = scale_ == 0.0 ? 1.0f : (1.0f / scale_);
@@ -41,8 +43,7 @@ int Int4Quantizer::init(const core::IndexMeta &meta,
     scale_reciprocal_ = reciprocal * reciprocal;
   } else if (metric_name == "Euclidean") {
     scale_reciprocal_ = reciprocal;
-  } else if (metric_name == "InnerProduct" ||
-             metric_name == "MipsSquaredEuclidean") {
+  } else if (metric_name == "InnerProduct") {
     inner_product_ = true;
     scale_reciprocal_ = reciprocal;  // missing query part
   } else {
@@ -50,6 +51,53 @@ int Int4Quantizer::init(const core::IndexMeta &meta,
     scale_reciprocal_ = 1.0f;
   }
   LOG_DEBUG("Init integer reformer, bias %f, scale %f", bias_, scale_);
+  return 0;
+}
+
+int Int4Quantizer::train(core::IndexHolder::Pointer holder) const {
+  if (holder->dimension() != meta_.dimension() ||
+      holder->data_type() != IndexMeta::DataType::DT_FP32) {
+    return IndexError_Mismatch;
+  }
+
+  ailego::ElapsedTime timer;
+
+  //! step1: compute max/min value
+  auto iter = holder->create_iterator();
+  if (!iter) {
+    LOG_ERROR("Failed to create iterator of holder");
+    return IndexError_Runtime;
+  }
+  std::vector<float> features;
+  float max = -std::numeric_limits<float>::max();
+  float min = std::numeric_limits<float>::max();
+  for (; iter->is_valid(); iter->next()) {
+    const float *vec = reinterpret_cast<const float *>(iter->data());
+    for (size_t i = 0; i < meta_.dimension(); ++i) {
+      max = std::max(max, vec[i]);
+      min = std::min(min, vec[i]);
+      features.emplace_back(vec[i]);
+    }
+  }
+  quantizer_.set_max(max);
+  quantizer_.set_min(min);
+
+  //! step2: feed quantizer with training data
+  for (size_t i = 0; i < features.size(); i += meta_.dimension()) {
+    quantizer_.feed(&features[i], meta_.dimension());
+  }
+
+  //! step3: feed quantizer with training data
+  if (!quantizer_.train()) {
+    LOG_ERROR("Quantizer train failed");
+    return IndexError_Runtime;
+  }
+
+  LOG_DEBUG(
+      "IntegerQuantizerConverter train done, costtime %zums, scale %f, bias "
+      "%f",
+      (size_t)timer.milli_seconds(), quantizer_.scale(), quantizer_.bias());
+
   return 0;
 }
 
@@ -67,7 +115,7 @@ int Int4Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
   ometa->set_meta(data_type_, qmeta.dimension());
   out->resize(IndexMeta::ElementSizeof(ometa->data_type(), ometa->dimension()));
   const float *vec = reinterpret_cast<const float *>(record);
-  auto ovec = reinterpret_cast<int8_t *>(&(*out)[0]);
+  auto ovec = reinterpret_cast<uint8_t *>(&(*out)[0]);
 
   if (!inner_product_) {
     quantizer_.encode(vec, qmeta.dimension(), ovec);
@@ -94,7 +142,7 @@ int Int4Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
   }
 
   size_t dim = qmeta.dimension();
-  const int8_t *ivec = reinterpret_cast<const int8_t *>(in);
+  const uint8_t *ivec = reinterpret_cast<const uint8_t *>(in);
   out->resize(dim * sizeof(float));
   float *ovec = reinterpret_cast<float *>(&(*out)[0]);
 

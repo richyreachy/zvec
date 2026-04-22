@@ -36,7 +36,8 @@ TEST(Int8Quantizer, Int8General) {
   auto quantizer = IndexFactory::CreateQuantizer("Int8Quantizer");
   ASSERT_TRUE(quantizer);
   zvec::ailego::Params params;
-  params.set("proxima.int8_quantizer.converter.histogram_bins_count", 10000);
+  params.set("int8_quantizer.bias", 0.0f);
+  params.set("int8_quantizer.scale", 127.0f);
   ASSERT_EQ(0u, quantizer->init(meta, params));
 
   auto holder =
@@ -55,26 +56,30 @@ TEST(Int8Quantizer, Int8General) {
   ASSERT_EQ(0u, quantizer->train(holder));
 
   auto iter = holder->create_iterator();
-  std::string buffer;
+  std::string quant_buffer;
+  std::string dequant_buffer;
 
   for (; iter->is_valid(); iter->next()) {
     EXPECT_TRUE(iter->data());
 
     IndexQueryMeta qmeta;
+    quant_buffer.clear();
     EXPECT_EQ(0, quantizer->quantize(
                      iter->data(),
                      IndexQueryMeta(holder->data_type(), holder->dimension()),
-                     &buffer, &qmeta));
+                     &quant_buffer, &qmeta));
     EXPECT_EQ(IndexMeta::DataType::DT_INT8, qmeta.data_type());
     EXPECT_EQ(holder->dimension(), qmeta.dimension());
 
-    buffer.clear();
-    EXPECT_EQ(0, quantizer->dequantize(
-                     iter->data(),
-                     IndexQueryMeta(holder->data_type(), holder->dimension()),
-                     &buffer));
+    dequant_buffer.clear();
+    EXPECT_EQ(
+        0, quantizer->dequantize(quant_buffer.data(), qmeta, &dequant_buffer));
 
+    const float *original_data = reinterpret_cast<const float *>(iter->data());
+    const float *dequantize_data =
+        reinterpret_cast<const float *>(dequant_buffer.data());
     for (size_t i = 0; i < holder->dimension(); ++i) {
-      EXPECT_NEAR(iter->data()[i], buffer[i], 1e-6);
+      EXPECT_NEAR(original_data[i], dequantize_data[i], 1e-2);
     }
   }
+}

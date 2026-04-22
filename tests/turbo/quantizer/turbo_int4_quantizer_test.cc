@@ -33,11 +33,11 @@ TEST(Int4Quantizer, General) {
   IndexMeta meta;
   meta.set_meta(IndexMeta::DataType::DT_FP32, DIMENSION);
 
-  auto converter = IndexFactory::CreateConverter("Int4Quantizer");
-  ASSERT_TRUE(converter);
+  auto quantizer = IndexFactory::CreateQuantizer("Int4Quantizer");
+  ASSERT_TRUE(quantizer);
   zvec::ailego::Params params;
   params.set("proxima.int4_quantizer.converter.histogram_bins_count", 10000);
-  ASSERT_EQ(0u, converter->init(meta, params));
+  ASSERT_EQ(0u, quantizer->init(meta, params));
 
   auto holder =
       std::make_shared<MultiPassIndexHolder<IndexMeta::DataType::DT_FP32>>(
@@ -46,21 +46,18 @@ TEST(Int4Quantizer, General) {
     zvec::ailego::NumericalVector<float> vec(DIMENSION);
     for (size_t j = 0; j < DIMENSION; ++j) {
       vec[j] = dist(gen);
-      if (i == 0) printf(" %f", vec[j]);
     }
-    if (i == 0) printf("\n");
     holder->emplace(i + 1, vec);
   }
   EXPECT_EQ(COUNT, holder->count());
   EXPECT_EQ(IndexMeta::DataType::DT_FP32, holder->data_type());
 
-  auto two_pass_holder = IndexHelper::MakeTwoPassHolder(std::move(holder));
-  ASSERT_EQ(0u, quantizer->train(two_pass_holder));
+  ASSERT_EQ(0u, quantizer->train(holder));
 
   auto iter = holder->create_iterator();
   std::string buffer;
 
-  for (; iter->is_valid(); iter->next(), iter2->next()) {
+  for (; iter->is_valid(); iter->next()) {
     EXPECT_TRUE(iter->data());
 
     IndexQueryMeta qmeta;
@@ -71,21 +68,16 @@ TEST(Int4Quantizer, General) {
     EXPECT_EQ(IndexMeta::DataType::DT_INT4, qmeta.data_type());
     EXPECT_EQ(holder->dimension(), qmeta.dimension());
 
-
     EXPECT_EQ(0, quantizer->dequantize(
                      iter->data(),
                      IndexQueryMeta(holder->data_type(), holder->dimension()),
-                     &buffer, &qmeta));
-    EXPECT_EQ(IndexMeta::DataType::DT_INT4, qmeta.data_type());
-    EXPECT_EQ(holder->dimension(), qmeta.dimension());
-    EXPECT_EQ(buffer, buffer2);
+                     &buffer));
 
-    EXPECT_EQ(0, quantizer->quantize(iter->data(),
-                                     IndexQueryMeta(holder->data_type(),
-                                                    holder->dimension() / 3),
-                                     &buffer, &qmeta));
-    EXPECT_EQ(IndexMeta::DataType::DT_INT4, qmeta.data_type());
-    EXPECT_EQ(holder->dimension() / 3, qmeta.dimension());
-    ASSERT_EQ(buffer, buffer2);
+    const float *original_data = reinterpret_cast<const float *>(iter->data());
+    const float *dequantize_data =
+        reinterpret_cast<const float *>(buffer.data());
+    for (size_t i = 0; i < holder->dimension(); ++i) {
+      EXPECT_NEAR(original_data[i], dequantize_data[i], 1e-6);
+    }
   }
 }
