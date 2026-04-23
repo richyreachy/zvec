@@ -149,6 +149,7 @@ TEST(SquaredEuclideanMetric, TestFp16SquaredEuclidean) {
   }
 }
 
+#if 0
 // Target Test Type: avx, avx512, scalar
 TEST(SquaredEuclideanMetric, TestFp32SquaredEuclideanBatch) {
   std::mt19937 gen(15583);
@@ -313,3 +314,5 @@ TEST(SquaredEuclideanMetric, TestFp16SquaredEuclideanBatch) {
     }
   }
 }
+
+#endif

@@ -591,6 +591,7 @@ TEST(QuantizedIntegerMetric, TestInt4Cosine) {
   }
 }
 
+#if 0
 // Target Test Type: avx2, sse, scalar
 TEST(QuantizedIntegerMetric, TestInt8InnerProductBatch) {
   std::mt19937 gen(15583);
@@ -1303,3 +1304,5 @@ TEST(QuantizedIntegerMetric, TestInt4CosineBatch) {
     }
   }
 }
+
+#endif

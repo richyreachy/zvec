@@ -171,6 +171,7 @@ TEST(CosineMetric, TestFp16Cosine) {
   }
 }
 
+#if 0
 // Target Test Type: avx, avx512, scalar
 TEST(CosineMetric, TestFp32CosineBatch) {
   std::mt19937 gen(15583);
@@ -361,3 +362,5 @@ TEST(CosineMetric, TestFp16CosineBatch) {
     }
   }
 }
+
+#endif

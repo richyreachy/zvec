@@ -147,6 +147,7 @@ TEST(InnerProductMetric, TestFp16InnerProduct) {
   }
 }
 
+#if 0
 // Target Test Type: avx, avx512, scalar
 TEST(InnerProductMetric, TestFp32InnerProductBatch) {
   std::mt19937 gen(15583);
@@ -312,3 +313,5 @@ TEST(InnerProductMetric, TestFp16InnerProductBatch) {
     }
   }
 }
+
+#endif

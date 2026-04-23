@@ -25,10 +25,8 @@ namespace zvec::turbo::avx512_fp16 {
 void cosine_fp16_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
 #if defined(__AVX512FP16__)
-  size_t original_dim = dim;
-
   float ip;
-  inner_product_fp16_distance(a, b, original_dim, &ip);
+  inner_product_fp16_distance(a, b, dim, &ip);
 
   *distance = 1 - ip;
 #else
