@@ -23,7 +23,7 @@ namespace zvec::turbo::avx2 {
 void cosine_int8_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
 #if defined(__AVX2__)
-  const int original_dim = dim - 24;
+  const int original_dim = dim;
   if (original_dim <= 0) {
     return;
   }

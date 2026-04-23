@@ -40,7 +40,7 @@ int RecordInt8Quantizer::init(const core::IndexMeta &meta,
   meta_.set_meta(data_type_, meta_.dimension());
 
   if (meta.metric_name() == "Cosine") {
-    is_cosine_ = true;
+    cosine_ = true;
     meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8 + EXTRA_META_SIZE_COSINE);
   } else {
     meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8);
@@ -56,7 +56,6 @@ int RecordInt8Quantizer::init(const core::IndexMeta &meta,
   return 0;
 }
 
-// Helper: quantize a FP32 vector to INT8 (shared by convert and quantize)
 int RecordInt8Quantizer::quantize(const void *record,
                                   const core::IndexQueryMeta & /*rmeta*/,
                                   std::string *out,
@@ -66,8 +65,7 @@ int RecordInt8Quantizer::quantize(const void *record,
   float norm = 1.0f;
   std::vector<float> normalized;
 
-  if (is_cosine_) {
-    // L2-normalize the input vector
+  if (cosine_) {
     float sq = 0.0f;
     for (uint32_t i = 0; i < original_dim_; ++i) {
       sq += src[i] * src[i];
@@ -85,15 +83,12 @@ int RecordInt8Quantizer::quantize(const void *record,
     quantize_input = normalized.data();
   }
 
-  // Quantize to INT8
-  out->resize(
-      original_dim_ + (is_cosine_ ? EXTRA_META_SIZE : EXTRA_META_SIZE_INT8), 0);
+  out->resize(original_dim_, 0);
   core::RecordQuantizer::quantize_record(quantize_input, original_dim_,
                                          core::IndexMeta::DataType::DT_INT8,
                                          false, &(*out)[0]);
 
-  if (is_cosine_) {
-    // Renormalize extras so dequantized vector has exact unit norm.
+  if (cosine_) {
     const int8_t *qvals = reinterpret_cast<const int8_t *>(out->data());
     float *extras = reinterpret_cast<float *>(&(*out)[original_dim_]);
     float qa = extras[0];
@@ -110,7 +105,6 @@ int RecordInt8Quantizer::quantize(const void *record,
       norm *= dequant_norm;
     }
 
-    // Store the adjusted norm after the INT8 extras
     std::memcpy(&(*out)[original_dim_ + EXTRA_META_SIZE_INT8], &norm,
                 sizeof(float));
   }
@@ -129,9 +123,7 @@ int RecordInt8Quantizer::dequantize(const void *in,
   core::RecordQuantizer::unquantize_record(
       in, original_dim_, core::IndexMeta::DataType::DT_INT8, dst);
 
-  if (is_cosine_) {
-    // Restore the original magnitude using the norm stored in the last
-    // 4 bytes of the element.
+  if (cosine_) {
     float norm = 0.0f;
     std::memcpy(
         &norm,

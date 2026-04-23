@@ -24,7 +24,7 @@ namespace zvec::turbo::avx2 {
 void squared_euclidean_int4_distance(const void *a, const void *b, size_t dim,
                                      float *distance) {
 #if defined(__AVX2__)
-  const int d = dim - 32;
+  const int d = dim;
   const size_t original_dim = d >> 1;
 
   if (original_dim <= 0) {
@@ -65,7 +65,7 @@ void squared_euclidean_int4_batch_distance(const void *const *vectors,
                                            const void *query, size_t n,
                                            size_t dim, float *distances) {
 #if defined(__AVX2__)
-  const int d = dim - 32;
+  const int d = dim;
   const size_t original_dim = d >> 1;
 
   if (original_dim <= 0) {

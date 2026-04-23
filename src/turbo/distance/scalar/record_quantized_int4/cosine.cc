@@ -19,7 +19,7 @@ namespace zvec::turbo::scalar {
 
 void cosine_int4_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
-  const int d = dim - 40;
+  const int d = dim;
   const size_t original_dim = d >> 1;
 
   if (original_dim <= 0) {

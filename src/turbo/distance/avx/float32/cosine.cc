@@ -25,8 +25,7 @@ namespace zvec::turbo::avx {
 void cosine_fp32_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
 #if defined(__AVX__)
-  constexpr size_t extra_dim = 1;
-  size_t d = dim - extra_dim;
+  size_t d = dim;
 
   float ip;
   inner_product_fp32_distance(a, b, d, &ip);
@@ -43,8 +42,7 @@ void cosine_fp32_distance(const void *a, const void *b, size_t dim,
 void cosine_fp32_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances) {
 #if defined(__AVX__)
-  constexpr size_t extra_dim = 1;
-  const int original_dim = dim - extra_dim;
+  const int original_dim = dim;
   if (original_dim <= 0) {
     return;
   }

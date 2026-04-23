@@ -52,10 +52,8 @@ class RecordInt8Quantizer : public Quantizer {
  private:
   static constexpr uint32_t EXTRA_META_SIZE_INT8 = 20;
   static constexpr uint32_t EXTRA_META_SIZE_COSINE = 4;
-  static constexpr uint32_t EXTRA_META_SIZE =
-      EXTRA_META_SIZE_INT8 + EXTRA_META_SIZE_COSINE;
 
-  bool is_cosine_{false};
+  bool cosine_{false};
   uint32_t extra_meta_size_{0};
 
   uint32_t original_dim_{0};

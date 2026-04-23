@@ -19,8 +19,7 @@ namespace zvec::turbo::scalar {
 
 void cosine_fp32_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
-  constexpr size_t extra_dim = 1;
-  size_t original_dim = dim - extra_dim;
+  size_t original_dim = dim;
 
   float ip;
   inner_product_fp32_distance(a, b, original_dim, &ip);

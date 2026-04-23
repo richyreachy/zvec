@@ -105,12 +105,12 @@ TEST(InnerProductMetric, TestFp16InnerProduct) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
   ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   for (size_t i = 0; i < COUNT; ++i) {
     ailego::NumericalVector<float> doc_vec(DIMENSION);
@@ -120,8 +120,8 @@ TEST(InnerProductMetric, TestFp16InnerProduct) {
 
     std::string doc_out;
     ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
     float score_avx512fp16{0.0f};
     float score_avx512{0.0f};
@@ -129,15 +129,15 @@ TEST(InnerProductMetric, TestFp16InnerProduct) {
     float score_scalar{0.0f};
 
     func_avx512fp16(doc_out.data(), query_out.data(),
-                    qmeta_reformer.dimension(), &score_avx512fp16);
+                    qmeta_quantizer.dimension(), &score_avx512fp16);
 
-    func_avx512(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_avx512(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
                 &score_avx512);
 
-    func_avx(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_avx(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
              &score_avx);
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_reformer.dimension(),
+    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
                 &score_scalar);
 
     float epsilon = 0.2;
@@ -250,12 +250,12 @@ TEST(InnerProductMetric, TestFp16InnerProductBatch) {
 
   IndexQueryMeta qmeta;
   qmeta.set_meta(IndexMeta::DT_FP32, DIMENSION);
-  IndexQueryMeta qmeta_reformer;
+  IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
   ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
-                                   &qmeta_reformer));
-  ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                   &qmeta_quantizer));
+  ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
   std::vector<ailego::NumericalVector<float>> doc_vecs;
   std::vector<std::string> doc_outs;
@@ -270,8 +270,8 @@ TEST(InnerProductMetric, TestFp16InnerProductBatch) {
 
     std::string doc_out;
     ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
-                                     &qmeta_reformer));
-    ASSERT_EQ(qmeta_reformer.dimension(), convert_meta.dimension());
+                                     &qmeta_quantizer));
+    ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
     doc_outs.push_back(doc_out);
 
     if (doc_vecs.size() == BATCH_SIZE) {
@@ -286,18 +286,18 @@ TEST(InnerProductMetric, TestFp16InnerProductBatch) {
       std::vector<float> score_scalar(BATCH_SIZE, 0.0f);
 
       batch_func_avx512fp16(doc_ptrs.data(), query_out.data(),
-                            qmeta_reformer.dimension(), BATCH_SIZE,
+                            qmeta_quantizer.dimension(), BATCH_SIZE,
                             &score_avx512fp16[0]);
 
       batch_func_avx512(doc_ptrs.data(), query_out.data(),
-                        qmeta_reformer.dimension(), BATCH_SIZE,
+                        qmeta_quantizer.dimension(), BATCH_SIZE,
                         &score_avx512[0]);
 
       batch_func_avx(doc_ptrs.data(), query_out.data(),
-                     qmeta_reformer.dimension(), BATCH_SIZE, &score_avx[0]);
+                     qmeta_quantizer.dimension(), BATCH_SIZE, &score_avx[0]);
 
       batch_func_scalar(doc_ptrs.data(), query_out.data(),
-                        qmeta_reformer.dimension(), BATCH_SIZE,
+                        qmeta_quantizer.dimension(), BATCH_SIZE,
                         &score_scalar[0]);
 
       for (size_t j = 0; j < BATCH_SIZE; ++j) {
