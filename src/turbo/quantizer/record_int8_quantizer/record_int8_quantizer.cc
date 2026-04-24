@@ -39,12 +39,13 @@ int RecordInt8Quantizer::init(const core::IndexMeta &meta,
   data_type_ = core::IndexMeta::DataType::DT_INT8;
   meta_.set_meta(data_type_, meta_.dimension());
 
+  extra_meta_size_ = EXTRA_META_SIZE_INT8;
   if (meta.metric_name() == "Cosine") {
     cosine_ = true;
-    meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8 + EXTRA_META_SIZE_COSINE);
-  } else {
-    meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8);
+    extra_meta_size_ += EXTRA_META_SIZE_COSINE;
   }
+
+  meta_.set_extra_meta_size(extra_meta_size_);
 
   ailego::Params metric_params;
   metric_params.set("proxima.quantized_integer.metric.origin_metric_name",
@@ -83,7 +84,8 @@ int RecordInt8Quantizer::quantize(const void *record,
     quantize_input = normalized.data();
   }
 
-  size_t total_size = original_dim_ + EXTRA_META_SIZE_INT8;
+  size_t packed_size = original_dim_;
+  size_t total_size = packed_size + EXTRA_META_SIZE_INT8;
   if (cosine_) {
     total_size += EXTRA_META_SIZE_COSINE;
   }
@@ -113,8 +115,9 @@ int RecordInt8Quantizer::quantize(const void *record,
                 sizeof(float));
   }
 
-  *ometa = core::IndexQueryMeta(core::IndexMeta::DataType::DT_INT8,
-                                meta_.dimension());
+  *ometa = core::IndexQueryMeta();
+  ometa->set_meta(core::IndexMeta::DataType::DT_INT8, meta_.dimension(),
+                  static_cast<uint32_t>(type_), extra_meta_size_);
   return 0;
 }
 

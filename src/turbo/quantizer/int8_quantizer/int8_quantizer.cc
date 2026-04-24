@@ -39,25 +39,25 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   auto metric_name = meta.metric_name();
   auto reciprocal = scale_ == 0.0 ? 1.0f : (1.0f / scale_);
 
+  extra_meta_size_ = EXTRA_META_SIZE_INT8;
   if (metric_name == "SquaredEuclidean") {
     scale_reciprocal_ = reciprocal * reciprocal;
-    meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8);
   } else if (metric_name == "Euclidean") {
     scale_reciprocal_ = reciprocal;
-    meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8);
   } else if (metric_name == "InnerProduct") {
     inner_product_ = true;
-    scale_reciprocal_ = reciprocal;  // missing query part
-    meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8);
+    scale_reciprocal_ = reciprocal;
   } else if (metric_name == "Cosine") {
     inner_product_ = true;
     cosine_ = true;
-    scale_reciprocal_ = reciprocal;  // missing query part
-    meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8 + EXTRA_META_SIZE_COSINE);
+    scale_reciprocal_ = reciprocal;
+    extra_meta_size_ += EXTRA_META_SIZE_COSINE;
   } else {
     LOG_WARN("Unsupported normalize the score for %s", metric_name.c_str());
     scale_reciprocal_ = 1.0f;
   }
+
+  meta_.set_extra_meta_size(extra_meta_size_);
 
   LOG_DEBUG("Init integer reformer, bias %f, scale %f", bias_, scale_);
   return 0;
@@ -124,7 +124,8 @@ int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
   }
 
   *ometa = qmeta;
-  ometa->set_meta(data_type_, qmeta.dimension());
+  ometa->set_meta(data_type_, qmeta.dimension(), static_cast<uint32_t>(type_),
+                  extra_meta_size_);
   size_t base_size =
       IndexMeta::ElementSizeof(ometa->data_type(), ometa->dimension());
   if (inner_product_) {

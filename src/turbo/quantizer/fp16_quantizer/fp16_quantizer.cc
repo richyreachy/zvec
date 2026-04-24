@@ -32,7 +32,8 @@ int Fp16Quantizer::init(const IndexMeta &meta,
 
   auto metric_name = meta.metric_name();
   if (metric_name == "Cosine") {
-    meta_.set_extra_meta_size(EXTRA_META_SIZE_COSINE);
+    extra_meta_size_ = EXTRA_META_SIZE_COSINE;
+    meta_.set_extra_meta_size(extra_meta_size_);
   }
 
   return 0;
@@ -48,7 +49,8 @@ int Fp16Quantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
                               qmeta.dimension(),
                               reinterpret_cast<uint16_t *>(&(*out)[0]));
   *ometa = qmeta;
-  ometa->set_meta(IndexMeta::DataType::DT_FP16, qmeta.dimension());
+  ometa->set_meta(IndexMeta::DataType::DT_FP16, qmeta.dimension(),
+                  static_cast<uint32_t>(type_), extra_meta_size_);
 
   return 0;
 }

@@ -32,7 +32,8 @@ int Fp32Quantizer::init(const IndexMeta &meta,
 
   auto metric_name = meta.metric_name();
   if (metric_name == "Cosine") {
-    meta_.set_extra_meta_size(EXTRA_META_SIZE_COSINE);
+    extra_meta_size_ = EXTRA_META_SIZE_COSINE;
+    meta_.set_extra_meta_size(extra_meta_size_);
   }
 
   return 0;
@@ -49,7 +50,8 @@ int Fp32Quantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
   std::memcpy(&(*out)[0], query, byte_size);
 
   *ometa = qmeta;
-  ometa->set_meta(IndexMeta::DataType::DT_FP32, qmeta.dimension());
+  ometa->set_meta(IndexMeta::DataType::DT_FP32, qmeta.dimension(),
+                  static_cast<uint32_t>(type_), extra_meta_size_);
 
   return 0;
 }

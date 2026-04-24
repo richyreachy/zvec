@@ -74,6 +74,7 @@ class Quantizer {
 
  protected:
   QuantizeType type_{QuantizeType::kDefault};
+  uint32_t extra_meta_size_{0};
 };
 
 }  // namespace turbo

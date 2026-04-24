@@ -22,7 +22,7 @@ using namespace zvec;
 using namespace zvec::core;
 using namespace zvec::ailego;
 
-TEST(Fp16Quantizer, General) {
+TEST(Fp32Quantizer, General) {
   std::mt19937 gen(15583);
   std::uniform_real_distribution<float> dist(0.0, 1.0);
 
@@ -66,7 +66,7 @@ TEST(Fp16Quantizer, General) {
                      iter->data(),
                      IndexQueryMeta(holder->data_type(), holder->dimension()),
                      &quant_buffer, &qmeta));
-    EXPECT_EQ(IndexMeta::DataType::DT_FP16, qmeta.data_type());
+    EXPECT_EQ(IndexMeta::DataType::DT_FP32, qmeta.data_type());
     EXPECT_EQ(holder->dimension(), qmeta.dimension());
 
     dequant_buffer.clear();
