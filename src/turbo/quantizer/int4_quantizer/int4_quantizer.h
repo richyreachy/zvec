@@ -75,6 +75,7 @@ class Int4Quantizer : public Quantizer {
   float scale_{1.0f};
   float scale_reciprocal_{1.0f};
   bool inner_product_{false};
+  bool cosine_{false};
 
   mutable ailego::EntropyInt4Quantizer quantizer_;
   IndexMeta meta_{};

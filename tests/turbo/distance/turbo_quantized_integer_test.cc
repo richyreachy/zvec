@@ -36,14 +36,13 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
   const size_t COUNT = 1024;
 
-  auto converter = IndexFactory::CreateConverter("Int8StreamingConverter");
+  auto quantizer = IndexFactory::CreateQuantizer("RecordInt8Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("InnerProduct", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
-  ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
+  ;
 
   auto func_float32 = get_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
@@ -75,7 +74,7 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
   IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_quantizer));
   ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -86,7 +85,7 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
     }
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_quantizer));
     ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -98,17 +97,14 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
 
     func_float32(query_vec.data(), doc_vec.data(), DIMENSION, &score_float32);
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-                &score_scalar);
+    func_scalar(doc_out.data(), query_out.data(), DIMENSION, &score_scalar);
 
-    func_avx512vnni(doc_out.data(), query_out.data(),
-                    qmeta_quantizer.dimension(), &score_avx512vnni);
+    func_avx512vnni(doc_out.data(), query_out.data(), DIMENSION,
+                    &score_avx512vnni);
 
-    func_avx2(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-              &score_avx2);
+    func_avx2(doc_out.data(), query_out.data(), DIMENSION, &score_avx2);
 
-    func_sse(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-             &score_sse);
+    func_sse(doc_out.data(), query_out.data(), DIMENSION, &score_sse);
 
     ASSERT_NEAR(score_float32, score_avx512vnni, 0.2 * DIMENSION);
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
@@ -127,14 +123,12 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen) * 2;
   const size_t COUNT = 1024;
 
-  auto converter = IndexFactory::CreateConverter("Int4StreamingConverter");
+  auto quantizer = IndexFactory::CreateQuantizer("RecordInt4Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("InnerProduct", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
-  ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto func_float32 = get_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
@@ -162,7 +156,7 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
   IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_quantizer));
   ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -173,7 +167,7 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
     }
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_quantizer));
     ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -184,14 +178,11 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
 
     func_float32(query_vec.data(), doc_vec.data(), DIMENSION, &score_float32);
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-                &score_scalar);
+    func_scalar(doc_out.data(), query_out.data(), DIMENSION, &score_scalar);
 
-    func_avx2(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-              &score_avx2);
+    func_avx2(doc_out.data(), query_out.data(), DIMENSION, &score_avx2);
 
-    func_sse(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-             &score_sse);
+    func_sse(doc_out.data(), query_out.data(), DIMENSION, &score_sse);
 
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
     ASSERT_NEAR(score_float32, score_sse, 0.2 * DIMENSION);
@@ -209,14 +200,12 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen);
   const size_t COUNT = 1024;
 
-  auto converter = IndexFactory::CreateConverter("Int8StreamingConverter");
+  auto quantizer = IndexFactory::CreateQuantizer("RecordInt8Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("SquaredEuclidean", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
-  ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto func_float32 = get_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
@@ -244,7 +233,7 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
   IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_quantizer));
   ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -255,7 +244,7 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
     }
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_quantizer));
     ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -266,14 +255,11 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
 
     func_float32(query_vec.data(), doc_vec.data(), DIMENSION, &score_float32);
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-                &score_scalar);
+    func_scalar(doc_out.data(), query_out.data(), DIMENSION, &score_scalar);
 
-    func_avx2(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-              &score_avx2);
+    func_avx2(doc_out.data(), query_out.data(), DIMENSION, &score_avx2);
 
-    func_sse(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-             &score_sse);
+    func_sse(doc_out.data(), query_out.data(), DIMENSION, &score_sse);
 
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
     ASSERT_NEAR(score_float32, score_sse, 0.2 * DIMENSION);
@@ -291,14 +277,12 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
   const size_t DIMENSION = std::uniform_int_distribution<int>(1, 128)(gen) * 2;
   const size_t COUNT = 1024;
 
-  auto converter = IndexFactory::CreateConverter("Int4StreamingConverter");
+  auto quantizer = IndexFactory::CreateQuantizer("RecordInt4Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("SquaredEuclidean", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
-  ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto func_float32 = get_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
@@ -326,7 +310,7 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
   IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_quantizer));
   ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -337,7 +321,7 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
     }
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_quantizer));
     ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -348,14 +332,11 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
 
     func_float32(query_vec.data(), doc_vec.data(), DIMENSION, &score_float32);
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-                &score_scalar);
+    func_scalar(doc_out.data(), query_out.data(), DIMENSION, &score_scalar);
 
-    func_avx2(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-              &score_avx2);
+    func_avx2(doc_out.data(), query_out.data(), DIMENSION, &score_avx2);
 
-    func_sse(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-             &score_sse);
+    func_sse(doc_out.data(), query_out.data(), DIMENSION, &score_sse);
 
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
     ASSERT_NEAR(score_float32, score_sse, 0.2 * DIMENSION);
@@ -377,23 +358,18 @@ TEST(QuantizedIntegerMetric, TestInt8Cosine) {
   meta.set_metric("Cosine", 0, Params());
 
   // fp32 converter
-  auto fp32_converter = IndexFactory::CreateConverter("CosineFp32Converter");
-  ASSERT_TRUE(!!fp32_converter);
-  ASSERT_EQ(0u, fp32_converter->init(meta, Params()));
+  auto fp32_quantizer = IndexFactory::CreateQuantizer("Fp32Quantizer");
+  ASSERT_TRUE(!!fp32_quantizer);
+  ASSERT_EQ(0u, fp32_quantizer->init(meta, Params()));
 
-  auto &fp32_convert_meta = fp32_converter->meta();
-  auto fp32_reformer =
-      IndexFactory::CreateReformer(fp32_convert_meta.reformer_name());
-  ASSERT_EQ(0, fp32_reformer->init(fp32_convert_meta.reformer_params()));
+  auto &fp32_convert_meta = fp32_quantizer->meta();
 
   // int8 converter
-  auto converter = IndexFactory::CreateConverter("CosineInt8Converter");
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
+  auto quantizer = IndexFactory::CreateQuantizer("Int8Quantizer");
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
 
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
-  ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
+  auto &convert_meta = quantizer->meta();
 
   auto func_float32 = get_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kFp32,
@@ -426,14 +402,14 @@ TEST(QuantizedIntegerMetric, TestInt8Cosine) {
 
   std::string fp32_query_out;
   ASSERT_EQ(0,
-            fp32_reformer->transform(query_vec.data(), qmeta, &fp32_query_out,
+            fp32_quantizer->quantize(query_vec.data(), qmeta, &fp32_query_out,
                                      &fp32_qmeta_quantizer));
   ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
   IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_quantizer));
   ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -450,7 +426,7 @@ TEST(QuantizedIntegerMetric, TestInt8Cosine) {
     float score_sse{0.0f};
 
     std::string fp32_doc_out;
-    ASSERT_EQ(0, fp32_reformer->transform(doc_vec.data(), qmeta, &fp32_doc_out,
+    ASSERT_EQ(0, fp32_quantizer->quantize(doc_vec.data(), qmeta, &fp32_doc_out,
                                           &fp32_qmeta_quantizer));
     ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
@@ -458,21 +434,18 @@ TEST(QuantizedIntegerMetric, TestInt8Cosine) {
                  fp32_qmeta_quantizer.dimension(), &score_float32);
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_quantizer));
     ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-                &score_scalar);
+    func_scalar(doc_out.data(), query_out.data(), DIMENSION, &score_scalar);
 
-    func_avx512vnni(doc_out.data(), query_out.data(),
-                    qmeta_quantizer.dimension(), &score_avx512vnni);
+    func_avx512vnni(doc_out.data(), query_out.data(), DIMENSION,
+                    &score_avx512vnni);
 
-    func_avx2(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-              &score_avx2);
+    func_avx2(doc_out.data(), query_out.data(), DIMENSION, &score_avx2);
 
-    func_sse(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-             &score_sse);
+    func_sse(doc_out.data(), query_out.data(), DIMENSION, &score_sse);
 
     ASSERT_NEAR(score_float32, score_avx512vnni, 0.2 * DIMENSION);
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
@@ -495,22 +468,17 @@ TEST(QuantizedIntegerMetric, TestInt4Cosine) {
   meta.set_metric("Cosine", 0, Params());
 
   // fp32 converter
-  auto fp32_converter = IndexFactory::CreateConverter("CosineFp32Converter");
-  ASSERT_TRUE(!!fp32_converter);
-  ASSERT_EQ(0u, fp32_converter->init(meta, Params()));
+  auto fp32_quantizer = IndexFactory::CreateQuantizer("Fp32Quantizer");
+  ASSERT_TRUE(!!fp32_quantizer);
+  ASSERT_EQ(0u, fp32_quantizer->init(meta, Params()));
 
-  auto &fp32_convert_meta = fp32_converter->meta();
-  auto fp32_reformer =
-      IndexFactory::CreateReformer(fp32_convert_meta.reformer_name());
-  ASSERT_EQ(0, fp32_reformer->init(fp32_convert_meta.reformer_params()));
+  auto &fp32_convert_meta = fp32_quantizer->meta();
 
   // int4 converter
-  auto converter = IndexFactory::CreateConverter("CosineInt4Converter");
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
-  ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
+  auto quantizer = IndexFactory::CreateQuantizer("Int4Quantizer");
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto func_float32 = get_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kFp32,
@@ -539,14 +507,14 @@ TEST(QuantizedIntegerMetric, TestInt4Cosine) {
 
   std::string fp32_query_out;
   ASSERT_EQ(0,
-            fp32_reformer->transform(query_vec.data(), qmeta, &fp32_query_out,
+            fp32_quantizer->quantize(query_vec.data(), qmeta, &fp32_query_out,
                                      &fp32_qmeta_quantizer));
   ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
   IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_quantizer));
   ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -562,7 +530,7 @@ TEST(QuantizedIntegerMetric, TestInt4Cosine) {
     float score_sse{0.0f};
 
     std::string fp32_doc_out;
-    ASSERT_EQ(0, fp32_reformer->transform(doc_vec.data(), qmeta, &fp32_doc_out,
+    ASSERT_EQ(0, fp32_quantizer->quantize(doc_vec.data(), qmeta, &fp32_doc_out,
                                           &fp32_qmeta_quantizer));
     ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
@@ -570,18 +538,21 @@ TEST(QuantizedIntegerMetric, TestInt4Cosine) {
                  fp32_qmeta_quantizer.dimension(), &score_float32);
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_quantizer));
     ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
-    func_scalar(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-                &score_scalar);
+    func_scalar(doc_out.data(), query_out.data(), DIMENSION, &score_scalar);
 
-    func_avx2(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-              &score_avx2);
+    func_avx2(doc_out.data(), query_out.data(), DIMENSION, &score_avx2);
 
-    func_sse(doc_out.data(), query_out.data(), qmeta_quantizer.dimension(),
-             &score_sse);
+    func_sse(doc_out.data(), query_out.data(), DIMENSION, &score_sse);
+
+    if (i < 3) {
+      std::cerr << "[INT4 Cosine i=" << i << "] f32=" << score_float32
+                << " scalar=" << score_scalar << " avx2=" << score_avx2
+                << " sse=" << score_sse << std::endl;
+    }
 
     ASSERT_NEAR(score_float32, score_avx2, 0.2 * DIMENSION);
     ASSERT_NEAR(score_float32, score_sse, 0.2 * DIMENSION);
@@ -601,14 +572,12 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProductBatch) {
   const size_t COUNT = 1024;
   const size_t BATCH_SIZE = 16;
 
-  auto converter = IndexFactory::CreateConverter("Int8StreamingConverter");
+  auto quantizer = IndexFactory::CreateQuantizer("RecordInt8Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("InnerProduct", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
-  ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto batch_func_float32 = get_batch_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
@@ -640,7 +609,7 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProductBatch) {
   IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_quantizer));
   ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -656,7 +625,7 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProductBatch) {
     doc_vecs.push_back(doc_vec);
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_quantizer));
     ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -716,14 +685,12 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProductBatch) {
   const size_t COUNT = 1024;
   const size_t BATCH_SIZE = 16;
 
-  auto converter = IndexFactory::CreateConverter("Int4StreamingConverter");
+  auto quantizer = IndexFactory::CreateQuantizer("RecordInt4Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("InnerProduct", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
-  ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto batch_func_float32 = get_batch_distance_func(
       turbo::MetricType::kInnerProduct, turbo::DataType::kFp32,
@@ -751,7 +718,7 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProductBatch) {
   IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_quantizer));
   ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -767,7 +734,7 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProductBatch) {
     doc_vecs.push_back(doc_vec);
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_quantizer));
     ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -822,14 +789,12 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclideanBatch) {
   const size_t COUNT = 1024;
   const size_t BATCH_SIZE = 16;
 
-  auto converter = IndexFactory::CreateConverter("Int8StreamingConverter");
+  auto quantizer = IndexFactory::CreateQuantizer("RecordInt8Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("SquaredEuclidean", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
-  ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto batch_func_float32 = get_batch_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
@@ -857,7 +822,7 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclideanBatch) {
   IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_quantizer));
   ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -873,7 +838,7 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclideanBatch) {
     doc_vecs.push_back(doc_vec);
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_quantizer));
     ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -928,14 +893,12 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclideanBatch) {
   const size_t COUNT = 1024;
   const size_t BATCH_SIZE = 16;
 
-  auto converter = IndexFactory::CreateConverter("Int4StreamingConverter");
+  auto quantizer = IndexFactory::CreateQuantizer("RecordInt4Quantizer");
   IndexMeta meta(IndexMeta::DT_FP32, DIMENSION);
   meta.set_metric("SquaredEuclidean", 0, Params());
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
-  ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto batch_func_float32 = get_batch_distance_func(
       turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
@@ -963,7 +926,7 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclideanBatch) {
   IndexQueryMeta qmeta_quantizer;
 
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_quantizer));
   ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -979,7 +942,7 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclideanBatch) {
     doc_vecs.push_back(doc_vec);
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_quantizer));
     ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -1038,23 +1001,18 @@ TEST(QuantizedIntegerMetric, TestInt8CosineBatch) {
   meta.set_metric("Cosine", 0, Params());
 
   // fp32 converter
-  auto fp32_converter = IndexFactory::CreateConverter("CosineFp32Converter");
+  auto fp32_converter = IndexFactory::CreateQuantizer("Fp32Quantizer  ");
   ASSERT_TRUE(!!fp32_converter);
   ASSERT_EQ(0u, fp32_converter->init(meta, Params()));
 
   auto &fp32_convert_meta = fp32_converter->meta();
-  auto fp32_reformer =
-      IndexFactory::CreateReformer(fp32_convert_meta.reformer_name());
-  ASSERT_EQ(0, fp32_reformer->init(fp32_convert_meta.reformer_params()));
 
   // int8 converter
-  auto converter = IndexFactory::CreateConverter("CosineInt8Converter");
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
+  auto quantizer = IndexFactory::CreateQuantizer("CosineInt8Quantizer");
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
 
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
-  ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
+  auto &convert_meta = quantizer->meta();
 
   auto batch_func_float32 = get_batch_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kFp32,
@@ -1087,13 +1045,13 @@ TEST(QuantizedIntegerMetric, TestInt8CosineBatch) {
 
   std::string fp32_query_out;
   ASSERT_EQ(0,
-            fp32_reformer->transform(query_vec.data(), qmeta, &fp32_query_out,
+            fp32_converter->quantize(query_vec.data(), qmeta, &fp32_query_out,
                                      &fp32_qmeta_quantizer));
   ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
   IndexQueryMeta qmeta_quantizer;
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_quantizer));
   ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -1110,14 +1068,14 @@ TEST(QuantizedIntegerMetric, TestInt8CosineBatch) {
     doc_vecs.push_back(doc_vec);
 
     std::string fp32_doc_out;
-    ASSERT_EQ(0, fp32_reformer->transform(doc_vec.data(), qmeta, &fp32_doc_out,
+    ASSERT_EQ(0, fp32_converter->quantize(doc_vec.data(), qmeta, &fp32_doc_out,
                                           &fp32_qmeta_quantizer));
     ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
     fp32_doc_outs.push_back(fp32_doc_out);
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_quantizer));
     ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -1183,22 +1141,17 @@ TEST(QuantizedIntegerMetric, TestInt4CosineBatch) {
   meta.set_metric("Cosine", 0, Params());
 
   // fp32 converter
-  auto fp32_converter = IndexFactory::CreateConverter("CosineFp32Converter");
-  ASSERT_TRUE(!!fp32_converter);
-  ASSERT_EQ(0u, fp32_converter->init(meta, Params()));
+  auto fp32_quantizer = IndexFactory::CreateQuantizer("Fp32Quantizer");
+  ASSERT_TRUE(!!fp32_quantizer);
+  ASSERT_EQ(0u, fp32_quantizer->init(meta, Params()));
 
-  auto &fp32_convert_meta = fp32_converter->meta();
-  auto fp32_reformer =
-      IndexFactory::CreateReformer(fp32_convert_meta.reformer_name());
-  ASSERT_EQ(0, fp32_reformer->init(fp32_convert_meta.reformer_params()));
+  auto &fp32_convert_meta = fp32_quantizer->meta();
 
   // int4 converter
-  auto converter = IndexFactory::CreateConverter("CosineInt4Converter");
-  ASSERT_TRUE(!!converter);
-  ASSERT_EQ(0u, converter->init(meta, Params()));
-  auto &convert_meta = converter->meta();
-  auto reformer = IndexFactory::CreateReformer(convert_meta.reformer_name());
-  ASSERT_EQ(0, reformer->init(convert_meta.reformer_params()));
+  auto quantizer = IndexFactory::CreateQuantizer("CosineInt4Quantizer");
+  ASSERT_TRUE(!!quantizer);
+  ASSERT_EQ(0u, quantizer->init(meta, Params()));
+  auto &convert_meta = quantizer->meta();
 
   auto batch_func_float32 = get_batch_distance_func(
       turbo::MetricType::kCosine, turbo::DataType::kFp32,
@@ -1227,13 +1180,13 @@ TEST(QuantizedIntegerMetric, TestInt4CosineBatch) {
 
   std::string fp32_query_out;
   ASSERT_EQ(0,
-            fp32_reformer->transform(query_vec.data(), qmeta, &fp32_query_out,
+            fp32_quantizer->quantize(query_vec.data(), qmeta, &fp32_query_out,
                                      &fp32_qmeta_quantizer));
   ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
   IndexQueryMeta qmeta_quantizer;
   std::string query_out;
-  ASSERT_EQ(0, reformer->transform(query_vec.data(), qmeta, &query_out,
+  ASSERT_EQ(0, quantizer->quantize(query_vec.data(), qmeta, &query_out,
                                    &qmeta_quantizer));
   ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 
@@ -1250,14 +1203,14 @@ TEST(QuantizedIntegerMetric, TestInt4CosineBatch) {
     doc_vecs.push_back(doc_vec);
 
     std::string fp32_doc_out;
-    ASSERT_EQ(0, fp32_reformer->transform(doc_vec.data(), qmeta, &fp32_doc_out,
+    ASSERT_EQ(0, fp32_quantizer->quantize(doc_vec.data(), qmeta, &fp32_doc_out,
                                           &fp32_qmeta_quantizer));
     ASSERT_EQ(fp32_qmeta_quantizer.dimension(), fp32_convert_meta.dimension());
 
     fp32_doc_outs.push_back(fp32_doc_out);
 
     std::string doc_out;
-    ASSERT_EQ(0, reformer->transform(doc_vec.data(), qmeta, &doc_out,
+    ASSERT_EQ(0, quantizer->quantize(doc_vec.data(), qmeta, &doc_out,
                                      &qmeta_quantizer));
     ASSERT_EQ(qmeta_quantizer.dimension(), convert_meta.dimension());
 

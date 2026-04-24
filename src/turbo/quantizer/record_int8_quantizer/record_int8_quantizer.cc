@@ -83,7 +83,11 @@ int RecordInt8Quantizer::quantize(const void *record,
     quantize_input = normalized.data();
   }
 
-  out->resize(original_dim_, 0);
+  size_t total_size = original_dim_ + EXTRA_META_SIZE_INT8;
+  if (cosine_) {
+    total_size += EXTRA_META_SIZE_COSINE;
+  }
+  out->resize(total_size, 0);
   core::RecordQuantizer::quantize_record(quantize_input, original_dim_,
                                          core::IndexMeta::DataType::DT_INT8,
                                          false, &(*out)[0]);

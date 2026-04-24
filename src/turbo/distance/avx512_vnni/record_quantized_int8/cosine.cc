@@ -67,8 +67,8 @@ void cosine_int8_distance(const void *a, const void *b, size_t dim,
   // Dequantize and compute cosine distance:
   //   cosine_dist = -(ma * qa * ip + mb * qa * qs + qb * ma * ms
   //                   + original_dim * qb * mb)
-  *distance = -(ma * qa * *distance + mb * qa * qs + qb * ma * ms +
-                static_cast<float>(original_dim) * qb * mb);
+  *distance = 1.0f + (ma * qa * *distance + mb * qa * qs + qb * ma * ms +
+                      static_cast<float>(original_dim) * qb * mb);
 #else
   (void)a;
   (void)b;
@@ -115,8 +115,8 @@ void cosine_int8_batch_distance(const void *const *vectors, const void *query,
     // Dequantize and compute cosine distance:
     //   cosine_dist = -(ma * qa * ip + mb * qa * qs + qb * ma * ms
     //                   + original_dim * qb * mb)
-    result = -(ma * qa * result + mb * qa * qs + qb * ma * ms +
-               static_cast<float>(original_dim) * qb * mb);
+    result = 1.0f + (ma * qa * result + mb * qa * qs + qb * ma * ms +
+                     static_cast<float>(original_dim) * qb * mb);
   }
 #else
   (void)vectors;

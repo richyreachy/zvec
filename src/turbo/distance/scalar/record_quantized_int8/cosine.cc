@@ -42,8 +42,8 @@ void cosine_int8_distance(const void *a, const void *b, size_t dim,
   float mb = b_tail[1];
   float ms = b_tail[2];
 
-  *distance = -(ma * qa * *distance + mb * qa * qs + qb * ma * ms +
-                original_dim * qb * mb);
+  *distance = 1.0f + (ma * qa * *distance + mb * qa * qs + qb * ma * ms +
+                      original_dim * qb * mb);
 }
 
 void cosine_int8_batch_distance(const void *const *vectors, const void *query,

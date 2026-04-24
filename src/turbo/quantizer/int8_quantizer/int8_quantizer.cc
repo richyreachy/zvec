@@ -51,6 +51,7 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
     meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8);
   } else if (metric_name == "Cosine") {
     inner_product_ = true;
+    cosine_ = true;
     scale_reciprocal_ = reciprocal;  // missing query part
     meta_.set_extra_meta_size(EXTRA_META_SIZE_INT8 + EXTRA_META_SIZE_COSINE);
   } else {
@@ -124,7 +125,15 @@ int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
 
   *ometa = qmeta;
   ometa->set_meta(data_type_, qmeta.dimension());
-  out->resize(IndexMeta::ElementSizeof(ometa->data_type(), ometa->dimension()));
+  size_t base_size =
+      IndexMeta::ElementSizeof(ometa->data_type(), ometa->dimension());
+  if (inner_product_) {
+    base_size += EXTRA_META_SIZE_INT8;
+    if (cosine_) {
+      base_size += EXTRA_META_SIZE_COSINE;
+    }
+  }
+  out->resize(base_size, 0);
   const float *vec = reinterpret_cast<const float *>(record);
   auto ovec = reinterpret_cast<int8_t *>(&(*out)[0]);
 
@@ -132,15 +141,33 @@ int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
     quantizer_.encode(vec, qmeta.dimension(), ovec);
   } else {
     size_t dim = qmeta.dimension();
+    const float *quantize_input = vec;
+
     float abs_max = 0.0f;
     for (size_t i = 0; i < dim; ++i) {
-      float abs = std::abs(vec[i]);
-      abs_max = std::max(abs, abs_max);
+      float a = std::abs(quantize_input[i]);
+      abs_max = std::max(a, abs_max);
     }
+    if (abs_max == 0.0f) abs_max = 1.0f;
     float scale = 127.0f / abs_max;
+    float sum = 0.0f;
+    float squared_sum = 0.0f;
+    int int8_sum = 0;
     for (size_t i = 0; i < dim; ++i) {
-      ovec[i] = static_cast<int8_t>(std::round(vec[i] * scale));
+      int8_t v = static_cast<int8_t>(std::round(quantize_input[i] * scale));
+      ovec[i] = v;
+      sum += static_cast<float>(v);
+      squared_sum += static_cast<float>(v) * static_cast<float>(v);
+      int8_sum += v;
     }
+
+    // Write extras after int8 data
+    float *extras = reinterpret_cast<float *>(ovec + dim);
+    extras[0] = abs_max / 127.0f;  // qa: dequant scale
+    extras[1] = 0.0f;              // qb: dequant bias
+    extras[2] = sum;               // qs: sum of quantized values
+    extras[3] = squared_sum;       // squared sum
+    reinterpret_cast<int32_t *>(extras + 4)[0] = int8_sum;
   }
 
   return 0;

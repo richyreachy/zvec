@@ -51,6 +51,7 @@ int Int4Quantizer::init(const core::IndexMeta &meta,
     meta_.set_extra_meta_size(EXTRA_META_SIZE_INT4);
   } else if (metric_name == "Cosine") {
     inner_product_ = true;
+    cosine_ = true;
     scale_reciprocal_ = reciprocal;  // missing query part
     meta_.set_extra_meta_size(EXTRA_META_SIZE_INT4 + EXTRA_META_SIZE_COSINE);
   } else {
@@ -123,7 +124,16 @@ int Int4Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
 
   *ometa = qmeta;
   ometa->set_meta(data_type_, qmeta.dimension());
-  out->resize(IndexMeta::ElementSizeof(ometa->data_type(), ometa->dimension()));
+  size_t packed_size =
+      IndexMeta::ElementSizeof(ometa->data_type(), ometa->dimension());
+  size_t total_size = packed_size;
+  if (inner_product_) {
+    total_size += EXTRA_META_SIZE_INT4;
+    if (cosine_) {
+      total_size += EXTRA_META_SIZE_COSINE;
+    }
+  }
+  out->resize(total_size, 0);
   const float *vec = reinterpret_cast<const float *>(record);
   auto ovec = reinterpret_cast<uint8_t *>(&(*out)[0]);
 
@@ -131,15 +141,40 @@ int Int4Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
     quantizer_.encode(vec, qmeta.dimension(), ovec);
   } else {
     size_t dim = qmeta.dimension();
+    const float *quantize_input = vec;
+
     float abs_max = 0.0f;
     for (size_t i = 0; i < dim; ++i) {
-      float abs = std::abs(vec[i]);
-      abs_max = std::max(abs, abs_max);
+      float a = std::abs(quantize_input[i]);
+      abs_max = std::max(a, abs_max);
     }
-    float scale = 127.0f / abs_max;
-    for (size_t i = 0; i < dim; ++i) {
-      ovec[i] = static_cast<int8_t>(std::round(vec[i] * scale));
+    if (abs_max == 0.0f) abs_max = 1.0f;
+    float scale = 7.0f / abs_max;
+    float sum = 0.0f;
+    float squared_sum = 0.0f;
+    int int_sum = 0;
+
+    // Pack int4 values (2 per byte): low nibble = even index, high nibble = odd
+    for (size_t i = 0; i < dim; i += 2) {
+      float lo_f = std::round(quantize_input[i] * scale);
+      float hi_f = std::round(quantize_input[i + 1] * scale);
+      int8_t lo = static_cast<int8_t>(lo_f);
+      int8_t hi = static_cast<int8_t>(hi_f);
+      ovec[i / 2] =
+          (static_cast<uint8_t>(hi) << 4) | (static_cast<uint8_t>(lo) & 0xF);
+      sum += lo_f + hi_f;
+      squared_sum += lo_f * lo_f + hi_f * hi_f;
+      int_sum += lo + hi;
     }
+
+    // Write extras after packed int4 data
+    size_t packed_bytes = dim / 2;
+    float *extras = reinterpret_cast<float *>(ovec + packed_bytes);
+    extras[0] = abs_max / 7.0f;  // qa: dequant scale
+    extras[1] = 0.0f;            // qb: dequant bias
+    extras[2] = sum;             // qs: sum of quantized values
+    extras[3] = squared_sum;     // squared sum
+    reinterpret_cast<int *>(extras)[4] = int_sum;  // int_sum placeholder
   }
 
   return 0;

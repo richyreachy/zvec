@@ -14,74 +14,54 @@
 
 #pragma once
 
-#include <ailego/algorithm/integer_quantizer.h>
 #include <zvec/core/framework/index_holder.h>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_reformer.h>
 #include <zvec/core/framework/index_stats.h>
 #include "quantizer/quantizer.h"
 
+using namespace zvec::core;
+
 namespace zvec {
 namespace turbo {
 
-using namespace zvec::core;
-
-class Int8Quantizer : public Quantizer {
+class RecordInt4Quantizer : public Quantizer {
  public:
-  Int8Quantizer() {
-    type_ = QuantizeType::kRecordInt8;
+  RecordInt4Quantizer() {
+    type_ = QuantizeType::kRecordInt4;
   }
 
-  virtual ~Int8Quantizer() {}
+  virtual ~RecordInt4Quantizer() {}
 
  public:
   QuantizeType type() const override {
     return type_;
   }
 
-  int init(const core::IndexMeta &meta, const ailego::Params &params) override;
+  int init(const IndexMeta &meta, const ailego::Params &params) override;
 
-  int train(core::IndexHolder::Pointer holder) override;
-
-  const core::IndexMeta &meta(void) const override {
+  const IndexMeta &meta(void) const override {
     return meta_;
   }
 
-  int quantize(const void *query, const core::IndexQueryMeta &qmeta,
-               std::string *out, core::IndexQueryMeta *ometa) const override;
-
-  int dequantize(const void *in, const core::IndexQueryMeta &qmeta,
+  int quantize(const void *query, const IndexQueryMeta &qmeta, std::string *out,
+               IndexQueryMeta *ometa) const override;
+  int dequantize(const void *in, const IndexQueryMeta &qmeta,
                  std::string *out) const override;
 
-  int serialize(std::string *out) const override;
-
-  int deserialize(std::string &in) override;
-
-  float bias() const {
-    return bias_;
-  }
-  float scale() const {
-    return scale_;
-  }
-
  private:
-  static constexpr uint32_t EXTRA_META_SIZE_INT8 = 20;
+  static constexpr uint32_t EXTRA_META_SIZE_INT4 = 20;
   static constexpr uint32_t EXTRA_META_SIZE_COSINE = 4;
-  const std::string INT8_QUANTIZER_BIAS = "int8_quantizer.bias";
-  const std::string INT8_QUANTIZER_SCALE = "int8_quantizer.scale";
 
-  mutable float bias_{0.0f};
-  mutable float scale_{1.0f};
-  float scale_reciprocal_{1.0f};
-  bool inner_product_{false};
   bool cosine_{false};
+  bool euclidean_{false};
+  uint32_t extra_meta_size_{0};
 
-  mutable ailego::EntropyInt8Quantizer quantizer_;
-  IndexMeta meta_{};
   uint32_t original_dim_{0};
+  IndexHolder::Pointer holder_{};
+  IndexMeta meta_{};
   IndexMeta::DataType data_type_{};
 };
-
 
 }  // namespace turbo
 }  // namespace zvec
