@@ -47,7 +47,8 @@ struct RandomCentroidsGenerator {
     size_t m = matrix.count();
     size_t n = m + cache.count();
     size_t k = owner->k_value();
-    std::mt19937 mt((std::random_device())());
+    // std::mt19937 mt((std::random_device())());
+    std::mt19937 mt(15583);
 
     rows.resize(BatchCount);
     centroids->reset(cache.dimension());
