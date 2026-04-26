@@ -39,6 +39,16 @@ if(NOT RABITQ_SUPPORTED)
   list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/hnsw_rabitq/.*")
 endif()
 
+# Always exclude algorithm/diskann implementation files from zvec_core.
+# The DiskAnn algorithm is provided by the separate core_knn_diskann library
+# (real on Linux x86_64, stub on other platforms). Including them here causes
+# duplicate symbols and missing -laio when test binaries link both zvec_core
+# (via zvec_db) and core_knn_diskann.
+list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/diskann/.*")
+if(NOT DISKANN_SUPPORTED)
+  list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/interface/indexes/diskann_index\\.cc")
+endif()
+
 cc_library(
     NAME zvec_core STATIC STRICT PACKED
     SRCS ${ALL_CORE_SRCS}

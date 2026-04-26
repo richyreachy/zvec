@@ -1,5 +1,13 @@
 import pytest
 import logging
+import platform
+
+DISKANN_SUPPORTED = platform.system() == "Linux" and platform.machine() in (
+    "x86_64",
+    "AMD64",
+    "i686",
+    "i386",
+)
 
 from typing import Any, Generator
 from zvec.typing import DataType, StatusCode, MetricType, QuantizeType
@@ -96,6 +104,12 @@ def full_schema_new(request) -> CollectionSchema:
         nullable, has_index, vector_index = request.param
     else:
         nullable, has_index, vector_index = True, False, HnswIndexParam()
+
+    # Skip DiskAnn tests on unsupported platforms
+    from zvec.model.param import DiskAnnIndexParam
+
+    if isinstance(vector_index, DiskAnnIndexParam) and not DISKANN_SUPPORTED:
+        pytest.skip("DiskAnn only supported on Linux x86_64")
 
     scalar_index_param = None
     vector_index_param = None
