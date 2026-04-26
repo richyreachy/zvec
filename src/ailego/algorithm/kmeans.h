@@ -93,8 +93,7 @@ class Kmc2CentroidsGenerator {
     const auto &cache = owner->feature_cache();
     auto *centroids = owner->mutable_centroids();
 
-    // std::mt19937 mt((std::random_device())());
-    std::mt19937 mt(15583);
+    std::mt19937 mt((std::random_device())());
 
     std::uniform_real_distribution<float> dist(0.0, 1.0);
 
@@ -172,8 +171,7 @@ class Kmc2CentroidsGenerator {
       *it = static_cast<float>((*it / p_sum + 1.0 / probs.size()) * 0.5);
     }
 
-    // std::mt19937 mt((std::random_device())());
-    std::mt19937 mt(15583);
+    std::mt19937 mt((std::random_device())());
     std::uniform_real_distribution<float> dist(0.0, 1.0);
     ContainerType benches(cache.dimension());
     std::vector<float> scores;
@@ -259,8 +257,7 @@ class Kmc2CentroidsGenerator {
     ContainerType rows(cache.dimension());
     size_t m = matrix.count();
     size_t n = m + cache.count();
-    // std::mt19937 mt((std::random_device())());
-    std::mt19937 mt(15583);
+    std::mt19937 mt((std::random_device())());
 
     rows.resize(BatchCount);
     benches->reset(cache.dimension());
@@ -288,8 +285,7 @@ class Kmc2CentroidsGenerator {
                                   const std::vector<float> &probs,
                                   ContainerType *benches,
                                   std::vector<float> *bench_probs) {
-    // std::mt19937 mt((std::random_device())());
-    std::mt19937 mt(15583);
+    std::mt19937 mt((std::random_device())());
     std::uniform_real_distribution<float> dist(0.0, 1.0);
 
     // Sample features
