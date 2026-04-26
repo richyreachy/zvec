@@ -17,9 +17,9 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <future>
+#include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
 #include <zvec/core/framework/index_framework.h>
-#include <gtest/gtest.h>
 #include "diskann_holder.h"
 
 using namespace zvec::core;
@@ -42,7 +42,11 @@ shared_ptr<IndexMeta> DiskAnnBuilderTest::_index_meta_ptr;
 
 void DiskAnnBuilderTest::SetUp(void) {
   LoggerBroker::SetLevel(Logger::LEVEL_INFO);
+<<<<<<< HEAD
   
+=======
+
+>>>>>>> feat/diskann_index
   _index_meta_ptr.reset(new (nothrow)
                             IndexMeta(IndexMeta::DataType::DT_FP32, dim));
   _index_meta_ptr->set_metric("SquaredEuclidean", 0, Params());
@@ -58,7 +62,13 @@ TEST_F(DiskAnnBuilderTest, TestGeneral) {
   IndexBuilder::Pointer builder = IndexFactory::CreateBuilder("DiskAnnBuilder");
   ASSERT_NE(builder, nullptr);
 
-  auto holder = make_shared<MultiPassIndexHolder<IndexMeta::DataType::DT_FP32>>(dim);
+<<<<<<< HEAD
+  auto holder =
+      make_shared<MultiPassIndexHolder<IndexMeta::DataType::DT_FP32>>(dim);
+=======
+  auto holder =
+      make_shared<MultiPassIndexHolder<IndexMeta::DataType::DT_FP32>>(dim);
+>>>>>>> feat/diskann_index
   size_t doc_cnt = 10000UL;
   for (size_t i = 0; i < doc_cnt; i++) {
     NumericalVector<float> vec(dim);

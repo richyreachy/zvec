@@ -159,7 +159,7 @@ void LinuxAlignedFileReader::register_thread() {
     return;
   }
 
-  IOContext ctx = 0;
+  IOContext ctx = nullptr;
 
   int ret = io_setup(MAX_EVENTS, &ctx);
   if (ret != 0) {

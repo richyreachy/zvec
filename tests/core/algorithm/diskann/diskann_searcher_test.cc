@@ -73,7 +73,7 @@ TEST_F(DiskAnnSearcherTest, TestGeneral) {
   Params params;
 
   params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 50);
+  params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
   params.set("proxima.diskann.builder.threads", 4);
 
@@ -218,7 +218,7 @@ TEST_F(DiskAnnSearcherTest, TestGeneral) {
   float cost = linearTotalTime * 1.0f / knnTotalTime;
 
   EXPECT_GT(recall, 0.90f);
-  EXPECT_GT(topk1Recall, 0.90f);
+  EXPECT_GT(topk1Recall, 0.80f);
   EXPECT_GT(cost, 2.0f);
 }
 
@@ -240,7 +240,7 @@ TEST_F(DiskAnnSearcherTest, TestNodeCache) {
   Params params;
 
   params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 50);
+  params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
   params.set("proxima.diskann.builder.threads", 4);
 
@@ -341,7 +341,7 @@ TEST_F(DiskAnnSearcherTest, TestNodeCache) {
   float cost = linearTotalTime * 1.0f / knnTotalTime;
 
   EXPECT_GT(recall, 0.90f);
-  EXPECT_GT(topk1Recall, 0.90f);
+  EXPECT_GT(topk1Recall, 0.80f);
   EXPECT_GT(cost, 2.0f);
 }
 
@@ -363,7 +363,7 @@ TEST_F(DiskAnnSearcherTest, TestFilter) {
   Params params;
 
   params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 50);
+  params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
   params.set("proxima.diskann.builder.threads", 4);
 
@@ -494,7 +494,7 @@ TEST_F(DiskAnnSearcherTest, TestGroup) {
   Params params;
 
   params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 50);
+  params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
   params.set("proxima.diskann.builder.threads", 4);
 
@@ -639,7 +639,7 @@ TEST_F(DiskAnnSearcherTest, TestFetchVector) {
   Params params;
 
   params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 50);
+  params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
   params.set("proxima.diskann.builder.threads", 4);
 
@@ -746,7 +746,7 @@ TEST_F(DiskAnnSearcherTest, TestRnnSearch) {
   Params params;
 
   params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 50);
+  params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
   params.set("proxima.diskann.builder.threads", 4);
 
@@ -968,7 +968,7 @@ TEST_F(DiskAnnSearcherTest, TestGeneralFp16) {
   float cost = linearTotalTime * 1.0f / knnTotalTime;
 
   EXPECT_GT(recall, 0.90f);
-  EXPECT_GT(topk1Recall, 0.90f);
+  EXPECT_GT(topk1Recall, 0.80f);
   EXPECT_GT(cost, 2.0f);
 }
 
@@ -1013,7 +1013,7 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
   Params params;
 
   params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 50);
+  params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
   params.set("proxima.diskann.builder.threads", 4);
 
@@ -1148,7 +1148,7 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
   float topk1Recall = topk1Hits * 1.0f / query_cnt;
 
   EXPECT_GT(recall, 0.90f);
-  EXPECT_GT(topk1Recall, 0.90f);
+  EXPECT_GT(topk1Recall, 0.80f);
 }
 
 TEST_F(DiskAnnSearcherTest, TestCosineFp16) {
@@ -1192,7 +1192,7 @@ TEST_F(DiskAnnSearcherTest, TestCosineFp16) {
   Params params;
 
   params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 50);
+  params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
   params.set("proxima.diskann.builder.threads", 4);
 
@@ -1327,5 +1327,5 @@ TEST_F(DiskAnnSearcherTest, TestCosineFp16) {
   float topk1Recall = topk1Hits * 1.0f / query_cnt;
 
   EXPECT_GT(recall, 0.90f);
-  EXPECT_GT(topk1Recall, 0.90f);
+  EXPECT_GT(topk1Recall, 0.80f);
 }

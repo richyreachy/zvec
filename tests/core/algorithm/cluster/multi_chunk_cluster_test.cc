@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cluster/multi_chunk_cluster.h"
 #include <cmath>
 #include <random>
-#include <zvec/ailego/container/params.h>
 #include <ailego/algorithm/kmeans.h>
-#include "zvec/core/framework/index_framework.h"
 #include <gtest/gtest.h>
-
-#include "cluster/multi_chunk_cluster.h"
+#include <zvec/ailego/container/params.h>
+#include "zvec/core/framework/index_framework.h"
 
 using namespace zvec::core;
 using namespace zvec::ailego;
