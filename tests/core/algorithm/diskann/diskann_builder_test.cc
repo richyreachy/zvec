@@ -42,11 +42,6 @@ shared_ptr<IndexMeta> DiskAnnBuilderTest::_index_meta_ptr;
 
 void DiskAnnBuilderTest::SetUp(void) {
   LoggerBroker::SetLevel(Logger::LEVEL_INFO);
-<<<<<<< HEAD
-  
-=======
-
->>>>>>> feat/diskann_index
   _index_meta_ptr.reset(new (nothrow)
                             IndexMeta(IndexMeta::DataType::DT_FP32, dim));
   _index_meta_ptr->set_metric("SquaredEuclidean", 0, Params());
@@ -62,13 +57,8 @@ TEST_F(DiskAnnBuilderTest, TestGeneral) {
   IndexBuilder::Pointer builder = IndexFactory::CreateBuilder("DiskAnnBuilder");
   ASSERT_NE(builder, nullptr);
 
-<<<<<<< HEAD
   auto holder =
       make_shared<MultiPassIndexHolder<IndexMeta::DataType::DT_FP32>>(dim);
-=======
-  auto holder =
-      make_shared<MultiPassIndexHolder<IndexMeta::DataType::DT_FP32>>(dim);
->>>>>>> feat/diskann_index
   size_t doc_cnt = 10000UL;
   for (size_t i = 0; i < doc_cnt; i++) {
     NumericalVector<float> vec(dim);
