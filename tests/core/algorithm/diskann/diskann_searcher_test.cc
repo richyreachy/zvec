@@ -75,7 +75,7 @@ TEST_F(DiskAnnSearcherTest, TestGeneral) {
   params.set("proxima.diskann.builder.max_degree", 32);
   params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("proxima.diskann.builder.threads", 2);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
@@ -242,7 +242,7 @@ TEST_F(DiskAnnSearcherTest, TestNodeCache) {
   params.set("proxima.diskann.builder.max_degree", 32);
   params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("proxima.diskann.builder.threads", 2);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
@@ -365,7 +365,7 @@ TEST_F(DiskAnnSearcherTest, TestFilter) {
   params.set("proxima.diskann.builder.max_degree", 32);
   params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("proxima.diskann.builder.threads", 2);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
@@ -496,7 +496,7 @@ TEST_F(DiskAnnSearcherTest, TestGroup) {
   params.set("proxima.diskann.builder.max_degree", 32);
   params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("proxima.diskann.builder.threads", 2);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
@@ -641,7 +641,7 @@ TEST_F(DiskAnnSearcherTest, TestFetchVector) {
   params.set("proxima.diskann.builder.max_degree", 32);
   params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("proxima.diskann.builder.threads", 2);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
@@ -748,7 +748,7 @@ TEST_F(DiskAnnSearcherTest, TestRnnSearch) {
   params.set("proxima.diskann.builder.max_degree", 32);
   params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("proxima.diskann.builder.threads", 2);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
@@ -857,7 +857,7 @@ TEST_F(DiskAnnSearcherTest, TestGeneralFp16) {
   params.set("proxima.diskann.builder.max_degree", 32);
   params.set("proxima.diskann.builder.list_size", 200);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("proxima.diskann.builder.threads", 2);
 
   ASSERT_EQ(0, builder->init(new_index_meta, params));
 
@@ -1015,7 +1015,7 @@ TEST_F(DiskAnnSearcherTest, TestCosine) {
   params.set("proxima.diskann.builder.max_degree", 32);
   params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("proxima.diskann.builder.threads", 2);
 
   IndexMeta new_meta = converter->meta();
 
@@ -1194,7 +1194,7 @@ TEST_F(DiskAnnSearcherTest, TestCosineFp16) {
   params.set("proxima.diskann.builder.max_degree", 32);
   params.set("proxima.diskann.builder.list_size", 300);
   params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("proxima.diskann.builder.threads", 2);
 
   IndexMeta new_meta = converter->meta();
 
