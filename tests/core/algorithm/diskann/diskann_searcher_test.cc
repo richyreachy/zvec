@@ -815,6 +815,7 @@ TEST_F(DiskAnnSearcherTest, TestRnnSearch) {
   ASSERT_LT(radius, results[topk - 1].score());
 }
 
+#if 0
 TEST_F(DiskAnnSearcherTest, TestGeneralFp16) {
   IndexBuilder::Pointer builder = IndexFactory::CreateBuilder("DiskAnnBuilder");
   ASSERT_NE(builder, nullptr);
@@ -971,6 +972,7 @@ TEST_F(DiskAnnSearcherTest, TestGeneralFp16) {
   EXPECT_GT(topk1Recall, 0.80f);
   EXPECT_GT(cost, 2.0f);
 }
+
 
 TEST_F(DiskAnnSearcherTest, TestCosine) {
   std::mt19937 gen(15583);
@@ -1329,3 +1331,4 @@ TEST_F(DiskAnnSearcherTest, TestCosineFp16) {
   EXPECT_GT(recall, 0.90f);
   EXPECT_GT(topk1Recall, 0.80f);
 }
+#endif

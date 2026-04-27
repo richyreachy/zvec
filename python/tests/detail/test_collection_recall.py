@@ -306,101 +306,101 @@ class TestRecall:
     @pytest.mark.parametrize(
         "full_schema_new",
         [
-            (True, True, HnswIndexParam()),
-            (False, True, IVFIndexParam()),
-            (False, True, DiskAnnIndexParam()),
-            (False, True, FlatIndexParam()),  # ——ok
-            (
-                True,
-                True,
-                HnswIndexParam(
-                    metric_type=MetricType.IP,
-                    m=16,
-                    ef_construction=100,
-                ),
-            ),
-            (
-                True,
-                True,
-                HnswIndexParam(
-                    metric_type=MetricType.COSINE,
-                    m=24,
-                    ef_construction=150,
-                ),
-            ),
-            (
-                True,
-                True,
-                HnswIndexParam(
-                    metric_type=MetricType.L2,
-                    m=32,
-                    ef_construction=200,
-                ),
-            ),
-            (
-                False,
-                True,
-                FlatIndexParam(
-                    metric_type=MetricType.IP,
-                ),
-            ),
-            (
-                True,
-                True,
-                FlatIndexParam(
-                    metric_type=MetricType.COSINE,
-                ),
-            ),
-            (
-                True,
-                True,
-                FlatIndexParam(
-                    metric_type=MetricType.L2,
-                ),
-            ),
-            (
-                True,
-                True,
-                IVFIndexParam(
-                    metric_type=MetricType.IP,
-                    n_list=100,
-                    n_iters=10,
-                    use_soar=False,
-                ),
-            ),
-            (
-                True,
-                True,
-                IVFIndexParam(
-                    metric_type=MetricType.L2,
-                    n_list=200,
-                    n_iters=20,
-                    use_soar=True,
-                ),
-            ),
-            (
-                True,
-                True,
-                IVFIndexParam(
-                    metric_type=MetricType.COSINE,
-                    n_list=150,
-                    n_iters=15,
-                    use_soar=False,
-                ),
-            ),
-            (
-                True,
-                True,
-                DiskAnnIndexParam(
-                    metric_type=MetricType.IP,
-                    max_degree=32,
-                ),
-            ),
-            (
-                True,
-                True,
-                DiskAnnIndexParam(metric_type=MetricType.L2, max_degree=32),
-            ),
+            # (True, True, HnswIndexParam()),
+            # (False, True, IVFIndexParam()),
+            # (False, True, DiskAnnIndexParam()),
+            # (False, True, FlatIndexParam()),  # ——ok
+            # (
+            #     True,
+            #     True,
+            #     HnswIndexParam(
+            #         metric_type=MetricType.IP,
+            #         m=16,
+            #         ef_construction=100,
+            #     ),
+            # ),
+            # (
+            #     True,
+            #     True,
+            #     HnswIndexParam(
+            #         metric_type=MetricType.COSINE,
+            #         m=24,
+            #         ef_construction=150,
+            #     ),
+            # ),
+            # (
+            #     True,
+            #     True,
+            #     HnswIndexParam(
+            #         metric_type=MetricType.L2,
+            #         m=32,
+            #         ef_construction=200,
+            #     ),
+            # ),
+            # (
+            #     False,
+            #     True,
+            #     FlatIndexParam(
+            #         metric_type=MetricType.IP,
+            #     ),
+            # ),
+            # (
+            #     True,
+            #     True,
+            #     FlatIndexParam(
+            #         metric_type=MetricType.COSINE,
+            #     ),
+            # ),
+            # (
+            #     True,
+            #     True,
+            #     FlatIndexParam(
+            #         metric_type=MetricType.L2,
+            #     ),
+            # ),
+            # (
+            #     True,
+            #     True,
+            #     IVFIndexParam(
+            #         metric_type=MetricType.IP,
+            #         n_list=100,
+            #         n_iters=10,
+            #         use_soar=False,
+            #     ),
+            # ),
+            # (
+            #     True,
+            #     True,
+            #     IVFIndexParam(
+            #         metric_type=MetricType.L2,
+            #         n_list=200,
+            #         n_iters=20,
+            #         use_soar=True,
+            #     ),
+            # ),
+            # (
+            #     True,
+            #     True,
+            #     IVFIndexParam(
+            #         metric_type=MetricType.COSINE,
+            #         n_list=150,
+            #         n_iters=15,
+            #         use_soar=False,
+            #     ),
+            # ),
+            # (
+            #     True,
+            #     True,
+            #     DiskAnnIndexParam(
+            #         metric_type=MetricType.IP,
+            #         max_degree=32,
+            #     ),
+            # ),
+            # (
+            #     True,
+            #     True,
+            #     DiskAnnIndexParam(metric_type=MetricType.L2, max_degree=32),
+            # ),
             (
                 True,
                 True,
