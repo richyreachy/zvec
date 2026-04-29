@@ -110,6 +110,50 @@ std::string ResolveHostingSoDir() {
   return path.substr(0, slash);
 }
 
+// Full path of the shared object that hosts LoadDiskAnnPlugin, or empty
+// string on failure.
+std::string ResolveHostingSoPath() {
+  ::Dl_info info{};
+  if (::dladdr(reinterpret_cast<void *>(&::zvec::LoadDiskAnnPlugin), &info) ==
+          0 ||
+      info.dli_fname == nullptr) {
+    return {};
+  }
+  return std::string(info.dli_fname);
+}
+
+// Promote the hosting shared object (e.g. the Python extension module
+// ``_zvec.cpython-*.so``) to the global symbol scope. Python loads C
+// extensions with RTLD_LOCAL by default, which means their C++ symbols are
+// invisible to subsequently dlopen(RTLD_GLOBAL)ed libraries. Without this
+// promotion, the DiskAnn plugin's undefined references to zvec:: symbols
+// cannot be resolved against the already-loaded host module and dlopen
+// fails with messages like:
+//
+//   undefined symbol: _ZN4zvec6ailego6Logger10LEVEL_INFOE
+//
+// Using RTLD_NOLOAD re-opens the existing image without loading it again,
+// while RTLD_GLOBAL merges its symbols into the global scope. This is a
+// no-op for hosts that were already loaded with RTLD_GLOBAL.
+void PromoteHostingSoToGlobal() {
+  const std::string host = ResolveHostingSoPath();
+  if (host.empty()) {
+    return;
+  }
+  void *h = ::dlopen(host.c_str(), RTLD_NOW | RTLD_GLOBAL | RTLD_NOLOAD);
+  if (h == nullptr) {
+    const char *err = ::dlerror();
+    LOG_WARN("Could not promote host '%s' to RTLD_GLOBAL: %s", host.c_str(),
+             err ? err : "unknown");
+    return;
+  }
+  // We purposely keep the handle refcount incremented for the life of the
+  // process: there is no safe point at which to dlclose() it, and doing so
+  // would only decrement the count anyway (the image remains mapped because
+  // Python still holds its own reference).
+  (void)h;
+}
+
 #endif  // linux || apple
 
 }  // namespace
@@ -204,6 +248,9 @@ int LoadDiskAnnPlugin(const std::string &path) {
   }
 
   const std::vector<std::string> candidates = BuildCandidatePaths(path);
+  // Ensure the hosting module's C++ symbols (zvec::*) are visible to the
+  // plugin at dlopen time. See PromoteHostingSoToGlobal() for the rationale.
+  PromoteHostingSoToGlobal();
   void *handle = nullptr;
   std::string last_error;
   for (const std::string &candidate : candidates) {
