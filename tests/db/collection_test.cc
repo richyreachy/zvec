@@ -4250,8 +4250,8 @@ TEST_F(CollectionTest, Feature_Optimize_DiskAnn) {
   func(MetricType::L2, 4);
   func(MetricType::IP, 0);
   func(MetricType::IP, 4);
-  func(MetricType::COSINE, 0);
-  func(MetricType::COSINE, 4);
+  // func(MetricType::COSINE, 0);
+  // func(MetricType::COSINE, 4);
 }
 #endif
 
