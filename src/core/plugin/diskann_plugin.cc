@@ -78,6 +78,42 @@ std::string GetExecutableDir() {
 #endif
 }
 
+}  // namespace
+
+namespace {
+
+#if defined(__linux__) || defined(__linux) || defined(__APPLE__)
+
+// Resolve the directory containing the shared object that hosts this
+// function. For Python wheels this is the directory of
+// ``_zvec.cpython-*.so``; for regular C++ binaries it is the directory of
+// ``libzvec_core.so``. In either case the DiskAnn plugin is shipped
+// alongside, so this is the most reliable lookup location.
+//
+// NOTE: we pass the address of an *exported* function (LoadDiskAnnPlugin)
+// rather than one in this anonymous namespace, because dladdr() on a symbol
+// with internal linkage can report the main executable instead of the
+// hosting shared object when the translation unit is whole-archived into
+// another .so.
+std::string ResolveHostingSoDir() {
+  ::Dl_info info{};
+  if (::dladdr(reinterpret_cast<void *>(&::zvec::LoadDiskAnnPlugin), &info) ==
+          0 ||
+      info.dli_fname == nullptr) {
+    return {};
+  }
+  std::string path(info.dli_fname);
+  auto slash = path.find_last_of('/');
+  if (slash == std::string::npos) {
+    return {};
+  }
+  return path.substr(0, slash);
+}
+
+#endif  // linux || apple
+
+}  // namespace
+
 // Build the list of candidate paths for the plugin.
 std::vector<std::string> BuildCandidatePaths(const std::string &explicit_path) {
   std::vector<std::string> candidates;
@@ -86,18 +122,26 @@ std::vector<std::string> BuildCandidatePaths(const std::string &explicit_path) {
     return candidates;
   }
 
+  // 1. Directory of the library that hosts LoadDiskAnnPlugin (e.g. the
+  //    Python extension module or libzvec_core). This works for Python,
+  //    C++ embedding, and most packaging layouts.
+  const std::string own_dir = ResolveHostingSoDir();
+  if (!own_dir.empty()) {
+    candidates.push_back(own_dir + "/" + kPluginFileName);
+  }
+  // 2. Directory of the running executable. Useful for self-contained C++
+  //    tools that drop the plugin next to their binary.
   const std::string exe_dir = GetExecutableDir();
-  if (!exe_dir.empty()) {
+  if (!exe_dir.empty() && exe_dir != own_dir) {
     candidates.push_back(exe_dir + "/" + kPluginFileName);
   }
-  // Fallback: rely on the dynamic linker's default search path.
+  // 3. Fallback: rely on the dynamic linker's default search path
+  //    (RPATH / LD_LIBRARY_PATH / /etc/ld.so.conf).
   candidates.emplace_back(kPluginFileName);
   return candidates;
 }
 
 #endif  // linux || apple
-
-}  // namespace
 
 bool IsLibAioAvailable() {
 #if defined(__linux__) || defined(__linux)
