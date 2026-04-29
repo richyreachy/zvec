@@ -13,6 +13,7 @@ set(SRC_LISTS
         model/param/python_param.cc
         model/schema/python_schema.cc
         model/common/python_config.cc
+        model/common/python_plugin.cc
         typing/python_type.cc
 )
 
@@ -33,8 +34,10 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
                 $<TARGET_FILE:core_metric_static>
                 $<TARGET_FILE:core_utility_static>
                 $<TARGET_FILE:core_quantizer_static>
+                $<TARGET_FILE:core_plugin>
                 -Wl,--no-whole-archive
                 zvec_db
+                ${CMAKE_DL_LIBS}
         )
         target_link_options(_zvec PRIVATE
                 "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
@@ -48,15 +51,24 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
                 $<TARGET_FILE:core_knn_hnsw_rabitq_static>
                 $<TARGET_FILE:core_knn_hnsw_sparse_static>
                 $<TARGET_FILE:core_knn_ivf_static>
-                $<TARGET_FILE:core_knn_diskann_static>
                 $<TARGET_FILE:core_knn_cluster_static>
                 $<TARGET_FILE:core_mix_reducer_static>
                 $<TARGET_FILE:core_metric_static>
                 $<TARGET_FILE:core_utility_static>
                 $<TARGET_FILE:core_quantizer_static>
+                $<TARGET_FILE:core_plugin>
                 -Wl,--no-whole-archive
                 zvec_db
-                aio
+                ${CMAKE_DL_LIBS}
+        )
+        # DiskAnn is built as an optional runtime plugin (libzvec_diskann_plugin.so).
+        # Users load it explicitly via zvec::LoadDiskAnnPlugin() after checking
+        # libaio availability; so it is NOT linked statically here and libaio is
+        # no longer a build-time dependency of the python extension.
+        # Ensure the plugin .so next to the extension is discoverable.
+        set_target_properties(_zvec PROPERTIES
+                BUILD_RPATH "$ORIGIN"
+                INSTALL_RPATH "$ORIGIN"
         )
         target_link_options(_zvec PRIVATE
                 "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
@@ -75,6 +87,7 @@ elseif (APPLE)
             -Wl,-force_load,$<TARGET_FILE:core_metric_static>
             -Wl,-force_load,$<TARGET_FILE:core_utility_static>
             -Wl,-force_load,$<TARGET_FILE:core_quantizer_static>
+            -Wl,-force_load,$<TARGET_FILE:core_plugin>
             zvec_db
     )
     target_link_libraries(_zvec PRIVATE
@@ -92,6 +105,7 @@ elseif (MSVC)
             core_metric_static
             core_utility_static
             core_quantizer_static
+            core_plugin
     )
     target_link_libraries(_zvec PRIVATE
             ${_zvec_whole_archive_libs}

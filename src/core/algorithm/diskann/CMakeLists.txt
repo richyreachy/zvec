@@ -9,10 +9,16 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64
 endif()
 
 cc_library(
-    NAME core_knn_diskann 
-    STATIC SHARED STRICT ALWAYS_LINK
+    NAME core_knn_diskann
+    SHARED STRICT
     SRCS *.cc
-    LIBS ${CORE_KNN_DISKANN_LIBS} 
+    LIBS ${CORE_KNN_DISKANN_LIBS}
     INCS . ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm
     VERSION "${PROXIMA_ZVEC_VERSION}"
+)
+
+# Rename the artifact to libzvec_diskann_plugin.so so it is clearly identified
+# as an optional plugin that users load at runtime via zvec::LoadDiskAnnPlugin().
+set_target_properties(core_knn_diskann PROPERTIES
+    OUTPUT_NAME zvec_diskann_plugin
 )

@@ -45,12 +45,18 @@ int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
   streamer_ = core::IndexFactory::CreateStreamer("DiskAnnStreamer");
 
   if (ailego_unlikely(!builder_)) {
-    LOG_ERROR("Failed to create builder");
+    LOG_ERROR(
+        "Failed to create DiskAnnBuilder. The DiskAnn plugin is not loaded. "
+        "Call zvec::LoadDiskAnnPlugin() (after verifying "
+        "zvec::IsLibAioAvailable()) before creating a DiskAnn index.");
     return core::IndexError_Runtime;
   }
 
   if (ailego_unlikely(!streamer_)) {
-    LOG_ERROR("Failed to create streamer");
+    LOG_ERROR(
+        "Failed to create DiskAnnStreamer. The DiskAnn plugin is not loaded. "
+        "Call zvec::LoadDiskAnnPlugin() (after verifying "
+        "zvec::IsLibAioAvailable()) before creating a DiskAnn index.");
     return core::IndexError_Runtime;
   }
 
