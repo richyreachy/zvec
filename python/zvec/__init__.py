@@ -21,32 +21,6 @@ if TYPE_CHECKING:
     from importlib.metadata import PackageNotFoundError
 
 
-# ------------------------------------------------------------------------
-# Load the C extension _zvec with RTLD_GLOBAL on Linux so that symbols
-# defined in _zvec.so (notably the STT_GNU_UNIQUE template-singletons such
-# as zvec::ailego::Factory<IndexBuilder>::Instance()::factory) participate
-# in the process's global unique-symbol table from the very first load.
-#
-# The optional DiskAnn runtime plugin (libzvec_diskann_plugin.so) is dlopen'd
-# later with RTLD_GLOBAL and relies on its INDEX_FACTORY_REGISTER_* static
-# initializers writing into THE SAME Factory singletons that _zvec.so reads
-# from at CreateBuilder() time. Python's default is RTLD_LOCAL, which would
-# place _zvec.so's unique symbols in a private namespace — retroactively
-# promoting it via dlopen(RTLD_NOLOAD | RTLD_GLOBAL) does not reliably merge
-# the unique-symbol scopes on all glibc versions, so we set the flags up
-# front instead.
-if sys.platform.startswith("linux"):
-    import os as _os
-
-    _zvec_prev_dlopen_flags = sys.getdlopenflags()
-    sys.setdlopenflags(_zvec_prev_dlopen_flags | _os.RTLD_GLOBAL | _os.RTLD_NOW)
-    try:
-        import _zvec as _zvec
-    finally:
-        sys.setdlopenflags(_zvec_prev_dlopen_flags)
-    del _os, _zvec_prev_dlopen_flags
-
-
 # ==============================
 # Public API — grouped by category
 # ==============================
