@@ -20,6 +20,7 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
 #include <zvec/core/framework/index_framework.h>
+#include <zvec/plugin/diskann_plugin.h>
 #include "diskann_holder.h"
 
 using namespace zvec::core;
@@ -97,4 +98,34 @@ TEST_F(DiskAnnBuilderTest, TestGeneral) {
   ASSERT_EQ(0UL, stats.discarded_count());
   ASSERT_GT(stats.trained_costtime(), 0UL);
   ASSERT_GT(stats.built_costtime(), 0UL);
+}
+
+// Smoke-test for the DiskAnn plugin lazy-loading API. On Linux x86_64 with
+// libaio installed, IsLibAioAvailable() must report true and
+// LoadDiskAnnPlugin() must succeed (idempotent on repeat calls). After a
+// successful load the global IndexFactory must be able to hand out a
+// DiskAnnBuilder instance.
+TEST_F(DiskAnnBuilderTest, TestPluginLoad) {
+#if defined(__linux__) || defined(__linux)
+  ASSERT_TRUE(zvec::IsLibAioAvailable())
+      << "libaio was not detected on this host; the DiskAnn plugin cannot "
+         "be loaded. Install libaio1 (or libaio1t64 on Ubuntu 24.04+).";
+
+  int status = zvec::LoadDiskAnnPlugin();
+  ASSERT_EQ(zvec::kDiskAnnPluginOk, status)
+      << "LoadDiskAnnPlugin() returned error code " << status;
+
+  // Second call must be a no-op (idempotent), still returning OK.
+  ASSERT_EQ(zvec::kDiskAnnPluginOk, zvec::LoadDiskAnnPlugin());
+  ASSERT_TRUE(zvec::IsDiskAnnPluginLoaded());
+
+  IndexBuilder::Pointer builder = IndexFactory::CreateBuilder("DiskAnnBuilder");
+  ASSERT_NE(builder, nullptr)
+      << "DiskAnnBuilder factory entry missing after plugin load.";
+#else
+  // On non-Linux platforms the plugin is unsupported by design.
+  ASSERT_FALSE(zvec::IsLibAioAvailable());
+  ASSERT_EQ(zvec::kDiskAnnPluginUnsupportedPlatform, zvec::LoadDiskAnnPlugin());
+  ASSERT_FALSE(zvec::IsDiskAnnPluginLoaded());
+#endif
 }
