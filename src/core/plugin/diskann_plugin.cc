@@ -43,11 +43,9 @@ constexpr const char *kLibAioSoNames[] = {
 constexpr bool kPlatformSupportsDiskAnnPlugin = true;
 #elif defined(__APPLE__)
 constexpr const char *kPluginFileName = "libzvec_diskann_plugin.dylib";
-constexpr const char *const *kLibAioSoNames = nullptr;  // libaio is Linux-only
 constexpr bool kPlatformSupportsDiskAnnPlugin = false;
 #else
 constexpr const char *kPluginFileName = "zvec_diskann_plugin.dll";
-constexpr const char *const *kLibAioSoNames = nullptr;
 constexpr bool kPlatformSupportsDiskAnnPlugin = false;
 #endif
 
@@ -77,12 +75,6 @@ std::string GetExecutableDir() {
   return {};
 #endif
 }
-
-}  // namespace
-
-namespace {
-
-#if defined(__linux__) || defined(__linux) || defined(__APPLE__)
 
 // Resolve the directory containing the shared object that hosts this
 // function. For Python wheels this is the directory of
@@ -154,10 +146,6 @@ void PromoteHostingSoToGlobal() {
   (void)h;
 }
 
-#endif  // linux || apple
-
-}  // namespace
-
 // Build the list of candidate paths for the plugin.
 std::vector<std::string> BuildCandidatePaths(const std::string &explicit_path) {
   std::vector<std::string> candidates;
@@ -186,6 +174,8 @@ std::vector<std::string> BuildCandidatePaths(const std::string &explicit_path) {
 }
 
 #endif  // linux || apple
+
+}  // namespace
 
 bool IsLibAioAvailable() {
 #if defined(__linux__) || defined(__linux)
