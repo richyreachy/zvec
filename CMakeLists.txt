@@ -156,4 +156,14 @@ if(BUILD_PYTHON_BINDINGS)
 
     message(STATUS "Zvec install path: ${ZVEC_PY_INSTALL_DIR}")
     install(TARGETS _zvec LIBRARY DESTINATION ${ZVEC_PY_INSTALL_DIR})
+
+    # DiskAnn is shipped as an optional runtime plugin
+    # (libzvec_diskann_plugin.so). The Python extension loads it lazily via
+    # zvec::LoadDiskAnnPlugin(), which probes the directory of _zvec.so first;
+    # therefore the plugin must be installed next to _zvec.so in the wheel.
+    # The target exists only on platforms where DiskAnn is buildable
+    # (currently Linux x86_64 with libaio).
+    if(TARGET core_knn_diskann)
+        install(TARGETS core_knn_diskann LIBRARY DESTINATION ${ZVEC_PY_INSTALL_DIR})
+    endif()
 endif()
