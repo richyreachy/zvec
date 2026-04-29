@@ -97,7 +97,7 @@ jobs:
             pytest \
             scikit-build-core \
             setuptools_scm
-            shell: bash       
+        shell: bash       
 
       - name: Build from source
         run: |
