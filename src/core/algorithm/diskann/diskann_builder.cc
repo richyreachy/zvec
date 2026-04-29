@@ -222,7 +222,7 @@ int DiskAnnBuilder::calculate_entry_point() {
 
   (*entity_.mutable_medoid()) = medoid_id;
 
-  LOG_INFO("Medroid Calculation Done. ID: %zu", (size_t)medoid_id);
+  LOG_INFO("Medoid Calculation Done. ID: %zu", (size_t)medoid_id);
 
   return 0;
 }
@@ -554,6 +554,11 @@ int DiskAnnBuilder::build(IndexThreads::Pointer threads,
   auto iter = holder->create_iterator();
   if (!iter) {
     LOG_ERROR("Create iterator for holder failed");
+    return IndexError_Runtime;
+  }
+
+  if (ailego_unlikely(holder->count() == 0)) {
+    LOG_ERROR("Holder is empty");
     return IndexError_Runtime;
   }
 

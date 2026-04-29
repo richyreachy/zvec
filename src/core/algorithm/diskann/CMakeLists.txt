@@ -1,13 +1,3 @@
-##
-##  Copyright (C) The Software Authors. All rights reserved.
-##
-##  \file     CMakeLists.txt
-##  \author   Hechong.xyf
-##  \date     Oct 2019
-##  \version  1.0
-##  \brief    Detail cmake build script
-##
-
 include(${CMAKE_SOURCE_DIR}/cmake/bazel.cmake)
 
 file(GLOB_RECURSE ALL_SRCS *.cc *.c)

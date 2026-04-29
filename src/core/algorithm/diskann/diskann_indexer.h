@@ -80,7 +80,7 @@ class DiskAnnIndexer {
   float *centroid_data_{nullptr};
 
   diskann_id_t medoid_;
-  std::vector<diskann_id_t> entrypints_;
+  std::vector<diskann_id_t> entrypoints_;
 
   std::shared_ptr<LinuxAlignedFileReader> reader_{nullptr};
 

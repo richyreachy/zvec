@@ -73,10 +73,10 @@ int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
 
   medoid_ = entity.medoid();
 
-  entrypints_.push_back(medoid_);
+  entrypoints_.push_back(medoid_);
   auto &entrypoints = entity.entrypoints();
   for (size_t i = 0; i < entrypoints.size(); ++i) {
-    entrypints_.push_back(entrypoints[i]);
+    entrypoints_.push_back(entrypoints[i]);
   }
 
   doc_cnt_ = entity.doc_cnt();
@@ -92,7 +92,7 @@ int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
   }
 
   DiskAnnUtil::alloc_aligned((void **)(&centroid_data_),
-                             entrypints_.size() * aligned_dim_ * sizeof(float),
+                             entrypoints_.size() * aligned_dim_ * sizeof(float),
                              32);
 
   use_medroids_data_as_centroids();
@@ -271,9 +271,9 @@ void DiskAnnIndexer::cache_bfs_levels(uint64_t num_nodes_to_cache,
   std::unordered_set<diskann_id_t> prev_level;
 
   for (uint64_t iter = 0;
-       iter < entrypints_.size() && cur_level.size() < num_nodes_to_cache;
+       iter < entrypoints_.size() && cur_level.size() < num_nodes_to_cache;
        iter++) {
-    cur_level.insert(entrypints_[iter]);
+    cur_level.insert(entrypoints_[iter]);
   }
 
   uint64_t level = 1;
@@ -797,12 +797,12 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
 
   diskann_id_t best_medoid = 0;
   float best_dist = (std::numeric_limits<float>::max)();
-  for (uint64_t cur_m = 0; cur_m < entrypints_.size(); cur_m++) {
+  for (uint64_t cur_m = 0; cur_m < entrypoints_.size(); cur_m++) {
     float cur_expanded_dist =
         dc.dist(ctx->query(), centroid_data_ + aligned_dim_ * cur_m);
 
     if (cur_expanded_dist < best_dist) {
-      best_medoid = entrypints_[cur_m];
+      best_medoid = entrypoints_[cur_m];
       best_dist = cur_expanded_dist;
     }
   }
