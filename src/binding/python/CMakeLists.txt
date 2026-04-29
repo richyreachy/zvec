@@ -19,6 +19,18 @@ set(SRC_LISTS
 
 pybind11_add_module(_zvec ${SRC_LISTS})
 
+# Ensure any change to the linker version script (exports.map) triggers a
+# re-link of _zvec.so. target_link_options() alone is a command-line flag
+# and does not register the script file as a build dependency, so stale
+# wheels would silently keep the old export set otherwise.
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set_property(TARGET _zvec APPEND PROPERTY LINK_DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/exports.map")
+elseif (APPLE)
+    set_property(TARGET _zvec APPEND PROPERTY LINK_DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/exports.mac")
+endif()
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|arm")
         target_link_libraries(_zvec PRIVATE
