@@ -111,6 +111,16 @@ def full_schema_new(request) -> CollectionSchema:
     if isinstance(vector_index, DiskAnnIndexParam) and not DISKANN_SUPPORTED:
         pytest.skip("DiskAnn only supported on Linux x86_64")
 
+    # DiskAnn is shipped as an optional runtime plugin. Load it lazily here
+    # (idempotent) so the core index factory can instantiate the index. Skip
+    # the test if libaio is missing or the plugin .so cannot be dlopened.
+    if isinstance(vector_index, DiskAnnIndexParam):
+        if not zvec.is_libaio_available():
+            pytest.skip("libaio is not available on this host")
+        status = zvec.load_diskann_plugin()
+        if status != zvec.DiskAnnPluginStatus.OK:
+            pytest.skip(f"DiskAnn plugin failed to load: {status}")
+
     scalar_index_param = None
     vector_index_param = None
     if has_index:
