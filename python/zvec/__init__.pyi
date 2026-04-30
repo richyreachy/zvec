@@ -29,6 +29,13 @@ from .model.param import (
 )
 from .model.param.vector_query import VectorQuery
 from .model.schema import CollectionSchema, CollectionStats, FieldSchema, VectorSchema
+from .plugin import (
+    DiskAnnPluginStatus,
+    is_diskann_plugin_loaded,
+    is_libaio_available,
+    load_diskann_plugin,
+    unload_diskann_plugin,
+)
 from .tool import require_module
 from .typing import (
     DataType,
@@ -51,6 +58,7 @@ __all__: list = [
     "DataType",
     "DenseEmbeddingFunction",
     "DenseEmbeddingFunction",
+    "DiskAnnPluginStatus",
     "Doc",
     "FieldSchema",
     "FlatIndexParam",
@@ -78,8 +86,12 @@ __all__: list = [
     "WeightedReRanker",
     "create_and_open",
     "init",
+    "is_diskann_plugin_loaded",
+    "is_libaio_available",
+    "load_diskann_plugin",
     "open",
     "require_module",
+    "unload_diskann_plugin",
 ]
 
 class _Collection:

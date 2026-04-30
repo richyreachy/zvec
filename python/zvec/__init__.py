@@ -76,6 +76,15 @@ from .model.param.vector_query import VectorQuery
 # —— Schema & field definitions ——
 from .model.schema import CollectionSchema, CollectionStats, FieldSchema, VectorSchema
 
+# —— Optional runtime plugins ——
+from .plugin import (
+    DiskAnnPluginStatus,
+    is_diskann_plugin_loaded,
+    is_libaio_available,
+    load_diskann_plugin,
+    unload_diskann_plugin,
+)
+
 # —— tools ——
 from .tool import require_module
 from .typing import (
@@ -150,6 +159,12 @@ __all__ = [
     "StatusCode",
     # Tools
     "require_module",
+    # Plugins
+    "DiskAnnPluginStatus",
+    "is_libaio_available",
+    "load_diskann_plugin",
+    "is_diskann_plugin_loaded",
+    "unload_diskann_plugin",
 ]
 
 # ==============================
