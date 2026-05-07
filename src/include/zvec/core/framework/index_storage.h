@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <zvec/ailego/buffer/buffer_pool.h>
+#include <zvec/ailego/buffer/vector_page_table.h>
 #include <zvec/ailego/container/params.h>
 #include <zvec/ailego/io/file.h>
 #include <zvec/core/framework/index_error.h>
@@ -278,6 +278,11 @@ class IndexStorage : public IndexModule {
   //! huge page
   virtual bool isHugePage(void) const {
     return false;
+  }
+
+  //! Retrieve the memory block type of this storage
+  virtual MemoryBlock::MemoryBlockType memory_block_type(void) const {
+    return MemoryBlock::MBT_MMAP;
   }
 
   //! Retrieve file ptr if has
