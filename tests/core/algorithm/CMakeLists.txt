@@ -7,6 +7,7 @@ cc_directories(flat_sparse)
 cc_directories(ivf)
 cc_directories(hnsw)
 cc_directories(hnsw_sparse)
+cc_directories(vamana)
 
 if(DISKANN_SUPPORTED)
   message(STATUS "build diskann tests")

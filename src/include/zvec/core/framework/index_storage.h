@@ -280,6 +280,11 @@ class IndexStorage : public IndexModule {
     return false;
   }
 
+  //! Retrieve the memory block type of this storage
+  virtual MemoryBlock::MemoryBlockType memory_block_type(void) const {
+    return MemoryBlock::MBT_MMAP;
+  }
+
   //! Retrieve file ptr if has
   virtual std::shared_ptr<ailego::File> file(void) const {
     return nullptr;
