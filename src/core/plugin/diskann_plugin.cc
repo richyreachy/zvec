@@ -231,9 +231,10 @@ int LoadDiskAnnPlugin(const std::string &path) {
 
   if (!IsLibAioAvailable()) {
     LOG_ERROR(
-        "libaio is not available on this host; DiskAnn plugin cannot be "
-        "loaded. Install libaio1 (or equivalent) before calling "
-        "zvec::LoadDiskAnnPlugin().");
+        "libaio is not available on this host; the DiskAnn runtime cannot be "
+        "activated. Install libaio1 (e.g. 'apt-get install libaio1', or "
+        "'libaio1t64' on Ubuntu 24.04+) and retry. This does not affect "
+        "other index types (HNSW, IVF, Flat, Vamana).");
     return kDiskAnnPluginLibAioMissing;
   }
 

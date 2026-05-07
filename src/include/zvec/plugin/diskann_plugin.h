@@ -17,6 +17,14 @@
 
 #include <string>
 
+// NOTE: The APIs declared in this header are INTERNAL to zvec. They are
+// invoked implicitly by ``DiskAnnIndex`` on first use so that DiskAnn works
+// out of the box, without users ever calling a ``load_diskann_plugin()`` /
+// ``is_libaio_available()`` entry point. External callers should not depend
+// on these symbols; they may change or be removed in future releases. On
+// hosts missing libaio the bring-up fails cleanly and only DiskAnn becomes
+// unavailable — other index types (HNSW / IVF / Flat / Vamana) keep working.
+
 #if defined(_WIN32) || defined(__CYGWIN__)
 #ifdef ZVEC_BUILD_SHARED
 #define ZVEC_PLUGIN_EXPORT __declspec(dllexport)
@@ -45,38 +53,33 @@ enum DiskAnnPluginStatus {
 };
 
 // Returns true if libaio is present on the host and the minimum set of symbols
-// required by the DiskAnn plugin (io_setup / io_submit / io_getevents /
+// required by the DiskAnn runtime (io_setup / io_submit / io_getevents /
 // io_destroy) can be resolved at runtime.
 //
-// The probe is non-destructive: it does not permanently load libaio; it is
-// safe to call multiple times.
+// Internal probe used by ``LoadDiskAnnPlugin`` before attempting dlopen. Not
+// part of the user-facing API.
 ZVEC_PLUGIN_EXPORT bool IsLibAioAvailable();
 
-// Load the DiskAnn plugin shared library (libzvec_diskann_plugin.so) via
-// dlopen(). Upon success the DiskAnn builder / searcher / streamer factory
-// entries are registered as a side effect of the plugin's static
-// initializers, and IndexFactory::CreateBuilder("DiskAnnBuilder") starts
-// returning a valid object.
+// Load the DiskAnn runtime shared library (libzvec_diskann_plugin.so) via
+// dlopen(). Invoked implicitly by ``DiskAnnIndex::CreateAndInitStreamer`` on
+// first use; callers should not invoke it directly. The call is idempotent
+// and returns ``kDiskAnnPluginOk`` when the runtime is already active.
 //
-// Parameters:
-//   path - optional explicit path to the plugin. When empty, the following
-//          locations are tried in order:
-//            1. next to the currently running executable (resolved via
-//               /proc/self/exe on Linux);
-//            2. the platform default dynamic-linker search path (RPATH,
-//               LD_LIBRARY_PATH, /etc/ld.so.conf, ...).
-//
-// Returns kDiskAnnPluginOk on success (also when the plugin is already
-// loaded).
+// Search order when ``path`` is empty:
+//   1. next to the currently running executable (``/proc/self/exe`` on Linux);
+//   2. next to the hosting shared object (e.g. ``_zvec.cpython-*.so``);
+//   3. the platform default dynamic-linker search path (RPATH,
+//      ``LD_LIBRARY_PATH``, ``/etc/ld.so.conf``, …).
 ZVEC_PLUGIN_EXPORT int LoadDiskAnnPlugin(const std::string &path = "");
 
-// Returns true if the DiskAnn plugin is currently loaded in this process.
+// Returns true if the DiskAnn runtime is currently loaded in this process.
+// Internal diagnostic; not a user-facing API.
 ZVEC_PLUGIN_EXPORT bool IsDiskAnnPluginLoaded();
 
-// Unload the DiskAnn plugin. Note: unloading a library that has registered
-// itself into global factory singletons is inherently racy; callers must
-// guarantee that no DiskAnn objects are still alive and no background
-// threads are executing DiskAnn code before calling this function. Returns
+// Unload the DiskAnn runtime. Internal only — unloading a library that has
+// registered itself into global factory singletons is inherently racy;
+// callers must guarantee that no DiskAnn objects are still alive and no
+// background threads are executing DiskAnn code before calling this. Returns
 // true when a live handle was released.
 ZVEC_PLUGIN_EXPORT bool UnloadDiskAnnPlugin();
 

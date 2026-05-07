@@ -13,7 +13,6 @@ set(SRC_LISTS
         model/param/python_param.cc
         model/schema/python_schema.cc
         model/common/python_config.cc
-        model/common/python_plugin.cc
         typing/python_type.cc
 )
 
@@ -75,11 +74,14 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
                 zvec_db
                 ${CMAKE_DL_LIBS}
         )
-        # DiskAnn is built as an optional runtime plugin (libzvec_diskann_plugin.so).
-        # Users load it explicitly via zvec::LoadDiskAnnPlugin() after checking
-        # libaio availability; so it is NOT linked statically here and libaio is
-        # no longer a build-time dependency of the python extension.
-        # Ensure the plugin .so next to the extension is discoverable.
+        # DiskAnn is shipped as a runtime-loaded shared module
+        # (libzvec_diskann_plugin.so). It is brought up implicitly the first
+        # time a DiskAnn index is created — users never need to call any
+        # load function. If libaio is missing at runtime the auto-load fails
+        # cleanly and the error is surfaced only when DiskAnn is actually
+        # used; other index types (HNSW/IVF/Flat/Vamana) remain fully
+        # functional. The .so must therefore be discoverable next to the
+        # extension module, hence the $ORIGIN rpath below.
         set_target_properties(_zvec PROPERTIES
                 BUILD_RPATH "$ORIGIN"
                 INSTALL_RPATH "$ORIGIN"

@@ -16,7 +16,6 @@
 #include "python_config.h"
 #include "python_doc.h"
 #include "python_param.h"
-#include "python_plugin.h"
 #include "python_schema.h"
 #include "python_type.h"
 
@@ -30,6 +29,5 @@ PYBIND11_MODULE(_zvec, m) {
   ZVecPyConfig::Initialize(m);
   ZVecPyDoc::Initialize(m);
   ZVecPyCollection::Initialize(m);
-  ZVecPyPlugin::Initialize(m);
 }
 }  // namespace zvec

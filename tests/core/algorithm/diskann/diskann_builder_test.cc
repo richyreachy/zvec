@@ -20,7 +20,6 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/vector.h>
 #include <zvec/core/framework/index_framework.h>
-#include <zvec/plugin/diskann_plugin.h>
 #include "diskann_holder.h"
 
 using namespace zvec::core;
@@ -100,32 +99,27 @@ TEST_F(DiskAnnBuilderTest, TestGeneral) {
   ASSERT_GT(stats.built_costtime(), 0UL);
 }
 
-// Smoke-test for the DiskAnn plugin lazy-loading API. On Linux x86_64 with
-// libaio installed, IsLibAioAvailable() must report true and
-// LoadDiskAnnPlugin() must succeed (idempotent on repeat calls). After a
-// successful load the global IndexFactory must be able to hand out a
-// DiskAnnBuilder instance.
-TEST_F(DiskAnnBuilderTest, TestPluginLoad) {
-#if defined(__linux__) || defined(__linux)
-  ASSERT_TRUE(zvec::IsLibAioAvailable())
-      << "libaio was not detected on this host; the DiskAnn plugin cannot "
-         "be loaded. Install libaio1 (or libaio1t64 on Ubuntu 24.04+).";
-
-  int status = zvec::LoadDiskAnnPlugin();
-  ASSERT_EQ(zvec::kDiskAnnPluginOk, status)
-      << "LoadDiskAnnPlugin() returned error code " << status;
-
-  // Second call must be a no-op (idempotent), still returning OK.
-  ASSERT_EQ(zvec::kDiskAnnPluginOk, zvec::LoadDiskAnnPlugin());
-  ASSERT_TRUE(zvec::IsDiskAnnPluginLoaded());
-
+// DiskAnn is now exposed implicitly: no caller ever invokes a
+// ``LoadDiskAnnPlugin`` / ``IsLibAioAvailable`` API (those were removed from
+// the public surface together with ``zvec.load_diskann_plugin()`` in Python).
+// The only contract this test validates is the UX guarantee: once the DiskAnn
+// module has been linked into the hosting binary (here, directly into the
+// test via the ``core_knn_diskann`` target), its factory entries are
+// registered automatically and the global ``IndexFactory`` can hand out a
+// ``DiskAnnBuilder`` without any explicit setup step. On hosts missing
+// libaio, DiskAnn would fail at the index-creation layer with a clear error
+// while other index types (HNSW/IVF/Flat/Vamana) remain unaffected; that
+// runtime branch lives in ``DiskAnnIndex::CreateAndInitStreamer`` and is
+// covered by the higher-level interface tests.
+TEST_F(DiskAnnBuilderTest, TestImplicitFactoryRegistration) {
   IndexBuilder::Pointer builder = IndexFactory::CreateBuilder("DiskAnnBuilder");
   ASSERT_NE(builder, nullptr)
-      << "DiskAnnBuilder factory entry missing after plugin load.";
-#else
-  // On non-Linux platforms the plugin is unsupported by design.
-  ASSERT_FALSE(zvec::IsLibAioAvailable());
-  ASSERT_EQ(zvec::kDiskAnnPluginUnsupportedPlatform, zvec::LoadDiskAnnPlugin());
-  ASSERT_FALSE(zvec::IsDiskAnnPluginLoaded());
-#endif
+      << "DiskAnnBuilder factory entry missing: DiskAnn must be available "
+         "without any manual plugin load step.";
+
+  IndexStreamer::Pointer streamer =
+      IndexFactory::CreateStreamer("DiskAnnStreamer");
+  ASSERT_NE(streamer, nullptr)
+      << "DiskAnnStreamer factory entry missing: DiskAnn must be available "
+         "without any manual plugin load step.";
 }
