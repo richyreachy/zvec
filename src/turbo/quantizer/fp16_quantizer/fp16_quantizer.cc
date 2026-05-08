@@ -82,7 +82,7 @@ DistanceImpl Fp16Quantizer::distance(const void *query,
 
   auto func =
       get_distance_func(metric_from_name(meta_.metric_name()), DataType::kFp16,
-                        QuantizeType::FP16, CpuArchType::kAuto);
+                        QuantizeType::kFp16, CpuArchType::kAuto);
   if (!func) {
     return DistanceImpl{};
   }

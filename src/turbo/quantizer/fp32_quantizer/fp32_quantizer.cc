@@ -74,7 +74,7 @@ DistanceImpl Fp32Quantizer::distance(const void *query,
 
   auto func =
       get_distance_func(metric_from_name(meta_.metric_name()), DataType::kFp32,
-                        QuantizeType::FP32, CpuArchType::kAuto);
+                        QuantizeType::kDefault, CpuArchType::kAuto);
   if (!func) {
     return DistanceImpl{};
   }

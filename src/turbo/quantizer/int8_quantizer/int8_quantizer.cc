@@ -229,7 +229,7 @@ DistanceImpl Int8Quantizer::distance(const void *query,
 
   auto func =
       get_distance_func(metric_from_name(meta_.metric_name()), DataType::kInt8,
-                        QuantizeType::INT8, CpuArchType::kAuto);
+                        QuantizeType::kInt8, CpuArchType::kAuto);
   if (!func) {
     return DistanceImpl{};
   }

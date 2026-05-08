@@ -240,7 +240,7 @@ DistanceImpl Int4Quantizer::distance(const void *query,
 
   auto func =
       get_distance_func(metric_from_name(meta_.metric_name()), DataType::kInt4,
-                        QuantizeType::INT4, CpuArchType::kAuto);
+                        QuantizeType::kInt4, CpuArchType::kAuto);
   if (!func) {
     return DistanceImpl{};
   }
