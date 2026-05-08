@@ -53,12 +53,11 @@ constexpr bool kPlatformSupportsDiskAnnPlugin = false;
 std::atomic<void *> g_plugin_handle{nullptr};
 std::mutex g_plugin_mutex;
 
-#if defined(__linux__) || defined(__linux) || defined(__APPLE__)
+#if defined(__linux__) || defined(__linux)
 
 // Resolve the directory containing the currently running executable, so we
 // can look for the plugin next to it regardless of the working directory.
 std::string GetExecutableDir() {
-#if defined(__linux__) || defined(__linux)
   char buf[PATH_MAX];
   ssize_t n = ::readlink("/proc/self/exe", buf, sizeof(buf) - 1);
   if (n <= 0) {
@@ -71,9 +70,6 @@ std::string GetExecutableDir() {
     return {};
   }
   return path.substr(0, slash);
-#else
-  return {};
-#endif
 }
 
 // Resolve the directory containing the shared object that hosts this
@@ -173,7 +169,7 @@ std::vector<std::string> BuildCandidatePaths(const std::string &explicit_path) {
   return candidates;
 }
 
-#endif  // linux || apple
+#endif  // linux
 
 }  // namespace
 
