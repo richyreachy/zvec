@@ -41,7 +41,7 @@ enum class FileID : uint32_t {
 /*
  * File name coresponding to file id
  */
-static const char *GetFileName(FileID t) {
+inline const char *GetFileName(FileID t) {
   switch (t) {
     case FileID::ID_FILE:
       return "idmap";
@@ -229,6 +229,22 @@ class FileHelper {
   //! Return file size
   static size_t FileSize(const std::string &file_path) {
     return ailego::FileHelper::FileSize(file_path.c_str());
+  }
+
+  //! Perform a lightweight sanity check on the path string.
+  //! This only catches obvious invalid input and does NOT guarantee the path
+  //! is usable.
+  static bool PathSimpleValidation(const std::string &path) {
+    if (path.empty()) return false;
+
+    if (path.find('\0') != std::string::npos) return false;
+
+#ifdef _WIN32
+    // Characters forbidden in Windows path components.
+    if (path.find_first_of("<>\"|?*") != std::string::npos) return false;
+#endif
+
+    return true;
   }
 
   //! Copy file
