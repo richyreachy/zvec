@@ -230,6 +230,24 @@ int Int4Quantizer::deserialize(std::string &in) {
   return 0;
 }
 
+DistanceImpl Int4Quantizer::distance(const void *query,
+                                     const IndexQueryMeta &qmeta) const {
+  std::string buf;
+  IndexQueryMeta ometa;
+  if (this->quantize(query, qmeta, &buf, &ometa) != 0) {
+    return DistanceImpl{};
+  }
+
+  auto func =
+      get_distance_func(metric_from_name(meta_.metric_name()), DataType::kInt4,
+                        QuantizeType::INT4, CpuArchType::kAuto);
+  if (!func) {
+    return DistanceImpl{};
+  }
+
+  return DistanceImpl(std::move(func), std::move(buf), ometa.dimension());
+}
+
 INDEX_FACTORY_REGISTER_QUANTIZER(Int4Quantizer);
 
 }  // namespace turbo

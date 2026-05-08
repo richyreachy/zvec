@@ -57,6 +57,9 @@ class Int8Quantizer : public Quantizer {
 
   int deserialize(std::string &in) override;
 
+  DistanceImpl distance(const void *query,
+                        const core::IndexQueryMeta &qmeta) const override;
+
   float bias() const {
     return bias_;
   }

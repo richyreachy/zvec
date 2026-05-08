@@ -72,6 +72,24 @@ int Fp16Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
   return 0;
 }
 
+DistanceImpl Fp16Quantizer::distance(const void *query,
+                                     const IndexQueryMeta &qmeta) const {
+  std::string buf;
+  IndexQueryMeta ometa;
+  if (this->quantize(query, qmeta, &buf, &ometa) != 0) {
+    return DistanceImpl{};
+  }
+
+  auto func =
+      get_distance_func(metric_from_name(meta_.metric_name()), DataType::kFp16,
+                        QuantizeType::FP16, CpuArchType::kAuto);
+  if (!func) {
+    return DistanceImpl{};
+  }
+
+  return DistanceImpl(std::move(func), std::move(buf), ometa.dimension());
+}
+
 INDEX_FACTORY_REGISTER_QUANTIZER(Fp16Quantizer);
 
 }  // namespace turbo

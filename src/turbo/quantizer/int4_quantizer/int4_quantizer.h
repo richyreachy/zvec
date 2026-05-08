@@ -58,6 +58,9 @@ class Int4Quantizer : public Quantizer {
 
   int deserialize(std::string &in) override;
 
+  DistanceImpl distance(const void *query,
+                        const IndexQueryMeta &qmeta) const override;
+
   float bias() const {
     return bias_;
   }

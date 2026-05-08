@@ -50,6 +50,8 @@ int RecordInt4Quantizer::init(const core::IndexMeta &meta,
     }
   }
 
+  origin_metric_ = metric_from_name(meta.metric_name());
+
   meta_.set_extra_meta_size(extra_meta_size_);
 
   ailego::Params metric_params;
@@ -158,6 +160,23 @@ int RecordInt4Quantizer::dequantize(const void *in,
   }
 
   return 0;
+}
+
+DistanceImpl RecordInt4Quantizer::distance(
+    const void *query, const core::IndexQueryMeta &qmeta) const {
+  std::string buf;
+  core::IndexQueryMeta ometa;
+  if (this->quantize(query, qmeta, &buf, &ometa) != 0) {
+    return DistanceImpl{};
+  }
+
+  auto func = get_distance_func(origin_metric_, DataType::kInt4,
+                                QuantizeType::kRecordInt4, CpuArchType::kAuto);
+  if (!func) {
+    return DistanceImpl{};
+  }
+
+  return DistanceImpl(std::move(func), std::move(buf), ometa.dimension());
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(RecordInt4Quantizer);

@@ -21,6 +21,7 @@
 #include <zvec/core/framework/index_holder.h>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/turbo/turbo.h>
+#include "distance.h"
 
 using namespace zvec::core;
 
@@ -72,7 +73,35 @@ class Quantizer {
     return IndexError_NotImplemented;
   }
 
+  //! Build a DistanceImpl bound to the given raw query vector.
+  //!
+  //! The default implementation returns an empty handle. Concrete
+  //! quantizers override this to quantize the query (via `quantize`)
+  //! and bind the appropriate distance function.
+  virtual DistanceImpl distance(const void * /*query*/,
+                                const IndexQueryMeta & /*qmeta*/) const {
+    return DistanceImpl{};
+  }
+
  protected:
+  //! Map a metric name (e.g. "SquaredEuclidean", "Cosine",
+  //! "InnerProduct", "MipsSquaredEuclidean") to its MetricType.
+  static MetricType metric_from_name(const std::string &name) {
+    if (name == "SquaredEuclidean") {
+      return MetricType::kSquaredEuclidean;
+    }
+    if (name == "Cosine") {
+      return MetricType::kCosine;
+    }
+    if (name == "InnerProduct") {
+      return MetricType::kInnerProduct;
+    }
+    if (name == "MipsSquaredEuclidean") {
+      return MetricType::kMipsSquaredEuclidean;
+    }
+    return MetricType::kUnknown;
+  }
+
   QuantizeType type_{QuantizeType::kDefault};
   uint32_t extra_meta_size_{0};
 };

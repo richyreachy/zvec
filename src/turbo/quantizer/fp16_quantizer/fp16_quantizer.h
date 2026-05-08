@@ -54,6 +54,9 @@ class Fp16Quantizer : public Quantizer {
   int dequantize(const void *in, const core::IndexQueryMeta &qmeta,
                  std::string *out) const override;
 
+  DistanceImpl distance(const void *query,
+                        const core::IndexQueryMeta &qmeta) const override;
+
  private:
   static constexpr uint32_t EXTRA_META_SIZE_COSINE = 4;
 

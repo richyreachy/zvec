@@ -49,12 +49,17 @@ class RecordInt8Quantizer : public Quantizer {
   int dequantize(const void *in, const IndexQueryMeta &qmeta,
                  std::string *out) const override;
 
+  DistanceImpl distance(const void *query,
+                        const IndexQueryMeta &qmeta) const override;
+
  private:
   static constexpr uint32_t EXTRA_META_SIZE_INT8 = 20;
   static constexpr uint32_t EXTRA_META_SIZE_COSINE = 4;
 
   bool cosine_{false};
   uint32_t extra_meta_size_{0};
+
+  MetricType origin_metric_{MetricType::kUnknown};
 
   uint32_t original_dim_{0};
   IndexHolder::Pointer holder_{};
