@@ -18,6 +18,21 @@ set(SRC_LISTS
 
 pybind11_add_module(_zvec ${SRC_LISTS})
 
+# pybind11_add_module() defaults to CXX_VISIBILITY_PRESET=hidden +
+# VISIBILITY_INLINES_HIDDEN=ON, which hides the compiler-generated helper
+# symbols attached to inline functions (guard variables for static locals,
+# vtables, typeinfo ...). The DiskAnn runtime plugin has its own copy of
+# Factory<IndexStreamer>::Instance()'s guard variable; if _zvec.so's copy
+# is hidden, the two guards are separate and the factory constructor runs
+# twice during plugin load, wiping out the registrations that happened
+# during _zvec.so import. We switch to default visibility here and rely on
+# the version script (exports.map / exports.mac) to keep the dynamic
+# symbol table small by exporting only zvec::* and PyInit_*.
+set_target_properties(_zvec PROPERTIES
+        CXX_VISIBILITY_PRESET default
+        C_VISIBILITY_PRESET default
+        VISIBILITY_INLINES_HIDDEN OFF)
+
 # Ensure any change to the linker version script (exports.map) triggers a
 # re-link of _zvec.so. target_link_options() alone is a command-line flag
 # and does not register the script file as a build dependency, so stale
