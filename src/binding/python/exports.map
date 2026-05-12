@@ -13,6 +13,21 @@
         extern "C++" {
             "zvec::*";
             zvec::*;
+            # Also export the compiler-generated helper symbols that live
+            # alongside symbols in the zvec namespace (guard variables for
+            # static locals, vtables, typeinfo, VTT, construction vtables,
+            # thunks). Without these, the DiskAnn plugin and _zvec.so each
+            # get their own copy of e.g. the guard for Factory<T>::Instance's
+            # static local, which causes the factory constructor to run
+            # twice - wiping out registrations done during _zvec.so load.
+            "guard variable for zvec::*";
+            "vtable for zvec::*";
+            "VTT for zvec::*";
+            "typeinfo for zvec::*";
+            "typeinfo name for zvec::*";
+            "construction vtable for zvec::*";
+            "non-virtual thunk to zvec::*";
+            "virtual thunk to zvec::*";
         };
     local:
         *;
