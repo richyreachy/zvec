@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstring>
 #include <functional>
 #include <map>
@@ -109,10 +110,43 @@ class Factory {
   //! Constructor
   Factory(void) : map_() {}
 
-  //! Retrieve the singleton factory
+  //! Retrieve the singleton factory.
+  //!
+  //! We deliberately avoid the canonical
+  //!
+  //!   static Factory factory; return &factory;
+  //!
+  //! "magic static" pattern here. That pattern requires the compiler to emit
+  //! a guard variable (`_ZGVZN...E7factory`) alongside the object, and both
+  //! must be unified across DSOs for the singleton to be shared.
+  //!
+  //! In the Python extension build the _zvec.so version script exports the
+  //! storage (`zvec::*` matches its demangled name) while the guard variable,
+  //! whose demangled form is `guard variable for zvec::...`, ends up hidden
+  //! (compilers emit the guard in a COMDAT group whose visibility is not
+  //! upgraded by our version script). When libzvec_diskann_plugin.so is
+  //! loaded, _zvec.so and the plugin then share the `factory` storage but
+  //! each have their own guard; the plugin's still-zero guard triggers a
+  //! second run of the Factory constructor on the shared storage, wiping
+  //! all registrations performed during _zvec.so import (e.g. FlatStreamer).
+  //!
+  //! A constant-initialized static std::atomic<T*> has NO guard variable
+  //! (its zero init is compile-time), so we use a leaked heap singleton with
+  //! atomic double-checked locking. Only the atomic pointer itself needs to
+  //! be unified across DSOs, and it merges cleanly as STT_GNU_UNIQUE.
   static Factory *Instance(void) {
-    static Factory factory;
-    return (&factory);
+    static std::atomic<Factory *> ptr{nullptr};
+    Factory *cur = ptr.load(std::memory_order_acquire);
+    if (cur) {
+      return cur;
+    }
+    Factory *created = new Factory();
+    if (ptr.compare_exchange_strong(cur, created, std::memory_order_acq_rel,
+                                    std::memory_order_acquire)) {
+      return created;
+    }
+    delete created;
+    return cur;
   }
 
   //! Inserts a new class into map
