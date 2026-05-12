@@ -163,10 +163,34 @@ class Factory {
   std::map<const char *, std::function<TBase *()>, KeyComparer> map_;
 };
 
+// Force compiler/linker retention of the factory-registration static object.
+// Under clang -O3 + --gc-sections + install.strip (CI Release), these
+// file-scope static objects have no external references and can be silently
+// dropped along with their .init_array entries, causing runtime
+// 'Create vector column indexer failed' failures for indexers like
+// VamanaStreamer. `used` defeats compiler dead-code elimination and
+// `retain` (GCC>=11 / Clang>=13) defeats linker `--gc-sections`. On MSVC
+// the equivalent is achieved elsewhere via /WHOLEARCHIVE. Fall back to just
+// `used` on older toolchains that don't know `retain`.
+#if defined(__has_attribute)
+#if __has_attribute(retain) && __has_attribute(used)
+#define AILEGO_FACTORY_REGISTER_ATTR __attribute__((used, retain))
+#elif __has_attribute(used)
+#define AILEGO_FACTORY_REGISTER_ATTR __attribute__((used))
+#else
+#define AILEGO_FACTORY_REGISTER_ATTR
+#endif
+#elif defined(__GNUC__)
+#define AILEGO_FACTORY_REGISTER_ATTR __attribute__((used))
+#else
+#define AILEGO_FACTORY_REGISTER_ATTR
+#endif
+
 //! Factory Register
 #define AILEGO_FACTORY_REGISTER(__NAME__, __BASE__, __IMPL__, ...) \
-  static ailego::Factory<__BASE__>::Register<__IMPL__>             \
-      __ailegoFactoryRegister_##__NAME__(#__NAME__, ##__VA_ARGS__)
+  static AILEGO_FACTORY_REGISTER_ATTR                              \
+      ailego::Factory<__BASE__>::Register<__IMPL__>                \
+          __ailegoFactoryRegister_##__NAME__(#__NAME__, ##__VA_ARGS__)
 
 }  // namespace ailego
 }  // namespace zvec
