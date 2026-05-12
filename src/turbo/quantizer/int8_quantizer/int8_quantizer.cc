@@ -27,7 +27,6 @@ namespace turbo {
 int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   data_type_ = IndexMeta::DataType::DT_INT8;
   meta_ = meta;
-  meta_.set_meta(data_type_, meta.dimension());
   original_dim_ = meta.dimension();
 
   if (params.get(INT8_QUANTIZER_BIAS, &bias_) &&
@@ -39,7 +38,7 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   auto metric_name = meta.metric_name();
   auto reciprocal = scale_ == 0.0 ? 1.0f : (1.0f / scale_);
 
-  extra_meta_size_ = EXTRA_META_SIZE_INT8;
+  extra_meta_size_ = 0;
   if (metric_name == "SquaredEuclidean") {
     scale_reciprocal_ = reciprocal * reciprocal;
   } else if (metric_name == "Euclidean") {
@@ -47,16 +46,21 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   } else if (metric_name == "InnerProduct") {
     inner_product_ = true;
     scale_reciprocal_ = reciprocal;
+    extra_meta_size_ = EXTRA_META_SIZE_INT8;
   } else if (metric_name == "Cosine") {
     inner_product_ = true;
     cosine_ = true;
     scale_reciprocal_ = reciprocal;
-    extra_meta_size_ += EXTRA_META_SIZE_COSINE;
+    extra_meta_size_ = EXTRA_META_SIZE_INT8 + EXTRA_META_SIZE_COSINE;
   } else {
     LOG_WARN("Unsupported normalize the score for %s", metric_name.c_str());
     scale_reciprocal_ = 1.0f;
   }
 
+  // Inflate dimension by extra bytes (per-element unit=1 for INT8) so that
+  // meta_.element_size() reflects the actual per-vector storage size and
+  // HnswStreamer::check_params matches the ometa produced by quantize().
+  meta_.set_meta(data_type_, original_dim_ + extra_meta_size_);
   meta_.set_extra_meta_size(extra_meta_size_);
 
   LOG_DEBUG("Init integer reformer, bias %f, scale %f", bias_, scale_);
@@ -124,17 +128,11 @@ int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
   }
 
   *ometa = qmeta;
-  ometa->set_meta(data_type_, qmeta.dimension(), static_cast<uint32_t>(type_),
-                  extra_meta_size_);
-  size_t base_size =
-      IndexMeta::ElementSizeof(ometa->data_type(), ometa->dimension());
-  if (inner_product_) {
-    base_size += EXTRA_META_SIZE_INT8;
-    if (cosine_) {
-      base_size += EXTRA_META_SIZE_COSINE;
-    }
-  }
-  out->resize(base_size, 0);
+  // Inflate ometa dimension to match meta_ (data + extras). Using the 2-arg
+  // set_meta keeps extra_meta_size_ at 0 so element_size() is simply the
+  // inflated-dim byte count, matching streamer->meta_.element_size().
+  ometa->set_meta(data_type_, qmeta.dimension() + extra_meta_size_);
+  out->resize(ometa->element_size(), 0);
   const float *vec = reinterpret_cast<const float *>(record);
   auto ovec = reinterpret_cast<int8_t *>(&(*out)[0]);
 
@@ -174,13 +172,15 @@ int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
   return 0;
 }
 
-int Int8Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
+int Int8Quantizer::dequantize(const void *in, const IndexQueryMeta & /*qmeta*/,
                               std::string *out) const {
   if (!in || !out) {
     return IndexError_InvalidArgument;
   }
 
-  size_t dim = qmeta.dimension();
+  // Always decode the original (pre-quantization) dimension; the IndexQueryMeta
+  // passed in may have its dimension inflated by extras.
+  size_t dim = original_dim_;
   const int8_t *ivec = reinterpret_cast<const int8_t *>(in);
   out->resize(dim * sizeof(float));
   float *ovec = reinterpret_cast<float *>(&(*out)[0]);
@@ -227,14 +227,18 @@ DistanceImpl Int8Quantizer::distance(const void *query,
     return DistanceImpl{};
   }
 
-  auto func =
-      get_distance_func(metric_from_name(meta_.metric_name()), DataType::kInt8,
-                        QuantizeType::kInt8, CpuArchType::kAuto);
+  auto metric = metric_from_name(meta_.metric_name());
+  auto func = get_distance_func(metric, DataType::kInt8, QuantizeType::kInt8,
+                                CpuArchType::kAuto);
   if (!func) {
     return DistanceImpl{};
   }
+  auto batch_func = get_batch_distance_func(
+      metric, DataType::kInt8, QuantizeType::kInt8, CpuArchType::kAuto);
 
-  return DistanceImpl(std::move(func), std::move(buf), ometa.dimension());
+  // Pass the raw (non-inflated) dimension to the distance implementation.
+  return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
+                      qmeta.dimension());
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(Int8Quantizer);

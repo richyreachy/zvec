@@ -238,14 +238,17 @@ DistanceImpl Int4Quantizer::distance(const void *query,
     return DistanceImpl{};
   }
 
-  auto func =
-      get_distance_func(metric_from_name(meta_.metric_name()), DataType::kInt4,
-                        QuantizeType::kInt4, CpuArchType::kAuto);
+  auto metric = metric_from_name(meta_.metric_name());
+  auto func = get_distance_func(metric, DataType::kInt4, QuantizeType::kInt4,
+                                CpuArchType::kAuto);
   if (!func) {
     return DistanceImpl{};
   }
+  auto batch_func = get_batch_distance_func(
+      metric, DataType::kInt4, QuantizeType::kInt4, CpuArchType::kAuto);
 
-  return DistanceImpl(std::move(func), std::move(buf), ometa.dimension());
+  return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
+                      ometa.dimension());
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(Int4Quantizer);

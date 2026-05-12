@@ -175,8 +175,12 @@ DistanceImpl RecordInt4Quantizer::distance(
   if (!func) {
     return DistanceImpl{};
   }
+  auto batch_func =
+      get_batch_distance_func(origin_metric_, DataType::kInt4,
+                              QuantizeType::kRecordInt4, CpuArchType::kAuto);
 
-  return DistanceImpl(std::move(func), std::move(buf), ometa.dimension());
+  return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
+                      ometa.dimension());
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(RecordInt4Quantizer);

@@ -34,12 +34,16 @@ class HnswContext : public IndexContext {
     kStreamerContext = 3
   };
 
-  //! Construct
-  HnswContext(size_t dimension, const IndexMetric::Pointer &metric,
+  //! Construct with an explicit turbo quantizer (used for building the
+  //! internal HnswDistCalculator).
+  HnswContext(size_t dimension, zvec::turbo::Quantizer::Pointer quantizer,
+              IndexMeta::DataType qmeta_data_type,
+              const IndexMetric::Pointer &metric,
               const HnswEntity::Pointer &entity);
 
-  //! Construct
-  HnswContext(const IndexMetric::Pointer &metric,
+  //! Construct without dimension (lazy init via update_context).
+  HnswContext(zvec::turbo::Quantizer::Pointer quantizer,
+              const IndexMetric::Pointer &metric,
               const HnswEntity::Pointer &entity);
 
   //! Destructor
@@ -113,6 +117,7 @@ class HnswContext : public IndexContext {
 
   //! Update context, the context may be shared by different searcher/streamer
   int update_context(ContextType type, const IndexMeta &meta,
+                     zvec::turbo::Quantizer::Pointer quantizer,
                      const IndexMetric::Pointer &metric,
                      const HnswEntity::Pointer &entity, uint32_t magic_num);
 
@@ -444,10 +449,12 @@ class HnswContext : public IndexContext {
     return debug_mode_;
   }
 
-  inline void update_dist_caculator_distance(
-      const IndexMetric::MatrixDistance &distance,
-      const IndexMetric::MatrixBatchDistance &batch_distance) {
-    dc_.update_distance(distance, batch_distance);
+  //! Swap the turbo quantizer used by the dist calculator (e.g. when
+  //! switching between add/search metrics). Caller must then invoke
+  //! reset_query before using the calculator.
+  inline void update_dist_caculator_quantizer(
+      zvec::turbo::Quantizer::Pointer quantizer) {
+    dc_.update_quantizer(std::move(quantizer));
   }
 
   //! Get topk

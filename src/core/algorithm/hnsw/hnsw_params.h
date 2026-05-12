@@ -111,5 +111,10 @@ static const std::string PARAM_HNSW_REDUCER_EFCONSTRUCTION(
 static const std::string PARAM_HNSW_STREAMER_USE_CONTIGUOUS_MEMORY(
     "proxima.hnsw.streamer.use_contiguous_memory");
 
+//! Turbo quantizer class name used by HnswStreamer. Defaults to
+//! "Fp32Quantizer" to preserve the legacy FP32 distance path.
+static const std::string PARAM_HNSW_STREAMER_TURBO_QUANTIZER_CLASS(
+    "proxima.hnsw.streamer.turbo_quantizer_class");
+
 }  // namespace core
 }  // namespace zvec

@@ -80,14 +80,17 @@ DistanceImpl Fp16Quantizer::distance(const void *query,
     return DistanceImpl{};
   }
 
-  auto func =
-      get_distance_func(metric_from_name(meta_.metric_name()), DataType::kFp16,
-                        QuantizeType::kFp16, CpuArchType::kAuto);
+  auto metric = metric_from_name(meta_.metric_name());
+  auto func = get_distance_func(metric, DataType::kFp16, QuantizeType::kFp16,
+                                CpuArchType::kAuto);
   if (!func) {
     return DistanceImpl{};
   }
+  auto batch_func = get_batch_distance_func(
+      metric, DataType::kFp16, QuantizeType::kFp16, CpuArchType::kAuto);
 
-  return DistanceImpl(std::move(func), std::move(buf), ometa.dimension());
+  return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
+                      ometa.dimension());
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(Fp16Quantizer);

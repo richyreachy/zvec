@@ -37,9 +37,21 @@ class DistanceImpl {
         query_storage_(std::move(quantized_query)),
         dim_(dim) {}
 
+  DistanceImpl(DistanceFunc func, BatchDistanceFunc batch_func,
+               std::string quantized_query, size_t dim)
+      : func_(std::move(func)),
+        batch_func_(std::move(batch_func)),
+        query_storage_(std::move(quantized_query)),
+        dim_(dim) {}
+
   //! Whether the handle is ready to compute distances.
   bool valid() const {
     return static_cast<bool>(func_);
+  }
+
+  //! Whether a batch distance function is available.
+  bool batch_valid() const {
+    return static_cast<bool>(batch_func_);
   }
 
   //! Compute the distance between the stored query and `candidate`.
@@ -49,8 +61,44 @@ class DistanceImpl {
     return d;
   }
 
+  //! Compute distances for a batch of `num` candidates against the
+  //! stored query. Falls back to the scalar path when no batch function
+  //! is bound.
+  void batch(const void **candidates, size_t num, float *out) const {
+    if (batch_func_) {
+      batch_func_(candidates, query_storage_.data(), num, dim_, out);
+      return;
+    }
+    for (size_t i = 0; i < num; ++i) {
+      out[i] = 0.0f;
+      func_(candidates[i], query_storage_.data(), dim_, out + i);
+    }
+  }
+
+  //! Access the quantized query bytes (for pairwise helpers).
+  const std::string &query_storage() const {
+    return query_storage_;
+  }
+
+  size_t dim() const {
+    return dim_;
+  }
+
+  //! Raw scalar distance function (operates on already-quantized
+  //! candidates). Useful for pairwise node-vs-node distance where no
+  //! stored query is involved.
+  const DistanceFunc &func() const {
+    return func_;
+  }
+
+  //! Raw batch distance function.
+  const BatchDistanceFunc &batch_func() const {
+    return batch_func_;
+  }
+
  private:
   DistanceFunc func_{};
+  BatchDistanceFunc batch_func_{};
   std::string query_storage_{};
   size_t dim_{0};
 };

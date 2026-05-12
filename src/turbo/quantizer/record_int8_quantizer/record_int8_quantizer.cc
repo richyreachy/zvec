@@ -37,7 +37,6 @@ int RecordInt8Quantizer::init(const core::IndexMeta &meta,
   meta_ = meta;
   original_dim_ = meta.dimension();
   data_type_ = core::IndexMeta::DataType::DT_INT8;
-  meta_.set_meta(data_type_, meta_.dimension());
 
   extra_meta_size_ = EXTRA_META_SIZE_INT8;
   if (meta.metric_name() == "Cosine") {
@@ -47,6 +46,9 @@ int RecordInt8Quantizer::init(const core::IndexMeta &meta,
 
   origin_metric_ = metric_from_name(meta.metric_name());
 
+  // Inflate dimension by extra bytes (INT8 unit=1) so meta_.element_size()
+  // reflects the real per-vector storage (data + extras).
+  meta_.set_meta(data_type_, original_dim_ + extra_meta_size_);
   meta_.set_extra_meta_size(extra_meta_size_);
 
   ailego::Params metric_params;
@@ -118,8 +120,10 @@ int RecordInt8Quantizer::quantize(const void *record,
   }
 
   *ometa = core::IndexQueryMeta();
-  ometa->set_meta(core::IndexMeta::DataType::DT_INT8, meta_.dimension(),
-                  static_cast<uint32_t>(type_), extra_meta_size_);
+  // Match meta_ dimension (data + extras) using 2-arg set_meta so that
+  // element_size() simply equals the inflated-dim byte count.
+  ometa->set_meta(core::IndexMeta::DataType::DT_INT8,
+                  original_dim_ + extra_meta_size_);
   return 0;
 }
 
@@ -159,8 +163,13 @@ DistanceImpl RecordInt8Quantizer::distance(
   if (!func) {
     return DistanceImpl{};
   }
+  auto batch_func =
+      get_batch_distance_func(origin_metric_, DataType::kInt8,
+                              QuantizeType::kRecordInt8, CpuArchType::kAuto);
 
-  return DistanceImpl(std::move(func), std::move(buf), ometa.dimension());
+  // Pass the raw (non-inflated) dimension to the distance implementation.
+  return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
+                      qmeta.dimension());
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(RecordInt8Quantizer);

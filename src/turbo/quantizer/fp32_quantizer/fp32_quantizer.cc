@@ -72,14 +72,17 @@ DistanceImpl Fp32Quantizer::distance(const void *query,
     return DistanceImpl{};
   }
 
-  auto func =
-      get_distance_func(metric_from_name(meta_.metric_name()), DataType::kFp32,
-                        QuantizeType::kDefault, CpuArchType::kAuto);
+  auto metric = metric_from_name(meta_.metric_name());
+  auto func = get_distance_func(metric, DataType::kFp32, QuantizeType::kDefault,
+                                CpuArchType::kAuto);
   if (!func) {
     return DistanceImpl{};
   }
+  auto batch_func = get_batch_distance_func(
+      metric, DataType::kFp32, QuantizeType::kDefault, CpuArchType::kAuto);
 
-  return DistanceImpl(std::move(func), std::move(buf), ometa.dimension());
+  return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
+                      ometa.dimension());
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(Fp32Quantizer);

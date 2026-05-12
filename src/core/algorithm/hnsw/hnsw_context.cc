@@ -18,15 +18,26 @@
 namespace zvec {
 namespace core {
 
-HnswContext::HnswContext(size_t dimension, const IndexMetric::Pointer &metric,
+HnswContext::HnswContext(size_t dimension,
+                         zvec::turbo::Quantizer::Pointer quantizer,
+                         IndexMeta::DataType qmeta_data_type,
+                         const IndexMetric::Pointer &metric,
                          const HnswEntity::Pointer &entity)
     : IndexContext(metric),
       entity_(entity),
-      dc_(entity_.get(), metric, dimension) {}
+      dc_(entity_.get(), std::move(quantizer), metric, dimension,
+          qmeta_data_type) {
+  metric_ = metric;
+}
 
-HnswContext::HnswContext(const IndexMetric::Pointer &metric,
+HnswContext::HnswContext(zvec::turbo::Quantizer::Pointer quantizer,
+                         const IndexMetric::Pointer &metric,
                          const HnswEntity::Pointer &entity)
-    : IndexContext(metric), entity_(entity), dc_(entity_.get(), metric) {}
+    : IndexContext(metric),
+      entity_(entity),
+      dc_(entity_.get(), std::move(quantizer), metric) {
+  metric_ = metric;
+}
 
 HnswContext::~HnswContext() {
   visit_filter_.destroy();
@@ -200,6 +211,7 @@ int HnswContext::update(const ailego::Params &params) {
 }
 
 int HnswContext::update_context(ContextType type, const IndexMeta &meta,
+                                zvec::turbo::Quantizer::Pointer quantizer,
                                 const IndexMetric::Pointer &metric,
                                 const HnswEntity::Pointer &entity,
                                 uint32_t magic_num) {
@@ -251,7 +263,9 @@ int HnswContext::update_context(ContextType type, const IndexMeta &meta,
   }
 
   entity_ = entity;
-  dc_.update(entity_.get(), metric, meta.dimension());
+  dc_.update(entity_.get(), std::move(quantizer), metric, meta.dimension(),
+             meta.data_type());
+  metric_ = metric;
   magic_ = magic_num;
   level_topks_.clear();
 
