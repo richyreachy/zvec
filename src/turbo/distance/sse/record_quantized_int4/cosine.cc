@@ -44,8 +44,8 @@ void cosine_int4_distance(const void *a, const void *b, size_t dim,
   float mb = b_tail[1];
   float ms = b_tail[2];
 
-  *distance = 1.0f + (ma * qa * *distance + mb * qa * qs + qb * ma * ms +
-                      static_cast<float>(d) * qb * mb);
+  *distance = -(ma * qa * *distance + mb * qa * qs + qb * ma * ms +
+                static_cast<float>(d) * qb * mb);
 #else
   (void)a;
   (void)b;

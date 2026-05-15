@@ -157,7 +157,10 @@ class HnswDistCalculator {
     float score = 0.0f;
     const auto &func = dist_impl_.func();
     if (func) {
-      func(vec_lhs, vec_rhs, dim_, &score);
+      // dist_impl_ holds the RAW dim expected by the turbo distance
+      // function. The metric-side dim_ is the inflated storage dim and
+      // would point past the data into the per-record extras.
+      func(vec_lhs, vec_rhs, dist_impl_.dim(), &score);
       return score;
     }
     if (ailego_unlikely(!distance_)) {

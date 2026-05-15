@@ -63,6 +63,12 @@ TEST(VectorColumnIndexerTest, General) {
     const std::string index_file_path = "test_indexer.index";
     constexpr idx_t kDocId = 2345;
 
+    fprintf(stderr, "[DBG] iter index_type=%d quantize=%d\n",
+            static_cast<int>(index_params->type()),
+            static_cast<int>(
+                reinterpret_cast<VectorIndexParams *>(index_params.get())
+                    ->quantize_type()));
+
     zvec::test_util::RemoveTestFiles(index_file_path);
 
     // 1. create indexer
@@ -1574,6 +1580,7 @@ TEST(VectorColumnIndexerTest, CosineGeneral) {
   zvec::test_util::RemoveTestFiles(index_file_path);
 
   auto func = [&](const IndexParams::Ptr index_params, DataType data_type) {
+    fprintf(stderr, "\n[DBG] === New CosineGeneral case ===\n");
     zvec::test_util::RemoveTestFiles(index_file_path);
     auto indexer = std::make_shared<VectorColumnIndexer>(
         index_file_path,
@@ -1632,6 +1639,8 @@ TEST(VectorColumnIndexerTest, CosineGeneral) {
         ASSERT_TRUE(iter->valid());
         LOG_INFO("topk1 pk:%zu", (size_t)iter->doc_id());
         LOG_INFO("topk1 score:%.10f", iter->score());
+        fprintf(stderr, "[DBG] query_pk=%d topk1_pk=%zu topk1_score=%.6f\n", i,
+                (size_t)iter->doc_id(), iter->score());
 
         if (!(iter->score() > -0.01 && iter->score() < 2.01)) {
           ASSERT_TRUE(iter->score() < 2.01);

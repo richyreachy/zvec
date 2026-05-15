@@ -36,6 +36,12 @@ int Fp32Quantizer::init(const IndexMeta &meta,
     meta_.set_extra_meta_size(extra_meta_size_);
   }
 
+  // `meta.dimension()` is the inflated storage dim (data + extras) for
+  // Cosine (where the CosineConverter already appended a norm float). The
+  // raw query/data dim is obtained by subtracting the extras (in FP32
+  // units). For other metrics extras are zero, so raw_dim == meta.dim().
+  original_dim_ = meta.dimension() - extra_meta_size_ / sizeof(float);
+
   return 0;
 }
 
@@ -45,12 +51,18 @@ int Fp32Quantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
     return IndexError_Unsupported;
   }
 
-  size_t byte_size = qmeta.dimension() * sizeof(float);
+  // qmeta.dimension() may be the inflated (data + extras) dimension when the
+  // caller uses meta_.dimension() directly (e.g. HnswDistCalculator). Use the
+  // raw original dim we recorded at init() to avoid over-reading the query.
+  size_t raw_dim = (original_dim_ != 0 && qmeta.dimension() >= original_dim_)
+                       ? original_dim_
+                       : qmeta.dimension();
+  size_t byte_size = raw_dim * sizeof(float);
   out->resize(byte_size);
   std::memcpy(&(*out)[0], query, byte_size);
 
   *ometa = qmeta;
-  ometa->set_meta(IndexMeta::DataType::DT_FP32, qmeta.dimension(),
+  ometa->set_meta(IndexMeta::DataType::DT_FP32, raw_dim,
                   static_cast<uint32_t>(type_), extra_meta_size_);
 
   return 0;

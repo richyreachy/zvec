@@ -73,11 +73,6 @@ class Quantizer {
     return IndexError_NotImplemented;
   }
 
-  //! Build a DistanceImpl bound to the given raw query vector.
-  //!
-  //! The default implementation returns an empty handle. Concrete
-  //! quantizers override this to quantize the query (via `quantize`)
-  //! and bind the appropriate distance function.
   virtual DistanceImpl distance(const void * /*query*/,
                                 const IndexQueryMeta & /*qmeta*/) const {
     return DistanceImpl{};

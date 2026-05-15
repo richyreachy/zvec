@@ -26,6 +26,7 @@ void cosine_int4_distance(const void *a, const void *b, size_t dim,
     return;
   }
 
+  // inner_product_int4_scalar returns +<nibble_a, nibble_b> already.
   internal::inner_product_int4_scalar(a, b, original_dim, distance);
 
   const float *a_tail = reinterpret_cast<const float *>(
@@ -41,8 +42,10 @@ void cosine_int4_distance(const void *a, const void *b, size_t dim,
   float mb = b_tail[1];
   float ms = b_tail[2];
 
-  *distance = 1.0f + (ma * qa * *distance + mb * qa * qs + qb * ma * ms +
-                      static_cast<float>(d) * qb * mb);
+  // Returns -<float_a, float_b>; the metric's normalize() adds 1.0f to yield
+  // the cosine distance (1 - cos_sim).
+  *distance = -(ma * qa * *distance + mb * qa * qs + qb * ma * ms +
+                static_cast<float>(d) * qb * mb);
 }
 
 void cosine_int4_batch_distance(const void *const *vectors, const void *query,

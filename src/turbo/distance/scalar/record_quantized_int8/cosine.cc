@@ -26,6 +26,8 @@ void cosine_int8_distance(const void *a, const void *b, size_t dim,
     return;
   }
 
+  // inner_product_int8_scalar returns -<int_a, int_b>; flip it back so the
+  // accumulated formula below produces the *positive* float dot product.
   internal::inner_product_int8_scalar(a, b, original_dim, distance);
   *distance = -*distance;
 
@@ -42,8 +44,10 @@ void cosine_int8_distance(const void *a, const void *b, size_t dim,
   float mb = b_tail[1];
   float ms = b_tail[2];
 
-  *distance = 1.0f + (ma * qa * *distance + mb * qa * qs + qb * ma * ms +
-                      original_dim * qb * mb);
+  // Returns -<float_a, float_b>; the metric's normalize() adds 1.0f to yield
+  // the cosine distance (1 - cos_sim).
+  *distance = -(ma * qa * *distance + mb * qa * qs + qb * ma * ms +
+                static_cast<float>(original_dim) * qb * mb);
 }
 
 void cosine_int8_batch_distance(const void *const *vectors, const void *query,
