@@ -63,12 +63,6 @@ TEST(VectorColumnIndexerTest, General) {
     const std::string index_file_path = "test_indexer.index";
     constexpr idx_t kDocId = 2345;
 
-    fprintf(stderr, "[DBG] iter index_type=%d quantize=%d\n",
-            static_cast<int>(index_params->type()),
-            static_cast<int>(
-                reinterpret_cast<VectorIndexParams *>(index_params.get())
-                    ->quantize_type()));
-
     zvec::test_util::RemoveTestFiles(index_file_path);
 
     // 1. create indexer

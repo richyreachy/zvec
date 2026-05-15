@@ -103,6 +103,7 @@ class IndexMeta {
         reducer_params_(rhs.reducer_params_),
         searcher_params_(rhs.searcher_params_),
         streamer_params_(rhs.streamer_params_),
+        extra_meta_size_(rhs.extra_meta_size_),
         attributes_(rhs.attributes_) {}
 
   //! Constructor
@@ -138,6 +139,7 @@ class IndexMeta {
         reducer_params_(std::move(rhs.reducer_params_)),
         searcher_params_(std::move(rhs.searcher_params_)),
         streamer_params_(std::move(rhs.streamer_params_)),
+        extra_meta_size_(rhs.extra_meta_size_),
         attributes_(std::move(rhs.attributes_)) {}
 
   //! Assignment
@@ -174,6 +176,7 @@ class IndexMeta {
     searcher_params_ = std::move(rhs.searcher_params_);
     streamer_params_ = std::move(rhs.streamer_params_);
     attributes_ = std::move(rhs.attributes_);
+    extra_meta_size_ = rhs.extra_meta_size_;
 
     return *this;
   }
@@ -212,6 +215,7 @@ class IndexMeta {
     searcher_params_ = std::move(rhs.searcher_params_);
     streamer_params_ = std::move(rhs.streamer_params_);
     attributes_ = std::move(rhs.attributes_);
+    extra_meta_size_ = rhs.extra_meta_size_;
 
     return *this;
   }
@@ -250,6 +254,7 @@ class IndexMeta {
     searcher_params_.clear();
     streamer_params_.clear();
     attributes_.clear();
+    extra_meta_size_ = 0;
   }
 
   //! Retrieve major order information
@@ -280,6 +285,11 @@ class IndexMeta {
   //! Retrieve element size in bytes
   uint32_t element_size(void) const {
     return element_size_;
+  }
+
+  //! Retrieve extra meta size in bytes
+  uint32_t extra_meta_size(void) const {
+    return extra_meta_size_;
   }
 
   //! Retrieve space id

@@ -373,9 +373,10 @@ BatchDistanceFunc get_batch_distance_func(MetricType metric_type,
         if (metric_type == MetricType::kCosine) {
           return avx2::cosine_int4_batch_distance;
         }
-        if (metric_type == MetricType::kInnerProduct) {
-          return avx2::inner_product_int4_batch_distance;
-        }
+        // NOTE: avx2::inner_product_int4_batch_distance is currently a
+        // stub (the underlying inner_product_int4_batch_avx2_impl has an
+        // empty body) so it always returns score=0. Return nullptr here
+        // so callers fall back to a correct scalar/per-vector path.
       }
     }
   }

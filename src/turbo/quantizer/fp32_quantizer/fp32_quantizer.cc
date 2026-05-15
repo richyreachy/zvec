@@ -36,11 +36,17 @@ int Fp32Quantizer::init(const IndexMeta &meta,
     meta_.set_extra_meta_size(extra_meta_size_);
   }
 
-  // `meta.dimension()` is the inflated storage dim (data + extras) for
-  // Cosine (where the CosineConverter already appended a norm float). The
-  // raw query/data dim is obtained by subtracting the extras (in FP32
-  // units). For other metrics extras are zero, so raw_dim == meta.dim().
-  original_dim_ = meta.dimension() - extra_meta_size_ / sizeof(float);
+  // `meta.dimension()` may be either the raw dim (when the caller passes a
+  // bare meta, e.g. unit tests) or the inflated storage dim (data + extras)
+  // when an upstream converter such as CosineConverter has already appended
+  // a norm float and set meta.extra_meta_size(). Distinguish via the input
+  // meta's extra_meta_size: if it is already set, the dim is inflated and
+  // we strip the extras to recover the raw dim; otherwise the dim is raw.
+  if (meta.extra_meta_size() > 0) {
+    original_dim_ = meta.dimension() - meta.extra_meta_size() / sizeof(float);
+  } else {
+    original_dim_ = meta.dimension();
+  }
 
   return 0;
 }
