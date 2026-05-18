@@ -15,13 +15,60 @@
 #include <memory>
 #include <string>
 #include <zvec/core/interface/index.h>
+#include <zvec/plugin/diskann_plugin.h>
 #include "algorithm/diskann/diskann_params.h"
 
 namespace zvec::core_interface {
 
 static constexpr uint64_t kInvalidKey = std::numeric_limits<uint64_t>::max();
 
+namespace {
+
+// Implicitly bring the DiskAnn runtime online on first use. This keeps the
+// DiskAnn index an ordinary public API (users just instantiate a
+// DiskAnnIndexParam) while still letting the rest of the library — HNSW,
+// IVF, Flat, Vamana — run on hosts that happen to lack libaio. On such
+// hosts only DiskAnn fails, with a clear, actionable error message, and
+// every other index type stays fully functional.
+int EnsureDiskAnnRuntimeReady() {
+  const int status = ::zvec::LoadDiskAnnPlugin();
+  if (status == ::zvec::kDiskAnnPluginOk) {
+    return 0;
+  }
+  switch (status) {
+    case ::zvec::kDiskAnnPluginLibAioMissing:
+      LOG_ERROR(
+          "DiskAnn requires libaio at runtime, but it was not found on this "
+          "host. Install it (e.g. 'apt-get install libaio1' on Debian/Ubuntu, "
+          "or 'libaio1t64' on Ubuntu 24.04+) and retry. Other index types "
+          "(HNSW, IVF, Flat, Vamana) are not affected and continue to work.");
+      break;
+    case ::zvec::kDiskAnnPluginUnsupportedPlatform:
+      LOG_ERROR(
+          "DiskAnn is only supported on Linux x86_64. Please use another "
+          "index type (HNSW, IVF, Flat, Vamana) on this platform.");
+      break;
+    case ::zvec::kDiskAnnPluginDlopenFailed:
+    default:
+      LOG_ERROR(
+          "Failed to initialize the DiskAnn runtime (status=%d). Other index "
+          "types (HNSW, IVF, Flat, Vamana) remain available.",
+          status);
+      break;
+  }
+  return core::IndexError_Runtime;
+}
+
+}  // namespace
+
 int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
+  // Fail fast and cleanly if the DiskAnn runtime cannot be brought up on
+  // this host (most commonly: libaio is missing). The rest of zvec keeps
+  // running; only DiskAnn is unusable.
+  if (int rc = EnsureDiskAnnRuntimeReady(); rc != 0) {
+    return rc;
+  }
+
   param_ = dynamic_cast<const DiskAnnIndexParam &>(param);
 
   if (is_sparse_) {
@@ -45,12 +92,20 @@ int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
   streamer_ = core::IndexFactory::CreateStreamer("DiskAnnStreamer");
 
   if (ailego_unlikely(!builder_)) {
-    LOG_ERROR("Failed to create builder");
+    LOG_ERROR(
+        "Failed to create DiskAnnBuilder: DiskAnn factory entries are not "
+        "registered. This usually means the DiskAnn shared module could not "
+        "be located next to the hosting binary. Other index types (HNSW, "
+        "IVF, Flat, Vamana) are not affected.");
     return core::IndexError_Runtime;
   }
 
   if (ailego_unlikely(!streamer_)) {
-    LOG_ERROR("Failed to create streamer");
+    LOG_ERROR(
+        "Failed to create DiskAnnStreamer: DiskAnn factory entries are not "
+        "registered. This usually means the DiskAnn shared module could not "
+        "be located next to the hosting binary. Other index types (HNSW, "
+        "IVF, Flat, Vamana) are not affected.");
     return core::IndexError_Runtime;
   }
 

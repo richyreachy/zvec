@@ -98,3 +98,28 @@ TEST_F(DiskAnnBuilderTest, TestGeneral) {
   ASSERT_GT(stats.trained_costtime(), 0UL);
   ASSERT_GT(stats.built_costtime(), 0UL);
 }
+
+// DiskAnn is now exposed implicitly: no caller ever invokes a
+// ``LoadDiskAnnPlugin`` / ``IsLibAioAvailable`` API (those were removed from
+// the public surface together with ``zvec.load_diskann_plugin()`` in Python).
+// The only contract this test validates is the UX guarantee: once the DiskAnn
+// module has been linked into the hosting binary (here, directly into the
+// test via the ``core_knn_diskann`` target), its factory entries are
+// registered automatically and the global ``IndexFactory`` can hand out a
+// ``DiskAnnBuilder`` without any explicit setup step. On hosts missing
+// libaio, DiskAnn would fail at the index-creation layer with a clear error
+// while other index types (HNSW/IVF/Flat/Vamana) remain unaffected; that
+// runtime branch lives in ``DiskAnnIndex::CreateAndInitStreamer`` and is
+// covered by the higher-level interface tests.
+TEST_F(DiskAnnBuilderTest, TestImplicitFactoryRegistration) {
+  IndexBuilder::Pointer builder = IndexFactory::CreateBuilder("DiskAnnBuilder");
+  ASSERT_NE(builder, nullptr)
+      << "DiskAnnBuilder factory entry missing: DiskAnn must be available "
+         "without any manual plugin load step.";
+
+  IndexStreamer::Pointer streamer =
+      IndexFactory::CreateStreamer("DiskAnnStreamer");
+  ASSERT_NE(streamer, nullptr)
+      << "DiskAnnStreamer factory entry missing: DiskAnn must be available "
+         "without any manual plugin load step.";
+}
