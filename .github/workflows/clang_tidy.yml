@@ -22,25 +22,6 @@ jobs:
           submodules: false
           fetch-depth: 0
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-tidy=1:18.0-59~exp2 cmake ninja-build libomp-dev
-
-      - name: Install AIO 
-        if: runner.os == 'Linux' && runner.arch == 'X64'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libaio-dev
-        shell: bash
-        
-      - name: Configure CMake and export compile commands
-        run: |
-          cmake -S . -B build -G Ninja \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-            -DBUILD_TOOLS=ON
-
       - name: Collect changed C/C++ files
         id: changed_files
         uses: tj-actions/changed-files@v47
