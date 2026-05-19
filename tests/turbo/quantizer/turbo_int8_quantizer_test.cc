@@ -69,7 +69,7 @@ TEST(Int8Quantizer, Int8General) {
                      IndexQueryMeta(holder->data_type(), holder->dimension()),
                      &quant_buffer, &qmeta));
     EXPECT_EQ(IndexMeta::DataType::DT_INT8, qmeta.data_type());
-    EXPECT_EQ(holder->dimension(), qmeta.dimension());
+    EXPECT_EQ(quantizer->meta().dimension(), qmeta.dimension());
 
     dequant_buffer.clear();
     EXPECT_EQ(
@@ -147,7 +147,7 @@ TEST(Int8Quantizer, TestSerialize) {
                      IndexQueryMeta(holder->data_type(), holder->dimension()),
                      &quant_buffer, &qmeta));
     EXPECT_EQ(IndexMeta::DataType::DT_INT8, qmeta.data_type());
-    EXPECT_EQ(holder->dimension(), qmeta.dimension());
+    EXPECT_EQ(quantizer->meta().dimension(), qmeta.dimension());
 
     dequant_buffer.clear();
     EXPECT_EQ(
@@ -172,7 +172,7 @@ TEST(Int8Quantizer, TestSerialize) {
                      IndexQueryMeta(holder->data_type(), holder->dimension()),
                      &quant_buffer, &qmeta));
     EXPECT_EQ(IndexMeta::DataType::DT_INT8, qmeta.data_type());
-    EXPECT_EQ(holder->dimension(), qmeta.dimension());
+    EXPECT_EQ(quantizer_new->meta().dimension(), qmeta.dimension());
 
     dequant_buffer.clear();
     EXPECT_EQ(0, quantizer_new->dequantize(quant_buffer.data(), qmeta,

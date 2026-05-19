@@ -21,6 +21,8 @@
 #if defined(__AVX512VNNI__) || (defined(_MSC_VER) && defined(__AVX512F__))
 #include <immintrin.h>
 #endif
+#include <cstring>
+#include <vector>
 
 // Tail layout for quantized INT8 cosine vectors:
 //
@@ -39,16 +41,16 @@ namespace zvec::turbo::avx512_vnni {
 void cosine_int8_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
 #if defined(__AVX512VNNI__) || (defined(_MSC_VER) && defined(__AVX512F__))
-  // `dim` is the full encoded size; the original vector occupies dim-24 bytes.
+  // `dim` is the original_dim (the wrapper has already subtracted the 24-byte
+  // metadata tail). The single-distance contract here is symmetric: both `a`
+  // and `b` are raw int8 vectors (used both for query-vs-node and
+  // node-vs-node distances). Query preprocessing for the batch path is
+  // applied separately in `wrap_turbo_batch_distance`, not here.
   const int original_dim = dim;
   if (original_dim <= 0) {
     return;
   }
 
-  // Compute raw integer inner product over the original_dim bytes.
-  // Note: for the single-vector path there is no query preprocessing, so both
-  // sides are treated as int8_t (same as the non-preprocessed path in
-  // MinusInnerProductDistanceBatchWithScoreUnquantized<int8_t>).
   internal::ip_int8_avx512_vnni(a, b, original_dim, distance);
 
   const float *a_tail = reinterpret_cast<const float *>(
@@ -79,16 +81,31 @@ void cosine_int8_distance(const void *a, const void *b, size_t dim,
 void cosine_int8_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances) {
 #if defined(__AVX512VNNI__) || (defined(_MSC_VER) && defined(__AVX512F__))
-  // `dim` is the full encoded size; the original vector occupies dim-24 bytes.
+  // `dim` is the original_dim (the wrapper has already subtracted the 24-byte
+  // metadata tail). The query is passed in as RAW int8; we shift the data
+  // bytes by +128 into a thread-local buffer so dpbusd (uint8 * int8) yields
+  // the correct integer inner product. The corresponding `128 * sum(int8_a)`
+  // bias is removed below using the precomputed `int8_sum` per stored vector.
   const int original_dim = dim;
   if (original_dim <= 0) {
     return;
   }
 
-  // Compute raw inner products for all vectors. The query has been preprocessed
-  // (int8 + 128 -> uint8) so dpbusd can be used via ip_int8_batch_avx512_vnni.
-  internal::ip_int8_batch_avx512_vnni(vectors, query, n, original_dim,
-                                      distances);
+  // Shift the data portion of the query (+128) into a thread-local buffer so
+  // dpbusd (uint8 * int8) yields the correct integer inner product. The query
+  // metadata tail (3 floats: qa/qb/qs) is read directly from the caller's
+  // query buffer below to avoid touching memory we don't need to.
+  thread_local std::vector<uint8_t> query_buf;
+  const size_t data_bytes = static_cast<size_t>(original_dim);
+  if (query_buf.size() < data_bytes) {
+    query_buf.resize(data_bytes);
+  }
+  std::memcpy(query_buf.data(), query, data_bytes);
+  internal::shift_int8_to_uint8_avx512(query_buf.data(), original_dim);
+
+  // Compute raw inner products for all vectors using dpbusd (uint8 * int8).
+  internal::ip_int8_batch_avx512_vnni(vectors, query_buf.data(), n,
+                                      original_dim, distances);
 
   const float *q_tail = reinterpret_cast<const float *>(
       reinterpret_cast<const int8_t *>(query) + original_dim);

@@ -21,6 +21,8 @@
 #if defined(__AVX512VNNI__) || (defined(_MSC_VER) && defined(__AVX512F__))
 #include <immintrin.h>
 #endif
+#include <cstring>
+#include <vector>
 
 // Tail layout for quantized INT8 squared Euclidean vectors:
 //
@@ -39,6 +41,11 @@ namespace zvec::turbo::avx512_vnni {
 void squared_euclidean_int8_distance(const void *a, const void *b, size_t dim,
                                      float *distance) {
 #if defined(__AVX512VNNI__) || (defined(_MSC_VER) && defined(__AVX512F__))
+  // `dim` is the original_dim (the wrapper has already subtracted the 20-byte
+  // metadata tail). The single-distance contract here is symmetric: both `a`
+  // and `b` are raw int8 vectors (used for both query-vs-node and node-vs-node
+  // distances). Query preprocessing (+128 shift) for the batch path is done
+  // internally by `squared_euclidean_int8_batch_distance`, not here.
   const int original_dim = dim;
   if (original_dim <= 0) {
     return;
@@ -78,10 +85,28 @@ void squared_euclidean_int8_batch_distance(const void *const *vectors,
                                            const void *query, size_t n,
                                            size_t dim, float *distances) {
 #if defined(__AVX512VNNI__) || (defined(_MSC_VER) && defined(__AVX512F__))
+  // `dim` is the original_dim (the wrapper has already subtracted the 20-byte
+  // metadata tail). The query is passed in as RAW int8; we shift the data
+  // bytes by +128 into a thread-local buffer so dpbusd (uint8 * int8) yields
+  // the correct integer inner product. The corresponding `128 * sum(int8_a)`
+  // bias is removed below using the precomputed `int8_sum` per stored vector.
   const int original_dim = dim;
   if (original_dim <= 0) {
     return;
   }
+
+  // Shift the data portion of the query (+128) into a thread-local buffer.
+  // The query metadata tail (4 floats: qa/qb/qs/qs2) is read directly from the
+  // caller's query buffer below.
+  thread_local std::vector<uint8_t> query_buf;
+  const size_t data_bytes = static_cast<size_t>(original_dim);
+  if (query_buf.size() < data_bytes) {
+    query_buf.resize(data_bytes);
+  }
+  std::memcpy(query_buf.data(), query, data_bytes);
+  internal::shift_int8_to_uint8_avx512(query_buf.data(), original_dim);
+  const void *shifted_query = query_buf.data();
+
   static constexpr size_t batch_size = 12;
   static constexpr size_t prefetch_step = 2;
   size_t i = 0;
@@ -108,7 +133,8 @@ void squared_euclidean_int8_batch_distance(const void *const *vectors,
       }
     }
     internal::ip_int8_batch_avx512_vnni_impl<batch_size>(
-        query, &vectors[i], prefetch_ptrs, original_dim, ip_dists.data());
+        shifted_query, &vectors[i], prefetch_ptrs, original_dim,
+        ip_dists.data());
     for (size_t j = 0; j < batch_size; ++j) {
       const float *m_tail = reinterpret_cast<const float *>(
           reinterpret_cast<const int8_t *>(data_ptrs_ptr[j]) + original_dim);
@@ -131,7 +157,7 @@ void squared_euclidean_int8_batch_distance(const void *const *vectors,
     std::array<const void *, 1> prefetch_ptrs{nullptr};
     float ip_dist;
     internal::ip_int8_batch_avx512_vnni_impl<1>(
-        query, &vectors[i], prefetch_ptrs, original_dim, &ip_dist);
+        shifted_query, &vectors[i], prefetch_ptrs, original_dim, &ip_dist);
     const float *m_tail = reinterpret_cast<const float *>(
         reinterpret_cast<const int8_t *>(data_ptrs_ptr[0]) + original_dim);
     float mA = m_tail[0];

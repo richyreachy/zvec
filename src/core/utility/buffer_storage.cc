@@ -89,6 +89,7 @@ class BufferStorage : public IndexStorage {
       }
       auto *data = raw + offset;
       memmove(buf, data, len);
+      owner_->release_buffer(segment_id_);
       return len;
     }
 
@@ -212,6 +213,10 @@ class BufferStorage : public IndexStorage {
 
   char *get_buffer(size_t offset, size_t length, size_t block_id) {
     return buffer_pool_handle_->get_block(offset, length, block_id);
+  }
+
+  void release_buffer(size_t block_id) const {
+    buffer_pool_handle_->release_one(block_id);
   }
 
   int get_meta(size_t offset, size_t length, char *out) {
@@ -472,6 +477,18 @@ class BufferStorage : public IndexStorage {
     segments_.clear();
     memset(&header_, 0, sizeof(header_));
     memset(&footer_, 0, sizeof(footer_));
+    // Release all remaining buffer pool block references before destroying the
+    // pool.  The raw-pointer read() variant acquires blocks without providing a
+    // release path, so we clean up any leftover refs here to satisfy the
+    // VecBufferPool destructor assertion.
+    if (buffer_pool_ && buffer_pool_handle_) {
+      auto &page_table = buffer_pool_->page_table_;
+      for (size_t i = 0; i < page_table.entry_num(); ++i) {
+        while (!page_table.is_released(i)) {
+          buffer_pool_handle_->release_one(i);
+        }
+      }
+    }
     buffer_pool_handle_.reset();
     buffer_pool_.reset();
     max_segment_size_ = 0;

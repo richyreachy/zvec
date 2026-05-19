@@ -200,6 +200,10 @@ class HnswStreamer : public IndexStreamer {
   HnswAlgorithmBase::UPointer alg_;
   IndexMeta meta_{};
   IndexMetric::Pointer metric_{};
+  //! Search-side metric, used as fallback when the search-side turbo
+  //! quantizer does not implement a distance for the current metric/dtype
+  //! (e.g. MipsSquaredEuclidean's query_metric is InnerProduct).
+  IndexMetric::Pointer search_metric_{};
 
   //! Turbo quantizers bound to this streamer. `add_quantizer_` is used
   //! when inserting vectors (mirrors the old `metric_->distance()`).

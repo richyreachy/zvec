@@ -78,6 +78,8 @@ class Int8Quantizer : public Quantizer {
   float scale_reciprocal_{1.0f};
   bool inner_product_{false};
   bool cosine_{false};
+  bool record_quantize_{false};
+  MetricType origin_metric_{MetricType::kUnknown};
 
   mutable ailego::EntropyInt8Quantizer quantizer_;
   IndexMeta meta_{};

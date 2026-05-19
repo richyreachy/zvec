@@ -367,16 +367,12 @@ BatchDistanceFunc get_batch_distance_func(MetricType metric_type,
       if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX2 &&
           (cpu_arch_type == CpuArchType::kAuto ||
            cpu_arch_type == CpuArchType::kAVX2)) {
-        if (metric_type == MetricType::kSquaredEuclidean) {
-          return avx2::squared_euclidean_int4_batch_distance;
-        }
-        if (metric_type == MetricType::kCosine) {
-          return avx2::cosine_int4_batch_distance;
-        }
-        // NOTE: avx2::inner_product_int4_batch_distance is currently a
-        // stub (the underlying inner_product_int4_batch_avx2_impl has an
-        // empty body) so it always returns score=0. Return nullptr here
-        // so callers fall back to a correct scalar/per-vector path.
+        // NOTE: avx2::{squared_euclidean,cosine,inner_product}_int4_batch
+        // call into inner_product_int4_batch_avx2_impl which currently has
+        // an empty body, so the resulting integer inner products would be
+        // uninitialized garbage. Return nullptr for all INT4 batch metrics
+        // here so callers fall back to the correct scalar/per-vector path.
+        (void)metric_type;
       }
     }
   }

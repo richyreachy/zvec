@@ -343,6 +343,19 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
   // specialized handling can be layered on top later.
   search_quantizer_ = add_quantizer_;
 
+  // Resolve the search-side metric. For metrics like MipsSquaredEuclidean
+  // the index distance (used while building the graph) is not the same as
+  // the user-facing query distance: the metric exposes a `query_metric`
+  // (e.g. InnerProduct) which should be used at search time so that the
+  // top-k results reflect the intended ranking. Fall back to `metric_`
+  // when no usable query metric is provided.
+  if (metric_->query_metric() && metric_->query_metric()->distance() &&
+      metric_->query_metric()->batch_distance()) {
+    search_metric_ = metric_->query_metric();
+  } else {
+    search_metric_ = metric_;
+  }
+
   // Create algorithm based on entity storage mode
   switch (entity_->storage_mode()) {
     case HnswStorageMode::kBufferPool:
@@ -529,6 +542,7 @@ int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
 
   ctx->clear();
   ctx->update_dist_caculator_quantizer(add_quantizer_);
+  ctx->update_dist_caculator_metric(metric_);
   ctx->reset_query(query);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
 
@@ -609,6 +623,7 @@ int HnswStreamer::add_impl(uint64_t pkey, const void *query,
 
   ctx->clear();
   ctx->update_dist_caculator_quantizer(add_quantizer_);
+  ctx->update_dist_caculator_metric(metric_);
   ctx->reset_query(query);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
 
@@ -681,6 +696,7 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
 
   ctx->clear();
   ctx->update_dist_caculator_quantizer(search_quantizer_);
+  ctx->update_dist_caculator_metric(search_metric_);
   ctx->resize_results(count);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
   for (size_t q = 0; q < count; ++q) {
@@ -751,6 +767,7 @@ int HnswStreamer::search_bf_impl(
 
   ctx->clear();
   ctx->update_dist_caculator_quantizer(search_quantizer_);
+  ctx->update_dist_caculator_metric(search_metric_);
   ctx->resize_results(count);
 
   if (ctx->group_by_search()) {
@@ -845,6 +862,7 @@ int HnswStreamer::search_bf_by_p_keys_impl(
 
   ctx->clear();
   ctx->update_dist_caculator_quantizer(search_quantizer_);
+  ctx->update_dist_caculator_metric(search_metric_);
   ctx->resize_results(count);
 
   if (ctx->group_by_search()) {

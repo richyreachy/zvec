@@ -40,7 +40,14 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
 
   extra_meta_size_ = 0;
   if (metric_name == "SquaredEuclidean") {
+    // Per-vector quantization (RecordQuantizer layout) so the test does not
+    // need to call train() first. Stored layout: [int8 data][20-byte tail =
+    // 4 floats (qa/qb/qs/qs2) + 1 int (int8_sum)] which matches what the
+    // turbo SE INT8 distance expects when the metric is wrapped in
+    // QuantizedInteger.
+    record_quantize_ = true;
     scale_reciprocal_ = reciprocal * reciprocal;
+    extra_meta_size_ = EXTRA_META_SIZE_INT8;
   } else if (metric_name == "Euclidean") {
     scale_reciprocal_ = reciprocal;
   } else if (metric_name == "InnerProduct") {
@@ -63,12 +70,24 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   meta_.set_meta(data_type_, original_dim_ + extra_meta_size_);
   meta_.set_extra_meta_size(extra_meta_size_);
 
+  if (record_quantize_) {
+    // Wrap the metric in QuantizedInteger so the streamer uses the turbo
+    // metadata-aware INT8 distance (matches RecordInt8Quantizer's approach).
+    ailego::Params metric_params;
+    metric_params.set("proxima.quantized_integer.metric.origin_metric_name",
+                      metric_name);
+    metric_params.set("proxima.quantized_integer.metric.origin_metric_params",
+                      meta.metric_params());
+    origin_metric_ = metric_from_name(metric_name);
+    meta_.set_metric("QuantizedInteger", 0, metric_params);
+  }
+
   LOG_DEBUG("Init integer reformer, bias %f, scale %f", bias_, scale_);
   return 0;
 }
 
 int Int8Quantizer::train(core::IndexHolder::Pointer holder) {
-  if (holder->dimension() != meta_.dimension() ||
+  if (holder->dimension() != original_dim_ ||
       holder->data_type() != IndexMeta::DataType::DT_FP32) {
     return IndexError_Mismatch;
   }
@@ -86,7 +105,7 @@ int Int8Quantizer::train(core::IndexHolder::Pointer holder) {
   float min = std::numeric_limits<float>::max();
   for (; iter->is_valid(); iter->next()) {
     const float *vec = reinterpret_cast<const float *>(iter->data());
-    for (size_t i = 0; i < meta_.dimension(); ++i) {
+    for (size_t i = 0; i < original_dim_; ++i) {
       max = std::max(max, vec[i]);
       min = std::min(min, vec[i]);
       features.emplace_back(vec[i]);
@@ -96,8 +115,8 @@ int Int8Quantizer::train(core::IndexHolder::Pointer holder) {
   quantizer_.set_min(min);
 
   //! step2: feed quantizer with training data
-  for (size_t i = 0; i < features.size(); i += meta_.dimension()) {
-    quantizer_.feed(&features[i], meta_.dimension());
+  for (size_t i = 0; i < features.size(); i += original_dim_) {
+    quantizer_.feed(&features[i], original_dim_);
   }
 
   //! step3: feed quantizer with training data
@@ -128,15 +147,21 @@ int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
   }
 
   *ometa = qmeta;
-  // Inflate ometa dimension to match meta_ (data + extras). Using the 2-arg
-  // set_meta keeps extra_meta_size_ at 0 so element_size() is simply the
-  // inflated-dim byte count, matching streamer->meta_.element_size().
+  // Inflate ometa dimension to match meta_ (data + extras). The HnswStreamer's
+  // check_params validates qmeta.dimension() == meta_.dimension(), so the
+  // output meta must use the same inflated dimension as quantizer->meta().
   ometa->set_meta(data_type_, qmeta.dimension() + extra_meta_size_);
   out->resize(ometa->element_size(), 0);
   const float *vec = reinterpret_cast<const float *>(record);
   auto ovec = reinterpret_cast<int8_t *>(&(*out)[0]);
 
-  if (!inner_product_) {
+  if (record_quantize_) {
+    // Per-vector quantization with RecordQuantizer layout (matches turbo SE
+    // INT8 distance metadata format: [int8 data][qa][qb][qs][qs2][int8_sum]).
+    core::RecordQuantizer::quantize_record(vec, qmeta.dimension(),
+                                           core::IndexMeta::DataType::DT_INT8,
+                                           false, ovec);
+  } else if (!inner_product_) {
     quantizer_.encode(vec, qmeta.dimension(), ovec);
   } else {
     size_t dim = qmeta.dimension();
@@ -185,7 +210,12 @@ int Int8Quantizer::dequantize(const void *in, const IndexQueryMeta & /*qmeta*/,
   out->resize(dim * sizeof(float));
   float *ovec = reinterpret_cast<float *>(&(*out)[0]);
 
-  if (!inner_product_) {
+  if (record_quantize_) {
+    // Decode using the per-vector tail metadata produced by
+    // RecordQuantizer::quantize_record.
+    core::RecordQuantizer::unquantize_record(
+        in, dim, core::IndexMeta::DataType::DT_INT8, ovec);
+  } else if (!inner_product_) {
     quantizer_.decode(ivec, dim, ovec);
   } else {
     for (size_t i = 0; i < dim; ++i) {
@@ -227,7 +257,10 @@ DistanceImpl Int8Quantizer::distance(const void *query,
     return DistanceImpl{};
   }
 
-  auto metric = metric_from_name(meta_.metric_name());
+  // For record-quantize paths the wrapped meta_ metric is
+  // "QuantizedInteger"; we need the original metric for the turbo dispatch.
+  auto metric =
+      record_quantize_ ? origin_metric_ : metric_from_name(meta_.metric_name());
   auto func = get_distance_func(metric, DataType::kInt8, QuantizeType::kInt8,
                                 CpuArchType::kAuto);
   if (!func) {

@@ -457,6 +457,14 @@ class HnswContext : public IndexContext {
     dc_.update_quantizer(std::move(quantizer));
   }
 
+  //! Swap the IndexMetric fallback used by the dist calculator (e.g. when
+  //! switching between add/search metrics for MipsSquaredEuclidean, whose
+  //! query-time metric is InnerProduct). Caller must then invoke
+  //! reset_query before using the calculator.
+  inline void update_dist_caculator_metric(IndexMetric::Pointer metric) {
+    dc_.update_metric(std::move(metric));
+  }
+
   //! Get topk
   inline uint32_t topk() const override {
     return topk_;

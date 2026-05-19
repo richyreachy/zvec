@@ -103,7 +103,7 @@ class QuantizedIntegerMetric : public IndexMetric {
             return wrap_turbo_distance(std::move(turbo_ret));
           }
 
-          return DistanceMatrixCompute<SquaredEuclidean, uint8_t>(m, n);
+          return DistanceMatrixCompute<SquaredEuclidean, int8_t>(m, n);
         }
         if (meta_.data_type() == IndexMeta::DataType::DT_INT4) {
           auto turbo_ret = turbo::get_distance_func(
@@ -112,6 +112,7 @@ class QuantizedIntegerMetric : public IndexMetric {
           if (turbo_ret && m == 1 && n == 1) {
             return wrap_turbo_distance(std::move(turbo_ret));
           }
+          return DistanceMatrixCompute<SquaredEuclidean, uint8_t>(m, n);
         }
         break;
 
@@ -123,7 +124,7 @@ class QuantizedIntegerMetric : public IndexMetric {
           if (turbo_ret && m == 1 && n == 1) {
             return wrap_turbo_distance(std::move(turbo_ret));
           }
-          return DistanceMatrixCompute<MinusInnerProduct, uint8_t>(m, n);
+          return DistanceMatrixCompute<MinusInnerProduct, int8_t>(m, n);
         }
         if (meta_.data_type() == IndexMeta::DataType::DT_INT4) {
           auto turbo_ret = turbo::get_distance_func(
@@ -132,6 +133,7 @@ class QuantizedIntegerMetric : public IndexMetric {
           if (turbo_ret && m == 1 && n == 1) {
             return wrap_turbo_distance(std::move(turbo_ret));
           }
+          return DistanceMatrixCompute<MinusInnerProduct, uint8_t>(m, n);
         }
         break;
 
@@ -337,7 +339,12 @@ class QuantizedIntegerMetric : public IndexMetric {
           turbo::MetricType::kCosine, turbo::DataType::kInt8,
           turbo::QuantizeType::kDefault);
       if (turbo_ret) {
-        return turbo_ret;
+        // Turbo's batch distance function preprocesses the query internally
+        // (per-call, into a thread-local buffer) so the single-distance path
+        // can keep receiving raw int8 queries. Return nullptr here to avoid
+        // a global shift that would corrupt the symmetric single-distance
+        // contract used by node-vs-node calls.
+        return nullptr;
       }
       return CosineMinusInnerProductDistanceBatchWithScoreUnquantized<
           int8_t, 1, 1>::GetQueryPreprocessFunc();
@@ -347,7 +354,8 @@ class QuantizedIntegerMetric : public IndexMetric {
           turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt8,
           turbo::QuantizeType::kDefault);
       if (turbo_ret) {
-        return turbo_ret;
+        // See comment above: turbo handles query preprocessing internally.
+        return nullptr;
       }
       return SquaredEuclideanDistanceBatchWithScoreUnquantized<
           int8_t, 1, 1>::GetQueryPreprocessFunc();
