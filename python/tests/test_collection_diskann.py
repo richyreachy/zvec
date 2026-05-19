@@ -64,7 +64,7 @@ from zvec import (  # noqa: E402
     Doc,
     FieldSchema,
     MetricType,
-    VectorQuery,
+    Query,
     VectorSchema,
 )
 from zvec.typing import QuantizeType  # noqa: E402
@@ -330,13 +330,13 @@ class TestDiskAnnCollectionQuery:
     ):
         """Test querying by vector with DiskAnn index."""
         query_vector = multiple_docs[0].vector("embedding")
-        query = VectorQuery(
+        query = Query(
             field_name="embedding",
             vector=query_vector,
             param=DiskAnnQueryParam(list_size=100),
         )
 
-        result = collection_with_multiple_docs.query(vectors=query, topk=10)
+        result = collection_with_multiple_docs.query(queries=query, topk=10)
         assert len(result) > 0
         assert len(result) <= 10
 
@@ -349,13 +349,13 @@ class TestDiskAnnCollectionQuery:
         self, collection_with_multiple_docs: Collection, multiple_docs: list[Doc]
     ):
         """Test querying by document ID with DiskAnn index."""
-        query = VectorQuery(
+        query = Query(
             field_name="embedding",
             id=multiple_docs[0].id,
             param=DiskAnnQueryParam(list_size=100),
         )
 
-        result = collection_with_multiple_docs.query(vectors=query, topk=10)
+        result = collection_with_multiple_docs.query(queries=query, topk=10)
         assert len(result) > 0
         assert len(result) <= 10
 
@@ -366,21 +366,21 @@ class TestDiskAnnCollectionQuery:
         query_vector = multiple_docs[0].vector("embedding")
 
         # Test with list_size=50
-        query_small = VectorQuery(
+        query_small = Query(
             field_name="embedding",
             vector=query_vector,
             param=DiskAnnQueryParam(list_size=50),
         )
-        result_small = collection_with_multiple_docs.query(vectors=query_small, topk=10)
+        result_small = collection_with_multiple_docs.query(queries=query_small, topk=10)
         assert len(result_small) > 0
 
         # Test with list_size=200
-        query_large = VectorQuery(
+        query_large = Query(
             field_name="embedding",
             vector=query_vector,
             param=DiskAnnQueryParam(list_size=200),
         )
-        result_large = collection_with_multiple_docs.query(vectors=query_large, topk=10)
+        result_large = collection_with_multiple_docs.query(queries=query_large, topk=10)
         assert len(result_large) > 0
 
     def test_query_with_topk(
@@ -388,18 +388,18 @@ class TestDiskAnnCollectionQuery:
     ):
         """Test querying with different topk values."""
         query_vector = multiple_docs[0].vector("embedding")
-        query = VectorQuery(
+        query = Query(
             field_name="embedding",
             vector=query_vector,
             param=DiskAnnQueryParam(list_size=100),
         )
 
         # Test topk=5
-        result_5 = collection_with_multiple_docs.query(vectors=query, topk=5)
+        result_5 = collection_with_multiple_docs.query(queries=query, topk=5)
         assert len(result_5) <= 5
 
         # Test topk=20
-        result_20 = collection_with_multiple_docs.query(vectors=query, topk=20)
+        result_20 = collection_with_multiple_docs.query(queries=query, topk=20)
         assert len(result_20) <= 20
 
     def test_query_with_filter(
@@ -407,7 +407,7 @@ class TestDiskAnnCollectionQuery:
     ):
         """Test querying with filter conditions."""
         query_vector = multiple_docs[0].vector("embedding")
-        query = VectorQuery(
+        query = Query(
             field_name="embedding",
             vector=query_vector,
             param=DiskAnnQueryParam(list_size=100),
@@ -415,7 +415,7 @@ class TestDiskAnnCollectionQuery:
 
         # Query with id filter
         result = collection_with_multiple_docs.query(
-            vectors=query, topk=10, filter="id < 50"
+            queries=query, topk=10, filter="id < 50"
         )
         assert len(result) > 0
         for doc in result:
@@ -426,14 +426,14 @@ class TestDiskAnnCollectionQuery:
     ):
         """Test querying with specific output fields."""
         query_vector = multiple_docs[0].vector("embedding")
-        query = VectorQuery(
+        query = Query(
             field_name="embedding",
             vector=query_vector,
             param=DiskAnnQueryParam(list_size=100),
         )
 
         result = collection_with_multiple_docs.query(
-            vectors=query, topk=10, output_fields=["id", "name"]
+            queries=query, topk=10, output_fields=["id", "name"]
         )
         assert len(result) > 0
 
@@ -446,14 +446,14 @@ class TestDiskAnnCollectionQuery:
     ):
         """Test querying with vector data included in results."""
         query_vector = multiple_docs[0].vector("embedding")
-        query = VectorQuery(
+        query = Query(
             field_name="embedding",
             vector=query_vector,
             param=DiskAnnQueryParam(list_size=100),
         )
 
         result = collection_with_multiple_docs.query(
-            vectors=query, topk=10, include_vector=True
+            queries=query, topk=10, include_vector=True
         )
         assert len(result) > 0
 
@@ -581,12 +581,12 @@ class TestDiskAnnCollectionOptimizeAndReopen:
 
         # Verify data is still accessible after optimize
         query_vector = multiple_docs[0].vector("embedding")
-        query = VectorQuery(
+        query = Query(
             field_name="embedding",
             vector=query_vector,
             param=DiskAnnQueryParam(list_size=100),
         )
-        result_before_close = coll.query(vectors=query, topk=10)
+        result_before_close = coll.query(queries=query, topk=10)
         assert len(result_before_close) > 0
 
         # Close collection (destroy will close it)
@@ -599,12 +599,12 @@ class TestDiskAnnCollectionOptimizeAndReopen:
         assert reopened_coll.stats.doc_count == len(multiple_docs)
 
         # Execute query on reopened collection
-        query_after_reopen = VectorQuery(
+        query_after_reopen = Query(
             field_name="embedding",
             vector=query_vector,
             param=DiskAnnQueryParam(list_size=100),
         )
-        result_after_reopen = reopened_coll.query(vectors=query_after_reopen, topk=10)
+        result_after_reopen = reopened_coll.query(queries=query_after_reopen, topk=10)
         assert len(result_after_reopen) > 0
         assert len(result_after_reopen) <= 10
 
