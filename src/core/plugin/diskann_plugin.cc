@@ -128,6 +128,26 @@ void PromoteHostingSoToGlobal() {
   if (host.empty()) {
     return;
   }
+  // When LoadDiskAnnPlugin is statically linked into the main executable,
+  // dladdr resolves to the executable itself. The main exe's symbols are
+  // already in the global scope by definition, so skip promotion.
+  const std::string exe_path = GetExecutableDir();
+  if (!exe_path.empty()) {
+    char exe_buf[PATH_MAX];
+    ssize_t n = ::readlink("/proc/self/exe", exe_buf, sizeof(exe_buf) - 1);
+    if (n > 0) {
+      exe_buf[n] = '\0';
+      // Compare resolved real paths to handle relative vs absolute.
+      char host_real[PATH_MAX];
+      char exe_real[PATH_MAX];
+      if (::realpath(host.c_str(), host_real) != nullptr &&
+          ::realpath(exe_buf, exe_real) != nullptr &&
+          std::string(host_real) == std::string(exe_real)) {
+        // Host IS the main executable; symbols are already global.
+        return;
+      }
+    }
+  }
   void *h = ::dlopen(host.c_str(), RTLD_NOW | RTLD_GLOBAL | RTLD_NOLOAD);
   if (h == nullptr) {
     const char *err = ::dlerror();
@@ -262,7 +282,7 @@ int LoadDiskAnnPlugin(const std::string &path) {
     }
     const char *err = ::dlerror();
     last_error = err ? err : "unknown dlopen error";
-    LOG_WARN("dlopen(%s) failed: %s", candidate.c_str(), last_error.c_str());
+    LOG_DEBUG("dlopen(%s) failed: %s", candidate.c_str(), last_error.c_str());
   }
 
   if (handle == nullptr) {
