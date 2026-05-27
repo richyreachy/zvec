@@ -2751,6 +2751,8 @@ TEST_F(CollectionTest, Feature_Optimize_Repeated) {
       MetricType::IP, 10, 4, false, QuantizeType::UNDEFINED));
   run_repeated_optimize_test(std::make_shared<IVFIndexParams>(
       MetricType::IP, 10, 4, false, QuantizeType::FP16));
+  run_repeated_optimize_test(std::make_shared<DiskAnnIndexParams>(
+      MetricType::IP, 10, 4, 0, QuantizeType::UNDEFINED));
 #if RABITQ_SUPPORTED
   // TODO: re-enable once HNSW_RABITQ compact-path RaBitQ training is fixed.
   // run_repeated_optimize_test(

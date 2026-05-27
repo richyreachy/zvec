@@ -150,18 +150,28 @@ std::vector<std::string> BuildCandidatePaths(const std::string &explicit_path) {
     return candidates;
   }
 
+  // Helper that pushes both ``<dir>/<plugin>`` and ``<dir>/../lib/<plugin>``
+  // to handle the conventional CMake build layout where executables live in
+  // ``bin/`` while shared objects (including this plugin) live in ``lib/``.
+  auto push_dir_candidates = [&candidates](const std::string &dir) {
+    if (dir.empty()) {
+      return;
+    }
+    candidates.push_back(dir + "/" + kPluginFileName);
+    candidates.push_back(dir + "/../lib/" + kPluginFileName);
+  };
+
   // 1. Directory of the library that hosts LoadDiskAnnPlugin (e.g. the
   //    Python extension module or libzvec_core). This works for Python,
   //    C++ embedding, and most packaging layouts.
   const std::string own_dir = ResolveHostingSoDir();
-  if (!own_dir.empty()) {
-    candidates.push_back(own_dir + "/" + kPluginFileName);
-  }
+  push_dir_candidates(own_dir);
   // 2. Directory of the running executable. Useful for self-contained C++
-  //    tools that drop the plugin next to their binary.
+  //    tools that drop the plugin next to their binary, as well as for the
+  //    standard CMake bin/lib split (handled by ``../lib/`` above).
   const std::string exe_dir = GetExecutableDir();
   if (!exe_dir.empty() && exe_dir != own_dir) {
-    candidates.push_back(exe_dir + "/" + kPluginFileName);
+    push_dir_candidates(exe_dir);
   }
   // 3. Fallback: rely on the dynamic linker's default search path
   //    (RPATH / LD_LIBRARY_PATH / /etc/ld.so.conf).

@@ -14,6 +14,7 @@
 
 #include "diskann_streamer.h"
 #include "diskann_context.h"
+#include "diskann_index_provider.h"
 #include "diskann_indexer.h"
 #include "diskann_params.h"
 
@@ -295,6 +296,20 @@ int DiskAnnStreamer::get_vector_by_id(const uint32_t id,
   }
   block.reset((void *)fetch_vector_buffer_.data());
   return 0;
+}
+
+IndexSearcher::Provider::Pointer DiskAnnStreamer::create_provider(void) const {
+  if (state_ != STATE_LOADED) {
+    LOG_ERROR("Load the index first before creating a provider");
+    return nullptr;
+  }
+  const DiskAnnEntity::Pointer entity = entity_.clone();
+  if (!entity) {
+    LOG_ERROR("Failed to clone DiskAnn entity for provider");
+    return nullptr;
+  }
+  return IndexProvider::Pointer(new (std::nothrow) DiskAnnIndexProvider(
+      meta_, entity, "DiskAnnStreamer"));
 }
 
 IndexSearcher::Context::Pointer DiskAnnStreamer::create_context() const {

@@ -115,10 +115,10 @@ class DiskAnnStreamer : public IndexStreamer {
   //! Create a searcher context
   ContextPointer create_context() const override;
 
-  //! Create a new iterator
-  IndexSearcher::Provider::Pointer create_provider(void) const override {
-    return nullptr;
-  }
+  //! Create a vector iterator backed by the on-disk vector segment.
+  //! Used by the merge code path (``MixedStreamerReducer``) to walk every
+  //! vector held by this streamer.
+  IndexSearcher::Provider::Pointer create_provider(void) const override;
 
   //! Retrieve statistics
   const Stats &stats(void) const override {
