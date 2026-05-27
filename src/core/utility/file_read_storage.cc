@@ -391,11 +391,11 @@ class FileReadStorage : public IndexStorage {
   }
 
   //! Retrieve file ptr if has
-  std::shared_ptr<ailego::File> file(void) const {
+  std::shared_ptr<ailego::File> file(void) const override {
     return file_ptr_;
   }
 
-  std::string file_path(void) const {
+  std::string file_path(void) const override {
     return file_path_;
   }
 
