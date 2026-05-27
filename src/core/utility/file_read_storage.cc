@@ -61,7 +61,7 @@ class FileReadStorage : public IndexStorage {
           file_path_(rhs.file_path_) {}
 
     //! Destructor
-    virtual ~Segment(void) {}
+    ~Segment(void) override {}
 
     //! Retrieve size of data
     size_t data_size(void) const override {
@@ -203,7 +203,7 @@ class FileReadStorage : public IndexStorage {
       ailego_assert_with(data_, "Null Pointer");
     }
 
-    virtual ~MMapSegment(void) {
+    ~MMapSegment(void) override {
       cleanup_();
     }
 
@@ -274,7 +274,7 @@ class FileReadStorage : public IndexStorage {
   };
 
   //! Destructor
-  virtual ~FileReadStorage(void) {}
+  ~FileReadStorage(void) override {}
 
   //! Initialize container
   int init(const ailego::Params &params) override {
