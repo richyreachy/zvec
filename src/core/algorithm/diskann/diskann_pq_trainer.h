@@ -50,9 +50,7 @@ class DiskAnnPqTrainer {
   int generate_quantized_data(IndexThreads::Pointer threads,
                               IndexHolder::Pointer holder,
                               const IndexMeta &meta,
-                              // std::vector<uint8_t> &pq_full_pivot_data,
                               std::vector<uint8_t> &pq_centroid,
-                              // std::vector<uint32_t> &pq_chunk_offsets,
                               std::vector<uint8_t> &block_compressed_data,
                               size_t num_pq_chunks);
 

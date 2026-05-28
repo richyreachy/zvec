@@ -24,8 +24,6 @@ class DiskAnnUtil {
  public:
   static constexpr uint64_t kSectorSize = 4096;
   static constexpr uint64_t kMaxSectorReadNum = 128;
-  // static constexpr double kSpaceForCachedNodeInGB = 0.25;
-  // static constexpr double kThresholdForCacheInGB = 1.0;
 
  public:
   static inline size_t div_round_up(size_t x, size_t y) {

@@ -388,8 +388,6 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
   std::string node_buf;
   node_buf.resize(max_node_size);
 
-  // uint32_t & neighbor_num = *(uint32_t *)(node_buf.data() +
-  // meta_.element_size());
   diskann_id_t *neighbor_buf =
       (diskann_id_t *)(node_buf.data() + (meta_.element_size()) +
                        sizeof(uint32_t));
@@ -414,17 +412,6 @@ int DiskAnnBuilderEntity::dump(IndexHolder::Pointer holder, IndexMeta &meta,
   size_t len = 0;
 
   // no need to write first sector
-  //  size_t len = dumper->write(sector_buf.data(), DiskAnnUtil::kSectorSize);
-  //  if (len != DiskAnnUtil::kSectorSize) {
-  //    LOG_ERROR("Write Vector Error, write=%zu, expect=%zu", len,
-  //    DiskAnnUtil::kSectorSize);
-
-  //   return IndexError_WriteData;
-  // }
-
-  // write_size += len;
-  // crc = ailego::Crc32c::Hash(sector_buf.data(), DiskAnnUtil::kSectorSize,
-  // crc);
   auto iter = holder->create_iterator();
   if (!iter) {
     LOG_ERROR("Create iterator for holder failed");

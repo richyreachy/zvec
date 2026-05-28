@@ -583,16 +583,12 @@ int DiskAnnBuilder::build(IndexThreads::Pointer threads,
   }
 
   LOG_INFO("Start to build vamana graph");
-  // auto test_threads = std::make_shared<SingleQueueIndexThreads>(1,
-  // false);
-  // ret = build_internal(test_threads);
   ret = build_internal(threads);
   if (ret != 0) {
     return ret;
   }
 
   LOG_INFO("Start final cleanup..");
-  // ret = prune_internal(test_threads);
   ret = prune_internal(threads);
   if (ret != 0) {
     return ret;

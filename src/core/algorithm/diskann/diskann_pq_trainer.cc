@@ -38,8 +38,7 @@ int DiskAnnPqTrainer::gen_random_sample(IndexHolder::Pointer holder,
 
   std::vector<std::vector<uint8_t>> sample_vecs;
 
-  // std::random_device rd;
-  // uint32_t x = rd();
+  // Use a fixed seed for deterministic sampling across runs.
   uint32_t x = 456321;
   std::mt19937 gen(x);
   std::uniform_real_distribution<float> dist(0, 1);

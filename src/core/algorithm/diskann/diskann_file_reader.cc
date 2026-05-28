@@ -191,7 +191,6 @@ void LinuxAlignedFileReader::deregister_thread() {
   lk.unlock();
   IOContext ctx = this->get_ctx();
   io_destroy(ctx);
-  //  assert(ret == 0);
   lk.lock();
   ctx_map.erase(thread_id);
 

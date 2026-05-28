@@ -58,11 +58,6 @@ int DiskAnnReducer::reduce(const IndexFilter &filter) {
     return IndexError_NoReady;
   }
 
-  // size_t total_cnt = 0;
-  // for (auto entity_ : entities_) {
-  //   total_cnt += entity_->doc_cnt();
-  // }
-
   if (use_mem_holder_) {
     mem_holder_ = std::make_shared<RandomAccessIndexHolder>(meta_);
     for (auto entity : entities_) {

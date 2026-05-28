@@ -171,8 +171,6 @@ class DiskAnnIndexHolder : public IndexHolder {
 
   //! Init
   int init() {
-    // file_.open(path, std::ios::in | std::ios::out);
-    // file_.open(path_, std::ios::in | std::ios::out | std::ios::trunc);
     file_.open(path_, std::ios::out | std::ios::trunc);
 
     if (!file_.is_open()) {

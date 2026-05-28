@@ -412,8 +412,6 @@ std::pair<uint32_t, const diskann_id_t *> DiskAnnSearcherEntity::get_neighbors(
     return std::make_pair(0, nullptr);
   }
 
-  // size_t vector_segment_offset = vector_segment_->data_offset();
-
   uint64_t read_sector_offset =
       DiskAnnUtil::get_node_sector(node_per_sector(), max_node_size(),
                                    DiskAnnUtil::kSectorSize, id) *
