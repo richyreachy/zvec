@@ -50,9 +50,7 @@ int DiskAnnAlgorithm::add_node(diskann_id_t id, DiskAnnContext *ctx) {
   entity_.set_neighbors(id, pruned_list);
   lock_pool_[lock_idx].unlock();
 
-  ret = inter_insert(id, pruned_list, ctx);
-
-  return 0;
+  return inter_insert(id, pruned_list, ctx);
 }
 
 int DiskAnnAlgorithm::prune_node(diskann_id_t id, DiskAnnContext *ctx) {

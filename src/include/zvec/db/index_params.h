@@ -495,7 +495,7 @@ class DiskAnnIndexParams : public VectorIndexParams {
     return pq_chunk_num_;
   }
 
-  void pq_chunk_num(int pq_chunk_num) {
+  void set_pq_chunk_num(int pq_chunk_num) {
     pq_chunk_num_ = pq_chunk_num;
   }
 

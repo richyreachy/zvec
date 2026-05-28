@@ -69,8 +69,6 @@ int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
     return rc;
   }
 
-  param_ = dynamic_cast<const DiskAnnIndexParam &>(param);
-
   if (is_sparse_) {
     LOG_ERROR("Failed to create streamer. Sparse is not Supported.");
     return core::IndexError_Unsupported;
