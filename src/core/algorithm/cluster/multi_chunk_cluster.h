@@ -30,19 +30,19 @@ class MultiChunkClusterAlgorithm {
   typedef std::shared_ptr<MultiChunkClusterAlgorithm> Pointer;
 
   //! Constructor
-  MultiChunkClusterAlgorithm(void) = default;
+  MultiChunkClusterAlgorithm() = default;
 
   //! Destructor
-  virtual ~MultiChunkClusterAlgorithm(void) = default;
+  virtual ~MultiChunkClusterAlgorithm() = default;
 
   //! Initialize Cluster
   int init(const IndexMeta &meta, const ailego::Params &params);
 
   //! Cleanup Cluster
-  int cleanup(void);
+  int cleanup();
 
   //! Reset Cluster
-  int reset(void);
+  int reset();
 
   //! Update Cluster
   int update(const ailego::Params &params);
@@ -79,7 +79,7 @@ class MultiChunkClusterAlgorithm {
   bool check_centroids(const IndexCluster::CentroidList &cents);
 
   //! Test if it is valid
-  bool is_valid(void) const;
+  bool is_valid() const;
 
   //! Do chunk
   int do_chunk();
@@ -143,10 +143,10 @@ class MultiChunkNumericalAlgorithm : public MultiChunkClusterAlgorithm {
                 "ValueType must be arithmetic");
 
   //! Constructor
-  MultiChunkNumericalAlgorithm(void) = default;
+  MultiChunkNumericalAlgorithm() = default;
 
   //! Destructor
-  ~MultiChunkNumericalAlgorithm(void) = default;
+  ~MultiChunkNumericalAlgorithm() = default;
 
  protected:
   //! cluster thread
@@ -284,10 +284,10 @@ class MultiChunkNumericalInnerProductAlgorithm
                 "ValueType must be arithmetic");
 
   //! Constructor
-  MultiChunkNumericalInnerProductAlgorithm(void) = default;
+  MultiChunkNumericalInnerProductAlgorithm() = default;
 
   //! Destructor
-  ~MultiChunkNumericalInnerProductAlgorithm(void) = default;
+  ~MultiChunkNumericalInnerProductAlgorithm() = default;
 
  protected:
   //! cluster thread
@@ -344,7 +344,7 @@ void MultiChunkNumericalInnerProductAlgorithm<T>::do_cluster(
 
       bool result = algorithm.cluster_once(*local_threads, &cost);
       if (result != true) {
-        LOG_ERROR("(%u) Failed to cluster.", i + 1);
+        LOG_ERROR("(%zu) Failed to cluster.", (size_t)(i + 1));
         errcode_ = -1;
 
         return;
@@ -373,8 +373,6 @@ void MultiChunkNumericalInnerProductAlgorithm<T>::do_cluster(
 
     (*finished)++;
   }
-
-  return;
 }
 
 //! label thread
@@ -404,7 +402,7 @@ void MultiChunkNumericalInnerProductAlgorithm<T>::do_label(
         }
       }
 
-      (*out)[id * chunk_count_ + chunk] = static_cast<uint32_t>(sel_index);
+      (*out)[id * chunk_count_ + chunk] = sel_index;
     }
 
     (*finished)++;
@@ -417,19 +415,19 @@ class MultiChunkCluster {
   std::shared_ptr<MultiChunkCluster> Pointer;
 
   //! Constructor
-  MultiChunkCluster(void) = default;
+  MultiChunkCluster() = default;
 
   //! Destructor
-  ~MultiChunkCluster(void) = default;
+  ~MultiChunkCluster() = default;
 
   //! Initialize Cluster
   int init(const IndexMeta &meta, const ailego::Params &params);
 
   //! Cleanup Cluster
-  int cleanup(void);
+  int cleanup();
 
   //! Reset Cluster
-  int reset(void);
+  int reset();
 
   //! Update Cluster
   int update(const ailego::Params &params);
