@@ -2751,8 +2751,10 @@ TEST_F(CollectionTest, Feature_Optimize_Repeated) {
       MetricType::IP, 10, 4, false, QuantizeType::UNDEFINED));
   run_repeated_optimize_test(std::make_shared<IVFIndexParams>(
       MetricType::IP, 10, 4, false, QuantizeType::FP16));
+#if DISKANN_SUPPORTED
   run_repeated_optimize_test(std::make_shared<DiskAnnIndexParams>(
       MetricType::IP, 10, 4, 0, QuantizeType::UNDEFINED));
+#endif
 #if RABITQ_SUPPORTED
   run_repeated_optimize_test(std::make_shared<HnswRabitqIndexParams>(
       MetricType::IP, 7, 256, 16, 200, 0));
