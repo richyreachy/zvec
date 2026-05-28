@@ -800,28 +800,34 @@ Args:
       diskann_params(m, "DiskAnnIndexParam", R"pbdoc(
 Parameters for configuring an DiskAnn index.
 
-DiskAnn stores compressed vector in memory and high-definition vector on disk. At query time, 
+DiskAnn stores compressed vector in memory and high-definition vector on disk. At query time,
 only compressed vector will be loaded into memory. By this way, search memory at runtime is diminished. 
 
 Attributes:
     metric_type (MetricType): Distance metric used for similarity computation.
         Default is ``MetricType.IP`` (inner product).
-    max_degree (int):.
-    list_size (int): .
-    pq_chunk_num (bool): .
+    max_degree (int): Maximum out-degree of each node in the Vamana graph.
+        Larger values improve recall at the cost of build time and index size.
+        Clamped to the range [1, 100]. Default is 100.
+    list_size (int): Candidate list size used during graph construction.
+        Larger values improve graph quality and recall at the cost of build time.
+        Clamped to the range [10, 100]. Default is 50.
+    pq_chunk_num (int): Number of PQ chunks used for product-quantizing the
+        in-memory compressed vectors. ``0`` means auto-pick based on dimension.
+        Clamped to the range [1, 1024]. Default is 0.
     quantize_type (QuantizeType): Optional quantization type for vector
         compression (e.g., FP16, INT8). Default is ``QuantizeType.UNDEFINED``.
 
 Examples:
     >>> from zvec.typing import MetricType, QuantizeType
-    >>> params = DiskAnnIndexParams(
+    >>> params = DiskAnnIndexParam(
     ...     metric_type=MetricType.COSINE,
     ...     max_degree=100,
-    ...     list_size=15,
-    ...     pq_chunk_num=True,
+    ...     list_size=50,
+    ...     pq_chunk_num=8,
     ...     quantize_type=QuantizeType.FP16
     ... )
-    >>> print(params.n_list)
+    >>> print(params.max_degree)
     100
 )pbdoc");
   diskann_params
@@ -834,11 +840,13 @@ Constructs an DiskAnnIndexParams instance.
 
 Args:
     metric_type (MetricType, optional): Distance metric. Defaults to MetricType.IP.
-    max_degree (int, optional): Number of inverted lists (clusters). Set to 0 for auto.
-        Defaults to 100.
-    list_size (int, optional): the list size to construct graph.
-        Defaults to 50.
-    pq chunk num (int, optional): The chunk num of production quantization.
+    max_degree (int, optional): Maximum out-degree of each node in the Vamana
+        graph. Clamped to [1, 100]. Defaults to 100.
+    list_size (int, optional): Candidate list size used during graph
+        construction. Clamped to [10, 100]. Defaults to 50.
+    pq_chunk_num (int, optional): Number of PQ chunks for product
+        quantization. ``0`` means auto-pick based on dimension.
+        Clamped to [1, 1024]. Defaults to 0.
     quantize_type (QuantizeType, optional): Vector quantization type.
         Defaults to QuantizeType.UNDEFINED.
 )pbdoc")
@@ -1140,29 +1148,30 @@ Args:
 Query parameters for DiskAnn index.
 
 Attributes:
-    type (IndexType): Always ``IndexType.DiskAnn``.
-    list_size (int): Number of closest clusters (inverted lists) to search.
-        Higher values improve recall but increase latency.
-        Default is 10.
+    type (IndexType): Always ``IndexType.DISKANN``.
+    list_size (int): Beam-search candidate list size used at query time.
+        Higher values improve recall but increase latency. Default is 10.
 
 Examples:
-    >>> params = DiskAnnQueryParams(list_size=20)
-    >>> print(params.nprobe)
+    >>> params = DiskAnnQueryParam(list_size=20)
+    >>> print(params.list_size)
     20
 )pbdoc");
   diskann_params
-      .def(py::init<int>(), py::arg("list_size") = 10, R"pbdoc(
+      .def(py::init<int>(), py::arg("list_size") = 300, R"pbdoc(
 Constructs an DiskAnnQueryParams instance.
 
 Args:
-    list_size (int, optional): list size during graph search. Defaults to 300.
+    list_size (int, optional): Beam-search candidate list size during
+        graph search. Higher values improve recall at the cost of latency.
+        Defaults to 300.
 )pbdoc")
       .def_property_readonly(
           "list_size",
           [](const DiskAnnQueryParams &self) -> int {
             return self.list_size();
           },
-          "int: Number of inverted lists to search during DiskAnn query.")
+          "int: Beam-search candidate list size during DiskAnn query.")
       .def("__repr__",
            [](const DiskAnnQueryParams &self) -> std::string {
              return "{"

@@ -616,7 +616,7 @@ int DiskAnnBuilder::build(IndexThreads::Pointer threads,
 
 int DiskAnnBuilder::dump(const IndexDumper::Pointer &dumper) {
   if (state_ != BUILD_STATE_BUILT) {
-    LOG_INFO("Build the index before HnswBuilder::dump");
+    LOG_INFO("Build the index before DiskAnnBuilder::dump");
     return IndexError_NoReady;
   }
 
