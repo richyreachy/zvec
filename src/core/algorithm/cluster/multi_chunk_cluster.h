@@ -30,10 +30,10 @@ class MultiChunkClusterAlgorithm {
   typedef std::shared_ptr<MultiChunkClusterAlgorithm> Pointer;
 
   //! Constructor
-  MultiChunkClusterAlgorithm(void) {}
+  MultiChunkClusterAlgorithm(void) = default;
 
   //! Destructor
-  virtual ~MultiChunkClusterAlgorithm(void) {}
+  virtual ~MultiChunkClusterAlgorithm(void) = default;
 
   //! Initialize Cluster
   int init(const IndexMeta &meta, const ailego::Params &params);
@@ -143,10 +143,10 @@ class MultiChunkNumericalAlgorithm : public MultiChunkClusterAlgorithm {
                 "ValueType must be arithmetic");
 
   //! Constructor
-  MultiChunkNumericalAlgorithm(void) {}
+  MultiChunkNumericalAlgorithm(void) = default;
 
   //! Destructor
-  ~MultiChunkNumericalAlgorithm(void) {}
+  ~MultiChunkNumericalAlgorithm(void) = default;
 
  protected:
   //! cluster thread
@@ -284,10 +284,10 @@ class MultiChunkNumericalInnerProductAlgorithm
                 "ValueType must be arithmetic");
 
   //! Constructor
-  MultiChunkNumericalInnerProductAlgorithm(void) {}
+  MultiChunkNumericalInnerProductAlgorithm(void) = default;
 
   //! Destructor
-  ~MultiChunkNumericalInnerProductAlgorithm(void) {}
+  ~MultiChunkNumericalInnerProductAlgorithm(void) = default;
 
  protected:
   //! cluster thread
@@ -417,10 +417,10 @@ class MultiChunkCluster {
   std::shared_ptr<MultiChunkCluster> Pointer;
 
   //! Constructor
-  MultiChunkCluster(void) {}
+  MultiChunkCluster(void) = default;
 
   //! Destructor
-  ~MultiChunkCluster(void) {}
+  ~MultiChunkCluster(void) = default;
 
   //! Initialize Cluster
   int init(const IndexMeta &meta, const ailego::Params &params);
