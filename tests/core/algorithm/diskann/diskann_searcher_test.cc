@@ -31,8 +31,8 @@ constexpr size_t static dim = 64;
 
 class DiskAnnSearcherTest : public testing::Test {
  protected:
-  void SetUp(void);
-  void TearDown(void);
+  void SetUp(void) override;
+  void TearDown(void) override;
 
   static std::string _dir;
   static shared_ptr<IndexMeta> _index_meta_ptr;
