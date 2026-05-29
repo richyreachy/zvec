@@ -32,23 +32,23 @@ namespace {
 // every other index type stays fully functional.
 int EnsureDiskAnnRuntimeReady() {
   const int status = ::zvec::LoadDiskAnnPlugin();
-  if (status == ::zvec::kDiskAnnPluginOk) {
+  if (status == kDiskAnnPluginOk) {
     return 0;
   }
   switch (status) {
-    case ::zvec::kDiskAnnPluginLibAioMissing:
+    case kDiskAnnPluginLibAioMissing:
       LOG_ERROR(
           "DiskAnn requires libaio at runtime, but it was not found on this "
           "host. Install it (e.g. 'apt-get install libaio1' on Debian/Ubuntu, "
           "or 'libaio1t64' on Ubuntu 24.04+) and retry. Other index types "
           "(HNSW, IVF, Flat, Vamana) are not affected and continue to work.");
       break;
-    case ::zvec::kDiskAnnPluginUnsupportedPlatform:
+    case kDiskAnnPluginUnsupportedPlatform:
       LOG_ERROR(
           "DiskAnn is only supported on Linux x86_64. Please use another "
           "index type (HNSW, IVF, Flat, Vamana) on this platform.");
       break;
-    case ::zvec::kDiskAnnPluginDlopenFailed:
+    case kDiskAnnPluginDlopenFailed:
     default:
       LOG_ERROR(
           "Failed to initialize the DiskAnn runtime (status=%d). Other index "
@@ -243,10 +243,10 @@ int DiskAnnIndex::Add(const VectorData &vector, uint32_t doc_id) {
       input_vector_meta_.dimension() * input_vector_meta_.unit_size());
 
   std::lock_guard<std::mutex> lock(mutex_);
-  while (doc_cache_.size() <= doc_id) {
+  if (doc_cache_.size() <= doc_id) {
     std::string fake_data(
         input_vector_meta_.dimension() * input_vector_meta_.unit_size(), 0);
-    doc_cache_.push_back(std::make_pair(kInvalidKey, fake_data));
+    doc_cache_.resize(doc_id + 1, std::make_pair(kInvalidKey, fake_data));
   }
   doc_cache_[doc_id] = std::make_pair(doc_id, out_vector_buffer);
   return 0;
@@ -310,9 +310,16 @@ int DiskAnnIndex::Merge(const std::vector<Index::Pointer> &indexes,
   auto dumper = core::IndexFactory::CreateDumper("FileDumper");
 
   dumper->create(file_path_);
-  builder_->dump(dumper);
+  int ret = builder_->dump(dumper);
+  if (ret != 0) {
+    LOG_ERROR("Failed to dump index, path: %s, err: %s", file_path_.c_str(),
+              core::IndexError::What(ret));
+    return core::IndexError_Runtime;
+  }
+
   dumper->close();
-  int ret = storage_->open(file_path_, false);
+
+  ret = storage_->open(file_path_, false);
   if (ret != 0) {
     LOG_ERROR("Failed to open storage, path: %s, err: %s", file_path_.c_str(),
               core::IndexError::What(ret));
