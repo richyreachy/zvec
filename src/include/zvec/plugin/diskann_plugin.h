@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ZVEC_PLUGIN_DISKANN_PLUGIN_H
-#define ZVEC_PLUGIN_DISKANN_PLUGIN_H
+#pragma once
 
 #include <string>
 
@@ -84,5 +83,3 @@ ZVEC_PLUGIN_EXPORT bool IsDiskAnnPluginLoaded();
 ZVEC_PLUGIN_EXPORT bool UnloadDiskAnnPlugin();
 
 }  // namespace zvec
-
-#endif  // ZVEC_PLUGIN_DISKANN_PLUGIN_H
