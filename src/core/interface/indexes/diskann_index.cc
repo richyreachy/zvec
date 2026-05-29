@@ -17,10 +17,9 @@
 #include <zvec/core/interface/index.h>
 #include <zvec/plugin/diskann_plugin.h>
 #include "algorithm/diskann/diskann_params.h"
+#include "holder_builder.h"
 
 namespace zvec::core_interface {
-
-static constexpr uint64_t kInvalidKey = std::numeric_limits<uint64_t>::max();
 
 namespace {
 
@@ -172,60 +171,8 @@ int DiskAnnIndex::Open(const std::string &file_path,
 }
 
 int DiskAnnIndex::GenerateHolder() {
-  if (param_.data_type == DataType::DT_FP16) {
-    auto holder =
-        std::make_shared<zvec::core::MultiPassIndexHolder<DataType::DT_FP16>>(
-            param_.dimension);
-    for (auto doc : doc_cache_) {
-      ailego::NumericalVector<uint16_t> vec(doc.second);
-      if (doc.first == kInvalidKey) {
-        continue;
-      }
-      if (!holder->emplace(doc.first, vec)) {
-        LOG_ERROR("Failed to add vector");
-        return core::IndexError_Runtime;
-      }
-    }
-    holder_ = holder;
-  } else if (param_.data_type == DataType::DT_FP32) {
-    auto holder =
-        std::make_shared<zvec::core::MultiPassIndexHolder<DataType::DT_FP32>>(
-            param_.dimension);
-    for (auto doc : doc_cache_) {
-      ailego::NumericalVector<float> vec(doc.second);
-      if (doc.first == kInvalidKey) {
-        continue;
-      }
-      if (!holder->emplace(doc.first, vec)) {
-        LOG_ERROR("Failed to add vector");
-        return core::IndexError_Runtime;
-      }
-    }
-    holder_ = holder;
-  } else if (param_.data_type == DataType::DT_INT8) {
-    auto holder =
-        std::make_shared<zvec::core::MultiPassIndexHolder<DataType::DT_INT8>>(
-            param_.dimension);
-    for (auto doc : doc_cache_) {
-      ailego::NumericalVector<uint8_t> vec(doc.second);
-      if (doc.first == kInvalidKey) {
-        continue;
-      }
-      if (!holder->emplace(doc.first, vec)) {
-        LOG_ERROR("Failed to add vector");
-        return core::IndexError_Runtime;
-      }
-    }
-    holder_ = holder;
-  } else {
-    LOG_ERROR("data_type is not support");
-    return core::IndexError_Runtime;
-  }
-  if (converter_) {
-    core::IndexConverter::TrainAndTransform(converter_, holder_);
-    holder_ = converter_->result();
-  }
-  return 0;
+  return BuildMultiPassHolder(param_.data_type, param_.dimension, doc_cache_,
+                              converter_, &holder_);
 }
 
 int DiskAnnIndex::Add(const VectorData &vector, uint32_t doc_id) {
