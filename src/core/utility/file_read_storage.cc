@@ -290,7 +290,10 @@ class FileReadStorage : public IndexStorage {
   }
 
   int flush(void) override {
-    return IndexError_NotImplemented;
+    // Read-only storage — nothing to flush. Return success so that
+    // generic Index::Flush() works on read-only-backed indexes (e.g.
+    // DiskAnn after build/dump). Mirrors MMapFileReadStorage::flush().
+    return 0;
   }
 
   int append(const std::string & /*id*/, size_t /*size*/) override {
