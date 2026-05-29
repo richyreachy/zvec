@@ -189,6 +189,8 @@ class DiskAnnQueryParams : public QueryParams {
   }
 
  private:
+  // list size: controls the size of the search frontier during graph traversal
+  // — larger values trade query latency for recall
   int list_size_;
 };
 

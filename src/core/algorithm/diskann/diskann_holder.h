@@ -258,8 +258,7 @@ class DiskAnnIndexHolder : public IndexHolder {
 
     sector_internal_id_++;
     if (sector_internal_id_ >= sector_vec_num_) {
-      std::vector<uint8_t> padding_(padding_size_, 0);
-      std::memcpy(data_ptr + data_size_, padding_.data(), padding_size_);
+      std::memset(data_ptr + data_size_, 0, padding_size_);
 
       file_.write(reinterpret_cast<const char *>(&(sector_buffer_[0])),
                   data_sector_size_);

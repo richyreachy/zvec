@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "diskann_algorithm.h"
+#include <algorithm>
 #include <set>
 #include <zvec/core/framework/index_holder.h>
 #include "diskann_util.h"
@@ -312,12 +313,9 @@ int DiskAnnAlgorithm::search_neighbor_and_prune(
   }
 
   auto &pool = ctx->expanded_nodes();
-  for (uint32_t i = 0; i < pool.size(); i++) {
-    if (pool[i].id == id) {
-      pool.erase(pool.begin() + i);
-      i--;
-    }
-  }
+  pool.erase(std::remove_if(pool.begin(), pool.end(),
+                            [id](const auto &node) { return node.id == id; }),
+             pool.end());
 
   ret = prune_neighbors(id, pool, pruned_list, ctx);
   if (ret != 0) {
