@@ -56,24 +56,12 @@ else()
     "namespace zvec { namespace core { /* empty namespace for compatibility */ } }\n"
   )
 
-  if(MSVC)
-    # MSVC: STATIC-only stub to avoid creating an empty DLL with no exports
-    cc_library(
-        NAME core_knn_hnsw_rabitq
-        STATIC STRICT ALWAYS_LINK
-        SRCS ${CMAKE_CURRENT_BINARY_DIR}/rabitq_stub.cc
-        LIBS core_framework
-        INCS . ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm
-        VERSION "${PROXIMA_ZVEC_VERSION}"
-      )
-  else()
-    cc_library(
-        NAME core_knn_hnsw_rabitq
-        STATIC SHARED STRICT ALWAYS_LINK
-        SRCS ${CMAKE_CURRENT_BINARY_DIR}/rabitq_stub.cc
-        LIBS core_framework
-        INCS . ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm
-        VERSION "${PROXIMA_ZVEC_VERSION}"
-      )
-  endif()
+  cc_library(
+      NAME core_knn_hnsw_rabitq
+      STATIC SHARED STRICT ALWAYS_LINK
+      SRCS ${CMAKE_CURRENT_BINARY_DIR}/rabitq_stub.cc
+      LIBS core_framework
+      INCS . ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm
+      VERSION "${PROXIMA_ZVEC_VERSION}"
+    )
 endif()
