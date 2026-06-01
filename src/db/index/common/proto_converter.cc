@@ -163,6 +163,9 @@ proto::DiskAnnIndexParams ProtoConverter::ToPb(
   params_pb.set_max_degree(params->max_degree());
   params_pb.set_list_size(params->list_size());
   params_pb.set_pq_chunk_num(params->pq_chunk_num());
+  return params_pb;
+}
+
 // FtsIndexParams
 FtsIndexParams::Ptr ProtoConverter::FromPb(
     const proto::FtsIndexParams &params_pb) {
