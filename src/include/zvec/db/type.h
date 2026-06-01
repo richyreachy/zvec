@@ -29,6 +29,7 @@ enum class IndexType : uint32_t {
   DISKANN = 5,
   VAMANA = 6,
   INVERT = 10,
+  FTS = 11,
 };
 
 /*

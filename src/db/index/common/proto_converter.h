@@ -52,6 +52,10 @@ struct ProtoConverter {
   static DiskAnnIndexParams::OPtr FromPb(
       const proto::DiskAnnIndexParams &params_pb);
   static proto::DiskAnnIndexParams ToPb(const DiskAnnIndexParams *params);
+  
+  // FtsIndexParams
+  static FtsIndexParams::Ptr FromPb(const proto::FtsIndexParams &params_pb);
+  static proto::FtsIndexParams ToPb(const FtsIndexParams *params);
 
   // IndexParams
   static IndexParams::Ptr FromPb(const proto::IndexParams &params_pb);
