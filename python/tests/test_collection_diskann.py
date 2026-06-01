@@ -69,25 +69,6 @@ from zvec import (  # noqa: E402
 )
 from zvec.typing import QuantizeType  # noqa: E402
 
-# --------------------------------------------------------------------------- #
-# Plugin gating.
-# --------------------------------------------------------------------------- #
-_PLUGIN_LOAD_STATUS = zvec.load_diskann_plugin()
-_PLUGIN_AVAILABLE = _PLUGIN_LOAD_STATUS == 0
-
-if not _PLUGIN_AVAILABLE:
-    # Fold the plugin-load failure into the existing module-level skip mark
-    # so every collected test is reported as skipped with a clear reason.
-    pytestmark = pytest.mark.skip(
-        reason=(
-            f"DiskAnn plugin failed to load (status={_PLUGIN_LOAD_STATUS}); "
-            "ensure libzvec_diskann_plugin.so is installed alongside _zvec.so"
-        )
-    )
-
-
-# ==================== Fixtures ====================
-
 
 @pytest.fixture(scope="session")
 def diskann_collection_schema():
