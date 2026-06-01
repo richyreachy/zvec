@@ -132,7 +132,11 @@ int DiskAnnIndex::Open(const std::string &file_path,
   is_read_only_ = storage_options.read_only;
   switch (storage_options.type) {
     // case StorageOptions::StorageType::kDisk:
-    case StorageOptions::StorageType::kMMAP: {
+    case StorageOptions::StorageType::kMMAP:
+    case StorageOptions::StorageType::kBufferPool: {
+      // NOTE: DiskAnn index is dumped via FileDumper (plain binary file), which
+      // is not compatible with BufferStorage's IndexFormat layout. Fall back to
+      // FileReadStorage for both MMAP and BufferPool storage types.
       storage_ = core::IndexFactory::CreateStorage("FileReadStorage");
       if (storage_ == nullptr) {
         LOG_ERROR("Failed to create FileReadStorage");
