@@ -106,12 +106,9 @@ int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
     real_meta = proxima_index_meta_;
   }
 
-  if (ailego_unlikely(builder_->init(real_meta, proxima_index_params_) != 0)) {
-    LOG_ERROR("Failed to init builder");
-    return core::IndexError_Runtime;
-  }
-  if (ailego_unlikely(streamer_->init(real_meta, proxima_index_params_) != 0)) {
-    LOG_ERROR("Failed to init streamer");
+  if (ailego_unlikely(builder_->init(real_meta, proxima_index_params_) != 0 ||
+                      streamer_->init(real_meta, proxima_index_params_) != 0)) {
+    LOG_ERROR("Failed to init builder or streamer");
     return core::IndexError_Runtime;
   }
 
