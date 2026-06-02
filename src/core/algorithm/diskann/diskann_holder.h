@@ -92,19 +92,19 @@ class DiskAnnIndexHolder : public IndexHolder {
     }
 
     //! Retrieve pointer of data
-    virtual const void *data(void) const override {
+    const void *data(void) const override {
       const uint8_t *data_ptr =
           reinterpret_cast<const uint8_t *>(sector_buffer_.data());
       return data_ptr + sector_offset_ + sizeof(diskann_key_t);
     }
 
     //! Test if the iterator is valid
-    virtual bool is_valid(void) const override {
+    bool is_valid(void) const override {
       return id_ < holder_->count();
     }
 
     //! Retrieve primary key
-    virtual uint64_t key(void) const override {
+    uint64_t key(void) const override {
       const uint8_t *data_ptr =
           reinterpret_cast<const uint8_t *>(sector_buffer_.data());
       uint64_t key =
@@ -114,7 +114,7 @@ class DiskAnnIndexHolder : public IndexHolder {
     }
 
     //! Next iterator
-    virtual void next(void) override {
+    void next(void) override {
       ++id_;
 
       uint32_t sector_id = get_sector_id(id_, sector_vec_num_);
@@ -210,32 +210,32 @@ class DiskAnnIndexHolder : public IndexHolder {
   }
 
   //! Retrieve count of elements in holder (-1 indicates unknown)
-  virtual size_t count(void) const override {
+  size_t count(void) const override {
     return count_;
   }
 
   //! Retrieve dimension
-  virtual size_t dimension(void) const override {
+  size_t dimension(void) const override {
     return dimension_;
   }
 
   //! Retrieve type information
-  virtual IndexMeta::DataType data_type(void) const override {
+  IndexMeta::DataType data_type(void) const override {
     return type_;
   }
 
   //! Retrieve element size in bytes
-  virtual size_t element_size(void) const override {
+  size_t element_size(void) const override {
     return element_size_;
   }
 
   //! Retrieve if it can multi-pass
-  virtual bool multipass(void) const override {
+  bool multipass(void) const override {
     return true;
   }
 
   //! Create a new iterator
-  virtual IndexHolder::Iterator::Pointer create_iterator(void) override {
+  IndexHolder::Iterator::Pointer create_iterator(void) override {
     DiskAnnIndexHolder::Iterator::Pointer pointer(
         new DiskAnnIndexHolder::Iterator(this));
 
