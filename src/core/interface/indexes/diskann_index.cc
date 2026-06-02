@@ -245,6 +245,10 @@ int DiskAnnIndex::_prepare_for_search(
     core::IndexContext::Pointer &context) {
   const auto &diskann_search_param =
       std::dynamic_pointer_cast<DiskAnnQueryParam>(search_param);
+  if (diskann_search_param == nullptr) {
+    LOG_ERROR("Invalid search param: expected DiskAnnQueryParam");
+    return core::IndexError_Runtime;
+  }
 
   context->set_topk(diskann_search_param->topk);
 

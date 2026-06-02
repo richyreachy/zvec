@@ -321,6 +321,10 @@ IndexSearcher::Context::Pointer DiskAnnStreamer::create_context() const {
 
   DiskAnnContext *ctx =
       new (std::nothrow) DiskAnnContext(meta_, measure_, search_ctx_entity);
+  if (ctx == nullptr) {
+    LOG_ERROR("Failed to allocate DiskAnn Context");
+    return Context::Pointer();
+  }
   if (ailego_unlikely(ctx->init(
           DiskAnnContext::kSearcherContext, search_ctx_entity->max_degree(),
           search_ctx_entity->pq_chunk_num(), meta_.element_size())) != 0) {
