@@ -106,9 +106,13 @@ int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
     real_meta = proxima_index_meta_;
   }
 
-  if (ailego_unlikely(builder_->init(real_meta, proxima_index_params_) != 0 ||
-                      streamer_->init(real_meta, proxima_index_params_) != 0)) {
-    LOG_ERROR("Failed to init builder or streamer");
+  const int builder_ret = builder_->init(real_meta, proxima_index_params_);
+  const int streamer_ret = streamer_->init(real_meta, proxima_index_params_);
+  if (ailego_unlikely(builder_ret != 0 || streamer_ret != 0)) {
+    LOG_ERROR(
+        "Failed to init builder or streamer, builder_ret: %d, "
+        "streamer_ret: %d",
+        builder_ret, streamer_ret);
     return core::IndexError_Runtime;
   }
 
@@ -121,7 +125,6 @@ int DiskAnnIndex::Open(const std::string &file_path,
   file_path_ = file_path;
   is_read_only_ = storage_options.read_only;
   switch (storage_options.type) {
-    // case StorageOptions::StorageType::kDisk:
     case StorageOptions::StorageType::kMMAP:
     case StorageOptions::StorageType::kBufferPool: {
       // NOTE: DiskAnn index is dumped via FileDumper (plain binary file), which
@@ -147,7 +150,6 @@ int DiskAnnIndex::Open(const std::string &file_path,
   }
 
   if (!storage_options.create_new) {
-    // read_options.create_new
     int ret = storage_->open(file_path_, false);
     if (ret != 0) {
       LOG_ERROR("Failed to open storage, path: %s, err: %s", file_path_.c_str(),
