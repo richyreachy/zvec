@@ -125,11 +125,10 @@ struct QuantizerParam : public SerializableBase {
 
  protected:
   friend class BaseIndexParam;
-  virtual ailego::JsonObject SerializeToJsonObject(
+  ailego::JsonObject SerializeToJsonObject(
       bool omit_empty_value = false) const override;
 
-  virtual bool DeserializeFromJsonObject(
-      const ailego::JsonObject &json_obj) override;
+  bool DeserializeFromJsonObject(const ailego::JsonObject &json_obj) override;
 };
 
 // preprocessor
@@ -261,9 +260,8 @@ class BaseIndexParam : public SerializableBase {
   //
 
  protected:
-  virtual bool DeserializeFromJsonObject(
-      const ailego::JsonObject &json_obj) override;
-  virtual ailego::JsonObject SerializeToJsonObject(
+  bool DeserializeFromJsonObject(const ailego::JsonObject &json_obj) override;
+  ailego::JsonObject SerializeToJsonObject(
       bool omit_empty_value = false) const override;
 };
 

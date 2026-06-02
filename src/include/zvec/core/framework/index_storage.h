@@ -335,7 +335,7 @@ class IndexStorage : public IndexModule {
   };
 
   //! Destructor
-  virtual ~IndexStorage(void) {}
+  ~IndexStorage(void) override {}
 
   //! Initialize storage
   virtual int init(const ailego::Params &params) = 0;
