@@ -39,20 +39,15 @@ int EnsureDiskAnnRuntimeReady() {
       LOG_ERROR(
           "DiskAnn requires libaio at runtime, but it was not found on this "
           "host. Install it (e.g. 'apt-get install libaio1' on Debian/Ubuntu, "
-          "or 'libaio1t64' on Ubuntu 24.04+) and retry. Other index types "
-          "(HNSW, IVF, Flat, Vamana) are not affected and continue to work.");
+          "or 'libaio1t64' on Ubuntu 24.04+) and retry.");
       break;
     case kDiskAnnPluginUnsupportedPlatform:
-      LOG_ERROR(
-          "DiskAnn is only supported on Linux x86_64. Please use another "
-          "index type (HNSW, IVF, Flat, Vamana) on this platform.");
+      LOG_ERROR("DiskAnn is only supported on Linux x86_64.");
       break;
     case kDiskAnnPluginDlopenFailed:
     default:
-      LOG_ERROR(
-          "Failed to initialize the DiskAnn runtime (status=%d). Other index "
-          "types (HNSW, IVF, Flat, Vamana) remain available.",
-          status);
+      LOG_ERROR("Failed to initialize the DiskAnn runtime (status=%d).",
+                status);
       break;
   }
   return core::IndexError_Runtime;
