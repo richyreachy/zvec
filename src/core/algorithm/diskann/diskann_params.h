@@ -19,35 +19,35 @@ namespace zvec {
 namespace core {
 
 static const std::string PARAM_DISKANN_BUILDER_MAX_DEGREE(
-    "proxima.diskann.builder.max_degree");
+    "zvec.diskann.builder.max_degree");
 static const std::string PARAM_DISKANN_BUILDER_LIST_SIZE(
-    "proxima.diskann.builder.list_size");
+    "zvec.diskann.builder.list_size");
 static const std::string PARAM_DISKANN_BUILDER_MEMORY_LIMIT(
-    "proxima.diskann.builder.memory_limit");
+    "zvec.diskann.builder.memory_limit");
 static const std::string PARAM_DISKANN_BUILDER_MEMORY_BUDGET(
-    "proxima.diskann.builder.memory_budget");
+    "zvec.diskann.builder.memory_budget");
 static const std::string PARAM_DISKANN_BUILDER_DISK_PQ_DIM(
-    "proxima.diskann.builder.disk_pq_dim");
+    "zvec.diskann.builder.disk_pq_dim");
 static const std::string PARAM_DISKANN_BUILDER_THREAD_COUNT(
-    "proxima.diskann.builder.thread_count");
+    "zvec.diskann.builder.thread_count");
 static const std::string PARAM_DISKANN_BUILDER_MAX_TRAIN_SAMPLE_COUNT(
-    "proxima.diskann.builder.max_train_sample_count");
+    "zvec.diskann.builder.max_train_sample_count");
 static const std::string PARAM_DISKANN_BUILDER_TRAIN_SAMPLE_RATIO(
-    "proxima.diskann.builder.train_sample_ratio");
+    "zvec.diskann.builder.train_sample_ratio");
 static const std::string PARAM_DISKANN_BUILDER_MAX_PQ_CHUNK_NUM(
-    "proxima.diskann.builder.max_pq_chunk_num");
+    "zvec.diskann.builder.max_pq_chunk_num");
 
 static const std::string PARAM_DISKANN_SEARCHER_LIST_SIZE(
-    "proxima.diskann.searcher.list_size");
+    "zvec.diskann.searcher.list_size");
 static const std::string PARAM_DISKANN_SEARCHER_CACHE_NODE_NUM(
-    "proxima.diskann.searcher.cache_node_num");
+    "zvec.diskann.searcher.cache_node_num");
 
 static const std::string PARAM_DISKANN_REDUCER_INDEX_NAME(
-    "proxima.diskann.reducer.index_name");
+    "zvec.diskann.reducer.index_name");
 static const std::string PARAM_DISKANN_REDUCER_WORKING_PATH(
-    "proxima.diskann.reducer.working_path");
+    "zvec.diskann.reducer.working_path");
 static const std::string PARAM_DISKANN_REDUCER_NUM_OF_ADD_THREADS(
-    "proxima.diskann.reducer.num_of_add_threads");
+    "zvec.diskann.reducer.num_of_add_threads");
 
 }  // namespace core
 }  // namespace zvec

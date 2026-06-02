@@ -205,10 +205,9 @@ int DiskAnnPqTrainer::train_pq(IndexThreads::Pointer threads,
 
   // Do Train
   ailego::Params params;
-  params.set("proxima.cluster.multi_chunk_cluster.count", num_centers);
-  params.set("proxima.cluster.multi_chunk_cluster.chunk_count", pq_chunk_num);
-  params.set("proxima.cluster.multi_chunk_cluster.max_iterations",
-             max_iterations);
+  params.set("zvec.cluster.multi_chunk_cluster.count", num_centers);
+  params.set("zvec.cluster.multi_chunk_cluster.chunk_count", pq_chunk_num);
+  params.set("zvec.cluster.multi_chunk_cluster.max_iterations", max_iterations);
 
   ret = chunk_cluster_.init(meta, params);
   if (ret != 0) {
