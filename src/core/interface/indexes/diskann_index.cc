@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <zvec/core/interface/index.h>
 #include <zvec/plugin/diskann_plugin.h>
@@ -30,27 +31,34 @@ namespace {
 // hosts only DiskAnn fails, with a clear, actionable error message, and
 // every other index type stays fully functional.
 int EnsureDiskAnnRuntimeReady() {
-  const int status = ::zvec::LoadDiskAnnPlugin();
-  if (status == kDiskAnnPluginOk) {
-    return 0;
-  }
-  switch (status) {
-    case kDiskAnnPluginLibAioMissing:
-      LOG_ERROR(
-          "DiskAnn requires libaio at runtime, but it was not found on this "
-          "host. Install it (e.g. 'apt-get install libaio1' on Debian/Ubuntu, "
-          "or 'libaio1t64' on Ubuntu 24.04+) and retry.");
-      break;
-    case kDiskAnnPluginUnsupportedPlatform:
-      LOG_ERROR("DiskAnn is only supported on Linux x86_64.");
-      break;
-    case kDiskAnnPluginDlopenFailed:
-    default:
-      LOG_ERROR("Failed to initialize the DiskAnn runtime (status=%d).",
-                status);
-      break;
-  }
-  return core::IndexError_Runtime;
+  static std::once_flag once;
+  static int cached_result = 0;
+  std::call_once(once, []() {
+    const int status = ::zvec::LoadDiskAnnPlugin();
+    if (status == kDiskAnnPluginOk) {
+      cached_result = 0;
+      return;
+    }
+    switch (status) {
+      case kDiskAnnPluginLibAioMissing:
+        LOG_ERROR(
+            "DiskAnn requires libaio at runtime, but it was not found on this "
+            "host. Install it (e.g. 'apt-get install libaio1' on "
+            "Debian/Ubuntu, "
+            "or 'libaio1t64' on Ubuntu 24.04+) and retry.");
+        break;
+      case kDiskAnnPluginUnsupportedPlatform:
+        LOG_ERROR("DiskAnn is only supported on Linux x86_64.");
+        break;
+      case kDiskAnnPluginDlopenFailed:
+      default:
+        LOG_ERROR("Failed to initialize the DiskAnn runtime (status=%d).",
+                  status);
+        break;
+    }
+    cached_result = core::IndexError_Runtime;
+  });
+  return cached_result;
 }
 
 }  // namespace
