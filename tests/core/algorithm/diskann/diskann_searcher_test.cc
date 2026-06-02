@@ -72,10 +72,10 @@ TEST_F(DiskAnnSearcherTest, TestGeneral) {
 
   Params params;
 
-  params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 300);
-  params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("zvec.diskann.builder.max_degree", 32);
+  params.set("zvec.diskann.builder.list_size", 300);
+  params.set("zvec.diskann.builder.max_pq_chunk_num", 32);
+  params.set("zvec.diskann.builder.threads", 4);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
@@ -105,7 +105,7 @@ TEST_F(DiskAnnSearcherTest, TestGeneral) {
   ASSERT_TRUE(searcher != nullptr);
 
   Params search_params;
-  search_params.set("proxima.diskann.searcher.list_size", 500);
+  search_params.set("zvec.diskann.searcher.list_size", 500);
 
   ASSERT_EQ(0, searcher->init(search_params));
 
@@ -239,10 +239,10 @@ TEST_F(DiskAnnSearcherTest, TestNodeCache) {
 
   Params params;
 
-  params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 300);
-  params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("zvec.diskann.builder.max_degree", 32);
+  params.set("zvec.diskann.builder.list_size", 300);
+  params.set("zvec.diskann.builder.max_pq_chunk_num", 32);
+  params.set("zvec.diskann.builder.threads", 4);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
@@ -272,8 +272,8 @@ TEST_F(DiskAnnSearcherTest, TestNodeCache) {
   ASSERT_TRUE(searcher != nullptr);
 
   Params search_params;
-  search_params.set("proxima.diskann.searcher.cache_node_num", 32);
-  search_params.set("proxima.diskann.searcher.list_size", 500);
+  search_params.set("zvec.diskann.searcher.cache_node_num", 32);
+  search_params.set("zvec.diskann.searcher.list_size", 500);
 
   ASSERT_EQ(0, searcher->init(search_params));
 
@@ -362,10 +362,10 @@ TEST_F(DiskAnnSearcherTest, TestFilter) {
 
   Params params;
 
-  params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 300);
-  params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("zvec.diskann.builder.max_degree", 32);
+  params.set("zvec.diskann.builder.list_size", 300);
+  params.set("zvec.diskann.builder.max_pq_chunk_num", 32);
+  params.set("zvec.diskann.builder.threads", 4);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
@@ -395,8 +395,8 @@ TEST_F(DiskAnnSearcherTest, TestFilter) {
   ASSERT_TRUE(searcher != nullptr);
 
   Params search_params;
-  search_params.set("proxima.diskann.searcher.cache_node_num", 32);
-  search_params.set("proxima.diskann.searcher.list_size", 500);
+  search_params.set("zvec.diskann.searcher.cache_node_num", 32);
+  search_params.set("zvec.diskann.searcher.list_size", 500);
 
   ASSERT_EQ(0, searcher->init(search_params));
 
@@ -493,10 +493,10 @@ TEST_F(DiskAnnSearcherTest, TestGroup) {
 
   Params params;
 
-  params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 300);
-  params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("zvec.diskann.builder.max_degree", 32);
+  params.set("zvec.diskann.builder.list_size", 300);
+  params.set("zvec.diskann.builder.max_pq_chunk_num", 32);
+  params.set("zvec.diskann.builder.threads", 4);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
@@ -526,7 +526,7 @@ TEST_F(DiskAnnSearcherTest, TestGroup) {
   ASSERT_TRUE(searcher != nullptr);
 
   Params search_params;
-  search_params.set("proxima.diskann.searcher.list_size", 500);
+  search_params.set("zvec.diskann.searcher.list_size", 500);
 
   ASSERT_EQ(0, searcher->init(search_params));
 
@@ -638,10 +638,10 @@ TEST_F(DiskAnnSearcherTest, TestFetchVector) {
 
   Params params;
 
-  params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 300);
-  params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("zvec.diskann.builder.max_degree", 32);
+  params.set("zvec.diskann.builder.list_size", 300);
+  params.set("zvec.diskann.builder.max_pq_chunk_num", 32);
+  params.set("zvec.diskann.builder.threads", 4);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
@@ -671,7 +671,7 @@ TEST_F(DiskAnnSearcherTest, TestFetchVector) {
   ASSERT_TRUE(searcher != nullptr);
 
   Params search_params;
-  search_params.set("proxima.diskann.searcher.list_size", 500);
+  search_params.set("zvec.diskann.searcher.list_size", 500);
 
   ASSERT_EQ(0, searcher->init(search_params));
 
@@ -745,10 +745,10 @@ TEST_F(DiskAnnSearcherTest, TestRnnSearch) {
 
   Params params;
 
-  params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 300);
-  params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("zvec.diskann.builder.max_degree", 32);
+  params.set("zvec.diskann.builder.list_size", 300);
+  params.set("zvec.diskann.builder.max_pq_chunk_num", 32);
+  params.set("zvec.diskann.builder.threads", 4);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
@@ -778,7 +778,7 @@ TEST_F(DiskAnnSearcherTest, TestRnnSearch) {
   ASSERT_TRUE(searcher != nullptr);
 
   Params search_params;
-  search_params.set("proxima.diskann.searcher.list_size", 500);
+  search_params.set("zvec.diskann.searcher.list_size", 500);
 
   ASSERT_EQ(0, searcher->init(search_params));
 

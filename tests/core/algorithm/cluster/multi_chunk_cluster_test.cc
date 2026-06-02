@@ -55,9 +55,9 @@ TEST(MultiChunkCluster, General) {
   MultiChunkCluster cluster = MultiChunkCluster();
 
   Params params;
-  params.set("proxima.cluster.multi_chunk_cluster.count", cluster_count);
-  params.set("proxima.cluster.multi_chunk_cluster.chunk_count", chunk_count);
-  params.set("proxima.cluster.multi_chunk_cluster.thread_count", thread_count);
+  params.set("zvec.cluster.multi_chunk_cluster.count", cluster_count);
+  params.set("zvec.cluster.multi_chunk_cluster.chunk_count", chunk_count);
+  params.set("zvec.cluster.multi_chunk_cluster.thread_count", thread_count);
 
   ASSERT_EQ(0, cluster.init(index_meta, params));
   ASSERT_EQ(0, cluster.mount(features));
@@ -116,9 +116,9 @@ TEST(MultiChunkCluster, TestChunk) {
   MultiChunkCluster cluster = MultiChunkCluster();
 
   Params params;
-  params.set("proxima.cluster.multi_chunk_cluster.count", cluster_count);
-  params.set("proxima.cluster.multi_chunk_cluster.chunk_count", chunk_count);
-  params.set("proxima.cluster.multi_chunk_cluster.thread_count", thread_count);
+  params.set("zvec.cluster.multi_chunk_cluster.count", cluster_count);
+  params.set("zvec.cluster.multi_chunk_cluster.chunk_count", chunk_count);
+  params.set("zvec.cluster.multi_chunk_cluster.thread_count", thread_count);
 
   ASSERT_EQ(0, cluster.init(index_meta, params));
   ASSERT_EQ(0, cluster.mount(features));
@@ -188,10 +188,10 @@ TEST(MultiChunkCluster, General_InnerProduct) {
   MultiChunkCluster cluster = MultiChunkCluster();
 
   Params params;
-  params.set("proxima.cluster.multi_chunk_cluster.count", cluster_count);
-  params.set("proxima.cluster.multi_chunk_cluster.chunk_count", chunk_count);
-  params.set("proxima.cluster.multi_chunk_cluster.thread_count", thread_count);
-  params.set("proxima.cluster.multi_chunk_cluster.markov_chain_length",
+  params.set("zvec.cluster.multi_chunk_cluster.count", cluster_count);
+  params.set("zvec.cluster.multi_chunk_cluster.chunk_count", chunk_count);
+  params.set("zvec.cluster.multi_chunk_cluster.thread_count", thread_count);
+  params.set("zvec.cluster.multi_chunk_cluster.markov_chain_length",
              chain_length);
 
   ASSERT_EQ(0, cluster.init(index_meta, params));

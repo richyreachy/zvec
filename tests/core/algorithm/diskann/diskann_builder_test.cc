@@ -71,10 +71,10 @@ TEST_F(DiskAnnBuilderTest, TestGeneral) {
 
   Params params;
 
-  params.set("proxima.diskann.builder.max_degree", 32);
-  params.set("proxima.diskann.builder.list_size", 50);
-  params.set("proxima.diskann.builder.max_pq_chunk_num", 32);
-  params.set("proxima.diskann.builder.threads", 4);
+  params.set("zvec.diskann.builder.max_degree", 32);
+  params.set("zvec.diskann.builder.list_size", 50);
+  params.set("zvec.diskann.builder.max_pq_chunk_num", 32);
+  params.set("zvec.diskann.builder.threads", 4);
 
   ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
 
