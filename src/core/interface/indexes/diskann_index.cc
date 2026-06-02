@@ -74,9 +74,9 @@ int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
   }
 
   param_ = dynamic_cast<const DiskAnnIndexParam &>(param);
-  param_.max_degree = std::max(1, std::min(100, param_.max_degree));
-  param_.list_size = std::max(10, std::min(100, param_.list_size));
-  param_.pq_chunk_num = std::max(1, std::min(1024, param_.pq_chunk_num));
+  param_.max_degree = std::min(100, param_.max_degree);
+  param_.list_size = std::min(100, param_.list_size);
+  param_.pq_chunk_num = std::min(1024, param_.pq_chunk_num);
 
   proxima_index_params_.set(core::PARAM_DISKANN_BUILDER_MAX_DEGREE,
                             param_.max_degree);
@@ -92,8 +92,7 @@ int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
     LOG_ERROR(
         "Failed to create DiskAnnBuilder: DiskAnn factory entries are not "
         "registered. This usually means the DiskAnn shared module could not "
-        "be located next to the hosting binary. Other index types (HNSW, "
-        "IVF, Flat, Vamana) are not affected.");
+        "be located next to the hosting binary.");
     return core::IndexError_Runtime;
   }
 
@@ -101,8 +100,7 @@ int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
     LOG_ERROR(
         "Failed to create DiskAnnStreamer: DiskAnn factory entries are not "
         "registered. This usually means the DiskAnn shared module could not "
-        "be located next to the hosting binary. Other index types (HNSW, "
-        "IVF, Flat, Vamana) are not affected.");
+        "be located next to the hosting binary.");
     return core::IndexError_Runtime;
   }
 
