@@ -247,17 +247,21 @@ int DiskAnnBuilder::calculate_pq_chunk_num() {
 
   pq_chunk_num_ =
       pq_chunk_num_ < max_pq_chunk_num_ ? pq_chunk_num_ : max_pq_chunk_num_;
-  if (pq_chunk_num_ > build_meta_.dimension()) {
-    LOG_ERROR("PQ Chunk Num is more than dimension, chunk num: %u, dim: %u",
-              pq_chunk_num_, build_meta_.dimension());
-    return IndexError_InvalidArgument;
-  }
 
-  if (pq_chunk_num_ == kDefaultPqChunkNum) {
+  // A chunk num of 0 (public API default) or the internal sentinel means
+  // "auto": quantize into half the dimensions. Resolve it before the
+  // upper-bound check so the default never reaches the divide-by-chunk path.
+  if (pq_chunk_num_ == 0 || pq_chunk_num_ == kDefaultPqChunkNum) {
     pq_chunk_num_ = build_meta_.dimension() / 2;
     LOG_INFO(
         "No Chunk Num input. Quantizing %u dimension data into %u dimension.",
         build_meta_.dimension(), pq_chunk_num_);
+  }
+
+  if (pq_chunk_num_ > build_meta_.dimension()) {
+    LOG_ERROR("PQ Chunk Num is more than dimension, chunk num: %u, dim: %u",
+              pq_chunk_num_, build_meta_.dimension());
+    return IndexError_InvalidArgument;
   }
 
   LOG_INFO("Quantizing %u dimension data into %u bytes.",

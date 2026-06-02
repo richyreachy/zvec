@@ -96,6 +96,11 @@ int MultiChunkClusterAlgorithm::init_distance_func() {
 }
 
 int MultiChunkClusterAlgorithm::do_chunk() {
+  if (chunk_count_ == 0) {
+    LOG_ERROR("Invalid Chunk Count: %u", chunk_count_);
+    return IndexError_InvalidArgument;
+  }
+
   size_t large_chunk_count = meta_.dimension() % chunk_count_;
   size_t base_chunk_dim_ = meta_.dimension() / chunk_count_;
 
