@@ -382,11 +382,11 @@ void DiskAnnBuilder::do_build(uint64_t idx, size_t step_size,
     return;
   }
 
+  DiskAnnContext::Pointer auto_ptr(ctx);
   ctx->init(DiskAnnContext::kBuilderContext, max_degree_, pq_chunk_num_,
             build_meta_.element_size());
   ctx->set_list_size(list_size_);
 
-  DiskAnnContext::Pointer auto_ptr(ctx);
   for (uint64_t id = idx; id < entity_.doc_cnt(); id += step_size) {
     ctx->reset_query(entity_.get_vector(id));
     int ret = algo_->add_node(id, ctx);
@@ -421,11 +421,11 @@ void DiskAnnBuilder::do_prune(uint64_t idx, size_t step_size,
     return;
   }
 
+  DiskAnnContext::Pointer auto_ptr(ctx);
   ctx->init(DiskAnnContext::kBuilderContext, max_degree_, pq_chunk_num_,
             build_meta_.element_size());
   ctx->set_list_size(list_size_);
 
-  DiskAnnContext::Pointer auto_ptr(ctx);
   for (uint64_t id = idx; id < entity_.doc_cnt(); id += step_size) {
     ctx->reset_query(entity_.get_vector(id));
     int ret = algo_->prune_node(id, ctx);
