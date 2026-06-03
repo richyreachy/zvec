@@ -251,11 +251,9 @@ int DiskAnnAlgorithm::occlude_list(diskann_id_t id, std::vector<Neighbor> &pool,
 
         float djk = dc.dist(iter2->id, iter->id);
 
-        if (true) {
-          occlude_factor[t] =
-              (djk == 0) ? std::numeric_limits<float>::max()
-                         : std::max(occlude_factor[t], iter2->distance / djk);
-        }
+        occlude_factor[t] =
+            (djk == 0) ? std::numeric_limits<float>::max()
+                       : std::max(occlude_factor[t], iter2->distance / djk);
       }
     }
     cur_alpha *= 1.2f;

@@ -41,9 +41,8 @@ int DiskAnnBuilder::init(const IndexMeta &meta, const ailego::Params &params) {
              std::thread::hardware_concurrency());
   }
 
-  if (params.has(PARAM_DISKANN_BUILDER_MAX_PQ_CHUNK_NUM)) {
-    uint32_t max_pq_chunk_num{0};
-    params.get(PARAM_DISKANN_BUILDER_MAX_PQ_CHUNK_NUM, &max_pq_chunk_num);
+  uint32_t max_pq_chunk_num{0};
+  if (params.get(PARAM_DISKANN_BUILDER_MAX_PQ_CHUNK_NUM, &max_pq_chunk_num)) {
     if (max_pq_chunk_num > meta.dimension()) {
       LOG_ERROR(
           "PQ Chunk Num larger than dimension, PQ Chunk Num: %d, Dimension: %d",
