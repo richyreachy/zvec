@@ -27,11 +27,9 @@ constexpr diskann_id_t kInvalidId = static_cast<diskann_id_t>(-1);
 constexpr diskann_key_t kInvalidKey = static_cast<key_t>(-1);
 
 struct VectorInfo {
- public:
   float dist_;
   std::string vec_;
 
- public:
   VectorInfo() = default;
   VectorInfo(float dist, const std::string &vec) : dist_{dist}, vec_{vec} {}
   VectorInfo(float dist, std::string &&vec)
@@ -79,7 +77,9 @@ struct DiskAnnMetaHeader {
   }
 
   DiskAnnMetaHeader &operator=(const DiskAnnMetaHeader &header) {
-    memcpy(this, &header, sizeof(header));
+    if (this != &header) {
+      memcpy(this, &header, sizeof(header));
+    }
     return *this;
   }
 
