@@ -196,15 +196,42 @@ int DiskAnnIndex::Add(const VectorData &vector, uint32_t doc_id) {
 }
 
 int DiskAnnIndex::Train() {
-  GenerateHolder();
-  builder_->train(holder_);
-  builder_->build(holder_);
+  int ret = GenerateHolder();
+  if (ret != 0) {
+    LOG_ERROR("Failed to generate holder, err: %s",
+              core::IndexError::What(ret));
+    return ret;
+  }
+  ret = builder_->train(holder_);
+  if (ret != 0) {
+    LOG_ERROR("Failed to train builder, err: %s", core::IndexError::What(ret));
+    return ret;
+  }
+  ret = builder_->build(holder_);
+  if (ret != 0) {
+    LOG_ERROR("Failed to build index, err: %s", core::IndexError::What(ret));
+    return ret;
+  }
   auto dumper = core::IndexFactory::CreateDumper("FileDumper");
+  if (dumper == nullptr) {
+    LOG_ERROR("Failed to create FileDumper");
+    return core::IndexError_Runtime;
+  }
 
-  dumper->create(file_path_);
-  builder_->dump(dumper);
+  ret = dumper->create(file_path_);
+  if (ret != 0) {
+    LOG_ERROR("Failed to create dumper, path: %s, err: %s", file_path_.c_str(),
+              core::IndexError::What(ret));
+    return core::IndexError_Runtime;
+  }
+  ret = builder_->dump(dumper);
+  if (ret != 0) {
+    LOG_ERROR("Failed to dump index, path: %s, err: %s", file_path_.c_str(),
+              core::IndexError::What(ret));
+    return core::IndexError_Runtime;
+  }
   dumper->close();
-  int ret = storage_->open(file_path_, false);
+  ret = storage_->open(file_path_, false);
   if (ret != 0) {
     LOG_ERROR("Failed to open storage, path: %s, err: %s", file_path_.c_str(),
               core::IndexError::What(ret));
