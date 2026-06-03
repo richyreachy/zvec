@@ -13,9 +13,11 @@
 // limitations under the License.
 
 #include "diskann_builder.h"
+#include <cstring>
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <ailego/math/normalizer.h>
 #include <ailego/pattern/defer.h>
 #include <zvec/core/framework/index_error.h>
 #include <zvec/core/interface/index_factory.h>
@@ -509,21 +511,15 @@ int DiskAnnBuilder::train(IndexThreads::Pointer threads,
 }
 
 int DiskAnnBuilder::do_norm(const void *data_ptr, std::string *norm_data) {
-  float norm_pt = std::numeric_limits<float>::epsilon();
-
+  size_t dimension = build_meta_.dimension();
   const float *float_data_ptr = reinterpret_cast<const float *>(data_ptr);
 
-  norm_data->resize(build_meta_.dimension() * sizeof(float));
+  norm_data->resize(dimension * sizeof(float));
   float *output_buf = reinterpret_cast<float *>(&((*norm_data)[0]));
+  std::memcpy(output_buf, float_data_ptr, dimension * sizeof(float));
 
-  for (uint32_t dim = 0; dim < build_meta_.dimension(); dim++) {
-    norm_pt += *(float_data_ptr + dim) * *(float_data_ptr + dim);
-  }
-  norm_pt = std::sqrt(norm_pt);
-
-  for (uint32_t dim = 0; dim < build_meta_.dimension(); dim++) {
-    *(output_buf + dim) = *(float_data_ptr + dim) / norm_pt;
-  }
+  float norm = 0.0f;
+  ailego::Normalizer<float>::L2(output_buf, dimension, &norm);
 
   return 0;
 }
