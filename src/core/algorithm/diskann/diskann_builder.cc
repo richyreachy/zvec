@@ -17,6 +17,7 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <ailego/math/euclidean_distance_matrix.h>
 #include <ailego/math/normalizer.h>
 #include <ailego/pattern/defer.h>
 #include <zvec/core/framework/index_error.h>
@@ -136,30 +137,28 @@ int DiskAnnBuilder::calculate_entry_point() {
     return IndexError_InvalidArgument;
   }
 
-  std::vector<float> centroid(dimension, 0.0f);
-  float *centroid_data_ptr = centroid.data();
+  std::vector<float> centroid_fp32;
+  std::vector<ailego::Float16> centroid_fp16;
 
   switch (build_meta_.data_type()) {
     case IndexMeta::DataType::DT_FP32: {
+      centroid_fp32.resize(dimension);
       NumericalVectorMean<float> accumulator(dimension);
       for (size_t id = 0; id < entity_.doc_cnt(); id++) {
         accumulator.plus(entity_.get_vector(id), dimension * sizeof(float));
       }
-      accumulator.mean(centroid_data_ptr, dimension * sizeof(float));
+      accumulator.mean(centroid_fp32.data(), dimension * sizeof(float));
       break;
     }
     case IndexMeta::DataType::DT_FP16: {
+      centroid_fp16.resize(dimension);
       NumericalVectorMean<ailego::Float16> accumulator(dimension);
       for (size_t id = 0; id < entity_.doc_cnt(); id++) {
         accumulator.plus(entity_.get_vector(id),
                          dimension * sizeof(ailego::Float16));
       }
-      std::vector<ailego::Float16> fp16_centroid(dimension);
-      accumulator.mean(fp16_centroid.data(),
+      accumulator.mean(centroid_fp16.data(),
                        dimension * sizeof(ailego::Float16));
-      for (size_t i = 0; i < dimension; i++) {
-        centroid_data_ptr[i] = static_cast<float>(fp16_centroid[i]);
-      }
       break;
     }
     default:
@@ -176,12 +175,9 @@ int DiskAnnBuilder::calculate_entry_point() {
         const float *data_ptr =
             reinterpret_cast<const float *>(entity_.get_vector(id));
 
-        float dist = 0;
-        for (size_t i = 0; i < dimension; i++) {
-          float diff = (centroid_data_ptr[i] - data_ptr[i]) *
-                       (centroid_data_ptr[i] - data_ptr[i]);
-          dist += diff;
-        }
+        float dist = 0.0f;
+        ailego::SquaredEuclideanDistanceMatrix<float, 1, 1>::Compute(
+            centroid_fp32.data(), data_ptr, dimension, &dist);
 
         if (dist < min_dist) {
           min_dist = dist;
@@ -194,12 +190,9 @@ int DiskAnnBuilder::calculate_entry_point() {
         const ailego::Float16 *data_ptr =
             reinterpret_cast<const ailego::Float16 *>(entity_.get_vector(id));
 
-        float dist = 0;
-        for (size_t i = 0; i < dimension; i++) {
-          float diff = (centroid_data_ptr[i] - data_ptr[i]) *
-                       (centroid_data_ptr[i] - data_ptr[i]);
-          dist += diff;
-        }
+        float dist = 0.0f;
+        ailego::SquaredEuclideanDistanceMatrix<ailego::Float16, 1, 1>::Compute(
+            centroid_fp16.data(), data_ptr, dimension, &dist);
 
         if (dist < min_dist) {
           min_dist = dist;
