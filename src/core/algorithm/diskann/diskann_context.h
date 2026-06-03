@@ -14,6 +14,7 @@
 #pragma once
 
 #include <zvec/core/framework/index_context.h>
+#include "utility/topk_result_builder.h"
 #include "diskann_dist_calculator.h"
 #include "diskann_entity.h"
 #include "diskann_file_reader.h"
@@ -34,7 +35,10 @@ struct SearchStats {
   uint64_t hop_num = 0;
 };
 
-class DiskAnnContext : public IndexContext {
+class DiskAnnContext : public IndexContext,
+                       public TopkResultBuilder<DiskAnnContext, TopkHeap> {
+  friend class TopkResultBuilder<DiskAnnContext, TopkHeap>;
+
  public:
   //! Index Context Pointer
   using Pointer = std::unique_ptr<DiskAnnContext>;
@@ -276,13 +280,10 @@ class DiskAnnContext : public IndexContext {
     group_topk_heaps_.clear();
   }
 
-  inline void topk_to_result(uint32_t idx) {
-    if (group_by_search()) {
-      topk_to_group_result(idx);
-    } else {
-      topk_to_single_result(idx);
-    }
-  }
+  // topk_to_result / topk_to_single_result / topk_to_group_result are provided
+  // by TopkResultBuilder via the hooks below (result_score,
+  // emplace_result_doc).
+  using TopkResultBuilder<DiskAnnContext, TopkHeap>::topk_to_result;
 
   void set_to_result(uint32_t idx, const std::vector<diskann_id_t> &result_ids,
                      const std::vector<float> &result_dists) {
@@ -297,94 +298,26 @@ class DiskAnnContext : public IndexContext {
     }
   }
 
-  inline void topk_to_single_result(uint32_t idx) {
-    if (ailego_unlikely(topk_heap_.size() == 0)) {
-      return;
-    }
-
-    ailego_assert_with(idx < results_.size(), "invalid idx");
-    int size = std::min(topk_, static_cast<uint32_t>(topk_heap_.size()));
-    topk_heap_.sort();
-    results_[idx].clear();
-
-    for (int i = 0; i < size; ++i) {
-      auto info = topk_heap_[i].second;
-      if (info.dist_ > this->threshold()) {
-        break;
-      }
-
-      diskann_id_t id = topk_heap_[i].first;
-      if (fetch_vector_) {
-        results_[idx].emplace_back(entity_->get_key(id), info.dist_, id,
-                                   info.vec_);
-      } else {
-        results_[idx].emplace_back(entity_->get_key(id), info.dist_, id);
-      }
-    }
-
-    return;
+ private:
+  //! Hooks required by TopkResultBuilder.
+  std::vector<IndexDocumentList> &mutable_results() {
+    return results_;
   }
 
-  //! Construct result from topk heap, result will be normalized
-  inline void topk_to_group_result(uint32_t idx) {
-    ailego_assert_with(idx < group_results_.size(), "invalid idx");
+  std::vector<IndexGroupDocumentList> &mutable_group_results() {
+    return group_results_;
+  }
 
-    group_results_[idx].clear();
+  float result_score(const VectorInfo &info) const {
+    return info.dist_;
+  }
 
-    std::vector<std::pair<std::string, TopkHeap>> group_topk_list;
-    std::vector<std::pair<std::string, float>> best_score_in_groups;
-    for (auto itr = group_topk_heaps_.begin(); itr != group_topk_heaps_.end();
-         itr++) {
-      const std::string &group_id = (*itr).first;
-      auto &heap = (*itr).second;
-      heap.sort();
-
-      if (heap.size() > 0) {
-        float best_score = heap[0].second.dist_;
-        best_score_in_groups.push_back(std::make_pair(group_id, best_score));
-      }
-    }
-
-    std::sort(best_score_in_groups.begin(), best_score_in_groups.end(),
-              [](const std::pair<std::string, float> &a,
-                 const std::pair<std::string, float> &b) -> int {
-                return a.second < b.second;
-              });
-
-    // truncate to group num
-    for (uint32_t i = 0; i < group_num() && i < best_score_in_groups.size();
-         ++i) {
-      const std::string &group_id = best_score_in_groups[i].first;
-
-      group_topk_list.emplace_back(
-          std::make_pair(group_id, group_topk_heaps_[group_id]));
-    }
-
-    group_results_[idx].resize(group_topk_list.size());
-
-    for (uint32_t i = 0; i < group_topk_list.size(); ++i) {
-      const std::string &group_id = group_topk_list[i].first;
-      group_results_[idx][i].set_group_id(group_id);
-
-      uint32_t size = std::min(
-          group_topk_, static_cast<uint32_t>(group_topk_list[i].second.size()));
-
-      for (uint32_t j = 0; j < size; ++j) {
-        auto info = group_topk_list[i].second[j].second;
-        if (info.dist_ > this->threshold()) {
-          break;
-        }
-
-        diskann_id_t id = group_topk_list[i].second[j].first;
-
-        if (fetch_vector_) {
-          group_results_[idx][i].mutable_docs()->emplace_back(
-              entity_->get_key(id), info.dist_, id, info.vec_);
-        } else {
-          group_results_[idx][i].mutable_docs()->emplace_back(
-              entity_->get_key(id), info.dist_, id);
-        }
-      }
+  void emplace_result_doc(IndexDocumentList &docs, diskann_id_t id, float score,
+                          const VectorInfo &info) {
+    if (fetch_vector_) {
+      docs.emplace_back(entity_->get_key(id), score, id, info.vec_);
+    } else {
+      docs.emplace_back(entity_->get_key(id), score, id);
     }
   }
 
