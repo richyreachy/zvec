@@ -83,11 +83,11 @@ struct DiskAnnMetaHeader {
     return *this;
   }
 
-  void inline reset() {
+  void reset() {
     doc_cnt = 0U;
   }
 
-  void inline clear() {
+  void clear() {
     memset(this, 0, sizeof(DiskAnnMetaHeader));
   }
 };
@@ -113,7 +113,7 @@ struct DiskAnnPqMeta {
     return *this;
   }
 
-  void inline clear() {
+  void clear() {
     memset(this, 0, sizeof(DiskAnnPqMeta));
   }
 };
@@ -140,7 +140,7 @@ class DiskAnnEntity {
   typedef std::shared_ptr<DiskAnnEntity> Pointer;
 
  public:
-  static inline size_t AlignSize(size_t size) {
+  static size_t AlignSize(size_t size) {
     return (size + 0xFFF) & (~0xFFF);
   }
 
@@ -198,7 +198,7 @@ class DiskAnnEntity {
     return meta_header_.doc_cnt;
   }
 
-  inline uint64_t *mutable_doc_cnt() {
+  uint64_t *mutable_doc_cnt() {
     return &meta_header_.doc_cnt;
   }
 
