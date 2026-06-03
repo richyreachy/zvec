@@ -761,7 +761,6 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
 
   IOContext &io_ctx = ctx->io_ctx();
 
-  void *data_buf = reinterpret_cast<void *>(ctx->coord_buffer());
   uint8_t *sector_buffer = reinterpret_cast<uint8_t *>(ctx->sector_buffer());
 
   const uint64_t sector_num_per_node =
@@ -924,15 +923,14 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
       uint32_t neighbor_num = *node_buf;
 
       void *node_fp_coords = node_disk_buf;
-      memcpy(data_buf, node_fp_coords, disk_bytes_per_point_);
 
-      float cur_expanded_dist = dc.dist(ctx->query(), data_buf);
+      float cur_expanded_dist = dc.dist(ctx->query(), node_fp_coords);
 
       if (!ctx->filter().is_valid() ||
           !ctx->filter()(get_key(frontier_neighbor.first))) {
         topk_heap.emplace(
             frontier_neighbor.first,
-            VectorInfo(cur_expanded_dist, make_vector_copy(data_buf)));
+            VectorInfo(cur_expanded_dist, make_vector_copy(node_fp_coords)));
       }
 
       diskann_id_t *node_neighbors =
