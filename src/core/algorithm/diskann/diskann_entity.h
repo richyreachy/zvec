@@ -66,7 +66,7 @@ struct DiskAnnMetaHeader {
   uint64_t vamana_frozen_loc;
   uint64_t append_reorder_data;
   uint64_t index_size;
-  uint8_t reserved[4048];  /// to fill up to 4096
+  uint8_t reserved[4016];  /// pad DiskAnnMetaHeader to 4096 bytes
 
   DiskAnnMetaHeader() {
     clear();
@@ -118,11 +118,11 @@ struct DiskAnnPqMeta {
   }
 };
 
-static_assert(sizeof(DiskAnnMetaHeader) % 32 == 0,
-              "DiskAnnMetaHeader must be aligned with 32 bytes");
+static_assert(sizeof(DiskAnnMetaHeader) == 4096,
+              "DiskAnnMetaHeader size must stay 4096 bytes (on-disk format)");
 
 static_assert(sizeof(DiskAnnPqMeta) % 32 == 0,
-              "DiskAnnPqMeta must be aligned with 32 bytes");
+              "DiskAnnPqMeta size must be a multiple of 32 bytes");
 
 class DiskAnnEntity {
  public:
