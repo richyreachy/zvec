@@ -37,7 +37,7 @@ struct SearchStats {
 class DiskAnnContext : public IndexContext {
  public:
   //! Index Context Pointer
-  typedef std::unique_ptr<DiskAnnContext> Pointer;
+  using Pointer = std::unique_ptr<DiskAnnContext>;
 
   enum ContextType {
     kUnknownContext = 0,
