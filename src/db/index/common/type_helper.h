@@ -509,6 +509,9 @@ struct BlockTypeCodeBook {
       case proto::BlockType::BT_VECTOR_INDEX_QUANTIZE:
         block_types = BlockType::VECTOR_INDEX_QUANTIZE;
         break;
+      case proto::BlockType::BT_FTS_INDEX:
+        block_types = BlockType::FTS_INDEX;
+        break;
       default:
         break;
     }
@@ -530,6 +533,9 @@ struct BlockTypeCodeBook {
       case BlockType::VECTOR_INDEX_QUANTIZE:
         block_types = proto::BlockType::BT_VECTOR_INDEX_QUANTIZE;
         break;
+      case BlockType::FTS_INDEX:
+        block_types = proto::BlockType::BT_FTS_INDEX;
+        break;
       default:
         break;
     }
@@ -547,6 +553,8 @@ struct BlockTypeCodeBook {
         return "VECTOR_INDEX";
       case BlockType::VECTOR_INDEX_QUANTIZE:
         return "VECTOR_INDEX_QUANTIZE";
+      case BlockType::FTS_INDEX:
+        return "FTS_INDEX";
       default:
         return "UNDEFINED";
     }
