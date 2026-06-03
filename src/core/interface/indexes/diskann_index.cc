@@ -91,19 +91,11 @@ int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
   builder_ = core::IndexFactory::CreateBuilder("DiskAnnBuilder");
   streamer_ = core::IndexFactory::CreateStreamer("DiskAnnStreamer");
 
-  if (ailego_unlikely(!builder_)) {
+  if (ailego_unlikely(!builder_ || !streamer_)) {
     LOG_ERROR(
-        "Failed to create DiskAnnBuilder: DiskAnn factory entries are not "
-        "registered. This usually means the DiskAnn shared module could not "
-        "be located next to the hosting binary.");
-    return core::IndexError_Runtime;
-  }
-
-  if (ailego_unlikely(!streamer_)) {
-    LOG_ERROR(
-        "Failed to create DiskAnnStreamer: DiskAnn factory entries are not "
-        "registered. This usually means the DiskAnn shared module could not "
-        "be located next to the hosting binary.");
+        "Failed to create DiskAnnBuilder/DiskAnnStreamer: DiskAnn factory "
+        "entries are not registered. This usually means the DiskAnn shared "
+        "module could not be located next to the hosting binary.");
     return core::IndexError_Runtime;
   }
 

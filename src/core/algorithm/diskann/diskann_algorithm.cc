@@ -46,10 +46,10 @@ int DiskAnnAlgorithm::add_node(diskann_id_t id, DiskAnnContext *ctx) {
     return ret;
   }
 
-  uint32_t lock_idx = id & kLockMask;
-  lock_pool_[lock_idx].lock();
-  entity_.set_neighbors(id, pruned_list);
-  lock_pool_[lock_idx].unlock();
+  {
+    auto lock = lock_for(id);
+    entity_.set_neighbors(id, pruned_list);
+  }
 
   return inter_insert(id, pruned_list, ctx);
 }
@@ -78,10 +78,10 @@ int DiskAnnAlgorithm::prune_node(diskann_id_t id, DiskAnnContext *ctx) {
 
     prune_neighbors(id, dummy_pool, new_out_neighbors, ctx);
 
-    uint32_t lock_idx = id & kLockMask;
-    lock_pool_[lock_idx].lock();
-    entity_.set_neighbors(id, new_out_neighbors);
-    lock_pool_[lock_idx].unlock();
+    {
+      auto lock = lock_for(id);
+      entity_.set_neighbors(id, new_out_neighbors);
+    }
   }
 
   return 0;
@@ -96,37 +96,36 @@ int DiskAnnAlgorithm::inter_insert(diskann_id_t id,
     std::vector<diskann_id_t> new_neighbors;
     bool need_prune = false;
 
-    uint32_t lock_idx = des & kLockMask;
-    lock_pool_[lock_idx].lock();
+    {
+      auto lock = lock_for(des);
 
-    auto neighbors = entity_.get_neighbors(des);
+      auto neighbors = entity_.get_neighbors(des);
 
-    bool found = false;
-    for (size_t i = 0; i < neighbors.first; ++i) {
-      if ((neighbors.second)[i] == id) {
-        found = true;
-        break;
+      bool found = false;
+      for (size_t i = 0; i < neighbors.first; ++i) {
+        if ((neighbors.second)[i] == id) {
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        if (neighbors.first <
+            static_cast<uint64_t>(DiskAnnEntity::kDefaultGraphSlackFactor *
+                                  max_degree_)) {
+          entity_.add_neighbor(des, id);
+          need_prune = false;
+        } else {
+          new_neighbors.resize(neighbors.first + 1);
+          memcpy(&new_neighbors[0], neighbors.second,
+                 sizeof(diskann_id_t) * neighbors.first);
+
+          new_neighbors[neighbors.first] = id;
+
+          need_prune = true;
+        }
       }
     }
-
-    if (!found) {
-      if (neighbors.first <
-          static_cast<uint64_t>(DiskAnnEntity::kDefaultGraphSlackFactor *
-                                max_degree_)) {
-        entity_.add_neighbor(des, id);
-        need_prune = false;
-      } else {
-        new_neighbors.resize(neighbors.first + 1);
-        memcpy(&new_neighbors[0], neighbors.second,
-               sizeof(diskann_id_t) * neighbors.first);
-
-        new_neighbors[neighbors.first] = id;
-
-        need_prune = true;
-      }
-    }
-
-    lock_pool_[lock_idx].unlock();
 
     if (need_prune) {
       std::set<diskann_id_t> new_visited;
@@ -148,10 +147,10 @@ int DiskAnnAlgorithm::inter_insert(diskann_id_t id,
       std::vector<diskann_id_t> new_pruned_neighbors;
       prune_neighbors(des, new_pool, new_pruned_neighbors, ctx);
 
-      lock_idx = des & kLockMask;
-      lock_pool_[lock_idx].lock();
-      entity_.set_neighbors(des, new_pruned_neighbors);
-      lock_pool_[lock_idx].unlock();
+      {
+        auto lock = lock_for(des);
+        entity_.set_neighbors(des, new_pruned_neighbors);
+      }
     }
   }
 
@@ -182,23 +181,21 @@ int DiskAnnAlgorithm::iterate_to_fixed_point(
 
     expanded_nodes.emplace_back(neighbor);
 
-    uint32_t lock_idx = node_id & kLockMask;
-
-    lock_pool_[lock_idx].lock();
-    auto neighbors = entity_.get_neighbors(node_id);
-
     std::vector<diskann_id_t> id_scratch;
+    {
+      auto lock = lock_for(node_id);
+      auto neighbors = entity_.get_neighbors(node_id);
 
-    for (size_t i = 0; i < neighbors.first; ++i) {
-      diskann_id_t neighbor_id = (neighbors.second)[i];
+      for (size_t i = 0; i < neighbors.first; ++i) {
+        diskann_id_t neighbor_id = (neighbors.second)[i];
 
-      if (!visit.visited(neighbor_id)) {
-        id_scratch.push_back(neighbor_id);
+        if (!visit.visited(neighbor_id)) {
+          id_scratch.push_back(neighbor_id);
 
-        visit.set_visited(neighbor_id);
+          visit.set_visited(neighbor_id);
+        }
       }
     }
-    lock_pool_[lock_idx].unlock();
 
     for (size_t i = 0; i < id_scratch.size(); ++i) {
       diskann_id_t id = id_scratch[i];

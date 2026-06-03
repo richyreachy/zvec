@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <mutex>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_meta.h>
 #include "diskann_context.h"
@@ -57,6 +58,11 @@ class DiskAnnAlgorithm {
   uint32_t max_candidate_size_{DiskAnnEntity::kDefaultMaxOcclusionSize};
 
   std::vector<std::mutex> lock_pool_{};
+
+  //! Acquire the striped lock guarding the given id (RAII).
+  [[nodiscard]] std::unique_lock<std::mutex> lock_for(diskann_id_t id) {
+    return std::unique_lock<std::mutex>(lock_pool_[id & kLockMask]);
+  }
 
   float alpha_{DiskAnnEntity::kDefaultAlpha};
   bool saturate_graph_{true};
