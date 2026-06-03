@@ -19,6 +19,7 @@
 #include <ailego/pattern/defer.h>
 #include <zvec/core/framework/index_error.h>
 #include <zvec/core/interface/index_factory.h>
+#include "algorithm/cluster/vector_mean.h"
 #include "diskann_context.h"
 #include "diskann_params.h"
 
@@ -137,32 +138,30 @@ int DiskAnnBuilder::calculate_entry_point() {
   float *centroid_data_ptr = centroid.data();
 
   switch (build_meta_.data_type()) {
-    case IndexMeta::DataType::DT_FP32:
+    case IndexMeta::DataType::DT_FP32: {
+      NumericalVectorMean<float> accumulator(dimension);
       for (size_t id = 0; id < entity_.doc_cnt(); id++) {
-        const float *data_ptr =
-            reinterpret_cast<const float *>(entity_.get_vector(id));
-
-        for (size_t i = 0; i < dimension; i++) {
-          centroid_data_ptr[i] += data_ptr[i];
-        }
+        accumulator.plus(entity_.get_vector(id), dimension * sizeof(float));
+      }
+      accumulator.mean(centroid_data_ptr, dimension * sizeof(float));
+      break;
+    }
+    case IndexMeta::DataType::DT_FP16: {
+      NumericalVectorMean<ailego::Float16> accumulator(dimension);
+      for (size_t id = 0; id < entity_.doc_cnt(); id++) {
+        accumulator.plus(entity_.get_vector(id),
+                         dimension * sizeof(ailego::Float16));
+      }
+      std::vector<ailego::Float16> fp16_centroid(dimension);
+      accumulator.mean(fp16_centroid.data(),
+                       dimension * sizeof(ailego::Float16));
+      for (size_t i = 0; i < dimension; i++) {
+        centroid_data_ptr[i] = static_cast<float>(fp16_centroid[i]);
       }
       break;
-    case IndexMeta::DataType::DT_FP16:
-      for (size_t id = 0; id < entity_.doc_cnt(); id++) {
-        const ailego::Float16 *data_ptr =
-            reinterpret_cast<const ailego::Float16 *>(entity_.get_vector(id));
-
-        for (size_t i = 0; i < dimension; i++) {
-          centroid_data_ptr[i] += data_ptr[i];
-        }
-      }
-      break;
+    }
     default:
       return IndexError_Unsupported;
-  }
-
-  for (size_t i = 0; i < dimension; i++) {
-    centroid_data_ptr[i] /= entity_.doc_cnt();
   }
 
   // compute all to one distance
