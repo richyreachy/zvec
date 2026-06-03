@@ -476,7 +476,7 @@ int DiskAnnBuilder::train(IndexThreads::Pointer threads,
 
   auto start_time = ailego::Monotime::MilliSeconds();
 
-  holder_ = holder;
+  holder_ = std::move(holder);
 
   LOG_INFO("Start to calculate chunk num");
   int ret = calculate_pq_chunk_num();
