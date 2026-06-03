@@ -19,10 +19,7 @@ namespace zvec {
 namespace core {
 
 bool MultiChunkClusterAlgorithm::is_valid(void) const {
-  if (!features_ || !features_->count()) {
-    return false;
-  }
-  return true;
+  return features_ && features_->count();
 }
 
 bool MultiChunkClusterAlgorithm::check_centroids(
@@ -54,7 +51,6 @@ void MultiChunkClusterAlgorithm::suggest(uint32_t k) {
 
 int MultiChunkClusterAlgorithm::update(const ailego::Params &params) {
   this->update_params(params);
-  // algorithm_->reset(cluster_count_);
   return 0;
 }
 
@@ -186,9 +182,6 @@ int MultiChunkClusterAlgorithm::cluster(IndexThreads::Pointer threads,
 
   if (!threads) {
     threads = std::make_shared<SingleQueueIndexThreads>(thread_count_, false);
-    if (!threads) {
-      return IndexError_NoMemory;
-    }
   }
 
   auto task_group = threads->make_group();
@@ -273,8 +266,6 @@ int MultiChunkClusterAlgorithm::label(IndexThreads::Pointer threads,
       return IndexError_NoMemory;
     }
   }
-
-  // threads = std::make_shared<SingleQueueIndexThreads>(1, false);
 
   auto task_group = threads->make_group();
   if (!task_group) {
