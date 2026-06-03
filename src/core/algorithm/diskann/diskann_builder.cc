@@ -15,6 +15,7 @@
 #include "diskann_builder.h"
 #include <iostream>
 #include <thread>
+#include <vector>
 #include <ailego/pattern/defer.h>
 #include <zvec/core/framework/index_error.h>
 #include <zvec/core/interface/index_factory.h>
@@ -120,16 +121,10 @@ int DiskAnnBuilder::init(const IndexMeta &meta, const ailego::Params &params) {
 }
 
 int DiskAnnBuilder::cleanup(void) {
-  LOG_INFO("Begin DiskAnnBuilder::cleanup");
-
-  LOG_INFO("End DiskAnnBuilder::cleanup");
-
   return 0;
 }
 
 int DiskAnnBuilder::calculate_entry_point() {
-  std::string centroid;
-
   size_t dimension = build_meta_.dimension();
 
   if (build_meta_.data_type() != IndexMeta::DataType::DT_FP32 &&
@@ -138,12 +133,8 @@ int DiskAnnBuilder::calculate_entry_point() {
     return IndexError_InvalidArgument;
   }
 
-  centroid.resize(dimension * sizeof(float));
-
-  float *centroid_data_ptr = reinterpret_cast<float *>(&centroid[0]);
-  for (size_t i = 0; i < dimension; i++) {
-    centroid_data_ptr[i] = 0;
-  }
+  std::vector<float> centroid(dimension, 0.0f);
+  float *centroid_data_ptr = centroid.data();
 
   switch (build_meta_.data_type()) {
     case IndexMeta::DataType::DT_FP32:
