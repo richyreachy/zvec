@@ -44,18 +44,12 @@ int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
 
   index_segment_offset_ = vector_segment->data_offset();
 
-  bool with_direct_io = true;
-  if (with_direct_io) {
-    reader_.reset(new LinuxAlignedFileReader());
+  reader_.reset(new LinuxAlignedFileReader());
 
-    auto file_path = storage->file_path();
-    reader_->open(file_path);
+  auto file_path = storage->file_path();
+  reader_->open(file_path);
 
-    storage->cleanup();
-  } else {
-    auto file = storage->file();
-    reader_.reset(new LinuxAlignedFileReader(file->native_handle()));
-  }
+  storage->cleanup();
 
   int ret = setup_io_ctx(init_ctx_);
   if (ret != 0) {

@@ -167,7 +167,7 @@ class DiskAnnIndexHolder : public IndexHolder {
     sector_internal_id_ = 0;
   }
 
-  ~DiskAnnIndexHolder() {
+  ~DiskAnnIndexHolder() override {
     if (file_.is_open()) {
       file_.close();
     }
@@ -244,8 +244,7 @@ class DiskAnnIndexHolder : public IndexHolder {
 
   //! Create a new iterator
   IndexHolder::Iterator::Pointer create_iterator(void) override {
-    DiskAnnIndexHolder::Iterator::Pointer pointer(
-        new DiskAnnIndexHolder::Iterator(this));
+    auto pointer = std::make_unique<DiskAnnIndexHolder::Iterator>(this);
 
     if (pointer->init() != 0) {
       return nullptr;
