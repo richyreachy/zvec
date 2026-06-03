@@ -322,16 +322,4 @@ class DiskAnnIndexHolder : public IndexHolder {
 };
 
 }  // namespace core
-}  // namespace zvecize_{0};
-uint32_t meta_sector_size_{DiskAnnIndexHolder::kMetaSectorSize};
-uint32_t data_sector_size_{DiskAnnIndexHolder::kDataSectorSize};
-std::string sector_buffer_;
-uint32_t sector_internal_id_{0};
-uint32_t sector_id_{0};
-uint32_t count_{0};
-uint32_t status_{STATUS_UNINITED};
-}
-;
-
-}  // namespace core
 }  // namespace zvec

@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <utility>
 #include <zvec/core/framework/index_framework.h>
 
 namespace zvec {
@@ -33,6 +34,8 @@ struct VectorInfo {
  public:
   VectorInfo() = default;
   VectorInfo(float dist, const std::string &vec) : dist_{dist}, vec_{vec} {}
+  VectorInfo(float dist, std::string &&vec)
+      : dist_{dist}, vec_{std::move(vec)} {}
 };
 
 /*! Key Value Vecotr Heap Comparer

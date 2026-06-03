@@ -17,6 +17,7 @@
 #include <iostream>
 #include <memory>
 #include <set>
+#include <tuple>
 #include <unordered_set>
 
 namespace zvec {
@@ -412,7 +413,7 @@ int DiskAnnIndexer::linear_search(DiskAnnContext *ctx) {
   std::vector<AlignedRead> frontier_read_reqs;
   frontier_read_reqs.reserve(2 * beam_width_);
 
-  std::vector<std::pair<diskann_id_t, std::pair<uint32_t, diskann_id_t *>>>
+  std::vector<std::tuple<diskann_id_t, uint32_t, diskann_id_t *>>
       cached_neighbors;
   cached_neighbors.reserve(2 * beam_width_);
 
@@ -424,7 +425,8 @@ int DiskAnnIndexer::linear_search(DiskAnnContext *ctx) {
       if (!ctx->filter().is_valid() || !ctx->filter()(get_key(id))) {
         auto iter = neighbor_cache_.find(id);
         if (iter != neighbor_cache_.end()) {
-          cached_neighbors.push_back(std::make_pair(id, iter->second));
+          cached_neighbors.push_back(
+              std::make_tuple(id, iter->second.first, iter->second.second));
           stats.cache_hits++;
         } else {
           frontier.push_back(id);
@@ -475,17 +477,14 @@ int DiskAnnIndexer::linear_search(DiskAnnContext *ctx) {
     }
 
     for (auto &cached_neighbor : cached_neighbors) {
-      auto global_cache_iter = coord_cache_.find(cached_neighbor.first);
+      auto global_cache_iter = coord_cache_.find(std::get<0>(cached_neighbor));
       void *node_fp_coords_copy = global_cache_iter->second;
 
       float cur_expanded_dist = dc.dist(aligned_query_raw, node_fp_coords_copy);
 
-      std::string vec_value;
-      vec_value.resize(meta_.element_size());
-      ::memcpy(&(vec_value[0]), node_fp_coords_copy, meta_.element_size());
-
-      topk_heap.emplace(cached_neighbor.first,
-                        VectorInfo(cur_expanded_dist, vec_value));
+      topk_heap.emplace(
+          std::get<0>(cached_neighbor),
+          VectorInfo(cur_expanded_dist, make_vector_copy(node_fp_coords_copy)));
     }
 
     for (auto &frontier_neighbor : frontier_neighbors) {
@@ -498,12 +497,9 @@ int DiskAnnIndexer::linear_search(DiskAnnContext *ctx) {
 
       float cur_expanded_dist = dc.dist(aligned_query_raw, data_buf);
 
-      std::string vec_value;
-      vec_value.resize(meta_.element_size());
-      ::memcpy(&(vec_value[0]), data_buf, meta_.element_size());
-
-      topk_heap.emplace(frontier_neighbor.first,
-                        VectorInfo(cur_expanded_dist, vec_value));
+      topk_heap.emplace(
+          frontier_neighbor.first,
+          VectorInfo(cur_expanded_dist, make_vector_copy(data_buf)));
 
       stats.cpu_us += cpu_timer.micro_seconds();
     }
@@ -555,7 +551,7 @@ int DiskAnnIndexer::keys_search(const std::vector<uint64_t> &keys,
   std::vector<AlignedRead> frontier_read_reqs;
   frontier_read_reqs.reserve(2 * beam_width_);
 
-  std::vector<std::pair<diskann_id_t, std::pair<uint32_t, diskann_id_t *>>>
+  std::vector<std::tuple<diskann_id_t, uint32_t, diskann_id_t *>>
       cached_neighbors;
   cached_neighbors.reserve(2 * beam_width_);
 
@@ -569,7 +565,8 @@ int DiskAnnIndexer::keys_search(const std::vector<uint64_t> &keys,
 
         auto iter = neighbor_cache_.find(id);
         if (iter != neighbor_cache_.end()) {
-          cached_neighbors.push_back(std::make_pair(id, iter->second));
+          cached_neighbors.push_back(
+              std::make_tuple(id, iter->second.first, iter->second.second));
           stats.cache_hits++;
         } else {
           frontier.push_back(id);
@@ -620,17 +617,14 @@ int DiskAnnIndexer::keys_search(const std::vector<uint64_t> &keys,
     }
 
     for (auto &cached_neighbor : cached_neighbors) {
-      auto global_cache_iter = coord_cache_.find(cached_neighbor.first);
+      auto global_cache_iter = coord_cache_.find(std::get<0>(cached_neighbor));
       void *node_fp_coords_copy = global_cache_iter->second;
 
       float cur_expanded_dist = dc.dist(aligned_query_raw, node_fp_coords_copy);
 
-      std::string vec_value;
-      vec_value.resize(meta_.element_size());
-      ::memcpy(&(vec_value[0]), node_fp_coords_copy, meta_.element_size());
-
-      topk_heap.emplace(cached_neighbor.first,
-                        VectorInfo(cur_expanded_dist, vec_value));
+      topk_heap.emplace(
+          std::get<0>(cached_neighbor),
+          VectorInfo(cur_expanded_dist, make_vector_copy(node_fp_coords_copy)));
     }
 
     for (auto &frontier_neighbor : frontier_neighbors) {
@@ -643,12 +637,9 @@ int DiskAnnIndexer::keys_search(const std::vector<uint64_t> &keys,
 
       float cur_expanded_dist = dc.dist(aligned_query_raw, data_buf);
 
-      std::string vec_value;
-      vec_value.resize(meta_.element_size());
-      ::memcpy(&(vec_value[0]), data_buf, meta_.element_size());
-
-      topk_heap.emplace(frontier_neighbor.first,
-                        VectorInfo(cur_expanded_dist, vec_value));
+      topk_heap.emplace(
+          frontier_neighbor.first,
+          VectorInfo(cur_expanded_dist, make_vector_copy(data_buf)));
 
       stats.cpu_us += cpu_timer.micro_seconds();
     }
@@ -695,7 +686,7 @@ int DiskAnnIndexer::get_vector(diskann_id_t id, IndexContext::Pointer &context,
   std::vector<AlignedRead> frontier_read_reqs;
   frontier_read_reqs.reserve(2 * beam_width_);
 
-  std::vector<std::pair<diskann_id_t, std::pair<uint32_t, diskann_id_t *>>>
+  std::vector<std::tuple<diskann_id_t, uint32_t, diskann_id_t *>>
       cached_neighbors;
   cached_neighbors.reserve(2 * beam_width_);
 
@@ -821,7 +812,7 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
   std::vector<AlignedRead> frontier_read_reqs;
   frontier_read_reqs.reserve(2 * beam_width_);
 
-  std::vector<std::pair<diskann_id_t, std::pair<uint32_t, diskann_id_t *>>>
+  std::vector<std::tuple<diskann_id_t, uint32_t, diskann_id_t *>>
       cached_neighbors;
   cached_neighbors.reserve(2 * beam_width_);
 
@@ -841,7 +832,8 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
 
       auto iter = neighbor_cache_.find(neighbor.id);
       if (iter != neighbor_cache_.end()) {
-        cached_neighbors.push_back(std::make_pair(neighbor.id, iter->second));
+        cached_neighbors.push_back(std::make_tuple(
+            neighbor.id, iter->second.first, iter->second.second));
         stats.cache_hits++;
       } else {
         frontier.push_back(neighbor.id);
@@ -888,23 +880,20 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
     }
 
     for (auto &cached_neighbor : cached_neighbors) {
-      auto global_cache_iter = coord_cache_.find(cached_neighbor.first);
+      auto global_cache_iter = coord_cache_.find(std::get<0>(cached_neighbor));
       void *node_fp_coords_copy = global_cache_iter->second;
 
       float cur_expanded_dist = dc.dist(ctx->query(), node_fp_coords_copy);
 
       if (!ctx->filter().is_valid() ||
-          !ctx->filter()(get_key(cached_neighbor.first))) {
-        std::string vec_value;
-        vec_value.resize(meta_.element_size());
-        ::memcpy(&(vec_value[0]), node_fp_coords_copy, meta_.element_size());
-
-        topk_heap.emplace(cached_neighbor.first,
-                          VectorInfo(cur_expanded_dist, vec_value));
+          !ctx->filter()(get_key(std::get<0>(cached_neighbor)))) {
+        topk_heap.emplace(std::get<0>(cached_neighbor),
+                          VectorInfo(cur_expanded_dist,
+                                     make_vector_copy(node_fp_coords_copy)));
       }
 
-      uint32_t neighbor_num = cached_neighbor.second.first;
-      diskann_id_t *node_neighbors = cached_neighbor.second.second;
+      uint32_t neighbor_num = std::get<1>(cached_neighbor);
+      diskann_id_t *node_neighbors = std::get<2>(cached_neighbor);
 
       cpu_timer.reset();
 
@@ -941,12 +930,9 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
 
       if (!ctx->filter().is_valid() ||
           !ctx->filter()(get_key(frontier_neighbor.first))) {
-        std::string vec_value;
-        vec_value.resize(meta_.element_size());
-        ::memcpy(&(vec_value[0]), data_buf, meta_.element_size());
-
-        topk_heap.emplace(frontier_neighbor.first,
-                          VectorInfo(cur_expanded_dist, vec_value));
+        topk_heap.emplace(
+            frontier_neighbor.first,
+            VectorInfo(cur_expanded_dist, make_vector_copy(data_buf)));
       }
 
       diskann_id_t *node_neighbors =
@@ -1060,7 +1046,7 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
     frontier_neighbors.reserve(2 * beam_width_);
     std::vector<AlignedRead> frontier_read_reqs;
     frontier_read_reqs.reserve(2 * beam_width_);
-    std::vector<std::pair<diskann_id_t, std::pair<uint32_t, diskann_id_t *>>>
+    std::vector<std::tuple<diskann_id_t, uint32_t, diskann_id_t *>>
         cached_neighbors;
     cached_neighbors.reserve(2 * beam_width_);
 
@@ -1081,7 +1067,8 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
 
         auto iter = neighbor_cache_.find(neighbor.id);
         if (iter != neighbor_cache_.end()) {
-          cached_neighbors.push_back(std::make_pair(neighbor.id, iter->second));
+          cached_neighbors.push_back(std::make_tuple(
+              neighbor.id, iter->second.first, iter->second.second));
           stats.cache_hits++;
         } else {
           frontier.push_back(neighbor.id);
@@ -1123,34 +1110,33 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
       }
 
       for (auto &cached_neighbor : cached_neighbors) {
-        auto global_cache_iter = coord_cache_.find(cached_neighbor.first);
+        auto global_cache_iter =
+            coord_cache_.find(std::get<0>(cached_neighbor));
         void *node_fp_coords_copy = global_cache_iter->second;
 
         float cur_expanded_dist = dc.dist(ctx->query(), node_fp_coords_copy);
 
         if (!ctx->filter().is_valid() ||
-            !ctx->filter()(get_key(cached_neighbor.first))) {
-          std::string group_id = group_by(cached_neighbor.first);
+            !ctx->filter()(get_key(std::get<0>(cached_neighbor)))) {
+          std::string group_id = group_by(std::get<0>(cached_neighbor));
 
           auto &group_topk_heap = group_topk_heaps[group_id];
           if (group_topk_heap.empty()) {
             group_topk_heap.limit(ctx->group_topk());
           }
 
-          std::string vec_value;
-          vec_value.resize(meta_.element_size());
-          ::memcpy(&(vec_value[0]), node_fp_coords_copy, meta_.element_size());
-
           group_topk_heap.emplace_back(
-              cached_neighbor.first, VectorInfo(cur_expanded_dist, vec_value));
+              std::get<0>(cached_neighbor),
+              VectorInfo(cur_expanded_dist,
+                         make_vector_copy(node_fp_coords_copy)));
 
           if (group_topk_heaps.size() >= ctx->group_num()) {
             break;
           }
         }
 
-        uint64_t neighbor_num = cached_neighbor.second.first;
-        diskann_id_t *node_neighbors = cached_neighbor.second.second;
+        uint64_t neighbor_num = std::get<1>(cached_neighbor);
+        diskann_id_t *node_neighbors = std::get<2>(cached_neighbor);
 
         cpu_timer.reset();
 
@@ -1194,13 +1180,9 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
             group_topk_heap.limit(ctx->group_topk());
           }
 
-          std::string vec_value;
-          vec_value.resize(meta_.element_size());
-          ::memcpy(&(vec_value[0]), data_buf, meta_.element_size());
-
           group_topk_heap.emplace_back(
               frontier_neighbor.first,
-              VectorInfo(cur_expanded_dist, vec_value));
+              VectorInfo(cur_expanded_dist, make_vector_copy(data_buf)));
 
           if (group_topk_heaps.size() >= ctx->group_num()) {
             break;
