@@ -126,6 +126,21 @@ int execute_io(IOContext ctx, int fd, std::vector<AlignedRead> &read_reqs,
           ret, n_ops, errno, ::strerror(-ret));
       return execute_io_pread(fd, read_reqs);
     }
+
+    // Phase 3: verify each completed read (res must equal requested length).
+    bool all_ok = true;
+    for (uint64_t i = 0; i < n_ops; i++) {
+      int64_t expected_len = read_reqs[i + iter * MAX_EVENTS].len;
+      if ((int64_t)evts[i].res != expected_len) {
+        LOG_WARN("aio request %zu failed: res=%ld, expected=%ld, offset=%zu",
+                 (size_t)i, (long)evts[i].res, (long)expected_len,
+                 (size_t)read_reqs[i + iter * MAX_EVENTS].offset);
+        all_ok = false;
+      }
+    }
+    if (!all_ok) {
+      return execute_io_pread(fd, read_reqs);
+    }
   }
 
   return 0;
