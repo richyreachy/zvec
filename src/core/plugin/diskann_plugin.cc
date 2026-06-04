@@ -247,12 +247,12 @@ int LoadDiskAnnPlugin(const std::string &path) {
 #if defined(__linux__) || defined(__linux)
   // Fast path: already loaded.
   if (g_plugin_handle.load(std::memory_order_acquire) != nullptr) {
-    return kDiskAnnPluginAlreadyLoaded;
+    return kDiskAnnPluginOk;
   }
 
   std::lock_guard<std::mutex> lock(g_plugin_mutex);
   if (g_plugin_handle.load(std::memory_order_relaxed) != nullptr) {
-    return kDiskAnnPluginAlreadyLoaded;
+    return kDiskAnnPluginOk;
   }
 
   if (!IsLibAioAvailable()) {

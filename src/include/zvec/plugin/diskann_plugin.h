@@ -45,7 +45,6 @@ namespace zvec {
 // Return codes for LoadDiskAnnPlugin().
 enum DiskAnnPluginStatus {
   kDiskAnnPluginOk = 0,
-  kDiskAnnPluginAlreadyLoaded = 0,
   kDiskAnnPluginUnsupportedPlatform = -1,
   kDiskAnnPluginLibAioMissing = -2,
   kDiskAnnPluginDlopenFailed = -3,
