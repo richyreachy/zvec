@@ -91,36 +91,40 @@ int execute_io(IOContext ctx, int fd, std::vector<AlignedRead> &read_reqs,
     }
 
     size_t n_tries = 0;
-    while (n_tries <= n_retries) {
+    // Phase 1: io_submit with retry.
+    while (true) {
       int ret = io_submit(ctx, (int64_t)n_ops, cbs.data());
-
-      if (ret != (int)n_ops) {
-        // Retry on transient kernel errors before falling back.
-        if ((ret == -EAGAIN || ret == -EINTR) && n_tries < n_retries) {
-          n_tries++;
-          continue;
-        }
-        LOG_WARN(
-            "io_submit failed; returned: %d, expected=%lu. falling back to "
-            "pread",
-            ret, n_ops);
-        return execute_io_pread(fd, read_reqs);
+      if (ret == (int)n_ops) {
+        break;
       }
-
-      ret = io_getevents(ctx, (int64_t)n_ops, (int64_t)n_ops, evts.data(),
-                         nullptr);
-      if (ret != (int64_t)n_ops) {
-        if ((ret == -EAGAIN || ret == -EINTR) && n_tries < n_retries) {
-          n_tries++;
-          continue;
-        }
-        LOG_WARN(
-            "io_getevents failed; returned: %d, expected=%lu, errno=%d, %s, "
-            "falling back to pread",
-            ret, n_ops, errno, ::strerror(-ret));
-        return execute_io_pread(fd, read_reqs);
+      if ((ret == -EAGAIN || ret == -EINTR) && n_tries < n_retries) {
+        n_tries++;
+        continue;
       }
-      break;
+      LOG_WARN(
+          "io_submit failed; returned: %d, expected=%lu. falling back to "
+          "pread",
+          ret, n_ops);
+      return execute_io_pread(fd, read_reqs);
+    }
+
+    // Phase 2: io_getevents with retry (never re-submits).
+    n_tries = 0;
+    while (true) {
+      int ret = io_getevents(ctx, (int64_t)n_ops, (int64_t)n_ops, evts.data(),
+                             nullptr);
+      if (ret == (int)n_ops) {
+        break;
+      }
+      if (ret == -EINTR && n_tries < n_retries) {
+        n_tries++;
+        continue;
+      }
+      LOG_WARN(
+          "io_getevents failed; returned: %d, expected=%lu, errno=%d, %s, "
+          "falling back to pread",
+          ret, n_ops, errno, ::strerror(-ret));
+      return execute_io_pread(fd, read_reqs);
     }
   }
 
