@@ -29,7 +29,6 @@ from zvec import (
 )
 from zvec.extension.multi_vector_reranker import RrfReRanker, WeightedReRanker
 from zvec.model.param.query import Fts, Query
-from zvec.typing import MetricType
 
 
 DIM = 16
@@ -166,7 +165,7 @@ class TestFtsVectorHybridQuery:
 
     def test_hybrid_fts_and_vector_basic(self, hybrid_collection_with_docs: Collection):
         """FTS + vector multi-query with RRF reranker returns results."""
-        reranker = RrfReRanker(topn=10, rank_constant=60)
+        reranker = RrfReRanker(rank_constant=60)
         result = hybrid_collection_with_docs.query(
             queries=[
                 Query(field_name="content", fts=Fts(match_string="retrieval")),
@@ -185,7 +184,7 @@ class TestFtsVectorHybridQuery:
         self, hybrid_collection_with_docs: Collection
     ):
         """Docs relevant in both FTS and vector should rank higher."""
-        reranker = RrfReRanker(topn=10, rank_constant=60)
+        reranker = RrfReRanker(rank_constant=60)
         # FTS: "retrieval search" matches pk_3, pk_4
         # Vector: ret_vec cluster matches pk_3, pk_4
         # Both signals agree: pk_3 and pk_4 should rank top
@@ -202,7 +201,7 @@ class TestFtsVectorHybridQuery:
 
     def test_hybrid_scores_descending(self, hybrid_collection_with_docs: Collection):
         """Hybrid query results must be sorted by score descending."""
-        reranker = RrfReRanker(topn=10, rank_constant=60)
+        reranker = RrfReRanker(rank_constant=60)
         result = hybrid_collection_with_docs.query(
             queries=[
                 Query(field_name="content", fts=Fts(match_string="intelligence")),
@@ -217,7 +216,7 @@ class TestFtsVectorHybridQuery:
 
     def test_hybrid_with_filter(self, hybrid_collection_with_docs: Collection):
         """Hybrid query respects SQL filter."""
-        reranker = RrfReRanker(topn=10, rank_constant=60)
+        reranker = RrfReRanker(rank_constant=60)
         result = hybrid_collection_with_docs.query(
             queries=[
                 Query(field_name="content", fts=Fts(match_string="learning")),
@@ -234,7 +233,7 @@ class TestFtsVectorHybridQuery:
         self, hybrid_collection_with_docs: Collection
     ):
         """When FTS matches nothing, vector results still appear."""
-        reranker = RrfReRanker(topn=10, rank_constant=60)
+        reranker = RrfReRanker(rank_constant=60)
         result = hybrid_collection_with_docs.query(
             queries=[
                 Query(
@@ -251,7 +250,7 @@ class TestFtsVectorHybridQuery:
 
     def test_hybrid_query_string_syntax(self, hybrid_collection_with_docs: Collection):
         """Hybrid query works with FTS query_string (advanced syntax)."""
-        reranker = RrfReRanker(topn=10, rank_constant=60)
+        reranker = RrfReRanker(rank_constant=60)
         result = hybrid_collection_with_docs.query(
             queries=[
                 Query(
@@ -283,35 +282,35 @@ class TestFtsVectorHybridValidation:
                 topk=5,
             )
 
-    def test_duplicate_field_name_rejected(
+    def test_duplicate_field_name_allowed(
         self, hybrid_collection_with_docs: Collection
     ):
-        """Multi-query with duplicate field names should raise."""
-        reranker = RrfReRanker(topn=10, rank_constant=60)
-        with pytest.raises(ValueError, match="appears more than once"):
-            hybrid_collection_with_docs.query(
-                queries=[
-                    Query(field_name="content", fts=Fts(match_string="hello")),
-                    Query(field_name="content", fts=Fts(match_string="world")),
-                ],
-                topk=5,
-                reranker=reranker,
-            )
+        """Multi-query with duplicate field names is allowed and returns results."""
+        reranker = RrfReRanker(rank_constant=60)
+        result = hybrid_collection_with_docs.query(
+            queries=[
+                Query(field_name="content", fts=Fts(match_string="learning")),
+                Query(field_name="content", fts=Fts(match_string="intelligence")),
+            ],
+            topk=5,
+            reranker=reranker,
+        )
+        assert len(result) > 0
+        assert len(result) <= 5
 
-    def test_multiple_vectors_without_fts_rejected(
-        self, hybrid_collection_with_docs: Collection
-    ):
-        """Two vector queries on a single-vector-field collection should raise."""
-        reranker = RrfReRanker(topn=10, rank_constant=60)
-        with pytest.raises(ValueError, match="cannot query with multiple vectors"):
-            hybrid_collection_with_docs.query(
-                queries=[
-                    Query(field_name="embedding", vector=[1.0] * DIM),
-                    Query(field_name="embedding", vector=[0.5] * DIM),
-                ],
-                topk=5,
-                reranker=reranker,
-            )
+    def test_multiple_vectors_allowed(self, hybrid_collection_with_docs: Collection):
+        """Two vector queries on the same field are allowed with a reranker."""
+        reranker = RrfReRanker(rank_constant=60)
+        result = hybrid_collection_with_docs.query(
+            queries=[
+                Query(field_name="embedding", vector=[1.0] * DIM),
+                Query(field_name="embedding", vector=[0.5] * DIM),
+            ],
+            topk=5,
+            reranker=reranker,
+        )
+        assert len(result) > 0
+        assert len(result) <= 5
 
 
 class TestFtsVectorHybridWeightedReranker:
@@ -321,9 +320,8 @@ class TestFtsVectorHybridWeightedReranker:
         self, hybrid_collection_with_docs: Collection
     ):
         """WeightedReranker correctly normalizes FTS scores alongside vector scores."""
-        metrics = {"embedding": MetricType.IP}
-        weights = {"content": 0.5, "embedding": 0.5}
-        reranker = WeightedReRanker(topn=10, metrics=metrics, weights=weights)
+        weights = [0.5, 0.5]
+        reranker = WeightedReRanker(weights=weights)
         result = hybrid_collection_with_docs.query(
             queries=[
                 Query(field_name="content", fts=Fts(match_string="retrieval search")),
@@ -341,9 +339,8 @@ class TestFtsVectorHybridWeightedReranker:
         self, hybrid_collection_with_docs: Collection
     ):
         """WeightedReranker hybrid results are sorted by score descending."""
-        metrics = {"embedding": MetricType.IP}
-        weights = {"content": 0.4, "embedding": 0.6}
-        reranker = WeightedReRanker(topn=10, metrics=metrics, weights=weights)
+        weights = [0.4, 0.6]
+        reranker = WeightedReRanker(weights=weights)
         result = hybrid_collection_with_docs.query(
             queries=[
                 Query(field_name="content", fts=Fts(match_string="intelligence")),
@@ -361,11 +358,8 @@ class TestFtsVectorHybridWeightedReranker:
     ):
         """Higher FTS weight should boost FTS-relevant docs in ranking."""
         # High FTS weight: FTS signal dominates
-        metrics = {"embedding": MetricType.IP}
-        weights_fts_heavy = {"content": 0.9, "embedding": 0.1}
-        reranker_fts = WeightedReRanker(
-            topn=10, metrics=metrics, weights=weights_fts_heavy
-        )
+        weights_fts_heavy = [0.9, 0.1]
+        reranker_fts = WeightedReRanker(weights=weights_fts_heavy)
         result_fts = hybrid_collection_with_docs.query(
             queries=[
                 Query(field_name="content", fts=Fts(match_string="retrieval")),
@@ -376,10 +370,8 @@ class TestFtsVectorHybridWeightedReranker:
         )
 
         # High vector weight: vector signal dominates
-        weights_vec_heavy = {"content": 0.1, "embedding": 0.9}
-        reranker_vec = WeightedReRanker(
-            topn=10, metrics=metrics, weights=weights_vec_heavy
-        )
+        weights_vec_heavy = [0.1, 0.9]
+        reranker_vec = WeightedReRanker(weights=weights_vec_heavy)
         result_vec = hybrid_collection_with_docs.query(
             queries=[
                 Query(field_name="content", fts=Fts(match_string="retrieval")),
