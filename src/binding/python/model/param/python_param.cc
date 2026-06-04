@@ -918,7 +918,7 @@ Examples:
   diskann_params
       .def(py::init<MetricType, int, int, int, QuantizeType>(),
            py::arg("metric_type") = MetricType::IP, py::arg("max_degree") = 100,
-           py::arg("list_size") = 50, py::arg("pq_chunk_num") = 0,
+           py::arg("list_size") = 100, py::arg("pq_chunk_num") = 0,
            py::arg("quantize_type") = QuantizeType::UNDEFINED,
            R"pbdoc(
 Constructs an DiskAnnIndexParams instance.

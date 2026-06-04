@@ -43,9 +43,9 @@ class DiskAnnReducerEntity : public DiskAnnEntity {
 
   bool do_crc_check(std::vector<SegmentPointer> &segments) const;
 
-  diskann_id_t get_id(diskann_key_t key) const;
-  diskann_key_t get_key(diskann_id_t id) const;
-  const void *get_vector(diskann_id_t id) const;
+  diskann_id_t get_id(diskann_key_t key) const override;
+  diskann_key_t get_key(diskann_id_t id) const override;
+  const void *get_vector(diskann_id_t id) const override;
 
  private:
   IndexStorage::Pointer container_{};

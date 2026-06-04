@@ -204,6 +204,10 @@ class DiskAnnIndexParamBuilder
     param->max_degree = max_degree;
     return *this;
   }
+  DiskAnnIndexParamBuilder &WithListSize(int list_size) {
+    param->list_size = list_size;
+    return *this;
+  }
   DiskAnnIndexParamBuilder &WithPqChunkNum(int pq_chunk_num) {
     param->pq_chunk_num = pq_chunk_num;
     return *this;

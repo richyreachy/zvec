@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <zvec/core/framework/index_logger.h>
 
 #define MAX_EVENTS 1024
 
@@ -147,11 +148,12 @@ LinuxAlignedFileReader::~LinuxAlignedFileReader() {
 
 IOContext &LinuxAlignedFileReader::get_ctx() {
   std::unique_lock<std::mutex> lk(ctx_mut);
-  if (ctx_map.find(std::this_thread::get_id()) == ctx_map.end()) {
-    std::cerr << "bad thread access; returning -1 as io_context_t" << std::endl;
+  auto it = ctx_map.find(std::this_thread::get_id());
+  if (it == ctx_map.end()) {
+    LOG_ERROR("bad thread access; returning -1 as io_context_t");
     return this->bad_ctx;
   } else {
-    return ctx_map[std::this_thread::get_id()];
+    return it->second;
   }
 }
 
@@ -191,18 +193,22 @@ void LinuxAlignedFileReader::register_thread() {
 void LinuxAlignedFileReader::deregister_thread() {
 #if (defined(__linux) || defined(__linux__))
   auto thread_id = std::this_thread::get_id();
-  std::unique_lock<std::mutex> lk(ctx_mut);
-  assert(ctx_map.find(thread_id) != ctx_map.end());
+  IOContext ctx;
 
-  lk.unlock();
-  IOContext ctx = this->get_ctx();
+  {
+    std::lock_guard<std::mutex> lk(ctx_mut);
+    auto it = ctx_map.find(thread_id);
+    if (it == ctx_map.end()) {
+      LOG_ERROR("deregister_thread: thread not registered");
+      return;
+    }
+    ctx = it->second;
+    ctx_map.erase(it);
+  }
+
+  // io_destroy is a syscall; keep it outside the lock to avoid blocking others
   io_destroy(ctx);
-  lk.lock();
-  ctx_map.erase(thread_id);
-
   LOG_INFO("returned ctx from thread");
-
-  lk.unlock();
 #endif
 }
 
