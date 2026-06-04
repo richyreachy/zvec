@@ -47,63 +47,41 @@ elseif (APPLE)
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|arm")
-        target_link_libraries(_zvec PRIVATE
-                -Wl,--whole-archive
-                $<TARGET_FILE:core_knn_flat_static>
-                $<TARGET_FILE:core_knn_flat_sparse_static>
-                $<TARGET_FILE:core_knn_hnsw_static>
-                $<TARGET_FILE:core_knn_hnsw_rabitq_static>
-                $<TARGET_FILE:core_knn_hnsw_sparse_static>
-                $<TARGET_FILE:core_knn_ivf_static>
-                $<TARGET_FILE:core_knn_vamana_static>
-                $<TARGET_FILE:core_knn_cluster_static>
-                $<TARGET_FILE:core_mix_reducer_static>
-                $<TARGET_FILE:core_metric_static>
-                $<TARGET_FILE:core_utility_static>
-                $<TARGET_FILE:core_quantizer_static>
-                $<TARGET_FILE:core_plugin>
-                -Wl,--no-whole-archive
-                zvec_db
-                ${CMAKE_DL_LIBS}
-        )
-        target_link_options(_zvec PRIVATE
-                "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
-        )
-    else ()
-        target_link_libraries(_zvec PRIVATE
-                -Wl,--whole-archive
-                $<TARGET_FILE:core_knn_flat_static>
-                $<TARGET_FILE:core_knn_flat_sparse_static>
-                $<TARGET_FILE:core_knn_hnsw_static>
-                $<TARGET_FILE:core_knn_hnsw_rabitq_static>
-                $<TARGET_FILE:core_knn_hnsw_sparse_static>
-                $<TARGET_FILE:core_knn_ivf_static>
-                $<TARGET_FILE:core_knn_vamana_static>
-                $<TARGET_FILE:core_knn_cluster_static>
-                $<TARGET_FILE:core_mix_reducer_static>
-                $<TARGET_FILE:core_metric_static>
-                $<TARGET_FILE:core_utility_static>
-                $<TARGET_FILE:core_quantizer_static>
-                $<TARGET_FILE:core_plugin>
-                -Wl,--no-whole-archive
-                zvec_db
-                ${CMAKE_DL_LIBS}
-        )
-        # DiskAnn is shipped as a runtime-loaded shared module
-        # (libzvec_diskann_plugin.so). It is brought up implicitly the first
-        # time a DiskAnn index is created — users never need to call any
-        # load function. If libaio is missing at runtime the auto-load fails
-        # cleanly and the error is surfaced only when DiskAnn is actually
-        # used; other index types (HNSW/IVF/Flat/Vamana) remain fully
-        # functional. The .so must therefore be discoverable next to the
-        # extension module, hence the $ORIGIN rpath below.
+    target_link_libraries(_zvec PRIVATE
+            -Wl,--whole-archive
+            $<TARGET_FILE:core_knn_flat_static>
+            $<TARGET_FILE:core_knn_flat_sparse_static>
+            $<TARGET_FILE:core_knn_hnsw_static>
+            $<TARGET_FILE:core_knn_hnsw_rabitq_static>
+            $<TARGET_FILE:core_knn_hnsw_sparse_static>
+            $<TARGET_FILE:core_knn_ivf_static>
+            $<TARGET_FILE:core_knn_vamana_static>
+            $<TARGET_FILE:core_knn_cluster_static>
+            $<TARGET_FILE:core_mix_reducer_static>
+            $<TARGET_FILE:core_metric_static>
+            $<TARGET_FILE:core_utility_static>
+            $<TARGET_FILE:core_quantizer_static>
+            $<TARGET_FILE:core_plugin>
+            -Wl,--no-whole-archive
+            zvec_db
+            ${CMAKE_DL_LIBS}
+    )
+    target_link_options(_zvec PRIVATE
+            "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
+    )
+    # DiskAnn is x86-only (it depends on libaio, unavailable on ARM64), so the
+    # runtime plugin (libzvec_diskann_plugin.so) is only produced on non-ARM
+    # builds. It is shipped as a runtime-loaded shared module and brought up
+    # implicitly the first time a DiskAnn index is created — users never need to
+    # call any load function. If libaio is missing at runtime the auto-load
+    # fails cleanly and the error is surfaced only when DiskAnn is actually
+    # used; other index types (HNSW/IVF/Flat/Vamana) remain fully functional.
+    # The .so must therefore be discoverable next to the extension module,
+    # hence the $ORIGIN rpath below.
+    if (NOT CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|arm")
         set_target_properties(_zvec PROPERTIES
                 BUILD_RPATH "$ORIGIN"
                 INSTALL_RPATH "$ORIGIN"
-        )
-        target_link_options(_zvec PRIVATE
-                "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
         )
     endif()
 elseif (APPLE)

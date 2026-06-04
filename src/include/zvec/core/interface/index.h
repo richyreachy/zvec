@@ -349,18 +349,17 @@ class DiskAnnIndex : public Index {
       const VectorData &query, const BaseIndexQueryParam::Pointer &search_param,
       core::IndexContext::Pointer &context) override;
 
-  virtual int Add(const VectorData &vector, uint32_t doc_id) override;
+  int Add(const VectorData &vector, uint32_t doc_id) override;
 
-  virtual int Train() override;
+  int Train() override;
 
-  virtual int Open(const std::string &file_path,
-                   StorageOptions storage_options) override;
+  int Open(const std::string &file_path,
+           StorageOptions storage_options) override;
 
-  virtual int _dense_fetch(const uint32_t doc_id,
-                           VectorDataBuffer *vector_data_buffer) override;
-  virtual int Merge(const std::vector<Index::Pointer> &indexes,
-                    const IndexFilter &filter,
-                    const MergeOptions &options) override;
+  int _dense_fetch(const uint32_t doc_id,
+                   VectorDataBuffer *vector_data_buffer) override;
+  int Merge(const std::vector<Index::Pointer> &indexes,
+            const IndexFilter &filter, const MergeOptions &options) override;
   int GenerateHolder();
 
  private:
