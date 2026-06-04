@@ -444,6 +444,7 @@ class ProximaEngineHelper {
         auto db_index_params = dynamic_cast<const DiskAnnIndexParams *>(
             field_schema.index_params().get());
         index_param_builder->WithMaxDegree(db_index_params->max_degree());
+        index_param_builder->WithListSize(db_index_params->list_size());
         index_param_builder->WithPqChunkNum(db_index_params->pq_chunk_num());
 
         return index_param_builder->Build();
