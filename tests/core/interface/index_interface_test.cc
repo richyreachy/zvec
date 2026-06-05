@@ -1793,12 +1793,7 @@ TEST(IndexInterface, ContiguousMemoryEndToEnd) {
 
         // Phase 1: build & persist.
         {
-<<<<<<< HEAD
-          auto index =
-              zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
-=======
           auto index = IndexFactory::CreateAndInitIndex(*param);
->>>>>>> main
           ASSERT_NE(nullptr, index);
           ASSERT_EQ(0, index->Open(index_name,
                                    {StorageOptions::StorageType::kMMAP, true}));
@@ -1818,12 +1813,7 @@ TEST(IndexInterface, ContiguousMemoryEndToEnd) {
         // Phase 2: reopen with same params (contiguous memory takes effect
         // here) and search.
         {
-<<<<<<< HEAD
-          auto index =
-              zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
-=======
           auto index = IndexFactory::CreateAndInitIndex(*param);
->>>>>>> main
           ASSERT_NE(nullptr, index);
           ASSERT_EQ(0,
                     index->Open(index_name,
