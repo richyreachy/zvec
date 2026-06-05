@@ -77,7 +77,6 @@ class FieldSchema {
   }
   FieldSchema(FieldSchema &&) = default;
   FieldSchema &operator=(FieldSchema &&) = default;
-  ;
   ~FieldSchema() = default;
 
  public:
@@ -150,7 +149,8 @@ class FieldSchema {
   }
 
   bool has_invert_index() const {
-    return !is_vector_field() && index_params_ != nullptr;
+    return !is_vector_field() && index_params_ != nullptr &&
+           index_params_->type() == IndexType::INVERT;
   }
 
   bool is_array_type() const {
@@ -304,6 +304,18 @@ class CollectionSchema {
     max_doc_count_per_segment_ = other.max_doc_count_per_segment_;
   }
 
+  CollectionSchema &operator=(const CollectionSchema &other) {
+    if (this == &other) {
+      return *this;
+    }
+    name_ = other.name_;
+    fields_.clear();
+    fields_map_.clear();
+    copy_fields(other.fields_);
+    max_doc_count_per_segment_ = other.max_doc_count_per_segment_;
+    return *this;
+  }
+
  public:
   std::string to_string() const;
 
@@ -340,6 +352,8 @@ class CollectionSchema {
 
   FieldSchemaPtrList forward_fields_with_index() const;
 
+  FieldSchemaPtrList invert_fields() const;
+
   std::vector<std::string> forward_field_names() const;
 
   std::vector<std::string> forward_field_names_with_index() const;
@@ -347,6 +361,10 @@ class CollectionSchema {
   std::vector<std::string> all_field_names() const;
 
   FieldSchemaPtrList vector_fields() const;
+
+  bool has_fts_field() const;
+
+  FieldSchemaPtrList fts_fields() const;
 
   uint64_t max_doc_count_per_segment() const;
 

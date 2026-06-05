@@ -26,7 +26,7 @@ namespace core {
 VamanaStreamer::VamanaStreamer() = default;
 
 VamanaStreamer::~VamanaStreamer() {
-  if (state_ == STATE_INITED) {
+  if (state_ == STATE_INITED || state_ == STATE_OPENED) {
     this->cleanup();
   }
 }
@@ -341,6 +341,19 @@ int VamanaStreamer::dump(const IndexDumper::Pointer &dumper) {
     LOG_ERROR("Failed to serialize meta into dumper.");
     return ret;
   }
+
+  // Calculate medoid (DiskANN standard: entry point = closest to centroid).
+  // At dump time, data_type and dimension are fully known from meta_.
+  if (entity_->doc_cnt() > 0) {
+    node_id_t medoid = entity_->calculate_medoid(
+        meta_.dimension(), static_cast<uint32_t>(meta_.data_type()));
+    if (medoid != kInvalidNodeId && medoid != entity_->entry_point()) {
+      LOG_INFO("Updating entry point from %u to medoid %u",
+               entity_->entry_point(), medoid);
+      entity_->update_entry_point(medoid);
+    }
+  }
+
   return entity_->dump(dumper);
 }
 

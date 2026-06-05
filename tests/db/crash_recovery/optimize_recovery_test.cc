@@ -46,38 +46,7 @@ const int num_batches{1000};
 
 
 static std::string LocateOptimizeGenerator() {
-  namespace fs = std::filesystem;
-  std::cout << "Current path: " << fs::current_path() << std::endl;
-
-  const std::string base_name = "collection_optimizer";
-  std::vector<std::string> candidates;
-  const std::vector<std::string> search_paths = {"./", "./bin/"};
-
-  for (const auto &p : search_paths) {
-    candidates.push_back(p);
-  }
-
-// TODO(windows): unify _WIN32/_WIN64/MSCV_VER
-#ifdef _WIN32
-  for (const auto &p : search_paths) {
-    candidates.push_back(p + "Debug/");
-    candidates.push_back(p + "Release/");
-  }
-#endif
-
-  for (auto &p : candidates) {
-    p += base_name;
-#ifdef _WIN32
-    p += ".exe";
-#endif
-  }
-
-  for (const auto &p : candidates) {
-    if (fs::exists(p)) {
-      return fs::canonical(p).string();
-    }
-  }
-  throw std::runtime_error("collection_optimizer binary not found");
+  return LocateBinary("collection_optimizer");
 }
 
 
@@ -223,12 +192,12 @@ TEST_F(OptimizeRecoveryTest, CrashDuringOptimize) {
       }
     }
 
-    VectorQuery query;
+    SearchQuery query;
     query.topk_ = 10;
     std::vector<float> feature(128, 0.0);
-    query.query_vector_.assign((const char *)feature.data(),
-                               feature.size() * sizeof(float));
-    query.field_name_ = "dense_fp32_field";
+    query.target_.set_vector(std::string((const char *)feature.data(),
+                                         feature.size() * sizeof(float)));
+    query.target_.field_name_ = "dense_fp32_field";
     auto query_result = collection->Query(query);
     ASSERT_TRUE(query_result);
     auto doc_list = query_result.value();
@@ -278,12 +247,12 @@ TEST_F(OptimizeRecoveryTest, CrashDuringOptimize) {
     }
   }
 
-  VectorQuery query;
+  SearchQuery query;
   query.topk_ = 10;
   std::vector<float> feature(128, 0.0);
-  query.query_vector_.assign((const char *)feature.data(),
-                             feature.size() * sizeof(float));
-  query.field_name_ = "dense_fp32_field";
+  query.target_.set_vector(std::string((const char *)feature.data(),
+                                       feature.size() * sizeof(float)));
+  query.target_.field_name_ = "dense_fp32_field";
   auto query_result = collection->Query(query);
   ASSERT_TRUE(query_result);
   auto doc_list = query_result.value();

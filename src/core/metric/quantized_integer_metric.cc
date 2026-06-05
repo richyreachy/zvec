@@ -316,6 +316,19 @@ class QuantizedIntegerMetric : public IndexMetric {
            origin_metric_type_ == MetricType::kCosine;
   }
 
+  //! Build-time distance offset to make the internal distance non-negative.
+  //! For kCosine / kNormalizedCosine on the quantized int8 path, the internal
+  //! distance is -cos(m,q) in [-1, 1]. Adding 1.0 maps it to [0, 2] (i.e.
+  //! 1 - cos), which is what ratio-based pruning (Vamana RobustPrune) needs
+  //! for a geometrically meaningful occlude_factor.
+  float build_distance_offset(void) const override {
+    if (origin_metric_type_ == MetricType::kCosine ||
+        origin_metric_type_ == MetricType::kNormalizedCosine) {
+      return 1.0f;
+    }
+    return 0.0f;
+  }
+
   //! Retrieve query metric object of this index metric
   Pointer query_metric(void) const override {
     if (origin_metric_type_ == MetricType::kMipsSquaredEuclidean) {
@@ -331,8 +344,7 @@ class QuantizedIntegerMetric : public IndexMetric {
     return nullptr;
   }
 
-  virtual DistanceBatchQueryPreprocessFunc get_query_preprocess_func()
-      const override {
+  DistanceBatchQueryPreprocessFunc get_query_preprocess_func() const override {
     if (origin_metric_type_ == MetricType::kCosine &&
         meta_.data_type() == IndexMeta::DataType::DT_INT8) {
       auto turbo_ret = turbo::get_query_preprocess_func(

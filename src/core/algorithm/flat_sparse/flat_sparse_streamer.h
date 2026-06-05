@@ -31,7 +31,7 @@ class FlatSparseStreamer : public IndexStreamer {
   using ContextPointer = IndexStreamer::Context::Pointer;
 
   FlatSparseStreamer(void);
-  virtual ~FlatSparseStreamer(void);
+  ~FlatSparseStreamer(void) override;
 
   FlatSparseStreamer(const FlatSparseStreamer &streamer) = delete;
   FlatSparseStreamer &operator=(const FlatSparseStreamer &streamer) = delete;
@@ -158,10 +158,10 @@ class FlatSparseStreamer : public IndexStreamer {
   enum State { STATE_INIT = 0, STATE_INITED = 1, STATE_OPENED = 2 };
 
   IndexMeta meta_{};
+  Stats stats_{};
   FlatSparseStreamerEntity entity_;
 
   uint32_t magic_{0U};
-  Stats stats_{};
   State state_{STATE_INIT};
 
   //! avoid add vector while dumping index

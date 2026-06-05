@@ -23,7 +23,6 @@
 #include "zvec/core/framework/index_provider.h"
 #endif
 #include <zvec/ailego/buffer/block_eviction_queue.h>
-#include "zvec/ailego/buffer/buffer_manager.h"
 #include "zvec/core/interface/index.h"
 #include "zvec/core/interface/index_factory.h"
 #include "zvec/core/interface/index_param.h"
@@ -297,7 +296,6 @@ TEST(IndexInterface, BufferGeneral) {
            .with_fetch_vector(true)
            .with_ef_search(20)
            .build());
-  // zvec::ailego::BufferManager::Instance().cleanup();
 }
 
 
@@ -1746,6 +1744,16 @@ TEST(IndexInterface, HNSWRabitqGeneral) {
            .build());
 
   // HNSWRabitq with custom total_bits
+  // Reformer must be re-created with matching total_bits to keep ex_bits
+  // consistent between reformer and entity.
+  RabitqConverter converter2;
+  Params converter2_params;
+  converter2_params.set(PARAM_RABITQ_TOTAL_BITS, 2u);
+  converter2.init(*index_meta_ptr_, converter2_params);
+  ASSERT_EQ(converter2.train(holder), 0);
+  std::shared_ptr<IndexReformer> index_reformer2;
+  ASSERT_EQ(converter2.to_reformer(&index_reformer2), 0);
+
   func(HNSWRabitqIndexParamBuilder()
            .WithMetricType(MetricType::kL2sq)
            .WithDataType(DataType::DT_FP32)
@@ -1754,7 +1762,7 @@ TEST(IndexInterface, HNSWRabitqGeneral) {
            .WithEFConstruction(100)
            .WithTotalBits(2)
            .WithProvider(holder)
-           .WithReformer(index_reformer)
+           .WithReformer(index_reformer2)
            .Build(),
        HNSWRabitqQueryParamBuilder()
            .with_topk(10)
@@ -1785,8 +1793,12 @@ TEST(IndexInterface, ContiguousMemoryEndToEnd) {
 
         // Phase 1: build & persist.
         {
+<<<<<<< HEAD
           auto index =
               zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
+=======
+          auto index = IndexFactory::CreateAndInitIndex(*param);
+>>>>>>> main
           ASSERT_NE(nullptr, index);
           ASSERT_EQ(0, index->Open(index_name,
                                    {StorageOptions::StorageType::kMMAP, true}));
@@ -1806,8 +1818,12 @@ TEST(IndexInterface, ContiguousMemoryEndToEnd) {
         // Phase 2: reopen with same params (contiguous memory takes effect
         // here) and search.
         {
+<<<<<<< HEAD
           auto index =
               zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
+=======
+          auto index = IndexFactory::CreateAndInitIndex(*param);
+>>>>>>> main
           ASSERT_NE(nullptr, index);
           ASSERT_EQ(0,
                     index->Open(index_name,

@@ -14,6 +14,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <zvec/core/interface/constants.h>
 #include <zvec/db/type.h>
 
@@ -79,7 +80,7 @@ class HnswQueryParams : public QueryParams {
     set_is_using_refiner(is_using_refiner);
   }
 
-  virtual ~HnswQueryParams() = default;
+  ~HnswQueryParams() override = default;
 
   int ef() const {
     return ef_;
@@ -102,7 +103,7 @@ class IVFQueryParams : public QueryParams {
     set_scale_factor(scale_factor);
   }
 
-  virtual ~IVFQueryParams() = default;
+  ~IVFQueryParams() override = default;
 
   int nprobe() const {
     return nprobe_;
@@ -136,7 +137,7 @@ class HnswRabitqQueryParams : public QueryParams {
     set_is_using_refiner(is_using_refiner);
   }
 
-  virtual ~HnswRabitqQueryParams() = default;
+  ~HnswRabitqQueryParams() override = default;
 
   int ef() const {
     return ef_;
@@ -158,7 +159,7 @@ class FlatQueryParams : public QueryParams {
     set_scale_factor(scale_factor);
   }
 
-  virtual ~FlatQueryParams() = default;
+  ~FlatQueryParams() override = default;
 
   float scale_factor() const {
     return scale_factor_;
@@ -172,6 +173,28 @@ class FlatQueryParams : public QueryParams {
   float scale_factor_{10};
 };
 
+class DiskAnnQueryParams : public QueryParams {
+ public:
+  DiskAnnQueryParams(int list_size = 300) : QueryParams(IndexType::DISKANN) {
+    set_list_size(list_size);
+  }
+
+  virtual ~DiskAnnQueryParams() = default;
+
+  int list_size() const {
+    return list_size_;
+  }
+
+  void set_list_size(int list_size) {
+    list_size_ = list_size;
+  }
+
+ private:
+  // list size: controls the size of the search frontier during graph traversal
+  // — larger values trade query latency for recall
+  int list_size_;
+};
+
 class VamanaQueryParams : public QueryParams {
  public:
   VamanaQueryParams(int ef_search = core_interface::kDefaultVamanaEfSearch,
@@ -183,7 +206,7 @@ class VamanaQueryParams : public QueryParams {
     set_is_using_refiner(is_using_refiner);
   }
 
-  virtual ~VamanaQueryParams() = default;
+  ~VamanaQueryParams() override = default;
 
   int ef_search() const {
     return ef_search_;
@@ -195,6 +218,27 @@ class VamanaQueryParams : public QueryParams {
 
  private:
   int ef_search_;
+};
+
+class FtsQueryParams : public QueryParams {
+ public:
+  using Ptr = std::shared_ptr<FtsQueryParams>;
+
+  FtsQueryParams() : QueryParams(IndexType::FTS) {}
+  ~FtsQueryParams() override = default;
+
+  const std::string &default_operator() const {
+    return default_operator_;
+  }
+
+  void set_default_operator(const std::string &default_operator) {
+    default_operator_ = default_operator;
+  }
+
+ private:
+  // Default boolean operator for adjacent bare terms.
+  // Supported values (case-insensitive): "OR" (default), "AND".
+  std::string default_operator_;
 };
 
 }  // namespace zvec

@@ -13,15 +13,16 @@
 # limitations under the License.
 from __future__ import annotations
 
+import warnings
 from typing import Optional, Union, overload
 
 from _zvec import _Collection
 
-from ..executor import QueryContext, QueryExecutorFactory
+from ..executor import QueryContext, QueryExecutor
 from ..extension import ReRanker
 from ..typing import Status
 from .convert import convert_to_cpp_doc, convert_to_py_doc
-from .doc import Doc
+from .doc import Doc, DocList
 from .param import (
     AddColumnOption,
     AlterColumnOption,
@@ -34,7 +35,7 @@ from .param import (
     IVFIndexParam,
     OptimizeOption,
 )
-from .param.vector_query import VectorQuery
+from .param.query import Query
 from .schema import CollectionSchema, CollectionStats, FieldSchema
 
 __all__ = ["Collection"]
@@ -62,7 +63,7 @@ class Collection:
         inst._obj = core_collection
         schema = CollectionSchema._from_core(core_collection.Schema())
         inst._schema = schema
-        inst._querier = QueryExecutorFactory.create(schema)
+        inst._querier = QueryExecutor(schema)
         return inst
 
     @property
@@ -129,6 +130,7 @@ class Collection:
         """
         self._obj.CreateIndex(field_name, index_param, option)
         self._schema = CollectionSchema._from_core(self._obj.Schema())
+        self._querier._schema = self._schema
 
     def drop_index(self, field_name: str) -> None:
         """Remove the index from a field.
@@ -138,6 +140,7 @@ class Collection:
         """
         self._obj.DropIndex(field_name)
         self._schema = CollectionSchema._from_core(self._obj.Schema())
+        self._querier._schema = self._schema
 
     def optimize(self, option: OptimizeOption = OptimizeOption()) -> None:
         """Optimize the collection (e.g., merge segments, rebuild index).
@@ -167,6 +170,7 @@ class Collection:
         """
         self._obj.AddColumn(field_schema._get_object(), expression, option)
         self._schema = CollectionSchema._from_core(self._obj.Schema())
+        self._querier._schema = self._schema
 
     def drop_column(self, field_name: str) -> None:
         """Remove a column from the collection.
@@ -176,6 +180,7 @@ class Collection:
         """
         self._obj.DropColumn(field_name)
         self._schema = CollectionSchema._from_core(self._obj.Schema())
+        self._querier._schema = self._schema
 
     def alter_column(
         self,
@@ -223,6 +228,7 @@ class Collection:
             option,
         )
         self._schema = CollectionSchema._from_core(self._obj.Schema())
+        self._querier._schema = self._schema
 
     # ========== Collection DDL Methods ==========
     @overload
@@ -336,17 +342,27 @@ class Collection:
         self._obj.DeleteByFilter(filter)
 
     # ========== Collection DQL-fetch Methods ==========
-    def fetch(self, ids: Union[str, list[str]]) -> dict[str, Doc]:
+    def fetch(
+        self,
+        ids: Union[str, list[str]],
+        *,
+        output_fields: Optional[list[str]] = None,
+        include_vector: bool = True,
+    ) -> dict[str, Doc]:
         """Retrieve documents by ID.
 
         Args:
             ids (Union[str, list[str]]): Document IDs to fetch.
+            output_fields (Optional[list[str]], optional): Scalar fields to
+                include. If None, all fields are returned. Defaults to None.
+            include_vector (bool, optional): Whether to include vector data in
+                results. Defaults to True.
 
         Returns:
             dict[str, Doc]: Mapping from ID to document. Missing IDs are omitted.
         """
         ids = [ids] if isinstance(ids, str) else ids
-        docs = self._obj.Fetch(ids)
+        docs = self._obj.Fetch(ids, output_fields, include_vector)
         return {
             doc_id: py_doc
             for doc_id, core_doc in docs.items()
@@ -357,21 +373,24 @@ class Collection:
 
     def query(
         self,
-        vectors: Optional[Union[VectorQuery, list[VectorQuery]]] = None,
+        queries: Optional[Union[Query, list[Query]]] = None,
         *,
+        vectors: Optional[Union[Query, list[Query]]] = None,
         topk: int = 10,
         filter: Optional[str] = None,
         include_vector: bool = False,
         output_fields: Optional[list[str]] = None,
         reranker: Optional[ReRanker] = None,
-    ) -> list[Doc]:
+    ) -> DocList:
         """Perform vector similarity search with optional filtering and re-ranking.
 
-        At least one `VectorQuery` must be provided.
+        At least one `Query` must be provided via `queries`.
 
         Args:
-            vectors (Optional[Union[VectorQuery, list[VectorQuery]]], optional):
+            queries (Optional[Union[Query, list[Query]]], optional):
                 One or more vector queries. Defaults to None.
+            vectors (Optional[Union[Query, list[Query]]], optional):
+                Deprecated. Use `queries` instead.
             topk (int, optional): Number of nearest neighbors to return.
                 Defaults to 10.
             filter (Optional[str], optional): Boolean expression to pre-filter candidates.
@@ -384,21 +403,32 @@ class Collection:
                 Defaults to None.
 
         Returns:
-            list[Doc]: Top-k matching documents, sorted by relevance score.
+            DocList: Top-k matching documents, sorted by relevance score.
 
         Examples:
-            >>> from zvec import VectorQuery
+            >>> from zvec import Query
             >>> results = collection.query(
-            ...     vectors=VectorQuery("embedding", vector=[0.1, 0.2]),
+            ...     queries=Query(field_name="embedding", vector=[0.1, 0.2]),
             ...     topk=5,
             ...     filter="category == 'tech'",
             ...     output_fields=["title", "url"]
             ... )
         """
+        if vectors is not None:
+            warnings.warn(
+                "The 'vectors' parameter is deprecated and will be removed in a future version. "
+                "Use 'queries' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if queries is not None:
+                raise ValueError("Cannot specify both 'queries' and 'vectors'.")
+            queries = vectors
+
         ctx = QueryContext(
             topk=topk,
             filter=filter,
-            queries=[vectors] if isinstance(vectors, VectorQuery) else vectors,
+            queries=[queries] if isinstance(queries, Query) else queries,
             include_vector=include_vector,
             output_fields=output_fields,
             reranker=reranker,

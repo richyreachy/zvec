@@ -21,7 +21,6 @@
 #include <ailego/utility/memory_helper.h>
 #include <algorithm/flat_sparse/flat_sparse_utility.h>
 #include <gtest/gtest.h>
-#include <zvec/ailego/buffer/buffer_manager.h>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_streamer.h>
 #include "tests/test_util.h"
@@ -39,8 +38,8 @@ constexpr static size_t sparse_dim_count = 16;
 
 class FlatSparseStreamerTest : public testing::Test {
  protected:
-  void SetUp(void);
-  void TearDown(void);
+  void SetUp(void) override;
+  void TearDown(void) override;
   void generate_sparse_data(
       size_t cnt, uint32_t sparse_dim_count,
       std::vector<NumericalVector<uint32_t>> &sparse_indices_list,

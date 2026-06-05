@@ -77,11 +77,11 @@ struct HNSWHeader {
   }
 
   HNSWHeader(const HNSWHeader &header) {
-    memcpy(this, &header, sizeof(header));
+    memcpy(static_cast<void *>(this), &header, sizeof(header));
   }
 
   HNSWHeader &operator=(const HNSWHeader &header) {
-    memcpy(this, &header, sizeof(header));
+    memcpy(static_cast<void *>(this), &header, sizeof(header));
     return *this;
   }
 
@@ -94,7 +94,7 @@ struct HNSWHeader {
 
   //! Clear all fields to init value
   void inline clear() {
-    memset(this, 0, sizeof(HNSWHeader));
+    memset(static_cast<void *>(this), 0, sizeof(HNSWHeader));
     hnsw.entry_point = kInvalidNodeId;
     graph.size = sizeof(GraphHeader);
     hnsw.size = sizeof(HnswHeader);
@@ -201,11 +201,21 @@ struct BufferPoolMemoryBlock {
                         void *data)
       : buffer_pool_handle_(handle), buffer_block_id_(block_id), data_(data) {}
 
+  static BufferPoolMemoryBlock MakeOwned(void *owned_data) {
+    BufferPoolMemoryBlock b;
+    b.owns_buffer_ = true;
+    b.data_ = owned_data;
+    return b;
+  }
+
   BufferPoolMemoryBlock(const BufferPoolMemoryBlock &rhs)
       : buffer_pool_handle_(rhs.buffer_pool_handle_),
         buffer_block_id_(rhs.buffer_block_id_),
         data_(rhs.data_) {
-    if (buffer_pool_handle_) {
+    if (rhs.owns_buffer_) {
+      owns_buffer_ = false;
+      buffer_pool_handle_ = nullptr;
+    } else if (buffer_pool_handle_) {
       buffer_pool_handle_->acquire_one(buffer_block_id_);
     }
   }
@@ -216,7 +226,10 @@ struct BufferPoolMemoryBlock {
       buffer_pool_handle_ = rhs.buffer_pool_handle_;
       buffer_block_id_ = rhs.buffer_block_id_;
       data_ = rhs.data_;
-      if (buffer_pool_handle_) {
+      if (rhs.owns_buffer_) {
+        owns_buffer_ = false;
+        buffer_pool_handle_ = nullptr;
+      } else if (buffer_pool_handle_) {
         buffer_pool_handle_->acquire_one(buffer_block_id_);
       }
     }
@@ -226,8 +239,10 @@ struct BufferPoolMemoryBlock {
   BufferPoolMemoryBlock(BufferPoolMemoryBlock &&rhs) noexcept
       : buffer_pool_handle_(rhs.buffer_pool_handle_),
         buffer_block_id_(rhs.buffer_block_id_),
+        owns_buffer_(rhs.owns_buffer_),
         data_(rhs.data_) {
     rhs.buffer_pool_handle_ = nullptr;
+    rhs.owns_buffer_ = false;
     rhs.data_ = nullptr;
   }
 
@@ -236,8 +251,10 @@ struct BufferPoolMemoryBlock {
       release();
       buffer_pool_handle_ = rhs.buffer_pool_handle_;
       buffer_block_id_ = rhs.buffer_block_id_;
+      owns_buffer_ = rhs.owns_buffer_;
       data_ = rhs.data_;
       rhs.buffer_pool_handle_ = nullptr;
+      rhs.owns_buffer_ = false;
       rhs.data_ = nullptr;
     }
     return *this;
@@ -260,7 +277,12 @@ struct BufferPoolMemoryBlock {
 
  private:
   void release() {
-    if (buffer_pool_handle_) {
+    if (owns_buffer_) {
+      if (data_) {
+        ailego_free(data_);
+      }
+      owns_buffer_ = false;
+    } else if (buffer_pool_handle_) {
       buffer_pool_handle_->release_one(buffer_block_id_);
       buffer_pool_handle_ = nullptr;
     }
@@ -269,6 +291,7 @@ struct BufferPoolMemoryBlock {
 
   ailego::VecBufferPoolHandle *buffer_pool_handle_{nullptr};
   size_t buffer_block_id_{0};
+  bool owns_buffer_{false};
   void *data_{nullptr};
 };
 
@@ -652,8 +675,8 @@ class HnswEntity {
   constexpr static uint32_t kDefaultDocsHardLimit = 1 << 30U;  // 1 billion
   constexpr static float kDefaultDocsSoftLimitRatio = 0.9f;
   constexpr static size_t kMaxChunkSize = 0xFFFFFFFF;
-  constexpr static size_t kDefaultChunkSize = 16 * 1024UL;
-  constexpr static size_t kDefaultMaxChunkCnt = 128 * 50000UL;
+  constexpr static size_t kDefaultChunkSize = 2 * 1024UL * 1024UL;
+  constexpr static size_t kDefaultMaxChunkCnt = 50000UL;
   constexpr static float kDefaultNeighborPruneMultiplier =
       1.0f;  // prune_cnt = upper_max_neighbor_cnt * multiplier
   constexpr static float kDefaultL0MaxNeighborCntMultiplier =

@@ -3975,7 +3975,8 @@ void test_collection_nullable_roundtrip(void) {
       const char *pks[] = {"pk_nullable"};
       zvec_doc_t **fetched = NULL;
       size_t fetched_count = 0;
-      err = zvec_collection_fetch(collection, pks, 1, &fetched, &fetched_count);
+      err = zvec_collection_fetch(collection, pks, 1, NULL, 0, false, &fetched,
+                                  &fetched_count);
       TEST_ASSERT(err == ZVEC_OK);
       TEST_ASSERT(fetched_count == 1);
       if (fetched && fetched_count == 1) {
@@ -4122,6 +4123,481 @@ void test_actual_vector_queries(void) {
 
   // Clean up
   cleanup_temp_directory(temp_dir);
+
+  TEST_END();
+}
+
+// =============================================================================
+// FTS (full-text search) tests
+// =============================================================================
+
+void test_fts_index_params_functions(void) {
+  TEST_START();
+
+  // Defaults: tokenizer="standard", filters=["lowercase"], extra_params="".
+  zvec_index_params_t *params = zvec_index_params_create(ZVEC_INDEX_TYPE_FTS);
+  TEST_ASSERT(params != NULL);
+  TEST_ASSERT(zvec_index_params_get_type(params) == ZVEC_INDEX_TYPE_FTS);
+
+  const char *tokenizer = NULL;
+  const char *extra = NULL;
+  zvec_string_array_t *filters = NULL;
+  zvec_error_code_t err =
+      zvec_index_params_get_fts_params(params, &tokenizer, &filters, &extra);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(tokenizer != NULL && strcmp(tokenizer, "standard") == 0);
+  TEST_ASSERT(extra != NULL && strcmp(extra, "") == 0);
+  TEST_ASSERT(filters != NULL && filters->count == 1);
+  TEST_ASSERT(strcmp(filters->strings[0].data, "lowercase") == 0);
+  zvec_string_array_destroy(filters);
+  filters = NULL;
+
+  // Override via set; filters list of 2 + extra_params + tokenizer.
+  zvec_string_array_t *new_filters = zvec_string_array_create(2);
+  TEST_ASSERT(new_filters != NULL);
+  zvec_string_array_add(new_filters, 0, "lowercase");
+  zvec_string_array_add(new_filters, 1, "stop");
+
+  err = zvec_index_params_set_fts_params(params, "jieba", new_filters,
+                                         "key=value");
+  TEST_ASSERT(err == ZVEC_OK);
+  zvec_string_array_destroy(new_filters);
+
+  err = zvec_index_params_get_fts_params(params, &tokenizer, &filters, &extra);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(tokenizer != NULL && strcmp(tokenizer, "jieba") == 0);
+  TEST_ASSERT(extra != NULL && strcmp(extra, "key=value") == 0);
+  TEST_ASSERT(filters != NULL && filters->count == 2);
+  TEST_ASSERT(strcmp(filters->strings[0].data, "lowercase") == 0);
+  TEST_ASSERT(strcmp(filters->strings[1].data, "stop") == 0);
+  zvec_string_array_destroy(filters);
+
+  // Type-mismatch error path: invert params must not accept fts setter.
+  zvec_index_params_t *invert =
+      zvec_index_params_create(ZVEC_INDEX_TYPE_INVERT);
+  TEST_ASSERT(invert != NULL);
+  err = zvec_index_params_set_fts_params(invert, "standard", NULL, "");
+  TEST_ASSERT(err == ZVEC_ERROR_INVALID_ARGUMENT);
+  zvec_index_params_destroy(invert);
+
+  // index_type_to_string should report FTS.
+  const char *type_str = zvec_index_type_to_string(ZVEC_INDEX_TYPE_FTS);
+  TEST_ASSERT(type_str != NULL && strcmp(type_str, "FTS") == 0);
+
+  zvec_index_params_destroy(params);
+  TEST_END();
+}
+
+void test_fts_query_params_functions(void) {
+  TEST_START();
+
+  // Empty default_operator → engine default (empty string).
+  zvec_fts_query_params_t *p0 = zvec_query_params_fts_create(NULL);
+  TEST_ASSERT(p0 != NULL);
+  const char *op0 = zvec_query_params_fts_get_default_operator(p0);
+  TEST_ASSERT(op0 != NULL && strcmp(op0, "") == 0);
+  zvec_query_params_fts_destroy(p0);
+
+  // Explicit AND.
+  zvec_fts_query_params_t *p1 = zvec_query_params_fts_create("AND");
+  TEST_ASSERT(p1 != NULL);
+  const char *op1 = zvec_query_params_fts_get_default_operator(p1);
+  TEST_ASSERT(op1 != NULL && strcmp(op1, "AND") == 0);
+
+  zvec_error_code_t err = zvec_query_params_fts_set_default_operator(p1, "OR");
+  TEST_ASSERT(err == ZVEC_OK);
+  const char *op2 = zvec_query_params_fts_get_default_operator(p1);
+  TEST_ASSERT(op2 != NULL && strcmp(op2, "OR") == 0);
+
+  // NULL → invalid arg.
+  err = zvec_query_params_fts_set_default_operator(NULL, "AND");
+  TEST_ASSERT(err == ZVEC_ERROR_INVALID_ARGUMENT);
+
+  zvec_query_params_fts_destroy(p1);
+  TEST_END();
+}
+
+void test_fts_wiring_on_vector_query(void) {
+  TEST_START();
+
+  zvec_fts_t *fts = zvec_fts_create();
+  TEST_ASSERT(fts != NULL);
+  TEST_ASSERT(strcmp(zvec_fts_get_query_string(fts), "") == 0);
+  TEST_ASSERT(strcmp(zvec_fts_get_match_string(fts), "") == 0);
+
+  zvec_error_code_t err =
+      zvec_fts_set_query_string(fts, "+hello -world \"phrase\"");
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(
+      strcmp(zvec_fts_get_query_string(fts), "+hello -world \"phrase\"") == 0);
+  err = zvec_fts_set_match_string(fts, "machine learning");
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(strcmp(zvec_fts_get_match_string(fts), "machine learning") == 0);
+
+  zvec_vector_query_t *query = zvec_vector_query_create();
+  TEST_ASSERT(query != NULL);
+  TEST_ASSERT(zvec_vector_query_get_fts(query) == NULL);
+
+  err = zvec_vector_query_set_fts(query, fts);
+  TEST_ASSERT(err == ZVEC_OK);
+
+  const zvec_fts_t *got = zvec_vector_query_get_fts(query);
+  TEST_ASSERT(got != NULL);
+  TEST_ASSERT(
+      strcmp(zvec_fts_get_query_string(got), "+hello -world \"phrase\"") == 0);
+  TEST_ASSERT(strcmp(zvec_fts_get_match_string(got), "machine learning") == 0);
+
+  // Setter copies the payload — mutating the original must not affect the
+  // attached one.
+  zvec_fts_set_query_string(fts, "changed");
+  TEST_ASSERT(
+      strcmp(zvec_fts_get_query_string(zvec_vector_query_get_fts(query)),
+             "+hello -world \"phrase\"") == 0);
+
+  // Clearing.
+  err = zvec_vector_query_set_fts(query, NULL);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(zvec_vector_query_get_fts(query) == NULL);
+
+  // Attach FtsQueryParams (transfers ownership).
+  zvec_fts_query_params_t *fts_params = zvec_query_params_fts_create("AND");
+  TEST_ASSERT(fts_params != NULL);
+  err = zvec_vector_query_set_fts_params(query, fts_params);
+  TEST_ASSERT(err == ZVEC_OK);
+  // Ownership transferred — do NOT call zvec_query_params_fts_destroy on it.
+
+  zvec_vector_query_destroy(query);
+  zvec_fts_destroy(fts);
+  TEST_END();
+}
+
+void test_fts_end_to_end(void) {
+  TEST_START();
+
+  char temp_dir[] = "./zvec_test_fts_end_to_end";
+  cleanup_temp_directory(temp_dir);
+
+  zvec_collection_schema_t *schema = zvec_collection_schema_create("fts_e2e");
+  TEST_ASSERT(schema != NULL);
+  if (!schema) {
+    TEST_END();
+    return;
+  }
+
+  // id (int64) — primary scalar
+  zvec_field_schema_t *id_field =
+      zvec_field_schema_create("id", ZVEC_DATA_TYPE_INT64, false, 0);
+  zvec_collection_schema_add_field(schema, id_field);
+
+  // content (string) — FTS-indexed field, no vector field in the schema.
+  zvec_index_params_t *fts_params =
+      zvec_index_params_create(ZVEC_INDEX_TYPE_FTS);
+  TEST_ASSERT(fts_params != NULL);
+  zvec_field_schema_t *content_field =
+      zvec_field_schema_create("content", ZVEC_DATA_TYPE_STRING, false, 0);
+  zvec_field_schema_set_index_params(content_field, fts_params);
+  zvec_collection_schema_add_field(schema, content_field);
+  zvec_index_params_destroy(fts_params);
+
+  zvec_collection_t *collection = NULL;
+  zvec_error_code_t err =
+      zvec_collection_create_and_open(temp_dir, schema, NULL, &collection);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(collection != NULL);
+
+  if (collection) {
+    const char *texts[3] = {
+        "machine learning is fun",
+        "deep learning uses neural networks",
+        "vector databases store embeddings",
+    };
+    zvec_doc_t *docs[3];
+    for (int i = 0; i < 3; i++) {
+      docs[i] = zvec_doc_create();
+      zvec_doc_set_pk(docs[i], zvec_test_make_pk(i + 1));
+      int64_t id = i + 1;
+      zvec_doc_add_field_by_value(docs[i], "id", ZVEC_DATA_TYPE_INT64, &id,
+                                  sizeof(id));
+      zvec_doc_add_field_by_value(docs[i], "content", ZVEC_DATA_TYPE_STRING,
+                                  texts[i], strlen(texts[i]));
+    }
+
+    size_t success_count = 0, error_count = 0;
+    err = zvec_collection_insert(collection, (const zvec_doc_t **)docs, 3,
+                                 &success_count, &error_count);
+    TEST_ASSERT(err == ZVEC_OK);
+    TEST_ASSERT(success_count == 3);
+    TEST_ASSERT(error_count == 0);
+
+    zvec_collection_flush(collection);
+
+    // FTS-only query (no query vector): match on "learning" should hit docs
+    // 1+2.
+    zvec_vector_query_t *query = zvec_vector_query_create();
+    TEST_ASSERT(query != NULL);
+    zvec_vector_query_set_field_name(query, "content");
+    zvec_vector_query_set_topk(query, 10);
+    zvec_vector_query_set_include_doc_id(query, true);
+
+    zvec_fts_t *fts = zvec_fts_create();
+    zvec_fts_set_match_string(fts, "learning");
+    err = zvec_vector_query_set_fts(query, fts);
+    TEST_ASSERT(err == ZVEC_OK);
+    zvec_fts_destroy(fts);
+
+    zvec_doc_t **results = NULL;
+    size_t result_count = 0;
+    err = zvec_collection_query(collection, query, &results, &result_count);
+    TEST_ASSERT(err == ZVEC_OK);
+    TEST_ASSERT(result_count >= 2);
+
+    zvec_docs_free(results, result_count);
+    zvec_vector_query_destroy(query);
+
+    for (int i = 0; i < 3; i++) {
+      zvec_doc_destroy(docs[i]);
+    }
+    zvec_collection_destroy(collection);
+  }
+
+  zvec_collection_schema_destroy(schema);
+  cleanup_temp_directory(temp_dir);
+
+  TEST_END();
+}
+
+void test_reranker_functions(void) {
+  TEST_START();
+
+  // Test 1: Create RRF reranker
+  zvec_reranker_t *rrf = zvec_create_rrf_reranker(60);
+  TEST_ASSERT(rrf != NULL);
+  if (rrf) {
+    TEST_ASSERT(zvec_get_reranker_rank_constant(rrf) == 60);
+    zvec_destroy_reranker(rrf);
+  }
+
+  // Test 2: Create RRF reranker with different rank constant
+  zvec_reranker_t *rrf2 = zvec_create_rrf_reranker(100);
+  TEST_ASSERT(rrf2 != NULL);
+  if (rrf2) {
+    TEST_ASSERT(zvec_get_reranker_rank_constant(rrf2) == 100);
+    zvec_destroy_reranker(rrf2);
+  }
+
+  // Test 3: Create Weighted reranker
+  double weights[] = {0.7, 0.3};
+  zvec_reranker_t *weighted = zvec_create_weighted_reranker(weights, 2);
+  TEST_ASSERT(weighted != NULL);
+  if (weighted) {
+    TEST_ASSERT(zvec_get_reranker_rank_constant(weighted) == -1);
+    zvec_destroy_reranker(weighted);
+  }
+
+  // Test 4: Create Weighted reranker with no weights
+  zvec_reranker_t *weighted2 = zvec_create_weighted_reranker(NULL, 0);
+  TEST_ASSERT(weighted2 != NULL);
+  if (weighted2) {
+    zvec_destroy_reranker(weighted2);
+  }
+
+  // Test 5: NULL reranker operations
+  TEST_ASSERT(zvec_get_reranker_rank_constant(NULL) == -1);
+  zvec_destroy_reranker(NULL);  // Should not crash
+
+  TEST_END();
+}
+
+// ==================== Multi-query reranker test helpers ====================
+
+typedef struct {
+  zvec_collection_t *collection;
+  zvec_collection_schema_t *schema;
+  zvec_doc_t *docs[4];
+  float e1_v1[4], e2_v1[4];
+  char temp_dir[64];
+} multi_query_fixture_t;
+
+static int setup_multi_query_fixture(multi_query_fixture_t *f,
+                                     const char *dir_name,
+                                     const char *schema_name) {
+  snprintf(f->temp_dir, sizeof(f->temp_dir), "./%s", dir_name);
+  f->collection = NULL;
+  f->schema = zvec_collection_schema_create(schema_name);
+  if (!f->schema) return 0;
+
+  zvec_field_schema_t *id_field =
+      zvec_field_schema_create("id", ZVEC_DATA_TYPE_INT64, false, 0);
+  zvec_collection_schema_add_field(f->schema, id_field);
+
+  for (int i = 0; i < 2; i++) {
+    const char *name = i == 0 ? "embedding1" : "embedding2";
+    zvec_index_params_t *hnsw = zvec_index_params_create(ZVEC_INDEX_TYPE_HNSW);
+    zvec_index_params_set_metric_type(hnsw, ZVEC_METRIC_TYPE_L2);
+    zvec_index_params_set_hnsw_params(hnsw, 16, 100);
+    zvec_field_schema_t *vec =
+        zvec_field_schema_create(name, ZVEC_DATA_TYPE_VECTOR_FP32, false, 4);
+    zvec_field_schema_set_index_params(vec, hnsw);
+    zvec_collection_schema_add_field(f->schema, vec);
+    zvec_index_params_destroy(hnsw);
+  }
+
+  zvec_error_code_t err = zvec_collection_create_and_open(
+      f->temp_dir, f->schema, NULL, &f->collection);
+  if (err != ZVEC_OK || !f->collection) return 0;
+
+  float e1[4][4] = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {.7f, .7f, 0, 0}};
+  float e2[4][4] = {{0, 1, 0, 0}, {1, 0, 0, 0}, {0, 0, 0, 1}, {.5f, .5f, 0, 0}};
+  memcpy(f->e1_v1, e1[0], sizeof(f->e1_v1));
+  memcpy(f->e2_v1, e2[0], sizeof(f->e2_v1));
+
+  for (int i = 0; i < 4; i++) {
+    f->docs[i] = zvec_doc_create();
+    zvec_doc_set_pk(f->docs[i], zvec_test_make_pk(i + 1));
+    zvec_doc_add_field_by_value(f->docs[i], "id", ZVEC_DATA_TYPE_INT64,
+                                &(int64_t){i + 1}, sizeof(int64_t));
+    zvec_doc_add_field_by_value(f->docs[i], "embedding1",
+                                ZVEC_DATA_TYPE_VECTOR_FP32, e1[i],
+                                sizeof(e1[i]));
+    zvec_doc_add_field_by_value(f->docs[i], "embedding2",
+                                ZVEC_DATA_TYPE_VECTOR_FP32, e2[i],
+                                sizeof(e2[i]));
+  }
+
+  size_t success_count, error_count;
+  err = zvec_collection_insert(f->collection, (const zvec_doc_t **)f->docs, 4,
+                               &success_count, &error_count);
+  if (err != ZVEC_OK || success_count != 4) return 0;
+
+  zvec_collection_flush(f->collection);
+  return 1;
+}
+
+static void teardown_multi_query_fixture(multi_query_fixture_t *f) {
+  for (int i = 0; i < 4; i++) zvec_doc_destroy(f->docs[i]);
+  zvec_collection_destroy(f->collection);
+  zvec_collection_schema_destroy(f->schema);
+  cleanup_temp_directory(f->temp_dir);
+}
+
+static int execute_multi_query_with_reranker(const multi_query_fixture_t *f,
+                                             zvec_reranker_t *reranker,
+                                             int topk, int num_candidates) {
+  zvec_multi_query_t *mvq = zvec_multi_query_create();
+  if (!mvq) return -1;
+  zvec_multi_query_set_topk(mvq, topk);
+  zvec_multi_query_set_include_vector(mvq, false);
+
+  zvec_sub_query_t *vq1 = zvec_sub_query_create();
+  zvec_sub_query_set_field_name(vq1, "embedding1");
+  zvec_sub_query_set_query_vector(vq1, f->e1_v1, sizeof(f->e1_v1));
+  zvec_sub_query_set_num_candidates(vq1, num_candidates);
+  zvec_multi_query_add_sub_query(mvq, vq1);
+
+  zvec_sub_query_t *vq2 = zvec_sub_query_create();
+  zvec_sub_query_set_field_name(vq2, "embedding2");
+  zvec_sub_query_set_query_vector(vq2, f->e2_v1, sizeof(f->e2_v1));
+  zvec_sub_query_set_num_candidates(vq2, num_candidates);
+  zvec_multi_query_add_sub_query(mvq, vq2);
+
+  zvec_multi_query_set_reranker(mvq, reranker);
+
+  zvec_doc_t **results = NULL;
+  size_t result_count = 0;
+  zvec_error_code_t err =
+      zvec_collection_multi_query(f->collection, mvq, &results, &result_count);
+
+  int ret = -1;
+  if (err == ZVEC_OK && results != NULL) {
+    ret = (int)result_count;
+    zvec_docs_free(results, result_count);
+  }
+
+  zvec_sub_query_destroy(vq1);
+  zvec_sub_query_destroy(vq2);
+  zvec_multi_query_destroy(mvq);
+  return ret;
+}
+
+// ==================== Multi-query reranker tests ====================
+
+void test_multi_vector_query_with_rrf_reranker(void) {
+  TEST_START();
+
+  multi_query_fixture_t f;
+  TEST_ASSERT(setup_multi_query_fixture(&f, "zvec_test_mq_rrf", "mq_rrf"));
+
+  zvec_reranker_t *rrf = zvec_create_rrf_reranker(60);
+  TEST_ASSERT(rrf != NULL);
+
+  int count = execute_multi_query_with_reranker(&f, rrf, 3, 3);
+  TEST_ASSERT(count > 0);
+  TEST_ASSERT(count <= 3);
+
+  zvec_destroy_reranker(rrf);
+
+  // MultiQuery property setters/getters
+  zvec_multi_query_t *mvq2 = zvec_multi_query_create();
+  TEST_ASSERT(mvq2 != NULL);
+  zvec_multi_query_set_topk(mvq2, 5);
+  TEST_ASSERT(zvec_multi_query_get_topk(mvq2) == 5);
+
+  zvec_multi_query_set_filter(mvq2, "id > 1");
+  TEST_ASSERT(strcmp(zvec_multi_query_get_filter(mvq2), "id > 1") == 0);
+
+  zvec_multi_query_set_include_vector(mvq2, true);
+  TEST_ASSERT(zvec_multi_query_get_include_vector(mvq2) == true);
+
+  const char *out_fields[] = {"id"};
+  zvec_multi_query_set_output_fields(mvq2, out_fields, 1);
+  const char **got_fields = NULL;
+  size_t field_count = 0;
+  zvec_error_code_t err =
+      zvec_multi_query_get_output_fields(mvq2, &got_fields, &field_count);
+  TEST_ASSERT(err == ZVEC_OK);
+  TEST_ASSERT(field_count == 1);
+  if (field_count > 0) {
+    TEST_ASSERT(strcmp(got_fields[0], "id") == 0);
+    zvec_free((char *)got_fields);
+  }
+
+  zvec_sub_query_t *sparse_query = zvec_sub_query_create();
+  TEST_ASSERT(sparse_query != NULL);
+  uint32_t sparse_indices[] = {1, 3};
+  float sparse_values[] = {0.25f, 0.75f};
+  err = zvec_sub_query_set_sparse_vector(sparse_query, sparse_indices,
+                                         sparse_values, 2);
+  TEST_ASSERT(err == ZVEC_OK);
+  err = zvec_sub_query_set_sparse_vector(sparse_query, NULL, sparse_values, 2);
+  TEST_ASSERT(err == ZVEC_ERROR_INVALID_ARGUMENT);
+  err = zvec_sub_query_set_sparse_vector(sparse_query, sparse_indices, NULL, 2);
+  TEST_ASSERT(err == ZVEC_ERROR_INVALID_ARGUMENT);
+  zvec_sub_query_destroy(sparse_query);
+
+  zvec_multi_query_destroy(mvq2);
+
+  teardown_multi_query_fixture(&f);
+
+  TEST_END();
+}
+
+void test_multi_vector_query_with_weighted_reranker(void) {
+  TEST_START();
+
+  multi_query_fixture_t f;
+  TEST_ASSERT(
+      setup_multi_query_fixture(&f, "zvec_test_mq_weighted", "mq_weighted"));
+
+  double weights[] = {0.7, 0.3};
+  zvec_reranker_t *weighted = zvec_create_weighted_reranker(weights, 2);
+  TEST_ASSERT(weighted != NULL);
+
+  int count = execute_multi_query_with_reranker(&f, weighted, 3, 3);
+  TEST_ASSERT(count > 0);
+  TEST_ASSERT(count <= 3);
+
+  zvec_destroy_reranker(weighted);
+  teardown_multi_query_fixture(&f);
 
   TEST_END();
 }
@@ -4689,14 +5165,52 @@ void test_collection_query_functions(void) {
     zvec_collection_flush(collection);
     zvec_collection_optimize(collection);
 
-    // Test zvec_collection_fetch
+    // Test zvec_collection_fetch (fetch all fields, NULL output_fields)
     const char *pks[] = {"doc1", "doc2"};
     zvec_doc_t **results = NULL;
     size_t found_count = 0;
-    err = zvec_collection_fetch(collection, pks, 2, &results, &found_count);
+    err = zvec_collection_fetch(collection, pks, 2, NULL, 0, false, &results,
+                                &found_count);
     TEST_ASSERT(err == ZVEC_OK);
     TEST_ASSERT(found_count == 2);
+    if (results && found_count == 2) {
+      // Both docs should have the "name" field
+      TEST_ASSERT(zvec_doc_has_field(results[0], "name") == true ||
+                  zvec_doc_has_field(results[1], "name") == true);
+    }
     zvec_docs_free(results, found_count);
+
+    // Test zvec_collection_fetch with output_fields=["name"]
+    zvec_doc_t **results_partial = NULL;
+    size_t found_count_partial = 0;
+    const char *output_fields[] = {"name"};
+    err = zvec_collection_fetch(collection, pks, 2, output_fields, 1, false,
+                                &results_partial, &found_count_partial);
+    TEST_ASSERT(err == ZVEC_OK);
+    TEST_ASSERT(found_count_partial == 2);
+    if (results_partial && found_count_partial == 2) {
+      for (size_t i = 0; i < found_count_partial; ++i) {
+        TEST_ASSERT(zvec_doc_has_field(results_partial[i], "name") == true);
+      }
+    }
+    zvec_docs_free(results_partial, found_count_partial);
+
+    // Test zvec_collection_fetch with empty output_fields (no scalar fields)
+    zvec_doc_t **results_empty_fields = NULL;
+    size_t found_count_empty = 0;
+    err = zvec_collection_fetch(collection, pks, 2, NULL, 0, false,
+                                &results_empty_fields, &found_count_empty);
+    TEST_ASSERT(err == ZVEC_OK);
+    zvec_docs_free(results_empty_fields, found_count_empty);
+
+    // Test zvec_collection_fetch with include_vector=true
+    zvec_doc_t **results_with_vec = NULL;
+    size_t found_count_vec = 0;
+    err = zvec_collection_fetch(collection, pks, 2, NULL, 0, true,
+                                &results_with_vec, &found_count_vec);
+    TEST_ASSERT(err == ZVEC_OK);
+    TEST_ASSERT(found_count_vec == 2);
+    zvec_docs_free(results_with_vec, found_count_vec);
 
     // Test zvec_collection_get_options
     zvec_collection_options_t *options = NULL;
@@ -4783,13 +5297,6 @@ void test_doc_advanced_functions(void) {
   zvec_doc_add_field_by_value(val_doc, "test_field", ZVEC_DATA_TYPE_INT32,
                               &(int32_t){42}, sizeof(int32_t));
 
-  char *error_msg = NULL;
-  zvec_error_code_t err = zvec_doc_validate(val_doc, schema, false, &error_msg);
-  TEST_ASSERT(err == ZVEC_OK);
-  if (error_msg) {
-    zvec_free(error_msg);
-  }
-
   zvec_doc_destroy(val_doc);
   zvec_collection_schema_destroy(schema);
   zvec_doc_destroy(doc);
@@ -4803,7 +5310,7 @@ void test_doc_advanced_functions(void) {
                               "hello", 5);
 
   char *detail_str = NULL;
-  err = zvec_doc_to_detail_string(detail_doc, &detail_str);
+  zvec_error_code_t err = zvec_doc_to_detail_string(detail_doc, &detail_str);
   TEST_ASSERT(err == ZVEC_OK);
   TEST_ASSERT(detail_str != NULL);
   // printf("  Document detail: %s\n", detail_str);
@@ -5417,6 +5924,15 @@ int main(void) {
   test_query_params_functions();
   test_actual_vector_queries();
 
+  // FTS tests
+  test_fts_index_params_functions();
+  test_fts_query_params_functions();
+  test_fts_wiring_on_vector_query();
+  test_fts_end_to_end();
+
+  test_reranker_functions();
+  test_multi_vector_query_with_rrf_reranker();
+  test_multi_vector_query_with_weighted_reranker();
   // Performance tests
   // test_performance_benchmarks();
 

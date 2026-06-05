@@ -17,7 +17,6 @@
 #include <arrow/acero/exec_plan.h>
 #include <arrow/table.h>
 #include <zvec/ailego/logger/logger.h>
-#include <zvec/db/config.h>
 #include "db/sqlengine/planner/invert_search.h"
 
 namespace zvec::sqlengine {
@@ -98,7 +97,7 @@ std::optional<bool> DocFilter::get_forward_bit(uint64_t id) const {
     const auto &arr = forward_bitmap_->chunk(c);
     if (id < rows_seen + arr->length()) {
       auto *bool_array = static_cast<arrow::BooleanArray *>(arr.get());
-      return (*bool_array)[id - rows_seen];
+      return (*bool_array)[id - rows_seen].value_or(false);
     }
     rows_seen += arr->length();
   }
@@ -107,7 +106,8 @@ std::optional<bool> DocFilter::get_forward_bit(uint64_t id) const {
   return std::nullopt;
 }
 
-std::optional<std::vector<uint64_t>> DocFilter::get_bf_by_keys_and_update() {
+std::optional<std::vector<uint64_t>> DocFilter::get_bf_by_keys_and_update(
+    float ratio) {
   auto meta = segment_->meta();
   if (!meta) {
     return std::nullopt;
@@ -117,9 +117,7 @@ std::optional<std::vector<uint64_t>> DocFilter::get_bf_by_keys_and_update() {
     return std::nullopt;
   }
   size_t doc_count = meta->doc_count();
-  float brute_force_by_keys_ratio =
-      GlobalConfig::Instance().brute_force_by_keys_ratio();
-  uint64_t bf_by_keys_threshold = meta->doc_count() * brute_force_by_keys_ratio;
+  uint64_t bf_by_keys_threshold = static_cast<uint64_t>(doc_count * ratio);
 
   // decide to use brute force by keys or not
   if (size_t match_count = invert_result_->count();
@@ -128,13 +126,16 @@ std::optional<std::vector<uint64_t>> DocFilter::get_bf_by_keys_and_update() {
     invert_result_->extract_ids(&ids);
     invert_filter_.reset();
     invert_result_.reset();
-    LOG_INFO("Use brute force by keys, doc_count[%zu] invert_result_count[%zu]",
-             doc_count, match_count);
+    LOG_INFO(
+        "Use brute force by keys, doc_count[%zu] invert_result_count[%zu] "
+        "ratio[%.4f]",
+        doc_count, match_count, ratio);
     return std::vector<uint64_t>(ids.begin(), ids.end());
   } else {
     LOG_DEBUG(
-        "Not use brute force by keys, doc_count[%zu] invert_result_count[%zu]",
-        doc_count, match_count);
+        "Not use brute force by keys, doc_count[%zu] invert_result_count[%zu] "
+        "ratio[%.4f]",
+        doc_count, match_count, ratio);
   }
   return std::nullopt;
 }
@@ -155,7 +156,8 @@ std::optional<bool> DocFilter::is_matched_by_forward_filter(uint64_t id) const {
   }
   arrow::Datum datum = maybe_result.MoveValueUnsafe();
   if (datum.is_scalar()) {
-    return datum.scalar_as<arrow::BooleanScalar>().value;
+    const auto &scalar = datum.scalar_as<arrow::BooleanScalar>();
+    return scalar.is_valid && scalar.value;
   }
   LOG_ERROR("Datum is not scalar, id[%zu] type[%s]", (size_t)id,
             datum.type()->ToString().c_str());

@@ -63,6 +63,7 @@ enum class IndexType {
   kIVF,  // it's actual a two-layer index
   kHNSW,
   kHNSWRabitq,
+  kDiskAnn,
   kVamana,
 };
 
@@ -124,11 +125,10 @@ struct QuantizerParam : public SerializableBase {
 
  protected:
   friend class BaseIndexParam;
-  virtual ailego::JsonObject SerializeToJsonObject(
+  ailego::JsonObject SerializeToJsonObject(
       bool omit_empty_value = false) const override;
 
-  virtual bool DeserializeFromJsonObject(
-      const ailego::JsonObject &json_obj) override;
+  bool DeserializeFromJsonObject(const ailego::JsonObject &json_obj) override;
 };
 
 // preprocessor
@@ -215,6 +215,14 @@ struct IVFQueryParam : public BaseIndexQueryParam {
   }
 };
 
+struct DiskAnnQueryParam : public BaseIndexQueryParam {
+  using Pointer = std::shared_ptr<DiskAnnQueryParam>;
+
+  BaseIndexQueryParam::Pointer Clone() const override {
+    return std::make_shared<DiskAnnQueryParam>(*this);
+  }
+};
+
 // --- Construction Parameters ---
 // template<typename IndexQueryParamType>
 class BaseIndexParam : public SerializableBase {
@@ -252,9 +260,8 @@ class BaseIndexParam : public SerializableBase {
   //
 
  protected:
-  virtual bool DeserializeFromJsonObject(
-      const ailego::JsonObject &json_obj) override;
-  virtual ailego::JsonObject SerializeToJsonObject(
+  bool DeserializeFromJsonObject(const ailego::JsonObject &json_obj) override;
+  ailego::JsonObject SerializeToJsonObject(
       bool omit_empty_value = false) const override;
 };
 
@@ -397,6 +404,29 @@ struct HNSWRabitqIndexParam : public BaseIndexParam {
       : BaseIndexParam(IndexType::kHNSWRabitq, metric, dim),
         m(m),
         ef_construction(ef_construction) {}
+
+ protected:
+  bool DeserializeFromJsonObject(const ailego::JsonObject &json_obj) override;
+  ailego::JsonObject SerializeToJsonObject(
+      bool omit_empty_value = false) const override;
+};
+
+struct DiskAnnIndexParam : public BaseIndexParam {
+  using Pointer = std::shared_ptr<DiskAnnIndexParam>;
+
+  int max_degree = kDefaultDiskAnnMaxDegree;
+  int list_size = kDefaultDiskAnnListSize;
+  int pq_chunk_num = kDefaultDiskAnnPqChunkNum;
+
+  // Constructors with delegation
+  DiskAnnIndexParam() : BaseIndexParam(IndexType::kDiskAnn) {}
+
+  DiskAnnIndexParam(MetricType metric, int dim, int max_degree, int list_size,
+                    int pq_chunk_num)
+      : BaseIndexParam(IndexType::kDiskAnn, metric, dim),
+        max_degree(max_degree),
+        list_size(list_size),
+        pq_chunk_num(pq_chunk_num) {}
 
  protected:
   bool DeserializeFromJsonObject(const ailego::JsonObject &json_obj) override;

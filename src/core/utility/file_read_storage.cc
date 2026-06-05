@@ -61,7 +61,7 @@ class FileReadStorage : public IndexStorage {
           file_path_(rhs.file_path_) {}
 
     //! Destructor
-    virtual ~Segment(void) {}
+    ~Segment(void) override {}
 
     //! Retrieve size of data
     size_t data_size(void) const override {
@@ -80,6 +80,11 @@ class FileReadStorage : public IndexStorage {
 
     size_t capacity(void) const override {
       return region_size_;
+    }
+
+    //! Retrieve offset of data
+    size_t data_offset(void) const override {
+      return data_offset_;
     }
 
     //! Fetch data from segment (with own buffer)
@@ -198,7 +203,7 @@ class FileReadStorage : public IndexStorage {
       ailego_assert_with(data_, "Null Pointer");
     }
 
-    virtual ~MMapSegment(void) {
+    ~MMapSegment(void) override {
       cleanup_();
     }
 
@@ -269,7 +274,7 @@ class FileReadStorage : public IndexStorage {
   };
 
   //! Destructor
-  virtual ~FileReadStorage(void) {}
+  ~FileReadStorage(void) override {}
 
   //! Initialize container
   int init(const ailego::Params &params) override {
@@ -285,7 +290,10 @@ class FileReadStorage : public IndexStorage {
   }
 
   int flush(void) override {
-    return IndexError_NotImplemented;
+    // Read-only storage — nothing to flush. Return success so that
+    // generic Index::Flush() works on read-only-backed indexes (e.g.
+    // DiskAnn after build/dump). Mirrors MMapFileReadStorage::flush().
+    return 0;
   }
 
   int append(const std::string & /*id*/, size_t /*size*/) override {
@@ -383,6 +391,15 @@ class FileReadStorage : public IndexStorage {
   //! Retrieve magic number of index
   uint32_t magic(void) const override {
     return magic_;
+  }
+
+  //! Retrieve file ptr if has
+  std::shared_ptr<ailego::File> file(void) const override {
+    return file_ptr_;
+  }
+
+  std::string file_path(void) const override {
+    return file_path_;
   }
 
  protected:

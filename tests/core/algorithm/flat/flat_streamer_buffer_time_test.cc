@@ -4,7 +4,6 @@
 #include <ailego/utility/math_helper.h>
 #include <ailego/utility/memory_helper.h>
 #include <gtest/gtest.h>
-#include <zvec/ailego/buffer/buffer_manager.h>
 #include <zvec/ailego/utility/file_helper.h>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_streamer.h>
@@ -22,8 +21,8 @@ constexpr size_t static dim = 128;
 
 class FlatStreamerTest : public testing::Test {
  protected:
-  void SetUp(void);
-  void TearDown(void);
+  void SetUp(void) override;
+  void TearDown(void) override;
   void hybrid_scale(std::vector<float> &dense_value,
                     std::vector<float> &sparse_value, float alpha_scale);
 

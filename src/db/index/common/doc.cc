@@ -11,14 +11,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <numeric>
 #include <regex>
 #include <stdexcept>
 #include <zvec/ailego/internal/platform.h>
 #include <zvec/db/doc.h>
+#include <zvec/db/query.h>
 #include "db/common/constants.h"
 #include "db/index/common/type_helper.h"
 
@@ -114,12 +118,18 @@ std::string get_value_type_name(const Doc::Value &value, bool is_vector) {
       value);
 }
 
+
+namespace {
+
 template <typename T>
 T byte_swap(T value) {
   if constexpr (std::is_same_v<T, float16_t>) {
-    uint16_t val = *reinterpret_cast<uint16_t *>(&value);
+    uint16_t val;
+    std::memcpy(&val, static_cast<const void *>(&value), sizeof(val));
     val = ailego_bswap16(val);
-    return *reinterpret_cast<float16_t *>(&val);
+    float16_t result;
+    std::memcpy(static_cast<void *>(&result), &val, sizeof(result));
+    return result;
   } else if constexpr (sizeof(T) == 1) {
     return value;
   } else if constexpr (sizeof(T) == 2) {
@@ -158,6 +168,29 @@ T read_value_from_buffer(const uint8_t *&data) {
   }
   return value;
 }
+
+template <typename T>
+std::string vec_to_string(const std::vector<T> &v) {
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < v.size(); ++i) {
+    if (i > 0) oss << ", ";
+    oss << +v[i];  // + from print as char
+  }
+  oss << "]";
+  return oss.str();
+}
+
+template <class... Ts>
+struct overloaded : Ts... {
+  using Ts::operator()...;
+};
+
+template <class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
+
+
+}  // namespace
 
 
 void Doc::write_to_buffer(std::vector<uint8_t> &buffer, const void *src,
@@ -693,8 +726,8 @@ Doc::Ptr Doc::deserialize(const uint8_t *data, size_t /*size*/) {
   return doc;
 }
 
-Status Doc::validate(const CollectionSchema::Ptr &schema,
-                     bool is_update) const {
+Status Doc::validate_and_sanitize(const CollectionSchema::Ptr &schema,
+                                  bool is_update) {
   if (!schema) {
     return Status::InternalError("schema is null during doc validation");
   }
@@ -739,7 +772,7 @@ Status Doc::validate(const CollectionSchema::Ptr &schema,
       }
     }
 
-    const Value &field_value = field_pair->second;
+    Value &field_value = field_pair->second;
     DataType expected_type = field_schema->data_type();
     bool type_match = true;
     uint32_t value_dimension = 0;
@@ -860,7 +893,7 @@ Status Doc::validate(const CollectionSchema::Ptr &schema,
             std::pair<std::vector<uint32_t>, std::vector<float16_t>>>(
             field_value);
         if (type_match) {
-          auto [sparse_indices, sparse_values] = std::get<
+          auto &[sparse_indices, sparse_values] = std::get<
               std::pair<std::vector<uint32_t>, std::vector<float16_t>>>(
               field_value);
           if (sparse_values.size() != sparse_indices.size()) {
@@ -873,6 +906,14 @@ Status Doc::validate(const CollectionSchema::Ptr &schema,
                 "Invalid doc[", pk_, "]: sparse vector field[", field_name,
                 "] exceeds the maximum number of sparse indices (",
                 kSparseMaxDimSize, ")");
+          }
+          if (sort_and_find_duplicates(
+                  sparse_indices.data(),
+                  reinterpret_cast<char *>(sparse_values.data()),
+                  sparse_indices.size(), sizeof(float16_t))) {
+            return Status::InvalidArgument(
+                "Invalid doc[", pk_, "]: sparse vector field[", field_name,
+                "] contains duplicate indices");
           }
         }
         break;
@@ -894,6 +935,14 @@ Status Doc::validate(const CollectionSchema::Ptr &schema,
                 "Invalid doc[", pk_, "]: sparse vector field[", field_name,
                 "] exceeds the maximum number of sparse indices (",
                 kSparseMaxDimSize, ")");
+          }
+          if (sort_and_find_duplicates(
+                  sparse_indices.data(),
+                  reinterpret_cast<char *>(sparse_values.data()),
+                  sparse_indices.size(), sizeof(float))) {
+            return Status::InvalidArgument(
+                "Invalid doc[", pk_, "]: sparse vector field[", field_name,
+                "] contains duplicate indices");
           }
         }
         break;
@@ -1036,24 +1085,6 @@ size_t Doc::memory_usage() const {
   return usage;
 }
 
-template <typename T>
-std::string vec_to_string(const std::vector<T> &v) {
-  std::ostringstream oss;
-  oss << "[";
-  for (size_t i = 0; i < v.size(); ++i) {
-    if (i > 0) oss << ", ";
-    oss << +v[i];  // + from print as char
-  }
-  oss << "]";
-  return oss.str();
-}
-
-template <class... Ts>
-struct overloaded : Ts... {
-  using Ts::operator()...;
-};
-template <class... Ts>
-overloaded(Ts...) -> overloaded<Ts...>;
 
 std::string Doc::to_detail_string() const {
   std::stringstream oss;
@@ -1200,100 +1231,6 @@ bool Doc::operator==(const Doc &other) const {
   }
 
   return true;
-}
-
-Status VectorQuery::validate(const FieldSchema *schema) const {
-  if ((uint32_t)topk_ > kMaxQueryTopk) {
-    return Status::InvalidArgument("Invalid query: topk[", topk_,
-                                   "] exceeds the maximum allowed value of ",
-                                   kMaxQueryTopk);
-  }
-  if (output_fields_.has_value() &&
-      output_fields_->size() > kMaxOutputFieldSize) {
-    return Status::InvalidArgument(
-        "Invalid query: too many output fields, the maximum allowed is ",
-        kMaxOutputFieldSize);
-  }
-
-  if (schema == nullptr) {
-    if (query_vector_.empty() && query_sparse_indices_.empty()) {
-      // Scalar-only filter query
-      return Status::OK();
-    } else {
-      // If a query vector was provided, the field must exist as a vector field
-      // since we are performing a vector similarity search.
-      return Status::InvalidArgument(
-          "Invalid query: query vector is provided, but query field[",
-          field_name_,
-          "] does not exist or is not a vector field in the collection");
-    }
-  }
-
-  // Vector query
-  if (schema->is_dense_vector()) {
-    // Validate dimension
-    auto dim = schema->dimension();
-    switch (schema->data_type()) {
-      case DataType::VECTOR_FP16:
-        if (dim * sizeof(float16_t) != query_vector_.size()) {
-          return Status::InvalidArgument(
-              "Invalid query: dimension mismatch, expected ", dim, " but got ",
-              query_vector_.size() / sizeof(float16_t), " (FP16)");
-        }
-        break;
-      case DataType::VECTOR_FP32:
-        if (dim * sizeof(float) != query_vector_.size()) {
-          return Status::InvalidArgument(
-              "Invalid query: dimension mismatch, expected ", dim, " but got ",
-              query_vector_.size() / sizeof(float), " (FP32)");
-        }
-        break;
-      case DataType::VECTOR_FP64:
-        if (dim * sizeof(double) != query_vector_.size()) {
-          return Status::InvalidArgument(
-              "Invalid query: dimension mismatch, expected ", dim, " but got ",
-              query_vector_.size() / sizeof(double), " (FP64)");
-        }
-        break;
-      case DataType::VECTOR_INT8:
-        if (dim * sizeof(int8_t) != query_vector_.size()) {
-          return Status::InvalidArgument(
-              "Invalid query: dimension mismatch, expected ", dim, " but got ",
-              query_vector_.size() / sizeof(int8_t), " (INT8)");
-        }
-        break;
-      case DataType::VECTOR_INT16:
-      case DataType::VECTOR_INT4:
-      case DataType::VECTOR_BINARY32:
-      case DataType::VECTOR_BINARY64:
-        return Status::NotSupported(
-            "Invalid query: dense vector type of field[", field_name_,
-            "] is not supported");
-      default:
-        return Status::InvalidArgument("Invalid query: field[", field_name_,
-                                       "] is not a dense vector field");
-    }
-  } else if (schema->is_sparse_vector()) {
-    // Validate sparse indices size
-    if (query_sparse_indices_.size() > kSparseMaxDimSize * sizeof(uint32_t)) {
-      return Status::InvalidArgument(
-          "Invalid query: too many sparse indices, the maximum allowed is ",
-          kSparseMaxDimSize);
-    }
-  } else {
-    return Status::InvalidArgument("Invalid query: field[", field_name_,
-                                   "] is not a vector field");
-  }
-  // Validate query_params type
-  if (query_params_ && query_params_->type() != schema->index_type()) {
-    return Status::InvalidArgument(
-        "Invalid query: query params type does not match the index type of "
-        "vector field[",
-        field_name_, "], expected ",
-        IndexTypeCodeBook::AsString(schema->index_type()), " but got ",
-        IndexTypeCodeBook::AsString(query_params_->type()));
-  }
-  return Status::OK();
 }
 
 }  // namespace zvec

@@ -19,6 +19,11 @@ elseif(IOS)
         set(HAS_ARMV8_CRC ON CACHE INTERNAL "Force ARM CRC for iOS arm64")
     endif()
 endif()
+if(MSVC)
+    # Replace /Zi with /Z7 for sccache compatibility (/Z7 embeds debug info in .obj, no .pdb).
+    set(ROCKSDB_WINDOWS_PATCH ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb.windows.patch)
+    apply_patch_once("rocksdb_windows_fix" "${ROCKSDB_SRC_DIR}" "${ROCKSDB_WINDOWS_PATCH}")
+endif()
 
 set(ROCKSDB_BUILD_SHARED OFF CACHE BOOL "Disable install in rocksdb" FORCE)
 
@@ -37,6 +42,7 @@ set(WITH_CORE_TOOLS OFF CACHE BOOL "build with ldb and sst_dump" FORCE)
 set(WITH_TOOLS OFF CACHE BOOL "build with tools" FORCE)
 set(WITH_LZ4 ON CACHE BOOL "build with lz4" FORCE)
 set(USE_RTTI ON CACHE BOOL "build with RTTI" FORCE)
+set(WITH_WINDOWS_UTF8_FILENAMES ON CACHE BOOL "use UTF8 as characterset for opening files, regardles of the system code page" FORCE)
 # TODO(windows): verify
 set(ROCKSDB_SKIP_THIRDPARTY ON CACHE BOOL "skip thirdparty.inc" FORCE)
 set(FAIL_ON_WARNINGS OFF CACHE BOOL "build with no Werror" FORCE)
@@ -56,6 +62,7 @@ if(NOT TARGET lz4::lz4)
         IMPORTED_LOCATION_MINSIZEREL "${lz4_LIBRARY}"
         IMPORTED_LOCATION_RELWITHDEBINFO "${lz4_LIBRARY}"
         INTERFACE_INCLUDE_DIRECTORIES "${lz4_INCLUDE_DIR}"
+        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${lz4_INCLUDE_DIR}"
     )
     add_dependencies(lz4::lz4 Lz4.BUILD)
 endif()
@@ -70,6 +77,7 @@ unset(_SAVED_CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
 get_target_property(rocksdb_SOURCE_DIR rocksdb SOURCE_DIR)
 set(ROCKSDB_INCLUDE_DIR ${rocksdb_SOURCE_DIR}/include)
 
-target_include_directories(rocksdb PUBLIC $<BUILD_INTERFACE:${ROCKSDB_INCLUDE_DIR}>)
-target_include_directories(rocksdb PRIVATE ${lz4_INCLUDE_DIR})
+target_include_directories(rocksdb SYSTEM PUBLIC $<BUILD_INTERFACE:${ROCKSDB_INCLUDE_DIR}>)
+target_include_directories(rocksdb SYSTEM PRIVATE ${lz4_INCLUDE_DIR})
+mark_target_includes_system(rocksdb)
 add_dependencies(rocksdb Lz4.BUILD)

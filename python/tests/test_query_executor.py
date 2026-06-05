@@ -14,38 +14,29 @@
 from __future__ import annotations
 
 from typing import Dict, Union
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import math
-from _zvec.param import _VectorQuery
+from _zvec.param import _SearchQuery
 
 import pytest
 from zvec.executor.query_executor import (
-    MultiVectorQueryExecutor,
-    NoVectorQueryExecutor,
     QueryContext,
     QueryExecutor,
-    QueryExecutorFactory,
-    SingleVectorQueryExecutor,
+)
+from zvec import (
+    RrfReRanker,
+    WeightedReRanker,
+    HnswQueryParam,
+    CollectionSchema,
+    VectorSchema,
+    DataType,
+    MetricType,
+    Query,
     VectorQuery,
 )
-from zvec import RrfReRanker, HnswQueryParam, CollectionSchema, VectorSchema, DataType
-
-
-# ----------------------------
-# Mock Vector Schema
-# ----------------------------
-class MockVectorSchema(VectorSchema):
-    def __init__(self, name="test_vector"):
-        self._name = name
-
-    @property
-    def name(self):
-        return self._name
-
-    def _get_object(self):
-        return MagicMock()
+from zvec.extension.multi_vector_reranker import CallbackReRanker
 
 
 # ----------------------------
@@ -65,16 +56,16 @@ class MockCollectionSchema(CollectionSchema):
 # ----------------------------
 # VectorQuery Test Case
 # ----------------------------
-class TestVectorQuery:
+class TestQuery:
     def test_init(self):
-        query = VectorQuery(field_name="test_field")
+        query = Query(field_name="test_field")
         assert query.field_name == "test_field"
         assert query.id is None
         assert query.vector is None
         assert query.param is None
 
         param = HnswQueryParam()
-        query = VectorQuery(
+        query = Query(
             field_name="test_field", id="test_id", vector=[1, 2, 3], param=param
         )
         assert query.field_name == "test_field"
@@ -83,24 +74,24 @@ class TestVectorQuery:
         assert query.param == param
 
     def test_has_id(self):
-        query = VectorQuery(field_name="test_field")
+        query = Query(field_name="test_field")
         assert not query.has_id()
 
-        query = VectorQuery(field_name="test_field", id="test_id")
+        query = Query(field_name="test_field", id="test_id")
         assert query.has_id()
 
     def test_has_vector(self):
-        query = VectorQuery(field_name="test_field")
+        query = Query(field_name="test_field")
         assert not query.has_vector()
 
-        query = VectorQuery(field_name="test_field", vector=[])
+        query = Query(field_name="test_field", vector=[])
         assert not query.has_vector()
 
-        query = VectorQuery(field_name="test_field", vector=[1, 2, 3])
+        query = Query(field_name="test_field", vector=[1, 2, 3])
         assert query.has_vector()
 
     def test_validate_dense_fp16_convert(self):
-        v = _VectorQuery()
+        v = _SearchQuery()
         schema = VectorSchema(name="test", data_type=DataType.VECTOR_FP16)
         vec = np.array([1.1, 2.1, 3.1], dtype=np.float16)
         v.set_vector(schema._get_object(), vec)
@@ -108,7 +99,7 @@ class TestVectorQuery:
         assert np.array_equal(vec, ret)
 
     def test_validate_dense_fp32_convert(self):
-        v = _VectorQuery()
+        v = _SearchQuery()
         schema = VectorSchema(name="test", data_type=DataType.VECTOR_FP32)
         vec = np.array([1.1, 2.1, 3.1], dtype=np.float32)
         v.set_vector(schema._get_object(), vec)
@@ -116,7 +107,7 @@ class TestVectorQuery:
         assert np.array_equal(vec, ret)
 
     def test_validate_dense_fp64_convert(self):
-        v = _VectorQuery()
+        v = _SearchQuery()
         schema = VectorSchema(name="test", data_type=DataType.VECTOR_FP64)
         vec = np.array([1.1, 2.1, 3.1], dtype=np.float64)
         v.set_vector(schema._get_object(), vec)
@@ -124,7 +115,7 @@ class TestVectorQuery:
         assert np.array_equal(vec, ret)
 
     def test_validate_dense_int8_convert(self):
-        v = _VectorQuery()
+        v = _SearchQuery()
         schema = VectorSchema(name="test", data_type=DataType.VECTOR_INT8)
         vec = np.array([1, 2, 3], dtype=np.int8)
         v.set_vector(schema._get_object(), vec)
@@ -132,7 +123,7 @@ class TestVectorQuery:
         assert np.array_equal(vec, ret)
 
     def test_validate_sparse_fp32_convert(self):
-        v = _VectorQuery()
+        v = _SearchQuery()
         schema = VectorSchema(name="test", data_type=DataType.SPARSE_VECTOR_FP32)
         vec = {1: 1.1, 2: 2.2, 3: 3.3}
         v.set_vector(schema._get_object(), vec)
@@ -141,13 +132,33 @@ class TestVectorQuery:
             assert math.isclose(vec[k], ret[k], abs_tol=1e-6)
 
     def test_validate_sparse_fp16_convert(self):
-        v = _VectorQuery()
+        v = _SearchQuery()
         schema = VectorSchema(name="test", data_type=DataType.SPARSE_VECTOR_FP16)
         vec = {1: 1.1, 2: 2.2, 3: 3.3}
         v.set_vector(schema._get_object(), vec)
         ret = v.get_vector(schema._get_object())
         for k in vec.keys():
             assert math.isclose(np.float16(vec[k]), ret[k], abs_tol=1e-6)
+
+
+class TestVectorQueryDeprecated:
+    def test_deprecation_warning(self):
+        import warnings
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            vq = VectorQuery(field_name="test_field")
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "Query" in str(w[0].message)
+
+    def test_isinstance_compatibility(self):
+        import warnings
+
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            vq = VectorQuery(field_name="test_field")
+        assert isinstance(vq, Query)
 
 
 class TestQueryContext:
@@ -159,10 +170,9 @@ class TestQueryContext:
         assert ctx.reranker is None
         assert ctx.output_fields is None
         assert ctx.include_vector is False
-        assert ctx.core_vectors == []
 
     def test_properties(self):
-        queries = [VectorQuery(field_name="test")]
+        queries = [Query(field_name="test")]
         reranker = RrfReRanker()
         output_fields = ["field1", "field2"]
 
@@ -182,116 +192,111 @@ class TestQueryContext:
         assert ctx.output_fields == output_fields
         assert ctx.include_vector is True
 
-    def test_core_vectors_setter(self):
-        ctx = QueryContext(topk=10)
-        core_vectors = [MagicMock()]
-        ctx.core_vectors = core_vectors
-        assert ctx.core_vectors == core_vectors
+    def test_properties_with_weighted_reranker(self):
+        queries = [Query(field_name="test")]
+        reranker = WeightedReRanker(
+            weights=[1.0],
+        )
+
+        ctx = QueryContext(
+            topk=5,
+            queries=queries,
+            reranker=reranker,
+        )
+
+        assert ctx.reranker == reranker
+        assert ctx.reranker.weights == [1.0]
+
+    def test_properties_with_callback_reranker(self):
+        queries = [Query(field_name="test")]
+        cb = lambda query_results, topn: []
+        reranker = CallbackReRanker(callback=cb)
+
+        ctx = QueryContext(
+            topk=5,
+            queries=queries,
+            reranker=reranker,
+        )
+
+        assert ctx.reranker == reranker
 
 
-class TestNoVectorQueryExecutor:
+class TestQueryExecutor:
     def test_init(self):
         schema = MockCollectionSchema()
-        executor = NoVectorQueryExecutor(schema)
+        executor = QueryExecutor(schema)
         assert isinstance(executor, QueryExecutor)
 
-    def test_do_validate_with_queries(self):
+    def test_do_build_without_queries(self):
+        # When no queries are given, build a single vector-less query.
         schema = MockCollectionSchema()
-        executor = NoVectorQueryExecutor(schema)
-        ctx = QueryContext(topk=10, queries=[VectorQuery(field_name="test")])
-
-        with pytest.raises(
-            ValueError, match="Collection does not support query with vector or id"
-        ):
-            executor._do_validate(ctx)
-
-    def test_do_validate_without_queries(self):
-        schema = MockCollectionSchema()
-        executor = NoVectorQueryExecutor(schema)
-        ctx = QueryContext(topk=10)
-
-        executor._do_validate(ctx)
-
-    def test_do_build(self):
-        schema = MockCollectionSchema()
-        executor = NoVectorQueryExecutor(schema)
+        executor = QueryExecutor(schema)
         ctx = QueryContext(topk=5, filter="test_filter")
 
-        result = executor._do_build(ctx, MagicMock())
+        result = executor._build_queries(ctx, MagicMock())
         assert len(result) == 1
         assert result[0].topk == 5
         assert result[0].filter == "test_filter"
 
-
-class TestSingleVectorQueryExecutor:
-    def test_init(self):
+    def test_do_build_query_wo_vector(self):
+        # Vector-less core query should carry the context query params.
         schema = MockCollectionSchema()
-        executor = SingleVectorQueryExecutor(schema)
-        assert isinstance(executor, NoVectorQueryExecutor)
+        executor = QueryExecutor(schema)
+        ctx = QueryContext(topk=7, filter="f", include_vector=True)
 
-    def test_do_validate_multiple_queries(self):
+        core_vector = executor._build_base_search_query(ctx)
+        assert core_vector.topk == 7
+        assert core_vector.filter == "f"
+        assert core_vector.include_vector is True
+
+    def test_do_merge_rerank_results_single_without_reranker(self):
+        # A single result list without a reranker is returned as-is.
         schema = MockCollectionSchema()
-        executor = SingleVectorQueryExecutor(schema)
-        queries = [VectorQuery(field_name="test1"), VectorQuery(field_name="test2")]
-        ctx = QueryContext(topk=10, queries=queries)
+        executor = QueryExecutor(schema)
+        ctx = QueryContext(topk=5)
+        docs_list = [["doc1", "doc2"]]
 
-        with pytest.raises(
-            ValueError,
-            match="Collection has only one vector field, cannot query with multiple vectors",
-        ):
-            executor._do_validate(ctx)
+        result = executor._merge_and_rerank(ctx, docs_list)
+        assert result == ["doc1", "doc2"]
 
-    def test_do_build_without_queries(self):
+    def test_do_merge_rerank_results_empty(self):
+        # Empty results should raise an error.
         schema = MockCollectionSchema()
-        executor = SingleVectorQueryExecutor(schema)
+        executor = QueryExecutor(schema)
         ctx = QueryContext(topk=5)
 
-        result = executor._do_build(ctx, MagicMock())
-        assert len(result) == 1
-        assert result[0].topk == 5
+        with pytest.raises(ValueError, match="Query results is empty"):
+            executor._merge_and_rerank(ctx, [])
 
-
-class TestMultiVectorQueryExecutor:
-    def test_init(self):
+    def test_do_merge_rerank_results_with_reranker(self):
+        # Multiple result lists are merged through the reranker.
         schema = MockCollectionSchema()
-        executor = MultiVectorQueryExecutor(schema)
-        assert isinstance(executor, SingleVectorQueryExecutor)
-
-    def test_do_validate_multiple_queries_without_reranker(self):
-        schema = MockCollectionSchema()
-        executor = MultiVectorQueryExecutor(schema)
-        queries = [VectorQuery(field_name="test1"), VectorQuery(field_name="test2")]
-        ctx = QueryContext(topk=10, queries=queries)
-
-        with pytest.raises(
-            ValueError, match="Reranker is required for multi-vector query"
-        ):
-            executor._do_validate(ctx)
-
-    def test_do_validate_multiple_queries_with_reranker(self):
-        schema = MockCollectionSchema()
-        executor = MultiVectorQueryExecutor(schema)
-        queries = [VectorQuery(field_name="test1"), VectorQuery(field_name="test2")]
-        reranker = RrfReRanker()
-        ctx = QueryContext(topk=10, queries=queries, reranker=reranker)
-
-        executor._do_validate(ctx)
-
-
-class TestQueryExecutorFactory:
-    def test_create_no_vectors(self):
-        schema = MockCollectionSchema()
-        executor = QueryExecutorFactory.create(schema)
-        assert isinstance(executor, NoVectorQueryExecutor)
-
-    def test_create_single_vector(self):
-        schema = MockCollectionSchema(vectors=MockVectorSchema())
-        executor = QueryExecutorFactory.create(schema)
-        assert isinstance(executor, SingleVectorQueryExecutor)
-
-    def test_create_multiple_vectors(self):
-        schema = MockCollectionSchema(
-            vectors={"test1": MockVectorSchema(), "test2": MockVectorSchema()}
+        executor = QueryExecutor(schema)
+        reranker = MagicMock()
+        reranker.rerank.return_value = ["merged"]
+        ctx = QueryContext(
+            topk=5,
+            queries=[Query(field_name="test1"), Query(field_name="test2")],
+            reranker=reranker,
         )
-        executor = QueryExecutorFactory.create(schema)
-        assert isinstance(executor, MultiVectorQueryExecutor)
+        docs_list = [["d1"], ["d2"]]
+
+        result = executor._merge_and_rerank(ctx, docs_list)
+        assert result == ["merged"]
+        reranker.rerank.assert_called_once_with(docs_list, ctx.topk)
+
+    def test_execute_python_pipeline(self):
+        # Each query is executed serially and converted into a result list.
+        schema = MockCollectionSchema()
+        executor = QueryExecutor(schema)
+        collection = MagicMock()
+        collection.Query.side_effect = [["raw1"], ["raw2"]]
+        vectors = [MagicMock(), MagicMock()]
+
+        with patch(
+            "zvec.executor.query_executor.convert_to_py_doc",
+            side_effect=lambda doc, schema: doc,
+        ):
+            results = executor._execute_python_pipeline(vectors, collection)
+        assert results == [["raw1"], ["raw2"]]
+        assert collection.Query.call_count == 2

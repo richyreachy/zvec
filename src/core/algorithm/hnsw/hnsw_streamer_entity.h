@@ -17,6 +17,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #if defined(__linux__) || defined(__APPLE__)
 #include <sys/mman.h>
 #endif
@@ -42,56 +43,54 @@ class HnswStreamerEntity : public HnswEntity {
  public:
   //! Cleanup
   //! return 0 on success, or errCode in failure
-  virtual int cleanup() override;
+  int cleanup() override;
 
   //! Make a copy of streamer entity, to support thread-safe operation.
   //! The segment in container cannot be read concurrenly
-  virtual const HnswEntity::Pointer clone() const override;
+  const HnswEntity::Pointer clone() const override;
 
   //! Get primary key of the node id
-  virtual key_t get_key(node_id_t id) const override;
+  key_t get_key(node_id_t id) const override;
 
   //! Get vector feature data by key
-  virtual const void *get_vector(node_id_t id) const override;
+  const void *get_vector(node_id_t id) const override;
 
   //! Get vectors feature data by local ids
-  virtual int get_vector(const node_id_t *ids, uint32_t count,
-                         const void **vecs) const override;
+  int get_vector(const node_id_t *ids, uint32_t count,
+                 const void **vecs) const override;
 
-  virtual int get_vector(const node_id_t id,
-                         IndexStorage::MemoryBlock &block) const override;
+  int get_vector(const node_id_t id,
+                 IndexStorage::MemoryBlock &block) const override;
 
-  virtual int get_vector(
+  int get_vector(
       const node_id_t *ids, uint32_t count,
       std::vector<IndexStorage::MemoryBlock> &vec_blocks) const override;
 
   //! Get the node id's neighbors on graph level
   //! Note: the neighbors cannot be modified, using the following
   //! method to get WritableNeighbors if want to
-  virtual const Neighbors get_neighbors(level_t level,
-                                        node_id_t id) const override;
+  const Neighbors get_neighbors(level_t level, node_id_t id) const override;
 
   //! Add vector and key to hnsw entity, and local id will be saved in id
-  virtual int add_vector(level_t level, key_t key, const void *vec,
-                         node_id_t *id) override;
+  int add_vector(level_t level, key_t key, const void *vec,
+                 node_id_t *id) override;
 
   //! Add vector and id to hnsw entity
-  virtual int add_vector_with_id(level_t level, node_id_t id,
-                                 const void *vec) override;
+  int add_vector_with_id(level_t level, node_id_t id, const void *vec) override;
 
-  virtual int update_neighbors(
+  int update_neighbors(
       level_t level, node_id_t id,
       const std::vector<std::pair<node_id_t, dist_t>> &neighbors) override;
 
   //! Append neighbor_id to node id neighbors on level
   //! Notice: the caller must be ensure the neighbors not full
-  virtual void add_neighbor(level_t level, node_id_t id, uint32_t size,
-                            node_id_t neighbor_id) override;
+  void add_neighbor(level_t level, node_id_t id, uint32_t size,
+                    node_id_t neighbor_id) override;
 
   //! Dump index by dumper
-  virtual int dump(const IndexDumper::Pointer &dumper) override;
+  int dump(const IndexDumper::Pointer &dumper) override;
 
-  virtual void update_ep_and_level(node_id_t ep, level_t level) override;
+  void update_ep_and_level(node_id_t ep, level_t level) override;
 
   //! Get the storage mode of this entity
   virtual HnswStorageMode storage_mode() const {
@@ -111,13 +110,13 @@ class HnswStreamerEntity : public HnswEntity {
   ~HnswStreamerEntity();
 
   //! Get vector feature data by key
-  virtual const void *get_vector_by_key(key_t key) const override {
+  const void *get_vector_by_key(key_t key) const override {
     auto id = get_id(key);
     return id == kInvalidNodeId ? nullptr : get_vector(id);
   }
 
-  virtual int get_vector_by_key(
-      const key_t key, IndexStorage::MemoryBlock &block) const override {
+  int get_vector_by_key(const key_t key,
+                        IndexStorage::MemoryBlock &block) const override {
     auto id = get_id(key);
     if (id != kInvalidNodeId) {
       return get_vector(id, block);
@@ -226,7 +225,7 @@ class HnswStreamerEntity : public HnswEntity {
       uint32_t index : 28;  // index is composite type: chunk idx, and the
                             // N th neighbors in chunk, they two composite
                             // the 28 bits location
-    };
+    } bits;
     uint32_t data;
   };
 
@@ -246,20 +245,21 @@ class HnswStreamerEntity : public HnswEntity {
   using NIHashMapPointer = std::shared_ptr<NIHashMap>;
 
   //! Clone construct, used by clone method in subclasses
-  HnswStreamerEntity(IndexStreamer::Stats &stats, const HNSWHeader &hd,
-                     size_t chunk_size, uint32_t node_index_mask_bits,
-                     uint32_t upper_neighbor_mask_bits, bool filter_same_key,
-                     bool get_vector_enabled,
-                     const NIHashMapPointer &upper_neighbor_index,
-                     std::shared_ptr<ailego::SharedMutex> &keys_map_lock,
-                     const HashMapPointer<key_t, node_id_t> &keys_map,
-                     bool use_key_info_map,
-                     std::vector<Chunk::Pointer> &&node_chunks,
-                     std::vector<Chunk::Pointer> &&upper_neighbor_chunks,
-                     const ChunkBroker::Pointer &broker,
-                     std::shared_ptr<std::vector<const uint8_t *>> node_bases,
-                     std::shared_ptr<std::vector<const uint8_t *>> upper_bases)
+  HnswStreamerEntity(
+      IndexStreamer::Stats &stats, const HNSWHeader &hd, size_t chunk_size,
+      uint32_t node_index_mask_bits, uint32_t upper_neighbor_mask_bits,
+      bool filter_same_key, bool get_vector_enabled,
+      const NIHashMapPointer &upper_neighbor_index,
+      const std::shared_ptr<std::shared_mutex> &upper_neighbor_rw_mutex,
+      std::shared_ptr<ailego::SharedMutex> &keys_map_lock,
+      const HashMapPointer<key_t, node_id_t> &keys_map, bool use_key_info_map,
+      std::vector<Chunk::Pointer> &&node_chunks,
+      std::vector<Chunk::Pointer> &&upper_neighbor_chunks,
+      const ChunkBroker::Pointer &broker,
+      std::shared_ptr<std::vector<const uint8_t *>> node_bases,
+      std::shared_ptr<std::vector<const uint8_t *>> upper_bases)
       : stats_(stats),
+        upper_neighbor_rw_mutex_(upper_neighbor_rw_mutex),
         chunk_size_(chunk_size),
         node_index_mask_bits_(node_index_mask_bits),
         node_cnt_per_chunk_(1UL << node_index_mask_bits_),
@@ -323,13 +323,18 @@ class HnswStreamerEntity : public HnswEntity {
 
   inline std::pair<uint32_t, uint32_t> get_upper_neighbor_chunk_loc(
       level_t level, node_id_t id) const {
+    // Shared lock: concurrent readers are fine, but must synchronize with
+    // add_upper_neighbor's exclusive lock to avoid data-race on
+    // slots_.size() inside HnswIndexHashMap.
+    std::shared_lock<std::shared_mutex> lk(*upper_neighbor_rw_mutex_);
     auto it = upper_neighbor_index_->find(id);
     ailego_assert_abort(it != upper_neighbor_index_->end(),
                         "Get upper neighbor header failed");
     auto meta = reinterpret_cast<const UpperNeighborIndexMeta *>(&it->second);
-    uint32_t chunk_idx = (meta->index) >> upper_neighbor_mask_bits_;
-    uint32_t offset = (((meta->index) & upper_neighbor_mask_) + level - 1) *
-                      upper_neighbor_size_;
+    uint32_t chunk_idx = (meta->bits.index) >> upper_neighbor_mask_bits_;
+    uint32_t offset =
+        (((meta->bits.index) & upper_neighbor_mask_) + level - 1) *
+        upper_neighbor_size_;
     sync_chunks(ChunkBroker::CHUNK_TYPE_UPPER_NEIGHBOR, chunk_idx,
                 &upper_neighbor_chunks_);
     ailego_assert_abort(chunk_idx < upper_neighbor_chunks_.size(),
@@ -370,6 +375,10 @@ class HnswStreamerEntity : public HnswEntity {
     if (level == 0) {
       return 0;
     }
+    // Exclusive lock: protects upper_neighbor_chunks_.emplace_back() and
+    // upper_neighbor_index_->insert() from racing with concurrent find()
+    // calls in get_upper_neighbor_chunk_loc().
+    std::unique_lock<std::shared_mutex> lk(*upper_neighbor_rw_mutex_);
     Chunk::Pointer chunk;
     uint64_t chunk_offset = UINT64_MAX;
     size_t neighbors_size = get_total_upper_neighbors_size(level);
@@ -405,17 +414,40 @@ class HnswStreamerEntity : public HnswEntity {
     ailego_assert_with(chunk_index < (1U << (28 - upper_neighbor_mask_bits_)),
                        "invalid chunk index");
     UpperNeighborIndexMeta meta;
-    meta.level = level;
-    meta.index = (chunk_index << upper_neighbor_mask_bits_) |
-                 (chunk_offset / upper_neighbor_size_);
+    meta.bits.level = level;
+    meta.bits.index = (chunk_index << upper_neighbor_mask_bits_) |
+                      (chunk_offset / upper_neighbor_size_);
+    size_t zero_start = chunk_offset;
     chunk_offset += upper_neighbor_size_ * level;
-    if (ailego_unlikely(!upper_neighbor_index_->insert(id, meta.data))) {
-      LOG_ERROR("HashMap insert value failed");
+
+    // IMPORTANT: order matters here.
+    // 1) resize so the chunk's data_size covers the new region.
+    // 2) zero-fill the new region: storage backends like BufferStorage do
+    //    NOT zero on resize -- only metadata is updated, and the underlying
+    //    page may contain stale content from a previously-evicted page.
+    //    Without this step, NeighborsHeader::neighbor_cnt is garbage and
+    //    select_entry_point()/search_neighbors() iterate over garbage
+    //    node_ids, eventually triggering find()'s assertion in
+    //    get_upper_neighbor_chunk_loc().
+    // 3) ONLY THEN publish the entry to upper_neighbor_index_, so that any
+    //    concurrent reader that finds this id already sees a properly
+    //    zeroed upper-neighbor slot.
+    if (ailego_unlikely(chunk->resize(chunk_offset) != chunk_offset)) {
+      LOG_ERROR("Chunk resize to %zu failed", (size_t)chunk_offset);
       return IndexError_Runtime;
     }
 
-    if (ailego_unlikely(chunk->resize(chunk_offset) != chunk_offset)) {
-      LOG_ERROR("Chunk resize to %zu failed", (size_t)chunk_offset);
+    // Use std::vector instead of a VLA: VLAs are a GNU extension and may
+    // produce different codegen / be rejected under clang/MSVC.
+    std::vector<char> zeros(neighbors_size, 0);
+    if (ailego_unlikely(chunk->write(zero_start, zeros.data(),
+                                     neighbors_size) != neighbors_size)) {
+      LOG_ERROR("Chunk write zeros failed");
+      return IndexError_Runtime;
+    }
+
+    if (ailego_unlikely(!upper_neighbor_index_->insert(id, meta.data))) {
+      LOG_ERROR("HashMap insert value failed");
       return IndexError_Runtime;
     }
 
@@ -529,6 +561,10 @@ class HnswStreamerEntity : public HnswEntity {
  protected:
   IndexStreamer::Stats &stats_;
   std::mutex mutex_{};
+  //! Guards upper_neighbor_index_ and upper_neighbor_chunks_ against
+  //! concurrent reads (find) and writes (insert/emplace_back).
+  //! Shared via shared_ptr so all clones synchronize on the SAME mutex.
+  mutable std::shared_ptr<std::shared_mutex> upper_neighbor_rw_mutex_{};
   size_t max_index_size_{0UL};
   uint32_t chunk_size_{kDefaultChunkSize};
   uint32_t upper_neighbor_chunk_size_{kDefaultChunkSize};
@@ -638,9 +674,16 @@ HnswStreamerEntity::get_neighbors_typed<BufferPoolMemoryBlock>(
     LOG_ERROR("Read neighbor header failed, ret=%zu", ret);
     return NeighborsT<BufferPoolMemoryBlock>();
   }
-  BufferPoolMemoryBlock block(mem_block.buffer_pool_handle_,
-                              mem_block.buffer_block_id_, mem_block.data_);
-  mem_block.buffer_pool_handle_ = nullptr;
+  BufferPoolMemoryBlock block;
+  if (mem_block.type_ == IndexStorage::MemoryBlock::MBT_HEAP_SCRATCH) {
+    block = BufferPoolMemoryBlock::MakeOwned(mem_block.data_);
+    mem_block.data_ = nullptr;
+    mem_block.type_ = IndexStorage::MemoryBlock::MBT_UNKNOWN;
+  } else {
+    block = BufferPoolMemoryBlock(mem_block.buffer_pool_handle_,
+                                  mem_block.buffer_block_id_, mem_block.data_);
+    mem_block.buffer_pool_handle_ = nullptr;
+  }
   return NeighborsT<BufferPoolMemoryBlock>(std::move(block));
 }
 
@@ -688,10 +731,19 @@ inline int HnswStreamerEntity::get_vector_typed<BufferPoolMemoryBlock>(
                 loc.second, read_size, ret);
       return IndexError_ReadData;
     }
-    vec_blocks[i] =
-        BufferPoolMemoryBlock(mem_block.buffer_pool_handle_,
+    vec_blocks[i] = [&]() {
+      if (mem_block.type_ == IndexStorage::MemoryBlock::MBT_HEAP_SCRATCH) {
+        BufferPoolMemoryBlock b =
+            BufferPoolMemoryBlock::MakeOwned(mem_block.data_);
+        mem_block.data_ = nullptr;
+        mem_block.type_ = IndexStorage::MemoryBlock::MBT_UNKNOWN;
+        return b;
+      }
+      BufferPoolMemoryBlock b(mem_block.buffer_pool_handle_,
                               mem_block.buffer_block_id_, mem_block.data_);
-    mem_block.buffer_pool_handle_ = nullptr;
+      mem_block.buffer_pool_handle_ = nullptr;
+      return b;
+    }();
   }
   return 0;
 }
@@ -770,9 +822,10 @@ class HnswMmapStreamerEntity : public HnswStreamerEntity {
     ailego_assert_abort(it != upper_neighbor_index_->end(),
                         "Get upper neighbor header failed");
     auto meta = reinterpret_cast<const UpperNeighborIndexMeta *>(&it->second);
-    uint32_t chunk_idx = (meta->index) >> upper_neighbor_mask_bits_;
-    uint32_t offset = (((meta->index) & upper_neighbor_mask_) + level - 1) *
-                      upper_neighbor_size_;
+    uint32_t chunk_idx = (meta->bits.index) >> upper_neighbor_mask_bits_;
+    uint32_t offset =
+        (((meta->bits.index) & upper_neighbor_mask_) + level - 1) *
+        upper_neighbor_size_;
     const char *base = get_upper_neighbor_chunk_base(chunk_idx);
     MmapMemoryBlock block(const_cast<char *>(base + offset));
     return TypedNeighbors(std::move(block));
@@ -934,8 +987,8 @@ class HnswContiguousStreamerEntity : public HnswMmapStreamerEntity {
       ailego_assert_abort(it != upper_neighbor_index_->end(),
                           "Get upper neighbor header failed");
       auto meta = reinterpret_cast<const UpperNeighborIndexMeta *>(&it->second);
-      uint32_t chunk_idx = (meta->index) >> upper_neighbor_mask_bits_;
-      uint32_t local_idx = (meta->index) & upper_neighbor_mask_;
+      uint32_t chunk_idx = (meta->bits.index) >> upper_neighbor_mask_bits_;
+      uint32_t local_idx = (meta->bits.index) & upper_neighbor_mask_;
       size_t global_offset =
           upper_chunk_offsets_[chunk_idx] +
           static_cast<size_t>(local_idx + level - 1) * upper_neighbor_size_;

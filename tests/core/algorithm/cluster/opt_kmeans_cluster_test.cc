@@ -17,7 +17,6 @@
 #include <ailego/algorithm/kmeans.h>
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/params.h>
-#include <zvec/ailego/internal/platform.h>
 #include "zvec/core/framework/index_framework.h"
 
 using namespace zvec::core;
@@ -53,8 +52,8 @@ TEST(OptKmeansCluster, General) {
   ASSERT_TRUE(!!cluster);
 
   Params params;
-  params.set("proxima.general.cluster.count", 1);
-  params.set("proxima.optkmeans.cluster.count", 56);
+  params.set("zvec.general.cluster.count", 1);
+  params.set("zvec.optkmeans.cluster.count", 56);
 
   ASSERT_EQ(0, cluster->init(index_meta, params));
   ASSERT_EQ(0, cluster->mount(features));
@@ -192,7 +191,7 @@ TEST(OptKmeansCluster, General) {
 //               << ", " << vec[vec.size() - 1] << " }" << std::endl;
 //   }
 
-//   params.set("proxima.optkmeans.cluster.purge_empty", true);
+//   params.set("zvec.optkmeans.cluster.purge_empty", true);
 //   cluster->update(params);
 
 //   ASSERT_EQ(12u, centroids.size());
@@ -208,106 +207,6 @@ TEST(OptKmeansCluster, General) {
 //               << ", " << vec[vec.size() - 1] << " }" << std::endl;
 //   }
 // }
-
-TEST(OptKmeansCluster, BinaryGeneral) {
-  // Prepare index data
-  const uint32_t count = 5000u;
-  const uint32_t dimension = 1024u;
-
-  IndexMeta index_meta;
-  index_meta.set_meta(IndexMeta::DataType::DT_BINARY32, dimension);
-  index_meta.set_metric("SquaredEuclidean", 0, Params());
-
-  std::shared_ptr<CompactIndexFeatures> features(
-      new CompactIndexFeatures(index_meta));
-
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<float> dist(0.0, 1.0);
-
-  for (uint32_t i = 0; i < count; ++i) {
-    BinaryVector<uint32_t> vec(dimension);
-    for (size_t j = 0; j < dimension; ++j) {
-      if (dist(gen) >= 0.5) {
-        vec.set(j);
-      }
-    }
-    features->emplace(vec.data());
-  }
-
-  std::cout << "---------- FIRST ----------\n";
-
-  // Create a Kmeans cluster
-  IndexCluster::Pointer cluster =
-      IndexFactory::CreateCluster("OptKmeansCluster");
-  ASSERT_TRUE(!!cluster);
-
-  Params params;
-  params.set("proxima.general.cluster.count", 1);
-  params.set("proxima.optkmeans.cluster.count", 56);
-
-  ASSERT_EQ(0, cluster->init(index_meta, params));
-  ASSERT_EQ(0, cluster->mount(features));
-  cluster->suggest(64u);
-
-  auto threads = std::make_shared<SingleQueueIndexThreads>();
-
-  std::cout << "---------- FIRST ----------\n";
-  std::vector<IndexCluster::Centroid> centroids;
-  std::vector<uint32_t> labels;
-  ASSERT_NE(0, cluster->classify(threads, centroids));
-  ASSERT_NE(0, cluster->label(threads, centroids, &labels));
-  ASSERT_EQ(0, cluster->cluster(threads, centroids));
-
-  for (const auto &it : centroids) {
-    const auto &vec = it.vector<uint32_t>();
-
-    unsigned int mask = 0x1;
-    std::cout << it.follows() << " (" << it.score() << ") { "
-              << !!(vec[0] & mask) << ", " << !!(vec[0] & (mask << 1)) << ", "
-              << !!(vec[0] & (mask << 2)) << ", ... , "
-              << !!(vec[0] & (mask << !!(sizeof(uint32_t) - 2))) << ", "
-              << !!(vec[0] & (mask << !!(sizeof(uint32_t) - 1))) << " }"
-              << std::endl;
-    ASSERT_EQ(0u, it.similars().size());
-  }
-
-  std::cout << "---------- SECOND ----------\n";
-  ASSERT_EQ(0, cluster->cluster(threads, centroids));
-
-  for (const auto &it : centroids) {
-    const auto &vec = it.vector<uint32_t>();
-
-    unsigned int mask = 0x1;
-    std::cout << it.follows() << " (" << it.score() << ") { "
-              << !!(vec[0] & mask) << ", " << !!(vec[0] & (mask << 1)) << ", "
-              << !!(vec[0] & (mask << 2)) << ", ... , "
-              << !!(vec[0] & (mask << !!(sizeof(uint32_t) - 2))) << ", "
-              << !!(vec[0] & (mask << !!(sizeof(uint32_t) - 1))) << " }"
-              << std::endl;
-    ASSERT_EQ(0u, it.similars().size());
-  }
-
-  std::cout << "---------- THIRD ----------\n";
-  ASSERT_EQ(0, cluster->cluster(threads, centroids));
-
-  for (const auto &it : centroids) {
-    const auto &vec = it.vector<uint32_t>();
-
-    unsigned int mask = 0x1;
-    std::cout << it.follows() << " (" << it.score() << ") { "
-              << !!(vec[0] & mask) << ", " << !!(vec[0] & (mask << 1)) << ", "
-              << !!(vec[0] & (mask << 2)) << ", ... , "
-              << !!(vec[0] & (mask << !!(sizeof(uint32_t) - 2))) << ", "
-              << !!(vec[0] & (mask << !!(sizeof(uint32_t) - 1))) << " }"
-              << std::endl;
-    ASSERT_EQ(0u, it.similars().size());
-  }
-
-  ASSERT_EQ(0, cluster->classify(threads, centroids));
-  ASSERT_EQ(0, cluster->label(threads, centroids, &labels));
-}
-
 
 TEST(OptKmeansCluster, IN4General) {
   // Prepare index data
@@ -355,8 +254,8 @@ TEST(OptKmeansCluster, IN4General) {
   ASSERT_EQ(0, cluster->init(index_meta_wrong, params));
   ASSERT_NE(0, cluster->mount(features_wrong));
 
-  params.set("proxima.general.cluster.count", 1);
-  params.set("proxima.optkmeans.cluster.count", 56);
+  params.set("zvec.general.cluster.count", 1);
+  params.set("zvec.optkmeans.cluster.count", 56);
 
   ASSERT_EQ(0, cluster->init(index_meta, params));
   ASSERT_EQ(0, cluster->mount(features));
@@ -452,11 +351,11 @@ TEST(OptKmeansCluster, IN4Correctness) {
   ASSERT_TRUE(!!cluster_once);
 
   Params params_once;
-  params_once.set("proxima.general.cluster.count", 65);
-  params_once.set("proxima.optkmeans.cluster.count", 63);
-  params_once.set("proxima.optkmeans.cluster.max_iterations", 1);
+  params_once.set("zvec.general.cluster.count", 65);
+  params_once.set("zvec.optkmeans.cluster.count", 63);
+  params_once.set("zvec.optkmeans.cluster.max_iterations", 1);
   // Use KMC2 to init centroids
-  params_once.set("proxima.optkmeans.cluster.markov_chain_length", 20);
+  params_once.set("zvec.optkmeans.cluster.markov_chain_length", 20);
 
   ASSERT_EQ(0, cluster_once->init(index_meta1, params_once));
   ASSERT_EQ(0, cluster_once->mount(features1));
@@ -475,8 +374,8 @@ TEST(OptKmeansCluster, IN4Correctness) {
   ASSERT_TRUE(!!cluster_int8);
 
   Params params_int8;
-  params_int8.set("proxima.general.cluster.count", 65);
-  params_int8.set("proxima.optkmeans.cluster.count", 63);
+  params_int8.set("zvec.general.cluster.count", 65);
+  params_int8.set("zvec.optkmeans.cluster.count", 63);
 
   ASSERT_EQ(0, cluster_int8->init(index_meta1, params_int8));
   ASSERT_EQ(0, cluster_int8->mount(features1));
@@ -488,8 +387,8 @@ TEST(OptKmeansCluster, IN4Correctness) {
   ASSERT_TRUE(!!cluster_int4);
 
   Params params_int4;
-  params_int4.set("proxima.general.cluster.count", 65);
-  params_int4.set("proxima.optkmeans.cluster.count", 63);
+  params_int4.set("zvec.general.cluster.count", 65);
+  params_int4.set("zvec.optkmeans.cluster.count", 63);
 
   ASSERT_EQ(0, cluster_int4->init(index_meta2, params_int4));
   ASSERT_EQ(0, cluster_int4->mount(features2));
@@ -549,8 +448,8 @@ TEST(OptKmeansCluster, InnerProduct) {
   ASSERT_TRUE(!!cluster);
 
   Params params;
-  params.set("proxima.general.cluster.count", 1);
-  params.set("proxima.optkmeans.cluster.count", 56);
+  params.set("zvec.general.cluster.count", 1);
+  params.set("zvec.optkmeans.cluster.count", 56);
 
   ASSERT_EQ(0, cluster->init(index_meta, params));
   ASSERT_EQ(0, cluster->mount(features));

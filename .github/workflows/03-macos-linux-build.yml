@@ -40,6 +40,12 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ inputs.platform }}-${{ inputs.os }}-${{ inputs.compiler || 'gcc' }}
+          max-size: 150M
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -52,6 +58,14 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y clang libomp-dev
+        shell: bash
+
+      - name: Install AIO 
+        if: runner.os == 'Linux' && runner.arch == 'X64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libaio-dev
         shell: bash
 
       - name: Print CPU info
@@ -82,31 +96,36 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip \
+          python -m pip install --upgrade pip
+          python -m pip install \
             pybind11==3.0 \
             cmake==3.30.0 \
             ninja==1.11.1 \
             pytest \
+            pytest-xdist \
             scikit-build-core \
             setuptools_scm
-        shell: bash
+        shell: bash       
 
       - name: Build from source
         run: |
           cd "$GITHUB_WORKSPACE"
 
-          CMAKE_GENERATOR="Unix Makefiles" \
+          CMAKE_GENERATOR="Ninja" \
           CMAKE_BUILD_PARALLEL_LEVEL="$NPROC" \
           python -m pip install -v . \
             --no-build-isolation \
-            --config-settings='cmake.define.BUILD_TOOLS="ON"' \
+            --config-settings='cmake.define.BUILD_TOOLS=ON' \
+            --config-settings='cmake.define.ENABLE_WERROR=ON' \
+            --config-settings='cmake.define.CMAKE_C_COMPILER_LAUNCHER=ccache' \
+            --config-settings='cmake.define.CMAKE_CXX_COMPILER_LAUNCHER=ccache' \
             ${{ matrix.arch_flag }}
         shell: bash
 
       - name: Run C++ Tests
         run: |
           cd "$GITHUB_WORKSPACE/build"
-          make unittest -j$NPROC
+          cmake --build . --target unittest --parallel $NPROC
         shell: bash
 
       - name: Run Python Tests
@@ -119,8 +138,10 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE/examples/c++"
           mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make -j $NPROC
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --build . --parallel $NPROC
           ./db-example
           ./core-example
           ./ailego-example
@@ -130,8 +151,10 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE/examples/c"
           mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make -j $NPROC
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --build . --parallel $NPROC
           ./c_api_basic_example
           ./c_api_collection_schema_example
           ./c_api_doc_example

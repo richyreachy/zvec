@@ -29,7 +29,7 @@ struct FileDumper : public IndexDumper {
   FileDumper(void) {}
 
   //! Destructor
-  virtual ~FileDumper(void) {
+  ~FileDumper(void) override {
     this->cleanup();
   }
 
@@ -97,6 +97,11 @@ struct FileDumper : public IndexDumper {
   //! Retrieve magic number of index
   uint32_t magic(void) const override {
     return packer_.magic();
+  }
+
+  //! Retrieve size of index
+  size_t size(void) const override {
+    return file_.size();
   }
 
  protected:

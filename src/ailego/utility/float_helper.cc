@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstring>
 #include <ailego/internal/cpu_features.h>
 #include <zvec/ailego/internal/platform.h>
 #include <zvec/ailego/utility/float_helper.h>
@@ -23,14 +24,16 @@
 
 #if defined(__aarch64__)
 static inline float float32(uint16_t val) {
-  __fp16 *p = reinterpret_cast<__fp16 *>(&val);
-  return *p;
+  __fp16 f;
+  memcpy(&f, &val, sizeof(val));
+  return static_cast<float>(f);
 }
 
 static inline uint16_t float16(float val) {
   __fp16 f = static_cast<__fp16>(val);
-  uint16_t *fp = reinterpret_cast<uint16_t *>(&f);
-  return *fp;
+  uint16_t result;
+  memcpy(&result, &f, sizeof(result));
+  return result;
 }
 
 static inline void convert_fp16_to_fp32(const uint16_t *arr, size_t size,
@@ -428,8 +431,9 @@ static inline float float32(uint16_t val) {
   uint16_t hval = static_cast<uint16_t>(val >> 10);
   uint32_t bits =
       mantissa_table[offset_table[hval] + (val & 0x3FF)] + exponent_table[hval];
-  float *p = reinterpret_cast<float *>(&bits);
-  return (*p);
+  float result;
+  std::memcpy(&result, &bits, sizeof(result));
+  return result;
 }
 
 // Refer: https://github.com/Maratyszcza/FP16/blob/master/third-party/half.hpp

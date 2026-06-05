@@ -98,7 +98,7 @@ int HnswSparseContext::update(const ailego::Params &params) {
     }
 
     if (params.has(p)) {
-      bool bf_enabled;
+      bool bf_enabled = false;
       params.get(p, &bf_enabled);
       if (bf_enabled ^ (filter_mode_ == VisitFilter::BloomFilter)) {
         need_update = true;
@@ -203,7 +203,7 @@ int HnswSparseContext::update_context(ContextType type,
                                       uint32_t magic_num) {
   uint32_t doc_cnt;
 
-  if (ailego_unlikely(type != type_)) {
+  if (ailego_unlikely(static_cast<uint32_t>(type) != type_)) {
     LOG_ERROR(
         "HnswSparseContext doesn't support shared by different type, "
         "src=%u dst=%u",

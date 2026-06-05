@@ -318,10 +318,20 @@ if(NOT TARGET unittest)
     # iOS: build-only target; tests are run on simulator separately
     add_custom_target(unittest)
   else()
+    include(ProcessorCount)
+    ProcessorCount(NPROC)
+    if(NPROC EQUAL 0)
+      set(NPROC 1)
+    endif()
+    math(EXPR PARALLEL_JOBS "${NPROC} - 1")
+    if(PARALLEL_JOBS LESS 1)
+      set(PARALLEL_JOBS 1)
+    endif()
     add_custom_target(
         unittest
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
         --build-config $<CONFIGURATION>
+        --parallel ${PARALLEL_JOBS}
       )
   endif()
 endif()
@@ -386,16 +396,23 @@ endif()
 if(NOT MSVC)
   # Use color in diagnostics
   set(
-      _COMPILER_FLAGS
+      _C_FLAGS
+      "$<$<C_COMPILER_ID:Clang>:-fcolor-diagnostics>"
+      "$<$<C_COMPILER_ID:AppleClang>:-fcolor-diagnostics>"
+      "$<$<C_COMPILER_ID:GNU>:-fdiagnostics-color=always>"
+    )
+  set(
+      _CXX_FLAGS
       "$<$<C_COMPILER_ID:Clang>:-fcolor-diagnostics;${CLANG_STDLIB_OPTION}>"
       "$<$<C_COMPILER_ID:AppleClang>:-fcolor-diagnostics>"
       "$<$<C_COMPILER_ID:GNU>:-fdiagnostics-color=always>"
     )
   add_compile_options(
-      "$<$<COMPILE_LANGUAGE:C>:${_COMPILER_FLAGS}>"
-      "$<$<COMPILE_LANGUAGE:CXX>:${_COMPILER_FLAGS}>"
+      "$<$<COMPILE_LANGUAGE:C>:${_C_FLAGS}>"
+      "$<$<COMPILE_LANGUAGE:CXX>:${_CXX_FLAGS}>"
     )
-  unset(_COMPILER_FLAGS)
+  unset(_C_FLAGS)
+  unset(_CXX_FLAGS)
 else()
   option(ZVEC_USE_STATIC_CRT "Use static CRT (/MT) instead of dynamic CRT (/MD), default=ON" ON)
 
@@ -467,6 +484,17 @@ set(
   )
 
 # C/C++ strict compile flags
+if(ENABLE_WERROR)
+  set(BAZEL_CC_WERROR_FLAGS
+      "$<$<CXX_COMPILER_ID:Clang>:-Werror>"
+      "$<$<CXX_COMPILER_ID:AppleClang>:-Werror>"
+      "$<$<CXX_COMPILER_ID:GNU>:-Werror>"
+      "$<$<CXX_COMPILER_ID:MSVC>:/WX>"
+    )
+else()
+  set(BAZEL_CC_WERROR_FLAGS "")
+endif()
+
 if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
   set(
       BAZEL_CC_STRICT_COMPILE_FLAGS
@@ -474,6 +502,7 @@ if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
       "$<$<CXX_COMPILER_ID:AppleClang>:-Wall;-Wextra;-Wshadow>"
       "$<$<CXX_COMPILER_ID:GNU>:-Wall;-Wextra;-Wshadow-local;-Wno-misleading-indentation>"
       "$<$<CXX_COMPILER_ID:MSVC>:/W4>"
+      ${BAZEL_CC_WERROR_FLAGS}
       ${BAZEL_CC_ASAN_COMPILE_FLAGS}
       ${BAZEL_CC_COVERAGE_COMPILE_FLAGS}
     )
@@ -484,6 +513,7 @@ else()
       "$<$<CXX_COMPILER_ID:AppleClang>:-Wall;-Wextra;-Wshadow>"
       "$<$<CXX_COMPILER_ID:GNU>:-Wall;-Wextra;-Wshadow;-Wno-misleading-indentation>"
       "$<$<CXX_COMPILER_ID:MSVC>:/W4>"
+      ${BAZEL_CC_WERROR_FLAGS}
       ${BAZEL_CC_ASAN_COMPILE_FLAGS}
       ${BAZEL_CC_COVERAGE_COMPILE_FLAGS}
     )
@@ -493,7 +523,6 @@ endif()
 # C/C++ strict link flags
 set(
     BAZEL_CC_STRICT_LINK_FLAGS
-    "$<$<CXX_COMPILER_ID:Clang>:${CLANG_STDLIB_OPTION}>"
     ${BAZEL_CC_ASAN_COMPILE_FLAGS}
     ${BAZEL_CC_COVERAGE_COMPILE_FLAGS}
   )
@@ -512,7 +541,6 @@ set(
 # C/C++ unstrict link flags
 set(
     BAZEL_CC_UNSTRICT_LINK_FLAGS
-    "$<$<CXX_COMPILER_ID:Clang>:${CLANG_STDLIB_OPTION}>"
     ${BAZEL_CC_ASAN_COMPILE_FLAGS}
     ${BAZEL_CC_COVERAGE_COMPILE_FLAGS}
   )
@@ -615,11 +643,16 @@ function(_targets_link_dependencies _NAME)
           APPEND LIBS_INCS
           "$<TARGET_PROPERTY:${LIB},INTERFACE_INCLUDE_DIRECTORIES>"
         )
+      list(
+          APPEND LIBS_SYSTEM_INCS
+          "$<TARGET_PROPERTY:${LIB},INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>"
+        )
     endif()
   endforeach()
 
   if(LIBS_DEPS)
     add_dependencies(${_NAME} ${LIBS_DEPS})
+    target_include_directories(${_NAME} SYSTEM PRIVATE "${LIBS_SYSTEM_INCS}")
     target_include_directories(${_NAME} PRIVATE "${LIBS_INCS}")
   endif()
 endfunction()
@@ -1110,16 +1143,18 @@ function(cc_test)
       "${CC_ARGS_UNPARSED_ARGUMENTS}"
     )
   add_dependencies(unittest ${CC_ARGS_NAME})
+  set(TEST_WORKING_DIR "${CMAKE_BINARY_DIR}/test_tmp/${CC_ARGS_NAME}")
+  file(MAKE_DIRECTORY "${TEST_WORKING_DIR}")
   add_custom_target(
       unittest.${CC_ARGS_NAME}
       COMMAND $<TARGET_FILE:${CC_ARGS_NAME}> "${CC_ARGS_ARGS}"
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+      WORKING_DIRECTORY ${TEST_WORKING_DIR}
       DEPENDS ${CC_ARGS_NAME}
     )
   add_test(
       NAME ${CC_ARGS_NAME}
       COMMAND $<TARGET_FILE:${CC_ARGS_NAME}> "${CC_ARGS_ARGS}"
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+      WORKING_DIRECTORY ${TEST_WORKING_DIR}
     )
 endfunction()
 
@@ -1925,16 +1960,18 @@ function(cuda_test)
       "${CUDA_ARGS_UNPARSED_ARGUMENTS}"
     )
   add_dependencies(unittest ${CUDA_ARGS_NAME})
+  set(TEST_WORKING_DIR "${CMAKE_BINARY_DIR}/test_tmp/${CUDA_ARGS_NAME}")
+  file(MAKE_DIRECTORY "${TEST_WORKING_DIR}")
   add_custom_target(
       unittest.${CUDA_ARGS_NAME}
       COMMAND $<TARGET_FILE:${CUDA_ARGS_NAME}> "${CUDA_ARGS_ARGS}"
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+      WORKING_DIRECTORY ${TEST_WORKING_DIR}
       DEPENDS ${CUDA_ARGS_NAME}
     )
   add_test(
       NAME ${CUDA_ARGS_NAME}
       COMMAND $<TARGET_FILE:${CUDA_ARGS_NAME}> "${CUDA_ARGS_ARGS}"
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+      WORKING_DIRECTORY ${TEST_WORKING_DIR}
     )
 endfunction()
 

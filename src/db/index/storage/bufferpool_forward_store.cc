@@ -21,7 +21,6 @@
 #include <arrow/result.h>
 #include <arrow/status.h>
 #include <parquet/arrow/reader.h>
-#include <zvec/ailego/buffer/buffer_manager.h>
 #include <zvec/ailego/buffer/parquet_hash_table.h>
 #include <zvec/ailego/logger/logger.h>
 #include "db/index/storage/store_helper.h"
@@ -189,7 +188,6 @@ TablePtr BufferPoolForwardStore::fetch(const std::vector<std::string> &columns,
   std::vector<std::vector<std::pair<int, std::shared_ptr<arrow::Scalar>>>>
       sorted_scalars(col_indices.size());
 
-  auto &buf_mgr = ailego::BufferManager::Instance();
   for (const auto &[rg_id, pairs] : rg_to_local) {
     for (size_t i = 0; i < col_indices.size(); ++i) {
       int col_idx = col_indices[i];
@@ -317,7 +315,6 @@ ExecBatchPtr BufferPoolForwardStore::fetch(
   int64_t offset = GetRowGroupOffset(rg_id);
 
   std::vector<arrow::Datum> scalars;
-  auto &buf_mgr = ailego::BufferManager::Instance();
   for (size_t i = 0; i < col_indices.size(); ++i) {
     int col_idx = col_indices[i];
     auto buffer_id = ailego::ParquetBufferID(file_path_, col_idx, rg_id);

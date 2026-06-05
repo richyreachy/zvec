@@ -14,11 +14,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/db/type.h>
 #include "proto/zvec.pb.h"
 
 namespace zvec {
+
+//! Sort sparse (indices, values) pairs in place by index ascending and report
+//! whether any duplicate index exists. value_byte_size is the per-value stride.
+bool sort_and_find_duplicates(uint32_t *indices, char *values, size_t n,
+                              size_t value_byte_size);
 
 //! Index Type Codebook
 struct IndexTypeCodeBook {
@@ -37,6 +44,10 @@ struct IndexTypeCodeBook {
         return IndexType::VAMANA;
       case proto::IT_INVERT:
         return IndexType::INVERT;
+      case proto::IT_DISKANN:
+        return IndexType::DISKANN;
+      case proto::IT_FTS:
+        return IndexType::FTS;
       default:
         break;
     }
@@ -58,6 +69,10 @@ struct IndexTypeCodeBook {
         return proto::IT_VAMANA;
       case IndexType::INVERT:
         return proto::IT_INVERT;
+      case IndexType::DISKANN:
+        return proto::IT_DISKANN;
+      case IndexType::FTS:
+        return proto::IT_FTS;
       default:
         break;
     }
@@ -75,10 +90,14 @@ struct IndexTypeCodeBook {
         return "FLAT";
       case IndexType::IVF:
         return "IVF";
+      case IndexType::DISKANN:
+        return "DISKANN";
       case IndexType::VAMANA:
         return "VAMANA";
       case IndexType::INVERT:
         return "INVERT";
+      case IndexType::FTS:
+        return "FTS";
       default:
         break;
     }
@@ -490,6 +509,9 @@ struct BlockTypeCodeBook {
       case proto::BlockType::BT_VECTOR_INDEX_QUANTIZE:
         block_types = BlockType::VECTOR_INDEX_QUANTIZE;
         break;
+      case proto::BlockType::BT_FTS_INDEX:
+        block_types = BlockType::FTS_INDEX;
+        break;
       default:
         break;
     }
@@ -511,6 +533,9 @@ struct BlockTypeCodeBook {
       case BlockType::VECTOR_INDEX_QUANTIZE:
         block_types = proto::BlockType::BT_VECTOR_INDEX_QUANTIZE;
         break;
+      case BlockType::FTS_INDEX:
+        block_types = proto::BlockType::BT_FTS_INDEX;
+        break;
       default:
         break;
     }
@@ -528,6 +553,8 @@ struct BlockTypeCodeBook {
         return "VECTOR_INDEX";
       case BlockType::VECTOR_INDEX_QUANTIZE:
         return "VECTOR_INDEX_QUANTIZE";
+      case BlockType::FTS_INDEX:
+        return "FTS_INDEX";
       default:
         return "UNDEFINED";
     }
