@@ -33,6 +33,9 @@ option(ENABLE_ARMV8.6A "Enable ARMv8.6-a architecture" OFF)
 ## OpenMP option
 option(ENABLE_OPENMP "Enable OpenMP support" OFF)
 
+## DiskAnn index support (requires libaio-dev at compile time on Linux)
+option(ENABLE_DISKANN "Enable DiskAnn index support (requires libaio-dev)" ON)
+
 ## Treat warnings as errors (for CI)
 option(ENABLE_WERROR "Treat compiler warnings as errors in strict targets" OFF)
 
