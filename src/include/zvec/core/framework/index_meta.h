@@ -78,6 +78,7 @@ class IndexMeta {
         dimension_(rhs.dimension_),
         unit_size_(rhs.unit_size_),
         element_size_(rhs.element_size_),
+        extra_meta_size_(rhs.extra_meta_size_),
         space_id_(rhs.space_id_),
         metric_revision_(rhs.metric_revision_),
         converter_revision_(rhs.converter_revision_),
@@ -103,7 +104,6 @@ class IndexMeta {
         reducer_params_(rhs.reducer_params_),
         searcher_params_(rhs.searcher_params_),
         streamer_params_(rhs.streamer_params_),
-        extra_meta_size_(rhs.extra_meta_size_),
         attributes_(rhs.attributes_) {}
 
   //! Constructor
@@ -114,6 +114,7 @@ class IndexMeta {
         dimension_(rhs.dimension_),
         unit_size_(rhs.unit_size_),
         element_size_(rhs.element_size_),
+        extra_meta_size_(rhs.extra_meta_size_),
         space_id_(rhs.space_id_),
         metric_revision_(rhs.metric_revision_),
         converter_revision_(rhs.converter_revision_),
@@ -139,7 +140,6 @@ class IndexMeta {
         reducer_params_(std::move(rhs.reducer_params_)),
         searcher_params_(std::move(rhs.searcher_params_)),
         streamer_params_(std::move(rhs.streamer_params_)),
-        extra_meta_size_(rhs.extra_meta_size_),
         attributes_(std::move(rhs.attributes_)) {}
 
   //! Assignment
