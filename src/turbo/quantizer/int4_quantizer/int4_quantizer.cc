@@ -62,6 +62,14 @@ int Int4Quantizer::init(const core::IndexMeta &meta,
 
   meta_.set_extra_meta_size(extra_meta_size_);
 
+  // Cache the distance dispatch for the new Quantizer interface.
+  dp_query_func_ =
+      get_distance_func(metric_from_name(metric_name), DataType::kInt4,
+                        QuantizeType::kInt4, CpuArchType::kAuto);
+  dp_query_batch_func_ =
+      get_batch_distance_func(metric_from_name(metric_name), DataType::kInt4,
+                              QuantizeType::kInt4, CpuArchType::kAuto);
+
   LOG_DEBUG("Init integer reformer, bias %f, scale %f", bias_, scale_);
   return 0;
 }
@@ -139,13 +147,19 @@ int Int4Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
     }
   }
   out->resize(total_size, 0);
-  const float *vec = reinterpret_cast<const float *>(record);
-  auto ovec = reinterpret_cast<uint8_t *>(&(*out)[0]);
+  quantize_one(record, &(*out)[0]);
+
+  return 0;
+}
+
+void Int4Quantizer::quantize_one(const void *input, void *output) const {
+  const float *vec = reinterpret_cast<const float *>(input);
+  auto ovec = reinterpret_cast<uint8_t *>(output);
+  size_t dim = original_dim_;
 
   if (!inner_product_) {
-    quantizer_.encode(vec, qmeta.dimension(), ovec);
+    quantizer_.encode(vec, dim, ovec);
   } else {
-    size_t dim = qmeta.dimension();
     const float *quantize_input = vec;
 
     float abs_max = 0.0f;
@@ -181,8 +195,6 @@ int Int4Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
     extras[3] = squared_sum;     // squared sum
     reinterpret_cast<int *>(extras)[4] = int_sum;  // int_sum placeholder
   }
-
-  return 0;
 }
 
 int Int4Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
@@ -249,6 +261,83 @@ DistanceImpl Int4Quantizer::distance(const void *query,
 
   return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
                       ometa.dimension());
+}
+
+void Int4Quantizer::train(const void *data, size_t num, size_t stride) {
+  ailego::ElapsedTime timer;
+
+  std::vector<float> features;
+  features.reserve(num * original_dim_);
+  float max = -std::numeric_limits<float>::max();
+  float min = std::numeric_limits<float>::max();
+  const char *base = reinterpret_cast<const char *>(data);
+  for (size_t n = 0; n < num; ++n) {
+    const float *vec = reinterpret_cast<const float *>(base + n * stride);
+    for (size_t i = 0; i < original_dim_; ++i) {
+      max = std::max(max, vec[i]);
+      min = std::min(min, vec[i]);
+      features.emplace_back(vec[i]);
+    }
+  }
+  quantizer_.set_max(max);
+  quantizer_.set_min(min);
+
+  for (size_t i = 0; i < features.size(); i += original_dim_) {
+    quantizer_.feed(&features[i], original_dim_);
+  }
+
+  if (!quantizer_.train()) {
+    LOG_ERROR("Quantizer train failed");
+    return;
+  }
+
+  bias_ = quantizer_.bias();
+  scale_ = quantizer_.scale();
+
+  LOG_DEBUG("Int4Quantizer train done, costtime %zums, scale %f, bias %f",
+            (size_t)timer.milli_seconds(), scale_, bias_);
+}
+
+float Int4Quantizer::calc_distance_dp_query(const void *dp,
+                                            const void *query) const {
+  float d = 0.0f;
+  if (dp_query_func_) {
+    dp_query_func_(dp, query, original_dim_, &d);
+  }
+  return d;
+}
+
+void Int4Quantizer::calc_distance_dp_query_batch(const void *const *dp_list,
+                                                 int dp_num, const void *query,
+                                                 float *dist_list) const {
+  if (dp_query_batch_func_) {
+    dp_query_batch_func_(const_cast<const void **>(dp_list), query,
+                         static_cast<size_t>(dp_num), original_dim_, dist_list);
+    return;
+  }
+  for (int i = 0; i < dp_num; ++i) {
+    dist_list[i] = calc_distance_dp_query(dp_list[i], query);
+  }
+}
+
+float Int4Quantizer::calc_distance_dp_query_unquantized(
+    const void *dp, const void *query) const {
+  std::string buf(quantized_length(), '\0');
+  quantize_one(query, &buf[0]);
+  return calc_distance_dp_query(dp, buf.data());
+}
+
+void Int4Quantizer::calc_distance_dp_query_batch_unquantized(
+    const void *const *dp_list, int dp_num, const void *query,
+    float *dist_list) const {
+  std::string buf(quantized_length(), '\0');
+  quantize_one(query, &buf[0]);
+  calc_distance_dp_query_batch(dp_list, dp_num, buf.data(), dist_list);
+}
+
+float Int4Quantizer::calc_distance_dp_dp(const void *dp1,
+                                         const void *dp2) const {
+  return calc_distance_dp_query(dp1, dp2);
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(Int4Quantizer);

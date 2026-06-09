@@ -82,6 +82,16 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
     meta_.set_metric("QuantizedInteger", 0, metric_params);
   }
 
+  // Cache the distance dispatch for the new Quantizer interface. For the
+  // record-quantize paths the wrapped meta_ metric is "QuantizedInteger";
+  // we keep the original metric for the turbo dispatch.
+  dist_metric_ =
+      record_quantize_ ? origin_metric_ : metric_from_name(metric_name);
+  dp_query_func_ = get_distance_func(dist_metric_, DataType::kInt8,
+                                     QuantizeType::kInt8, CpuArchType::kAuto);
+  dp_query_batch_func_ = get_batch_distance_func(
+      dist_metric_, DataType::kInt8, QuantizeType::kInt8, CpuArchType::kAuto);
+
   LOG_DEBUG("Init integer reformer, bias %f, scale %f", bias_, scale_);
   return 0;
 }
@@ -136,6 +146,41 @@ int Int8Quantizer::train(core::IndexHolder::Pointer holder) {
   return 0;
 }
 
+void Int8Quantizer::train(const void *data, size_t num, size_t stride) {
+  ailego::ElapsedTime timer;
+
+  std::vector<float> features;
+  features.reserve(num * original_dim_);
+  float max = -std::numeric_limits<float>::max();
+  float min = std::numeric_limits<float>::max();
+  const char *base = reinterpret_cast<const char *>(data);
+  for (size_t n = 0; n < num; ++n) {
+    const float *vec = reinterpret_cast<const float *>(base + n * stride);
+    for (size_t i = 0; i < original_dim_; ++i) {
+      max = std::max(max, vec[i]);
+      min = std::min(min, vec[i]);
+      features.emplace_back(vec[i]);
+    }
+  }
+  quantizer_.set_max(max);
+  quantizer_.set_min(min);
+
+  for (size_t i = 0; i < features.size(); i += original_dim_) {
+    quantizer_.feed(&features[i], original_dim_);
+  }
+
+  if (!quantizer_.train()) {
+    LOG_ERROR("Quantizer train failed");
+    return;
+  }
+
+  bias_ = quantizer_.bias();
+  scale_ = quantizer_.scale();
+
+  LOG_DEBUG("Int8Quantizer train done, costtime %zums, scale %f, bias %f",
+            (size_t)timer.milli_seconds(), scale_, bias_);
+}
+
 int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
                             std::string *out, IndexQueryMeta *ometa) const {
   IndexMeta::DataType ft = qmeta.data_type();
@@ -152,19 +197,24 @@ int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
   // output meta must use the same inflated dimension as quantizer->meta().
   ometa->set_meta(data_type_, qmeta.dimension() + extra_meta_size_);
   out->resize(ometa->element_size(), 0);
-  const float *vec = reinterpret_cast<const float *>(record);
-  auto ovec = reinterpret_cast<int8_t *>(&(*out)[0]);
+  quantize_one(record, &(*out)[0]);
+
+  return 0;
+}
+
+void Int8Quantizer::quantize_one(const void *input, void *output) const {
+  const float *vec = reinterpret_cast<const float *>(input);
+  auto ovec = reinterpret_cast<int8_t *>(output);
+  size_t dim = original_dim_;
 
   if (record_quantize_) {
     // Per-vector quantization with RecordQuantizer layout (matches turbo SE
     // INT8 distance metadata format: [int8 data][qa][qb][qs][qs2][int8_sum]).
-    core::RecordQuantizer::quantize_record(vec, qmeta.dimension(),
-                                           core::IndexMeta::DataType::DT_INT8,
-                                           false, ovec);
+    core::RecordQuantizer::quantize_record(
+        vec, dim, core::IndexMeta::DataType::DT_INT8, false, ovec);
   } else if (!inner_product_) {
-    quantizer_.encode(vec, qmeta.dimension(), ovec);
+    quantizer_.encode(vec, dim, ovec);
   } else {
-    size_t dim = qmeta.dimension();
     const float *quantize_input = vec;
 
     float abs_max = 0.0f;
@@ -193,8 +243,6 @@ int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
     extras[3] = squared_sum;       // squared sum
     reinterpret_cast<int32_t *>(extras + 4)[0] = int8_sum;
   }
-
-  return 0;
 }
 
 int Int8Quantizer::dequantize(const void *in, const IndexQueryMeta & /*qmeta*/,
@@ -257,21 +305,59 @@ DistanceImpl Int8Quantizer::distance(const void *query,
     return DistanceImpl{};
   }
 
-  // For record-quantize paths the wrapped meta_ metric is
-  // "QuantizedInteger"; we need the original metric for the turbo dispatch.
-  auto metric =
-      record_quantize_ ? origin_metric_ : metric_from_name(meta_.metric_name());
-  auto func = get_distance_func(metric, DataType::kInt8, QuantizeType::kInt8,
-                                CpuArchType::kAuto);
+  auto func = get_distance_func(dist_metric_, DataType::kInt8,
+                                QuantizeType::kInt8, CpuArchType::kAuto);
   if (!func) {
     return DistanceImpl{};
   }
   auto batch_func = get_batch_distance_func(
-      metric, DataType::kInt8, QuantizeType::kInt8, CpuArchType::kAuto);
+      dist_metric_, DataType::kInt8, QuantizeType::kInt8, CpuArchType::kAuto);
 
   // Pass the raw (non-inflated) dimension to the distance implementation.
   return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
                       qmeta.dimension());
+}
+
+float Int8Quantizer::calc_distance_dp_query(const void *dp,
+                                            const void *query) const {
+  float d = 0.0f;
+  if (dp_query_func_) {
+    dp_query_func_(dp, query, original_dim_, &d);
+  }
+  return d;
+}
+
+void Int8Quantizer::calc_distance_dp_query_batch(const void *const *dp_list,
+                                                 int dp_num, const void *query,
+                                                 float *dist_list) const {
+  if (dp_query_batch_func_) {
+    dp_query_batch_func_(const_cast<const void **>(dp_list), query,
+                         static_cast<size_t>(dp_num), original_dim_, dist_list);
+    return;
+  }
+  for (int i = 0; i < dp_num; ++i) {
+    dist_list[i] = calc_distance_dp_query(dp_list[i], query);
+  }
+}
+
+float Int8Quantizer::calc_distance_dp_query_unquantized(
+    const void *dp, const void *query) const {
+  std::string buf(quantized_length(), '\0');
+  quantize_one(query, &buf[0]);
+  return calc_distance_dp_query(dp, buf.data());
+}
+
+void Int8Quantizer::calc_distance_dp_query_batch_unquantized(
+    const void *const *dp_list, int dp_num, const void *query,
+    float *dist_list) const {
+  std::string buf(quantized_length(), '\0');
+  quantize_one(query, &buf[0]);
+  calc_distance_dp_query_batch(dp_list, dp_num, buf.data(), dist_list);
+}
+
+float Int8Quantizer::calc_distance_dp_dp(const void *dp1,
+                                         const void *dp2) const {
+  return calc_distance_dp_query(dp1, dp2);
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(Int8Quantizer);

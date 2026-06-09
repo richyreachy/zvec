@@ -3573,7 +3573,6 @@ TEST_F(HnswStreamerTest, TestAddAndSearchWithID) {
   // EXPECT_GT(cost, 2.0f);
 }
 
-<<<<<<< HEAD
 TEST_F(HnswStreamerTest, TestTurboCosineRecordInt8Quantizer) {
   IndexStreamer::Pointer streamer =
       IndexFactory::CreateStreamer("HnswStreamer");
@@ -3963,8 +3962,6 @@ TEST_F(HnswStreamerTest, TestTurboSquaredEuclideanInt8Quantizer) {
 }
 
 
-=======
->>>>>>> main
 TEST_F(HnswStreamerTest, TestContiguousMemorySearch) {
   // Build index with mmap mode
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");

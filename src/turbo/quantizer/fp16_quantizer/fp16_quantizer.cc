@@ -36,6 +36,20 @@ int Fp16Quantizer::init(const IndexMeta &meta,
     meta_.set_extra_meta_size(extra_meta_size_);
   }
 
+  if (meta.extra_meta_size() > 0) {
+    original_dim_ = meta.dimension() - meta.extra_meta_size() / sizeof(float);
+  } else {
+    original_dim_ = meta.dimension();
+  }
+
+  // Cache the distance dispatch for the new Quantizer interface.
+  dp_query_func_ =
+      get_distance_func(metric_from_name(metric_name), DataType::kFp16,
+                        QuantizeType::kFp16, CpuArchType::kAuto);
+  dp_query_batch_func_ =
+      get_batch_distance_func(metric_from_name(metric_name), DataType::kFp16,
+                              QuantizeType::kFp16, CpuArchType::kAuto);
+
   return 0;
 }
 
@@ -91,6 +105,54 @@ DistanceImpl Fp16Quantizer::distance(const void *query,
 
   return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
                       ometa.dimension());
+}
+
+void Fp16Quantizer::quantize_one(const void *input, void *output) const {
+  ailego::FloatHelper::ToFP16(reinterpret_cast<const float *>(input),
+                              original_dim_,
+                              reinterpret_cast<uint16_t *>(output));
+}
+
+float Fp16Quantizer::calc_distance_dp_query(const void *dp,
+                                            const void *query) const {
+  float d = 0.0f;
+  if (dp_query_func_) {
+    dp_query_func_(dp, query, original_dim_, &d);
+  }
+  return d;
+}
+
+void Fp16Quantizer::calc_distance_dp_query_batch(const void *const *dp_list,
+                                                 int dp_num, const void *query,
+                                                 float *dist_list) const {
+  if (dp_query_batch_func_) {
+    dp_query_batch_func_(const_cast<const void **>(dp_list), query,
+                         static_cast<size_t>(dp_num), original_dim_, dist_list);
+    return;
+  }
+  for (int i = 0; i < dp_num; ++i) {
+    dist_list[i] = calc_distance_dp_query(dp_list[i], query);
+  }
+}
+
+float Fp16Quantizer::calc_distance_dp_query_unquantized(
+    const void *dp, const void *query) const {
+  std::string buf(quantized_length(), '\0');
+  quantize_one(query, &buf[0]);
+  return calc_distance_dp_query(dp, buf.data());
+}
+
+void Fp16Quantizer::calc_distance_dp_query_batch_unquantized(
+    const void *const *dp_list, int dp_num, const void *query,
+    float *dist_list) const {
+  std::string buf(quantized_length(), '\0');
+  quantize_one(query, &buf[0]);
+  calc_distance_dp_query_batch(dp_list, dp_num, buf.data(), dist_list);
+}
+
+float Fp16Quantizer::calc_distance_dp_dp(const void *dp1,
+                                         const void *dp2) const {
+  return calc_distance_dp_query(dp1, dp2);
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(Fp16Quantizer);

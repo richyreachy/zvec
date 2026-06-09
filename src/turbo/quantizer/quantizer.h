@@ -35,6 +35,57 @@ class Quantizer {
   Quantizer() {}
   virtual ~Quantizer() {}
 
+  //! Input data type accepted by the quantizer
+  virtual DataType input_data_type() const = 0;
+
+  //! Dimensionality of the input vectors
+  virtual int dim() const = 0;
+
+  //! Train the quantizer with a contiguous batch of data
+  virtual void train(const void *data, size_t num, size_t stride) {
+    (void)data;
+    (void)num;
+    (void)stride;
+  }
+
+  //! Whether the quantizer requires training before use
+  virtual bool require_train() const = 0;
+
+  //! Byte length of a quantized datapoint vector
+  virtual size_t quantized_datapoint_vector_length() const = 0;
+
+  //! Byte length of a quantized query vector
+  virtual size_t quantized_query_vector_length() const = 0;
+
+  //! Quantize a datapoint vector
+  virtual void quantize_data(const void *input, void *output) const = 0;
+
+  //! Quantize a query vector
+  virtual void quantize_query(const void *input, void *output) const = 0;
+
+  //! Distance between a quantized datapoint and a quantized query
+  virtual float calc_distance_dp_query(const void *dp,
+                                       const void *query) const = 0;
+
+  //! Batched distance between quantized datapoints and a quantized query
+  virtual void calc_distance_dp_query_batch(const void *const *dp_list,
+                                            int dp_num, const void *query,
+                                            float *dist_list) const = 0;
+
+  //! Distance between a quantized datapoint and an unquantized query
+  virtual float calc_distance_dp_query_unquantized(const void *dp,
+                                                   const void *query) const = 0;
+
+  //! Batched distance between quantized datapoints and an unquantized query
+  virtual void calc_distance_dp_query_batch_unquantized(
+      const void *const *dp_list, int dp_num, const void *query,
+      float *dist_list) const = 0;
+
+  //! Distance between two quantized datapoints
+  virtual float calc_distance_dp_dp(const void *dp1, const void *dp2) const = 0;
+
+  // ---- Legacy interface (retained for configuration and existing callers)
+  // ----
   virtual QuantizeType type() const {
     return type_;
   }
@@ -63,12 +114,12 @@ class Quantizer {
     return IndexError_NotImplemented;
   }
 
-  //! Dequantize a result vector back to original format
+  //! Serialize quantizer parameters
   virtual int serialize(std::string * /*out*/) const {
     return IndexError_NotImplemented;
   }
 
-  //! Deserialize
+  //! Deserialize quantizer parameters
   virtual int deserialize(std::string & /*in*/) {
     return IndexError_NotImplemented;
   }

@@ -36,6 +36,54 @@ class Int4Quantizer : public Quantizer {
   virtual ~Int4Quantizer() {}
 
  public:
+  // ---- New Quantizer interface ----
+  DataType input_data_type() const override {
+    return DataType::kFp32;
+  }
+
+  int dim() const override {
+    return static_cast<int>(original_dim_);
+  }
+
+  void train(const void *data, size_t num, size_t stride) override;
+
+  bool require_train() const override {
+    return true;
+  }
+
+  size_t quantized_datapoint_vector_length() const override {
+    return quantized_length();
+  }
+
+  size_t quantized_query_vector_length() const override {
+    return quantized_length();
+  }
+
+  void quantize_data(const void *input, void *output) const override {
+    quantize_one(input, output);
+  }
+
+  void quantize_query(const void *input, void *output) const override {
+    quantize_one(input, output);
+  }
+
+  float calc_distance_dp_query(const void *dp,
+                               const void *query) const override;
+
+  void calc_distance_dp_query_batch(const void *const *dp_list, int dp_num,
+                                    const void *query,
+                                    float *dist_list) const override;
+
+  float calc_distance_dp_query_unquantized(const void *dp,
+                                           const void *query) const override;
+
+  void calc_distance_dp_query_batch_unquantized(
+      const void *const *dp_list, int dp_num, const void *query,
+      float *dist_list) const override;
+
+  float calc_distance_dp_dp(const void *dp1, const void *dp2) const override;
+
+  // ---- Legacy interface ----
   QuantizeType type() const override {
     return type_;
   }
@@ -69,6 +117,22 @@ class Int4Quantizer : public Quantizer {
   }
 
  private:
+  //! Byte length of a quantized vector (packed int4 data + per-vector extras).
+  size_t quantized_length() const {
+    size_t s = static_cast<size_t>(original_dim_) / 2;
+    if (inner_product_) {
+      s += EXTRA_META_SIZE_INT4;
+      if (cosine_) {
+        s += EXTRA_META_SIZE_COSINE;
+      }
+    }
+    return s;
+  }
+
+  //! Quantize a single fp32 vector into a caller-provided buffer of
+  //! quantized_length() bytes (caller must zero the buffer first).
+  void quantize_one(const void *input, void *output) const;
+
   static constexpr uint32_t EXTRA_META_SIZE_INT4 = 20;
   static constexpr uint32_t EXTRA_META_SIZE_COSINE = 4;
   const std::string INT4_QUANTIZER_BIAS = "int4_quantizer.bias";
@@ -84,6 +148,10 @@ class Int4Quantizer : public Quantizer {
   IndexMeta meta_{};
   uint32_t original_dim_{0};
   IndexMeta::DataType data_type_{};
+
+  //! Cached distance dispatch (bound in init()).
+  DistanceFunc dp_query_func_{};
+  BatchDistanceFunc dp_query_batch_func_{};
 };
 
 

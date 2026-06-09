@@ -138,7 +138,6 @@ struct IndexMetric : public IndexModule {
     return nullptr;
   }
 
- protected:
   //! Distance offset applied during graph build to make the internal distance
   //! non-negative for ratio-based pruning (e.g. Vamana RobustPrune's
   //! occlude_factor = d(q,c) / d(p,c)). Metrics whose internal distance is a
@@ -152,6 +151,7 @@ struct IndexMetric : public IndexModule {
     return 0.0f;
   }
 
+ protected:
   int quantize_type_{0};
 };
 

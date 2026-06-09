@@ -61,6 +61,14 @@ int RecordInt4Quantizer::init(const core::IndexMeta &meta,
                     meta.metric_params());
   meta_.set_metric("QuantizedInteger", 0, metric_params);
 
+  // Cache the distance dispatch for the new Quantizer interface.
+  dp_query_func_ =
+      get_distance_func(origin_metric_, DataType::kInt4,
+                        QuantizeType::kRecordInt4, CpuArchType::kAuto);
+  dp_query_batch_func_ =
+      get_batch_distance_func(origin_metric_, DataType::kInt4,
+                              QuantizeType::kRecordInt4, CpuArchType::kAuto);
+
   return 0;
 }
 
@@ -68,6 +76,16 @@ int RecordInt4Quantizer::quantize(const void *record,
                                   const core::IndexQueryMeta & /*rmeta*/,
                                   std::string *out,
                                   core::IndexQueryMeta *ometa) const {
+  out->resize(quantized_length(), 0);
+  quantize_one(record, &(*out)[0]);
+
+  *ometa = core::IndexQueryMeta();
+  ometa->set_meta(core::IndexMeta::DataType::DT_INT4, meta_.dimension(),
+                  static_cast<uint32_t>(type_), extra_meta_size_);
+  return 0;
+}
+
+void RecordInt4Quantizer::quantize_one(const void *record, void *output) const {
   const float *src = reinterpret_cast<const float *>(record);
   const float *quantize_input = src;
   float norm = 1.0f;
@@ -93,22 +111,16 @@ int RecordInt4Quantizer::quantize(const void *record,
 
   // INT4 packed size: original_dim_/2 bytes for data, plus extras
   size_t packed_size = original_dim_ / 2;
-  size_t total_size = packed_size + EXTRA_META_SIZE_INT4;
-  if (cosine_) {
-    total_size += EXTRA_META_SIZE_COSINE;
-  }
-  out->resize(total_size, 0);
 
-  bool is_euclidean = !cosine_ && (meta_.metric_name() == "QuantizedInteger");
-  // Check original metric for euclidean
   core::RecordQuantizer::quantize_record(quantize_input, original_dim_,
                                          core::IndexMeta::DataType::DT_INT4,
-                                         euclidean_, &(*out)[0]);
+                                         euclidean_, output);
 
   if (cosine_) {
+    char *base = reinterpret_cast<char *>(output);
     // Read back the quantized extras
-    const uint8_t *packed = reinterpret_cast<const uint8_t *>(out->data());
-    float *extras = reinterpret_cast<float *>(&(*out)[packed_size]);
+    const uint8_t *packed = reinterpret_cast<const uint8_t *>(output);
+    float *extras = reinterpret_cast<float *>(base + packed_size);
     float qa = extras[0];
     float qb = extras[1];
 
@@ -128,14 +140,9 @@ int RecordInt4Quantizer::quantize(const void *record,
       norm *= dequant_norm;
     }
 
-    std::memcpy(&(*out)[packed_size + EXTRA_META_SIZE_INT4], &norm,
+    std::memcpy(base + packed_size + EXTRA_META_SIZE_INT4, &norm,
                 sizeof(float));
   }
-
-  *ometa = core::IndexQueryMeta();
-  ometa->set_meta(core::IndexMeta::DataType::DT_INT4, meta_.dimension(),
-                  static_cast<uint32_t>(type_), extra_meta_size_);
-  return 0;
 }
 
 int RecordInt4Quantizer::dequantize(const void *in,
@@ -181,6 +188,48 @@ DistanceImpl RecordInt4Quantizer::distance(
 
   return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
                       ometa.dimension());
+}
+
+float RecordInt4Quantizer::calc_distance_dp_query(const void *dp,
+                                                  const void *query) const {
+  float d = 0.0f;
+  if (dp_query_func_) {
+    dp_query_func_(dp, query, original_dim_, &d);
+  }
+  return d;
+}
+
+void RecordInt4Quantizer::calc_distance_dp_query_batch(
+    const void *const *dp_list, int dp_num, const void *query,
+    float *dist_list) const {
+  if (dp_query_batch_func_) {
+    dp_query_batch_func_(const_cast<const void **>(dp_list), query,
+                         static_cast<size_t>(dp_num), original_dim_, dist_list);
+    return;
+  }
+  for (int i = 0; i < dp_num; ++i) {
+    dist_list[i] = calc_distance_dp_query(dp_list[i], query);
+  }
+}
+
+float RecordInt4Quantizer::calc_distance_dp_query_unquantized(
+    const void *dp, const void *query) const {
+  std::string buf(quantized_length(), '\0');
+  quantize_one(query, &buf[0]);
+  return calc_distance_dp_query(dp, buf.data());
+}
+
+void RecordInt4Quantizer::calc_distance_dp_query_batch_unquantized(
+    const void *const *dp_list, int dp_num, const void *query,
+    float *dist_list) const {
+  std::string buf(quantized_length(), '\0');
+  quantize_one(query, &buf[0]);
+  calc_distance_dp_query_batch(dp_list, dp_num, buf.data(), dist_list);
+}
+
+float RecordInt4Quantizer::calc_distance_dp_dp(const void *dp1,
+                                               const void *dp2) const {
+  return calc_distance_dp_query(dp1, dp2);
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(RecordInt4Quantizer);

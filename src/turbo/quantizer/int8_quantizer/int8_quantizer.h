@@ -35,30 +35,78 @@ class Int8Quantizer : public Quantizer {
   virtual ~Int8Quantizer() {}
 
  public:
-  QuantizeType type() const override {
+  // ---- New Quantizer interface ----
+  DataType input_data_type() const override {
+    return DataType::kFp32;
+  }
+
+  int dim() const override {
+    return static_cast<int>(original_dim_);
+  }
+
+  void train(const void *data, size_t num, size_t stride) override;
+
+  bool require_train() const override {
+    return true;
+  }
+
+  size_t quantized_datapoint_vector_length() const override {
+    return quantized_length();
+  }
+
+  size_t quantized_query_vector_length() const override {
+    return quantized_length();
+  }
+
+  void quantize_data(const void *input, void *output) const override {
+    quantize_one(input, output);
+  }
+
+  void quantize_query(const void *input, void *output) const override {
+    quantize_one(input, output);
+  }
+
+  float calc_distance_dp_query(const void *dp,
+                               const void *query) const override;
+
+  void calc_distance_dp_query_batch(const void *const *dp_list, int dp_num,
+                                    const void *query,
+                                    float *dist_list) const override;
+
+  float calc_distance_dp_query_unquantized(const void *dp,
+                                           const void *query) const override;
+
+  void calc_distance_dp_query_batch_unquantized(
+      const void *const *dp_list, int dp_num, const void *query,
+      float *dist_list) const override;
+
+  float calc_distance_dp_dp(const void *dp1, const void *dp2) const override;
+
+  // ---- Retained legacy helpers ----
+  QuantizeType type() const {
     return type_;
   }
 
-  int init(const core::IndexMeta &meta, const ailego::Params &params) override;
+  int init(const core::IndexMeta &meta, const ailego::Params &params);
 
-  int train(core::IndexHolder::Pointer holder) override;
+  int train(core::IndexHolder::Pointer holder);
 
-  const core::IndexMeta &meta(void) const override {
+  const core::IndexMeta &meta(void) const {
     return meta_;
   }
 
   int quantize(const void *query, const core::IndexQueryMeta &qmeta,
-               std::string *out, core::IndexQueryMeta *ometa) const override;
+               std::string *out, core::IndexQueryMeta *ometa) const;
 
   int dequantize(const void *in, const core::IndexQueryMeta &qmeta,
-                 std::string *out) const override;
+                 std::string *out) const;
 
-  int serialize(std::string *out) const override;
+  int serialize(std::string *out) const;
 
-  int deserialize(std::string &in) override;
+  int deserialize(std::string &in);
 
   DistanceImpl distance(const void *query,
-                        const core::IndexQueryMeta &qmeta) const override;
+                        const core::IndexQueryMeta &qmeta) const;
 
   float bias() const {
     return bias_;
@@ -68,6 +116,14 @@ class Int8Quantizer : public Quantizer {
   }
 
  private:
+  //! Byte length of a quantized vector (data + per-vector extras).
+  size_t quantized_length() const {
+    return static_cast<size_t>(original_dim_) + extra_meta_size_;
+  }
+
+  //! Quantize a single fp32 vector into a caller-provided buffer of
+  //! quantized_length() bytes.
+  void quantize_one(const void *input, void *output) const;
   static constexpr uint32_t EXTRA_META_SIZE_INT8 = 20;
   static constexpr uint32_t EXTRA_META_SIZE_COSINE = 4;
   const std::string INT8_QUANTIZER_BIAS = "int8_quantizer.bias";
@@ -85,6 +141,11 @@ class Int8Quantizer : public Quantizer {
   IndexMeta meta_{};
   uint32_t original_dim_{0};
   IndexMeta::DataType data_type_{};
+
+  //! Cached distance dispatch (bound in init()).
+  MetricType dist_metric_{MetricType::kUnknown};
+  DistanceFunc dp_query_func_{};
+  BatchDistanceFunc dp_query_batch_func_{};
 };
 
 

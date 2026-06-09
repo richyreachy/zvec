@@ -102,7 +102,7 @@ class SegmentHelperTest : public testing::Test {
   CompactResult RunCompactAndOpen(CollectionSchema::Ptr schema,
                                   std::vector<Segment::Ptr> segments,
                                   SegmentID output_segment_id,
-                                  IndexFilter::Ptr filter,
+                                  zvec::IndexFilter::Ptr filter,
                                   const VersionManager::Ptr &version_manager,
                                   int concurrency = 1) {
     const bool forward_use_parquet = false;

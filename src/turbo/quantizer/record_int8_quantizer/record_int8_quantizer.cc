@@ -58,6 +58,14 @@ int RecordInt8Quantizer::init(const core::IndexMeta &meta,
                     meta.metric_params());
   meta_.set_metric("QuantizedInteger", 0, metric_params);
 
+  // Cache the distance dispatch for the new Quantizer interface.
+  dp_query_func_ =
+      get_distance_func(origin_metric_, DataType::kInt8,
+                        QuantizeType::kRecordInt8, CpuArchType::kAuto);
+  dp_query_batch_func_ =
+      get_batch_distance_func(origin_metric_, DataType::kInt8,
+                              QuantizeType::kRecordInt8, CpuArchType::kAuto);
+
   return 0;
 }
 
@@ -65,6 +73,18 @@ int RecordInt8Quantizer::quantize(const void *record,
                                   const core::IndexQueryMeta & /*rmeta*/,
                                   std::string *out,
                                   core::IndexQueryMeta *ometa) const {
+  out->resize(quantized_length(), 0);
+  quantize_one(record, &(*out)[0]);
+
+  *ometa = core::IndexQueryMeta();
+  // Match meta_ dimension (data + extras) using 2-arg set_meta so that
+  // element_size() simply equals the inflated-dim byte count.
+  ometa->set_meta(core::IndexMeta::DataType::DT_INT8,
+                  original_dim_ + extra_meta_size_);
+  return 0;
+}
+
+void RecordInt8Quantizer::quantize_one(const void *record, void *output) const {
   const float *src = reinterpret_cast<const float *>(record);
   const float *quantize_input = src;
   float norm = 1.0f;
@@ -88,19 +108,14 @@ int RecordInt8Quantizer::quantize(const void *record,
     quantize_input = normalized.data();
   }
 
-  size_t packed_size = original_dim_;
-  size_t total_size = packed_size + EXTRA_META_SIZE_INT8;
-  if (cosine_) {
-    total_size += EXTRA_META_SIZE_COSINE;
-  }
-  out->resize(total_size, 0);
   core::RecordQuantizer::quantize_record(quantize_input, original_dim_,
                                          core::IndexMeta::DataType::DT_INT8,
-                                         false, &(*out)[0]);
+                                         false, output);
 
   if (cosine_) {
-    const int8_t *qvals = reinterpret_cast<const int8_t *>(out->data());
-    float *extras = reinterpret_cast<float *>(&(*out)[original_dim_]);
+    char *base = reinterpret_cast<char *>(output);
+    const int8_t *qvals = reinterpret_cast<const int8_t *>(output);
+    float *extras = reinterpret_cast<float *>(base + original_dim_);
     float qa = extras[0];
     float qb = extras[1];
     float dequant_norm_sq = 0.0f;
@@ -115,16 +130,9 @@ int RecordInt8Quantizer::quantize(const void *record,
       norm *= dequant_norm;
     }
 
-    std::memcpy(&(*out)[original_dim_ + EXTRA_META_SIZE_INT8], &norm,
+    std::memcpy(base + original_dim_ + EXTRA_META_SIZE_INT8, &norm,
                 sizeof(float));
   }
-
-  *ometa = core::IndexQueryMeta();
-  // Match meta_ dimension (data + extras) using 2-arg set_meta so that
-  // element_size() simply equals the inflated-dim byte count.
-  ometa->set_meta(core::IndexMeta::DataType::DT_INT8,
-                  original_dim_ + extra_meta_size_);
-  return 0;
 }
 
 int RecordInt8Quantizer::dequantize(const void *in,
@@ -170,6 +178,48 @@ DistanceImpl RecordInt8Quantizer::distance(
   // Pass the raw (non-inflated) dimension to the distance implementation.
   return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
                       qmeta.dimension());
+}
+
+float RecordInt8Quantizer::calc_distance_dp_query(const void *dp,
+                                                  const void *query) const {
+  float d = 0.0f;
+  if (dp_query_func_) {
+    dp_query_func_(dp, query, original_dim_, &d);
+  }
+  return d;
+}
+
+void RecordInt8Quantizer::calc_distance_dp_query_batch(
+    const void *const *dp_list, int dp_num, const void *query,
+    float *dist_list) const {
+  if (dp_query_batch_func_) {
+    dp_query_batch_func_(const_cast<const void **>(dp_list), query,
+                         static_cast<size_t>(dp_num), original_dim_, dist_list);
+    return;
+  }
+  for (int i = 0; i < dp_num; ++i) {
+    dist_list[i] = calc_distance_dp_query(dp_list[i], query);
+  }
+}
+
+float RecordInt8Quantizer::calc_distance_dp_query_unquantized(
+    const void *dp, const void *query) const {
+  std::string buf(quantized_length(), '\0');
+  quantize_one(query, &buf[0]);
+  return calc_distance_dp_query(dp, buf.data());
+}
+
+void RecordInt8Quantizer::calc_distance_dp_query_batch_unquantized(
+    const void *const *dp_list, int dp_num, const void *query,
+    float *dist_list) const {
+  std::string buf(quantized_length(), '\0');
+  quantize_one(query, &buf[0]);
+  calc_distance_dp_query_batch(dp_list, dp_num, buf.data(), dist_list);
+}
+
+float RecordInt8Quantizer::calc_distance_dp_dp(const void *dp1,
+                                               const void *dp2) const {
+  return calc_distance_dp_query(dp1, dp2);
 }
 
 INDEX_FACTORY_REGISTER_QUANTIZER(RecordInt8Quantizer);
