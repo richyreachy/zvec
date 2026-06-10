@@ -105,6 +105,8 @@ class Int8Quantizer : public Quantizer {
 
   int deserialize(std::string &in);
 
+  int deserialize(const void *data, size_t len);
+
   DistanceImpl distance(const void *query,
                         const core::IndexQueryMeta &qmeta) const;
 

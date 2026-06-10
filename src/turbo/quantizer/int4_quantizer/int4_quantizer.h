@@ -106,6 +106,8 @@ class Int4Quantizer : public Quantizer {
 
   int deserialize(std::string &in) override;
 
+  int deserialize(const void *data, size_t len) override;
+
   DistanceImpl distance(const void *query,
                         const IndexQueryMeta &qmeta) const override;
 

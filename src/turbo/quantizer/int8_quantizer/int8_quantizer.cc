@@ -278,18 +278,48 @@ int Int8Quantizer::serialize(std::string *out) const {
   if (!out) {
     return IndexError_InvalidArgument;
   }
-  out->resize(sizeof(float) * 2);
-  float *buf = reinterpret_cast<float *>(&(*out)[0]);
+  constexpr uint32_t kPayloadSize = sizeof(float) * 2;
+  out->resize(sizeof(QuantizerSerHeader) + kPayloadSize);
+
+  QuantizerSerHeader *header =
+      reinterpret_cast<QuantizerSerHeader *>(&(*out)[0]);
+  header->magic = kQuantizerMagic;
+  header->version = kQuantizerSerVersion;
+  header->quant_type = static_cast<uint16_t>(type_);
+  header->dim = original_dim_;
+  header->metric = static_cast<uint32_t>(dist_metric_);
+  header->payload_size = kPayloadSize;
+  header->reserved = 0;
+
+  float *buf = reinterpret_cast<float *>(&(*out)[sizeof(QuantizerSerHeader)]);
   buf[0] = quantizer_.bias();
   buf[1] = quantizer_.scale();
   return 0;
 }
 
 int Int8Quantizer::deserialize(std::string &in) {
-  if (in.size() < sizeof(float) * 2) {
+  return deserialize(in.data(), in.size());
+}
+
+int Int8Quantizer::deserialize(const void *data, size_t len) {
+  if (!data || len < sizeof(QuantizerSerHeader)) {
     return IndexError_InvalidArgument;
   }
-  const float *buf = reinterpret_cast<const float *>(in.data());
+  const QuantizerSerHeader *header =
+      reinterpret_cast<const QuantizerSerHeader *>(data);
+  if (header->magic != kQuantizerMagic ||
+      header->version != kQuantizerSerVersion ||
+      header->payload_size < sizeof(float) * 2 ||
+      len < sizeof(QuantizerSerHeader) + header->payload_size) {
+    return IndexError_InvalidArgument;
+  }
+  if (header->dim != original_dim_ ||
+      header->metric != static_cast<uint32_t>(dist_metric_)) {
+    return IndexError_InvalidArgument;
+  }
+
+  const float *buf = reinterpret_cast<const float *>(
+      reinterpret_cast<const char *>(data) + sizeof(QuantizerSerHeader));
   bias_ = buf[0];
   scale_ = buf[1];
   quantizer_.set_bias(bias_);

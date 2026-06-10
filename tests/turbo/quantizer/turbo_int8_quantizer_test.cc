@@ -119,12 +119,33 @@ TEST(Int8Quantizer, TestSerialize) {
   std::string param_buffer;
   ASSERT_EQ(0u, quantizer->serialize(&param_buffer));
 
+  // The serialized blob must begin with a valid self-describing header.
+  ASSERT_GE(param_buffer.size(), sizeof(zvec::turbo::QuantizerSerHeader));
+  const auto *header =
+      reinterpret_cast<const zvec::turbo::QuantizerSerHeader *>(
+          param_buffer.data());
+  EXPECT_EQ(zvec::turbo::kQuantizerMagic, header->magic);
+  EXPECT_EQ(zvec::turbo::kQuantizerSerVersion, header->version);
+  EXPECT_EQ(sizeof(float) * 2u, header->payload_size);
+  EXPECT_EQ(param_buffer.size(),
+            sizeof(zvec::turbo::QuantizerSerHeader) + header->payload_size);
+
   // new quantizer
   auto quantizer_new = IndexFactory::CreateQuantizer("Int8Quantizer");
   ASSERT_TRUE(quantizer_new);
   zvec::ailego::Params params_new;
   ASSERT_EQ(0u, quantizer_new->init(meta, params_new));
   ASSERT_EQ(0u, quantizer_new->deserialize(param_buffer));
+
+  // Zero-copy overload restores the same state.
+  auto quantizer_zc = IndexFactory::CreateQuantizer("Int8Quantizer");
+  ASSERT_TRUE(quantizer_zc);
+  zvec::ailego::Params params_zc;
+  ASSERT_EQ(0u, quantizer_zc->init(meta, params_zc));
+  ASSERT_EQ(
+      0u, quantizer_zc->deserialize(param_buffer.data(), param_buffer.size()));
+  auto *int8_quantizer_zc =
+      reinterpret_cast<zvec::turbo::Int8Quantizer *>(quantizer_zc.get());
 
   auto *int8_quantizer =
       reinterpret_cast<zvec::turbo::Int8Quantizer *>(quantizer.get());
@@ -133,6 +154,9 @@ TEST(Int8Quantizer, TestSerialize) {
 
   ASSERT_EQ(int8_quantizer->bias(), int8_quantizer_new->bias());
   ASSERT_EQ(int8_quantizer->scale(), int8_quantizer_new->scale());
+
+  ASSERT_EQ(int8_quantizer->bias(), int8_quantizer_zc->bias());
+  ASSERT_EQ(int8_quantizer->scale(), int8_quantizer_zc->scale());
 
   auto iter = holder->create_iterator();
   std::string quant_buffer;

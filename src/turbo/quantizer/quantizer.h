@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <zvec/ailego/container/params.h>
@@ -27,6 +28,26 @@ using namespace zvec::core;
 
 namespace zvec {
 namespace turbo {
+
+//! Magic number ('QTZR') stamped at the start of a serialized quantizer blob.
+constexpr uint32_t kQuantizerMagic = 0x52545A51u;
+//! Current quantizer serialization format version.
+constexpr uint16_t kQuantizerSerVersion = 1;
+
+//! Self-describing, fixed-size header that prefixes every serialized quantizer.
+//! The type-specific payload (scalar params, codebook, rotation matrix, ...)
+//! follows immediately after this header.
+struct QuantizerSerHeader {
+  uint32_t magic;         // kQuantizerMagic
+  uint16_t version;       // kQuantizerSerVersion
+  uint16_t quant_type;    // QuantizeType
+  uint32_t dim;           // original dim (sanity check)
+  uint32_t metric;        // MetricType  (sanity check)
+  uint32_t payload_size;  // bytes following the header
+  uint32_t reserved;      // 0, for future use / alignment
+};
+static_assert(sizeof(QuantizerSerHeader) == 24,
+              "QuantizerSerHeader must be 24 bytes");
 
 class Quantizer {
  public:
@@ -121,6 +142,12 @@ class Quantizer {
 
   //! Deserialize quantizer parameters
   virtual int deserialize(std::string & /*in*/) {
+    return IndexError_NotImplemented;
+  }
+
+  //! Deserialize quantizer parameters from a raw, possibly mmap-backed buffer
+  //! (zero-copy entry point for large payloads such as codebooks/matrices).
+  virtual int deserialize(const void * /*data*/, size_t /*len*/) {
     return IndexError_NotImplemented;
   }
 
