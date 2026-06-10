@@ -113,8 +113,19 @@ int Int8Quantizer::train(core::IndexHolder::Pointer holder) {
   std::vector<float> features;
   float max = -std::numeric_limits<float>::max();
   float min = std::numeric_limits<float>::max();
+  if (rotator_) {
+    rotator_->train(nullptr, 0, 0);
+  }
+  std::vector<float> rotated;
+  if (rotator_) {
+    rotated.resize(original_dim_);
+  }
   for (; iter->is_valid(); iter->next()) {
     const float *vec = reinterpret_cast<const float *>(iter->data());
+    if (rotator_) {
+      rotator_->apply(vec, rotated.data());
+      vec = rotated.data();
+    }
     for (size_t i = 0; i < original_dim_; ++i) {
       max = std::max(max, vec[i]);
       min = std::min(min, vec[i]);
@@ -154,8 +165,19 @@ void Int8Quantizer::train(const void *data, size_t num, size_t stride) {
   float max = -std::numeric_limits<float>::max();
   float min = std::numeric_limits<float>::max();
   const char *base = reinterpret_cast<const char *>(data);
+  if (rotator_) {
+    rotator_->train(data, num, stride);
+  }
+  std::vector<float> rotated;
+  if (rotator_) {
+    rotated.resize(original_dim_);
+  }
   for (size_t n = 0; n < num; ++n) {
     const float *vec = reinterpret_cast<const float *>(base + n * stride);
+    if (rotator_) {
+      rotator_->apply(vec, rotated.data());
+      vec = rotated.data();
+    }
     for (size_t i = 0; i < original_dim_; ++i) {
       max = std::max(max, vec[i]);
       min = std::min(min, vec[i]);
@@ -204,6 +226,12 @@ int Int8Quantizer::quantize(const void *record, const IndexQueryMeta &qmeta,
 
 void Int8Quantizer::quantize_one(const void *input, void *output) const {
   const float *vec = reinterpret_cast<const float *>(input);
+  thread_local std::vector<float> rotated;
+  if (rotator_) {
+    rotated.resize(original_dim_);
+    rotator_->apply(vec, rotated.data());
+    vec = rotated.data();
+  }
   auto ovec = reinterpret_cast<int8_t *>(output);
   size_t dim = original_dim_;
 
@@ -271,6 +299,13 @@ int Int8Quantizer::dequantize(const void *in, const IndexQueryMeta & /*qmeta*/,
     }
   }
 
+  if (rotator_) {
+    // Undo the rotation so the result returns to the original space.
+    std::vector<float> tmp(dim);
+    rotator_->apply_inverse(ovec, tmp.data());
+    std::memcpy(ovec, tmp.data(), dim * sizeof(float));
+  }
+
   return 0;
 }
 
@@ -278,8 +313,17 @@ int Int8Quantizer::serialize(std::string *out) const {
   if (!out) {
     return IndexError_InvalidArgument;
   }
-  constexpr uint32_t kPayloadSize = sizeof(float) * 2;
-  out->resize(sizeof(QuantizerSerHeader) + kPayloadSize);
+  constexpr uint32_t kScalarSize = sizeof(float) * 2;
+  std::string rotator_blob;
+  if (rotator_) {
+    int rc = rotator_->serialize(&rotator_blob);
+    if (rc != 0) {
+      return rc;
+    }
+  }
+  const uint32_t payload_size =
+      kScalarSize + static_cast<uint32_t>(rotator_blob.size());
+  out->resize(sizeof(QuantizerSerHeader) + payload_size);
 
   QuantizerSerHeader *header =
       reinterpret_cast<QuantizerSerHeader *>(&(*out)[0]);
@@ -288,12 +332,16 @@ int Int8Quantizer::serialize(std::string *out) const {
   header->quant_type = static_cast<uint16_t>(type_);
   header->dim = original_dim_;
   header->metric = static_cast<uint32_t>(dist_metric_);
-  header->payload_size = kPayloadSize;
+  header->payload_size = payload_size;
   header->reserved = 0;
 
   float *buf = reinterpret_cast<float *>(&(*out)[sizeof(QuantizerSerHeader)]);
   buf[0] = quantizer_.bias();
   buf[1] = quantizer_.scale();
+  if (!rotator_blob.empty()) {
+    std::memcpy(&(*out)[sizeof(QuantizerSerHeader) + kScalarSize],
+                rotator_blob.data(), rotator_blob.size());
+  }
   return 0;
 }
 
@@ -324,6 +372,28 @@ int Int8Quantizer::deserialize(const void *data, size_t len) {
   scale_ = buf[1];
   quantizer_.set_bias(bias_);
   quantizer_.set_scale(scale_);
+
+  rotator_.reset();
+  if (header->payload_size > sizeof(float) * 2) {
+    const char *rot_ptr = reinterpret_cast<const char *>(data) +
+                          sizeof(QuantizerSerHeader) + sizeof(float) * 2;
+    const size_t rot_len = header->payload_size - sizeof(float) * 2;
+    rotator_ = CreateRotatorFromBlob(rot_ptr, rot_len);
+    if (!rotator_ || rotator_->in_dim() != static_cast<int>(original_dim_) ||
+        rotator_->out_dim() != static_cast<int>(original_dim_)) {
+      rotator_.reset();
+      return IndexError_InvalidArgument;
+    }
+  }
+  return 0;
+}
+
+int Int8Quantizer::set_rotator(Rotator::Pointer r) {
+  if (!r || r->in_dim() != static_cast<int>(original_dim_) ||
+      r->out_dim() != static_cast<int>(original_dim_)) {
+    return IndexError_InvalidArgument;
+  }
+  rotator_ = std::move(r);
   return 0;
 }
 

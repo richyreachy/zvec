@@ -20,6 +20,7 @@
 #include <zvec/core/framework/index_reformer.h>
 #include <zvec/core/framework/index_stats.h>
 #include "quantizer/quantizer.h"
+#include "quantizer/rotator/rotator.h"
 
 namespace zvec {
 namespace turbo {
@@ -101,6 +102,12 @@ class Int8Quantizer : public Quantizer {
   int dequantize(const void *in, const core::IndexQueryMeta &qmeta,
                  std::string *out) const;
 
+  //! Attach a rotation preprocessing stage. The rotator must be dimension
+  //! preserving and match the quantizer dimension
+  //! (in_dim == out_dim == dim()); otherwise IndexError_InvalidArgument is
+  //! returned and the rotator is not attached.
+  int set_rotator(Rotator::Pointer r);
+
   int serialize(std::string *out) const;
 
   int deserialize(std::string &in);
@@ -130,6 +137,10 @@ class Int8Quantizer : public Quantizer {
   static constexpr uint32_t EXTRA_META_SIZE_COSINE = 4;
   const std::string INT8_QUANTIZER_BIAS = "int8_quantizer.bias";
   const std::string INT8_QUANTIZER_SCALE = "int8_quantizer.scale";
+
+  //! Optional rotation applied to fp32 vectors before quantization (and
+  //! inverted on dequantize). Null means no rotation.
+  Rotator::Pointer rotator_{};
 
   mutable float bias_{0.0f};
   mutable float scale_{1.0f};

@@ -18,6 +18,7 @@
 #include <zvec/ailego/container/params.h>
 #include <zvec/turbo/turbo.h>
 #include "quantizer/int8_quantizer/int8_quantizer.h"
+#include "quantizer/rotator/rotator.h"
 #include "zvec/core/framework/index_factory.h"
 
 using namespace zvec;
@@ -298,4 +299,106 @@ TEST(Int8Quantizer, NewInterface) {
   float d01 = quantizer->calc_distance_dp_dp(dps[0].data(), dps[1].data());
   float d10 = quantizer->calc_distance_dp_dp(dps[1].data(), dps[0].data());
   EXPECT_NEAR(d01, d10, 1e-4);
+}
+
+TEST(Int8Quantizer, TestRotatedSerialize) {
+  std::mt19937 gen(771);
+  std::uniform_real_distribution<float> dist(0.0, 1.0);
+
+  const size_t COUNT = 10000;
+  const size_t DIMENSION = 16;
+
+  IndexMeta meta;
+  meta.set_meta(IndexMeta::DataType::DT_FP32, DIMENSION);
+
+  auto quantizer = IndexFactory::CreateQuantizer("Int8Quantizer");
+  ASSERT_TRUE(quantizer);
+  zvec::ailego::Params params;
+  ASSERT_EQ(0u, quantizer->init(meta, params));
+
+  // Attach a dimension-preserving matrix rotation as a preprocessing stage.
+  auto *int8 = reinterpret_cast<zvec::turbo::Int8Quantizer *>(quantizer.get());
+  auto rotator = zvec::turbo::CreateRotator(zvec::turbo::RotatorType::kMatrix,
+                                            static_cast<int>(DIMENSION));
+  ASSERT_TRUE(rotator);
+  ASSERT_EQ(0, int8->set_rotator(rotator));
+
+  auto holder =
+      std::make_shared<MultiPassIndexHolder<IndexMeta::DataType::DT_FP32>>(
+          DIMENSION);
+  for (size_t i = 0; i < COUNT; ++i) {
+    zvec::ailego::NumericalVector<float> vec(DIMENSION);
+    for (size_t j = 0; j < DIMENSION; ++j) {
+      vec[j] = dist(gen);
+    }
+    holder->emplace(i + 1, vec);
+  }
+  ASSERT_EQ(0u, quantizer->train(holder));
+
+  std::string param_buffer;
+  ASSERT_EQ(0u, quantizer->serialize(&param_buffer));
+
+  // The payload now carries the scalar bias/scale plus a nested rotator blob.
+  const auto *header =
+      reinterpret_cast<const zvec::turbo::QuantizerSerHeader *>(
+          param_buffer.data());
+  EXPECT_EQ(zvec::turbo::kQuantizerMagic, header->magic);
+  EXPECT_GT(header->payload_size, sizeof(float) * 2u);
+
+  // The nested blob begins with a valid RotatorSerHeader.
+  const auto *rot_header =
+      reinterpret_cast<const zvec::turbo::RotatorSerHeader *>(
+          param_buffer.data() + sizeof(zvec::turbo::QuantizerSerHeader) +
+          sizeof(float) * 2);
+  EXPECT_EQ(zvec::turbo::kRotatorMagic, rot_header->magic);
+  EXPECT_EQ(static_cast<uint16_t>(zvec::turbo::RotatorType::kMatrix),
+            rot_header->rotator_type);
+  EXPECT_EQ(static_cast<uint32_t>(DIMENSION), rot_header->in_dim);
+
+  // Restore via the string overload.
+  auto quantizer_new = IndexFactory::CreateQuantizer("Int8Quantizer");
+  ASSERT_TRUE(quantizer_new);
+  zvec::ailego::Params params_new;
+  ASSERT_EQ(0u, quantizer_new->init(meta, params_new));
+  ASSERT_EQ(0u, quantizer_new->deserialize(param_buffer));
+
+  // Restore via the zero-copy overload.
+  auto quantizer_zc = IndexFactory::CreateQuantizer("Int8Quantizer");
+  ASSERT_TRUE(quantizer_zc);
+  zvec::ailego::Params params_zc;
+  ASSERT_EQ(0u, quantizer_zc->init(meta, params_zc));
+  ASSERT_EQ(
+      0u, quantizer_zc->deserialize(param_buffer.data(), param_buffer.size()));
+
+  auto *int8_new =
+      reinterpret_cast<zvec::turbo::Int8Quantizer *>(quantizer_new.get());
+  auto *int8_zc =
+      reinterpret_cast<zvec::turbo::Int8Quantizer *>(quantizer_zc.get());
+  EXPECT_EQ(int8->bias(), int8_new->bias());
+  EXPECT_EQ(int8->scale(), int8_new->scale());
+  EXPECT_EQ(int8->bias(), int8_zc->bias());
+  EXPECT_EQ(int8->scale(), int8_zc->scale());
+
+  // quantize -> dequantize round-trip stays in the original space after the
+  // rotation is inverted on dequantize.
+  auto iter = holder->create_iterator();
+  std::string quant_buffer;
+  std::string dequant_buffer;
+  for (; iter->is_valid(); iter->next()) {
+    IndexQueryMeta qmeta;
+    quant_buffer.clear();
+    EXPECT_EQ(0, quantizer_new->quantize(
+                     iter->data(),
+                     IndexQueryMeta(holder->data_type(), holder->dimension()),
+                     &quant_buffer, &qmeta));
+    dequant_buffer.clear();
+    EXPECT_EQ(0, quantizer_new->dequantize(quant_buffer.data(), qmeta,
+                                           &dequant_buffer));
+    const float *original_data = reinterpret_cast<const float *>(iter->data());
+    const float *dequantize_data =
+        reinterpret_cast<const float *>(dequant_buffer.data());
+    for (size_t i = 0; i < holder->dimension(); ++i) {
+      EXPECT_NEAR(original_data[i], dequantize_data[i], 0.15);
+    }
+  }
 }
