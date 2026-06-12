@@ -25,6 +25,14 @@ using BatchDistanceFunc = std::function<void(
 using QueryPreprocessFunc =
     zvec::ailego::DistanceBatch::DistanceBatchQueryPreprocessFunc;
 
+// Uniform int8 quantize kernel: fp32 -> int8 with a global affine transform:
+//   out[i] = clip(round(in[i] * scale + bias), 0, 127)
+// This signature is specific to the uniform-int8 quantizer and is NOT a
+// generic quantize contract. Raw function pointer (rather than std::function)
+// to avoid indirect-call overhead on the per-record / per-query hot path.
+using UniformQuantizeFunc = void (*)(const float *in, size_t dim, float scale,
+                                     float bias, int8_t *out);
+
 enum class MetricType {
   kSquaredEuclidean,
   kCosine,
@@ -43,6 +51,7 @@ enum class DataType {
 
 enum class QuantizeType {
   kDefault,
+  kUniform,
   kRecordInt8,
   kRecordInt4,
   kInt8,
@@ -61,6 +70,7 @@ enum class CpuArchType {
   kAVX512,
   kAVX512VNNI,
   kAVX512FP16
+
 };
 
 DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
@@ -74,5 +84,13 @@ BatchDistanceFunc get_batch_distance_func(
 QueryPreprocessFunc get_query_preprocess_func(
     MetricType metric_type, DataType data_type, QuantizeType quantize_type,
     CpuArchType cpu_arch_type = CpuArchType::kAuto);
+
+// Returns the SIMD kernel for the uniform quantizer on the current CPU for
+// the given output data_type, or nullptr if no SIMD implementation is
+// available (callers must keep a scalar fallback). This is a
+// uniform-specific accessor intentionally kept outside of the generic
+// (metric/data/quantize) dispatch above; data_type is retained so the
+// interface can grow to cover other output types (e.g. fp16) in the future.
+UniformQuantizeFunc get_uniform_quantize_func(DataType data_type);
 
 }  // namespace zvec::turbo
