@@ -23,6 +23,12 @@
 #include "hnsw_index_provider.h"
 #include "hnsw_params.h"
 
+#if RABITQ_SUPPORTED
+#include "hnsw_streamer_rabitq_impl.h"
+#include "../hnsw_rabitq/rabitq_params.h"
+#include "../hnsw_rabitq/rabitq_reformer.h"
+#endif
+
 namespace zvec {
 namespace core {
 
@@ -183,6 +189,46 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
       meta_.element_size(), chunk_size_, filter_same_key_, get_vector_enabled_,
       min_neighbor_cnt_, force_padding_topk_enabled_);
 
+#if RABITQ_SUPPORTED
+  // Detect RaBitQ mode: downcast reformer_ to RabitqReformer
+  if (reformer_) {
+    rabitq_reformer_ = std::dynamic_pointer_cast<RabitqReformer>(reformer_);
+    if (rabitq_reformer_) {
+      rabitq_mode_ = true;
+
+      uint32_t total_bits = 0;
+      params.get(PARAM_RABITQ_TOTAL_BITS, &total_bits);
+      if (total_bits == 0) {
+        total_bits = kDefaultRabitqTotalBits;
+      }
+      if (total_bits < 1 || total_bits > 9) {
+        LOG_ERROR("Invalid total_bits: %u, must be in [1, 9]", total_bits);
+        return IndexError_InvalidArgument;
+      }
+      uint8_t ex_bits = total_bits - 1;
+
+      uint32_t dimension = meta_.dimension();
+      if (dimension < kMinRabitqDimSize || dimension > kMaxRabitqDimSize) {
+        LOG_ERROR("Invalid dimension for RaBitQ: %u, must be in [%d, %d]",
+                  dimension, kMinRabitqDimSize, kMaxRabitqDimSize);
+        return IndexError_InvalidArgument;
+      }
+
+      rabitq_state_ = CreateRabitqState(
+          stats_, use_id_map_, ex_bits, dimension, ef_construction_,
+          upper_max_neighbor_cnt_, l0_max_neighbor_cnt_, scaling_factor_,
+          prune_cnt_, chunk_size_, filter_same_key_, get_vector_enabled_,
+          min_neighbor_cnt_, docs_hard_limit_);
+      if (!rabitq_state_) {
+        return IndexError_Runtime;
+      }
+
+      LOG_INFO("HnswStreamer RaBitQ mode enabled: total_bits=%u, dimension=%u",
+               total_bits, dimension);
+    }
+  }
+#endif
+
   state_ = STATE_INITED;
 
   return 0;
@@ -258,6 +304,25 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
     LOG_ERROR("Open storage failed, init streamer first!");
     return IndexError_NoReady;
   }
+
+#if RABITQ_SUPPORTED
+  if (rabitq_mode_) {
+    int ret =
+        RabitqStateOpen(rabitq_state_.get(), rabitq_reformer_, std::move(stg),
+                        max_index_size_, check_crc_enabled_, meta_);
+    if (ret != 0) {
+      return ret;
+    }
+    // Use the metric created by rabitq state for close/flush/dump
+    metric_ = IndexFactory::CreateMetric(meta_.metric_name());
+    if (metric_) {
+      metric_->init(meta_, meta_.metric_params());
+    }
+    state_ = STATE_OPENED;
+    magic_ = IndexContext::GenerateMagic();
+    return 0;
+  }
+#endif
 
   // Create entity based on storage type
   switch (stg->memory_block_type()) {
@@ -402,6 +467,16 @@ int HnswStreamer::close(void) {
   LOG_INFO("HnswStreamer close");
 
   stats_.clear();
+#if RABITQ_SUPPORTED
+  if (rabitq_mode_) {
+    int ret = RabitqStateClose(rabitq_state_.get(), meta_, metric_);
+    if (ret != 0) {
+      return ret;
+    }
+    state_ = STATE_INITED;
+    return 0;
+  }
+#endif
   meta_.set_metric(metric_->name(), 0, metric_->params());
   entity_->set_index_meta(meta_);
   int ret = entity_->close();
@@ -416,6 +491,11 @@ int HnswStreamer::close(void) {
 int HnswStreamer::flush(uint64_t checkpoint) {
   LOG_INFO("HnswStreamer flush checkpoint=%zu", (size_t)checkpoint);
 
+#if RABITQ_SUPPORTED
+  if (rabitq_mode_) {
+    return RabitqStateFlush(rabitq_state_.get(), meta_, metric_, checkpoint);
+  }
+#endif
   meta_.set_metric(metric_->name(), 0, metric_->params());
   entity_->set_index_meta(meta_);
   return entity_->flush(checkpoint);
@@ -432,6 +512,11 @@ int HnswStreamer::dump(const IndexDumper::Pointer &dumper) {
     LOG_ERROR("Failed to serialize meta into dumper.");
     return ret;
   }
+#if RABITQ_SUPPORTED
+  if (rabitq_mode_) {
+    return RabitqStateDump(rabitq_state_.get(), rabitq_reformer_, dumper);
+  }
+#endif
   return entity_->dump(dumper);
 }
 
@@ -441,6 +526,14 @@ IndexStreamer::Context::Pointer HnswStreamer::create_context(void) const {
     return Context::Pointer();
   }
 
+#if RABITQ_SUPPORTED
+  if (rabitq_mode_) {
+    return RabitqStateCreateContext(
+        rabitq_state_.get(), meta_, metric_, ef_, max_scan_limit_,
+        min_scan_limit_, max_scan_ratio_, bf_enabled_, bf_negative_prob_,
+        magic_, force_padding_topk_enabled_, bruteforce_threshold_);
+  }
+#endif
   HnswEntity::Pointer entity = entity_->clone();
   if (ailego_unlikely(!entity)) {
     LOG_ERROR("CreateContext clone init failed");
@@ -484,6 +577,12 @@ IndexStreamer::Context::Pointer HnswStreamer::create_context(void) const {
 IndexProvider::Pointer HnswStreamer::create_provider(void) const {
   LOG_DEBUG("HnswStreamer create provider");
 
+#if RABITQ_SUPPORTED
+  if (rabitq_mode_) {
+    return RabitqStateCreateProvider(rabitq_state_.get(), meta_);
+  }
+#endif
+
   auto entity = entity_->clone();
   if (ailego_unlikely(!entity)) {
     LOG_ERROR("Clone HnswEntity failed");
@@ -515,6 +614,17 @@ int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
   if (ailego_unlikely(ret != 0)) {
     return ret;
   }
+
+#if RABITQ_SUPPORTED
+  if (rabitq_mode_) {
+    return RabitqStateAddWithId(
+        rabitq_state_.get(), rabitq_reformer_, provider_, metric_, meta_,
+        docs_soft_limit_, docs_hard_limit_, max_scan_limit_, min_scan_limit_,
+        max_scan_ratio_, bruteforce_threshold_, magic_, mutex_, shared_mutex_,
+        stats_.mutable_added_count(), stats_.mutable_discarded_count(), id,
+        query, qmeta, context);
+  }
+#endif
 
   HnswContext *ctx = dynamic_cast<HnswContext *>(context.get());
   ailego_do_if_false(ctx) {
@@ -597,6 +707,16 @@ int HnswStreamer::add_impl(uint64_t pkey, const void *query,
     return ret;
   }
 
+#if RABITQ_SUPPORTED
+  if (rabitq_mode_) {
+    return RabitqStateAdd(
+        rabitq_state_.get(), rabitq_reformer_, provider_, metric_, meta_,
+        docs_soft_limit_, docs_hard_limit_, max_scan_limit_, min_scan_limit_,
+        max_scan_ratio_, bruteforce_threshold_, magic_, mutex_, shared_mutex_,
+        stats_.mutable_added_count(), stats_.mutable_discarded_count(), pkey,
+        query, qmeta, context);
+  }
+#endif
   HnswContext *ctx = dynamic_cast<HnswContext *>(context.get());
   ailego_do_if_false(ctx) {
     LOG_ERROR("Cast context to HnswContext failed");
@@ -684,6 +804,19 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
   if (ailego_unlikely(ret != 0)) {
     return ret;
   }
+
+#if RABITQ_SUPPORTED
+  if (rabitq_mode_) {
+    if (RabitqStateDocCount(rabitq_state_.get()) <= bruteforce_threshold_) {
+      return search_bf_impl(query, qmeta, count, context);
+    }
+    return RabitqStateSearch(rabitq_state_.get(), rabitq_reformer_, meta_,
+                             metric_, max_scan_limit_, min_scan_limit_,
+                             max_scan_ratio_, bruteforce_threshold_, magic_,
+                             query, qmeta, count, context);
+  }
+#endif
+
   HnswContext *ctx = dynamic_cast<HnswContext *>(context.get());
   ailego_do_if_false(ctx) {
     LOG_ERROR("Cast context to HnswContext failed");
@@ -760,6 +893,16 @@ int HnswStreamer::search_bf_impl(
   if (ailego_unlikely(ret != 0)) {
     return ret;
   }
+
+#if RABITQ_SUPPORTED
+  if (rabitq_mode_) {
+    return RabitqStateSearchBF(rabitq_state_.get(), rabitq_reformer_, meta_,
+                               metric_, max_scan_limit_, min_scan_limit_,
+                               max_scan_ratio_, bruteforce_threshold_, magic_,
+                               query, qmeta, count, context);
+  }
+#endif
+
   HnswContext *ctx = dynamic_cast<HnswContext *>(context.get());
   ailego_do_if_false(ctx) {
     LOG_ERROR("Cast context to HnswContext failed");
@@ -854,6 +997,15 @@ int HnswStreamer::search_bf_by_p_keys_impl(
     LOG_ERROR("The size of p_keys is not equal to count");
     return IndexError_InvalidArgument;
   }
+
+#if RABITQ_SUPPORTED
+  if (rabitq_mode_) {
+    return RabitqStateSearchBFByPKeys(
+        rabitq_state_.get(), rabitq_reformer_, meta_, metric_, max_scan_limit_,
+        min_scan_limit_, max_scan_ratio_, bruteforce_threshold_, magic_, query,
+        p_keys, qmeta, count, context);
+  }
+#endif
 
   HnswContext *ctx = dynamic_cast<HnswContext *>(context.get());
   ailego_do_if_false(ctx) {

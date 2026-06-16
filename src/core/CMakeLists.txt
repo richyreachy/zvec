@@ -9,6 +9,7 @@ if(RABITQ_SUPPORTED AND AUTO_DETECT_ARCH)
       hnsw_rabitq_entity.cc
       rabitq_reformer.cc
       rabitq_converter.cc
+      hnsw_streamer_rabitq_impl.cc
   )
   set(HNSW_RABITQ_FILES_FULL ${HNSW_RABITQ_FILES})
   list(TRANSFORM HNSW_RABITQ_FILES_FULL PREPEND "algorithm/hnsw_rabitq/")

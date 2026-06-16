@@ -19,6 +19,11 @@
 #include "hnsw_algorithm.h"
 #include "hnsw_streamer_entity.h"
 
+#if RABITQ_SUPPORTED
+#include "hnsw_streamer_rabitq_impl.h"
+#include "../hnsw_rabitq/rabitq_reformer.h"
+#endif
+
 namespace zvec {
 namespace core {
 
@@ -252,6 +257,15 @@ class HnswStreamer : public IndexStreamer {
   IndexProvider::Pointer provider_{};
   //! External reformer passed at construction (may be null).
   IndexReformer::Pointer reformer_{};
+
+#if RABITQ_SUPPORTED
+  //! RaBitQ mode flag: true when reformer_ is a valid RabitqReformer.
+  bool rabitq_mode_{false};
+  std::shared_ptr<RabitqReformer> rabitq_reformer_{};
+  //! Opaque state holding rabitq entity, algorithms, and distances.
+  //! Defined in hnsw_rabitq/hnsw_streamer_rabitq_impl.cc.
+  RabitqStatePtr rabitq_state_{};
+#endif
 
   //! avoid add vector while dumping index
   ailego::SharedMutex shared_mutex_{};

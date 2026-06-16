@@ -14,6 +14,6 @@ foreach(CC_SRCS ${ALL_TEST_SRCS})
       STRICT
       LIBS ${HNSW_TEST_LIBS}
       SRCS ${CC_SRCS}
-      INCS . ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm/hnsw
+      INCS . ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm/hnsw ${PROJECT_ROOT_DIR}/src/core/algorithm
     )
 endforeach()
