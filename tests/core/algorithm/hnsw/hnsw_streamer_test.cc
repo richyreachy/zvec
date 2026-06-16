@@ -27,6 +27,10 @@
 #include <zvec/ailego/container/vector.h>
 #include "tests/test_util.h"
 #include "turbo/quantizer/quantizer.h"
+#if RABITQ_SUPPORTED
+#include "core/algorithm/hnsw_rabitq/rabitq_converter.h"
+#include "core/algorithm/hnsw_rabitq/rabitq_reformer.h"
+#endif
 
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
@@ -4168,6 +4172,80 @@ TEST_F(HnswStreamerTest, TestContiguousMultiThreadSearch) {
   s2.wait();
   s3.wait();
 }
+
+#if RABITQ_SUPPORTED
+TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
+  // RaBitQ requires dimension to be a power of 2 in [64, 2048]
+  constexpr size_t rabitq_dim = 128;
+  auto rabitq_meta =
+      std::make_shared<IndexMeta>(IndexMeta::DataType::DT_FP32, rabitq_dim);
+  rabitq_meta->set_metric("SquaredEuclidean", 0, ailego::Params());
+
+  auto holder =
+      make_shared<MultiPassIndexProvider<IndexMeta::DataType::DT_FP32>>(
+          rabitq_dim);
+  size_t doc_cnt = 1000UL;
+  for (size_t i = 0; i < doc_cnt; i++) {
+    NumericalVector<float> vec(rabitq_dim);
+    for (size_t j = 0; j < rabitq_dim; ++j) {
+      vec[j] = static_cast<float>(i * rabitq_dim + j) / 1000.0f;
+    }
+    ASSERT_TRUE(holder->emplace(i, vec));
+  }
+
+  RabitqConverter converter;
+  converter.init(*rabitq_meta, ailego::Params());
+  ASSERT_EQ(converter.train(holder), 0);
+  std::shared_ptr<IndexReformer> index_reformer;
+  ASSERT_EQ(converter.to_reformer(&index_reformer), 0);
+  auto reformer = std::dynamic_pointer_cast<RabitqReformer>(index_reformer);
+  IndexStreamer::Pointer streamer =
+      std::make_shared<HnswStreamer>(holder, reformer);
+
+  ailego::Params params;
+  params.set("proxima.hnsw.streamer.max_neighbor_count", 16U);
+  params.set("proxima.hnsw.streamer.upper_neighbor_count", 8U);
+  params.set("proxima.hnsw.streamer.scaling_factor", 5U);
+  params.set("proxima.hnsw.general.dimension",
+             static_cast<unsigned int>(rabitq_dim));
+  ASSERT_EQ(0, streamer->init(*rabitq_meta, params));
+  auto storage = IndexFactory::CreateStorage("MMapFileStorage");
+  ASSERT_NE(nullptr, storage);
+  ailego::Params stg_params;
+  ASSERT_EQ(0, storage->init(stg_params));
+  ASSERT_EQ(0, storage->open(dir_ + "/Test/AddVector", true));
+  ASSERT_EQ(0, streamer->open(storage));
+
+  auto context = streamer->create_context();
+  for (auto it = holder->create_iterator(); it->is_valid(); it->next()) {
+    IndexQueryMeta query_meta(IndexMeta::DataType::DT_FP32, rabitq_dim);
+    ASSERT_EQ(0,
+              streamer->add_impl(it->key(), it->data(), query_meta, context));
+  }
+  streamer->flush(0UL);
+
+  // Perform search verification
+  NumericalVector<float> query_vec(rabitq_dim);
+  for (size_t j = 0; j < rabitq_dim; ++j) {
+    query_vec[j] = static_cast<float>(j) / 1000.0f;
+  }
+
+  IndexQueryMeta query_meta(IndexMeta::DataType::DT_FP32, rabitq_dim);
+
+  context->set_topk(10);
+  ASSERT_EQ(0, streamer->search_impl(query_vec.data(), query_meta, 1, context));
+
+  const auto &result = context->result(0);
+  ASSERT_GT(result.size(), 0UL);
+  ASSERT_LE(result.size(), 10UL);
+
+  // reopen and load reformer from storage
+  ASSERT_EQ(0, streamer->close());
+  IndexStreamer::Pointer new_streamer = std::make_shared<HnswStreamer>(holder);
+  ASSERT_EQ(0, new_streamer->init(*rabitq_meta, params));
+  ASSERT_EQ(0, new_streamer->open(storage));
+}
+#endif  // RABITQ_SUPPORTED
 
 }  // namespace core
 }  // namespace zvec

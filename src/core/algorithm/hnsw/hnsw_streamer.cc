@@ -28,6 +28,10 @@ namespace core {
 
 HnswStreamer::HnswStreamer() = default;
 
+HnswStreamer::HnswStreamer(IndexProvider::Pointer provider,
+                           IndexReformer::Pointer reformer)
+    : provider_(std::move(provider)), reformer_(std::move(reformer)) {}
+
 HnswStreamer::~HnswStreamer() {
   if (state_ == STATE_INITED || state_ == STATE_OPENED) {
     this->cleanup();

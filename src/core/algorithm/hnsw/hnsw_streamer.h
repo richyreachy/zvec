@@ -27,6 +27,11 @@ class HnswStreamer : public IndexStreamer {
   using ContextPointer = IndexStreamer::Context::Pointer;
 
   HnswStreamer(void);
+
+  //! Construct with an external data provider and an optional reformer.
+  explicit HnswStreamer(IndexProvider::Pointer provider,
+                        IndexReformer::Pointer reformer = nullptr);
+
   ~HnswStreamer(void) override;
 
   HnswStreamer(const HnswStreamer &streamer) = delete;
@@ -242,6 +247,11 @@ class HnswStreamer : public IndexStreamer {
   bool force_padding_topk_enabled_{false};
   bool use_id_map_{true};
   bool use_contiguous_memory_{false};
+
+  //! External data provider passed at construction (may be null).
+  IndexProvider::Pointer provider_{};
+  //! External reformer passed at construction (may be null).
+  IndexReformer::Pointer reformer_{};
 
   //! avoid add vector while dumping index
   ailego::SharedMutex shared_mutex_{};
