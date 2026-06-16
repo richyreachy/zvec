@@ -66,6 +66,20 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     )
     target_link_options(_zvec PRIVATE
             "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
+            # Bind all internal function calls to local definitions. Without
+            # this, external libraries already loaded into the Python process
+            # (e.g. conda's libprotobuf.so or the `protobuf` PyPI package's
+            # bundled libprotobuf) can interpose calls made between the
+            # statically-linked thirdparty libraries inside _zvec.so. A
+            # protobuf version mismatch then crashes static initializers in
+            # zvec.pb.cc with "Invalid file descriptor data passed to
+            # EncodedDescriptorDatabase::Add()".
+            "LINKER:-Bsymbolic-functions"
+            # Belt-and-suspenders: prevent any symbol from the static
+            # archives we link in (libprotobuf.a, libarrow.a, librocksdb.a,
+            # ...) from being auto-promoted into the dynamic symbol table,
+            # even if the version script were ever bypassed.
+            "LINKER:--exclude-libs,ALL"
     )
     # Link libaio directly so auditwheel can detect and bundle it.
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386")
