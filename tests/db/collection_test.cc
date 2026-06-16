@@ -2797,6 +2797,7 @@ TEST_F(CollectionTest, Feature_Optimize_Repeated) {
     run_repeated_optimize_test(
         enable_mmap, std::make_shared<DiskAnnIndexParams>(
                          MetricType::IP, 10, 4, 0, QuantizeType::UNDEFINED));
+#endif
 #if RABITQ_SUPPORTED
     run_repeated_optimize_test(
         enable_mmap, std::make_shared<HnswRabitqIndexParams>(MetricType::IP, 7,
