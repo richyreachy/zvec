@@ -190,17 +190,6 @@ if(BUILD_PYTHON_BINDINGS)
     message(STATUS "Zvec install path: ${ZVEC_PY_INSTALL_DIR}")
     install(TARGETS _zvec LIBRARY DESTINATION ${ZVEC_PY_INSTALL_DIR})
 
-    # DiskAnn ships as a runtime-loaded shared module
-    # (libzvec_diskann_plugin.so) that is brought online implicitly the
-    # first time a DiskAnn index is created — users never call any load
-    # function. The Python extension resolves the module next to _zvec.so
-    # (see the $ORIGIN rpath in src/binding/python/CMakeLists.txt); the
-    # module must therefore be installed alongside _zvec.so in the wheel.
-    # The target exists only on platforms where DiskAnn is buildable
-    # (currently Linux x86_64 with libaio).
-    if(TARGET core_knn_diskann)
-        install(TARGETS core_knn_diskann LIBRARY DESTINATION ${ZVEC_PY_INSTALL_DIR})
-    endif()
     # Bundle cppjieba's dictionary files so the `jieba` FTS tokenizer works
     # out of the box. python/zvec/__init__.py resolves this directory via
     # importlib.resources and registers it with set_default_jieba_dict_dir().

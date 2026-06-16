@@ -176,8 +176,8 @@ test-command = "cd {project} && pytest python/tests -v --tb=short"
 build-verbosity = 1
 
 [tool.cibuildwheel.linux]
-# libaio is required by the C++ backend; install it inside the manylinux
-# container (manylinux_2_28 is AlmaLinux 8 based, so use dnf/libaio-devel).
+# libaio is required by DiskAnn (statically linked into _zvec.so on x86_64);
+# install it inside the manylinux container so the linker can find it.
 # libaio-devel lives in BaseOS; disable EPEL so a flaky EPEL mirror cannot
 # break metadata refresh.
 before-all = "dnf install -y --disablerepo=epel libaio-devel"
@@ -187,9 +187,8 @@ manylinux-x86_64-image = "manylinux_2_28"
 manylinux-aarch64-image = "manylinux_2_28"
 # Skip 32-bit builds and musllinux
 skip = ["*-manylinux_i686", "*-musllinux*"]
-# Use auditwheel to bundle libaio.so.1 into the wheel so end-users do not
-# need to install libaio separately. The DiskAnn plugin links against libaio;
-# auditwheel detects the NEEDED entry and copies it into the .libs directory.
+# auditwheel detects libaio.so.1 as a NEEDED entry on _zvec.so and bundles
+# it into the wheel so end-users do not need to install libaio separately.
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.macos]
