@@ -257,14 +257,13 @@ int LoadDiskAnnPlugin(const std::string &path) {
     return kDiskAnnPluginOk;
   }
 
-  if (!IsLibAioAvailable()) {
-    LOG_ERROR(
-        "libaio is not available on this host; the DiskAnn runtime cannot be "
-        "activated. Install libaio1 (e.g. 'apt-get install libaio1', or "
-        "'libaio1t64' on Ubuntu 24.04+) and retry. This does not affect "
-        "other index types (HNSW, IVF, Flat, Vamana).");
-    return kDiskAnnPluginLibAioMissing;
-  }
+  // NOTE: We intentionally skip the IsLibAioAvailable() pre-check here.
+  // When the wheel is built with auditwheel, libaio is bundled into a .libs
+  // directory with a mangled soname and the plugin's RPATH is patched to
+  // resolve it. A bare dlopen("libaio.so.1") probe (which IsLibAioAvailable
+  // uses) cannot find the mangled copy, yet the plugin loads successfully
+  // because its own NEEDED entry was also patched. We therefore attempt the
+  // plugin load directly and detect libaio-related failures from dlerror().
 
   const std::vector<std::string> candidates = BuildCandidatePaths(path);
   // Ensure the hosting module's C++ symbols (zvec::*) are visible to the
@@ -288,6 +287,17 @@ int LoadDiskAnnPlugin(const std::string &path) {
   }
 
   if (handle == nullptr) {
+    // Detect libaio-related failures from the last dlerror() message.
+    // When libaio is missing on the host (and not bundled in the wheel),
+    // dlopen of the plugin fails with an error mentioning "libaio".
+    if (last_error.find("libaio") != std::string::npos) {
+      LOG_ERROR(
+          "libaio is not available on this host; the DiskAnn runtime cannot "
+          "be activated. Install libaio1 (e.g. 'apt-get install libaio1', or "
+          "'libaio1t64' on Ubuntu 24.04+) and retry. This does not affect "
+          "other index types (HNSW, IVF, Flat, Vamana).");
+      return kDiskAnnPluginLibAioMissing;
+    }
     LOG_ERROR("Failed to load DiskAnn plugin; last error: %s",
               last_error.c_str());
     return kDiskAnnPluginDlopenFailed;

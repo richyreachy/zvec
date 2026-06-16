@@ -187,6 +187,10 @@ manylinux-x86_64-image = "manylinux_2_28"
 manylinux-aarch64-image = "manylinux_2_28"
 # Skip 32-bit builds and musllinux
 skip = ["*-manylinux_i686", "*-musllinux*"]
+# Use auditwheel to bundle libaio.so.1 into the wheel so end-users do not
+# need to install libaio separately. The DiskAnn plugin links against libaio;
+# auditwheel detects the NEEDED entry and copies it into the .libs directory.
+repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.macos]
 archs = ["arm64"]

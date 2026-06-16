@@ -54,8 +54,11 @@ enum DiskAnnPluginStatus {
 // required by the DiskAnn runtime (io_setup / io_submit / io_getevents /
 // io_destroy) can be resolved at runtime.
 //
-// Internal probe used by ``LoadDiskAnnPlugin`` before attempting dlopen. Not
-// part of the user-facing API.
+// NOTE: This probe uses dlopen("libaio.so.1") which only searches system
+// paths. When libaio is bundled into a wheel by auditwheel (with a mangled
+// soname), this function may return false even though the plugin will load
+// successfully via its patched RPATH. LoadDiskAnnPlugin() no longer gates
+// on this function; it attempts the plugin load directly.
 ZVEC_PLUGIN_EXPORT bool IsLibAioAvailable();
 
 // Load the DiskAnn runtime shared library (libzvec_diskann_plugin.so) via
