@@ -13,14 +13,7 @@
 // limitations under the License.
 #pragma once
 
-#define MAX_IO_DEPTH 128
-
 #include <fcntl.h>
-
-#if (defined(__linux) || defined(__linux__))
-#include <libaio.h>
-#endif
-
 #include <unistd.h>
 #include <atomic>
 #include <vector>
@@ -30,11 +23,10 @@
 namespace zvec {
 namespace core {
 
-#if (defined(__linux) || defined(__linux__))
-typedef io_context_t IOContext;
-#else
+// IOContext is retained as a lightweight placeholder for API compatibility.
+// With AIO removed, it is unused but kept to avoid changing every call-site
+// signature.
 typedef uint32_t IOContext;
-#endif
 
 int setup_io_ctx(IOContext &ctx);
 int destroy_io_ctx(IOContext &ctx);
@@ -64,6 +56,8 @@ class AlignedFileReader {
 
   virtual ~AlignedFileReader() {}
 
+  // register_thread / deregister_thread are no-ops without AIO but kept for
+  // source compatibility with callers that still invoke them.
   virtual void register_thread() = 0;
   virtual void deregister_thread() = 0;
   virtual void deregister_all_threads() = 0;

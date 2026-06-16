@@ -124,11 +124,9 @@ class Factory {
   //! storage (`zvec::*` matches its demangled name) while the guard variable,
   //! whose demangled form is `guard variable for zvec::...`, ends up hidden
   //! (compilers emit the guard in a COMDAT group whose visibility is not
-  //! upgraded by our version script). When libzvec_diskann_plugin.so is
-  //! loaded, _zvec.so and the plugin then share the `factory` storage but
-  //! each have their own guard; the plugin's still-zero guard triggers a
-  //! second run of the Factory constructor on the shared storage, wiping
-  //! all registrations performed during _zvec.so import (e.g. FlatStreamer).
+  //! upgraded by our version script). With DiskAnn now statically linked
+  //! (no separate plugin .so), this is less critical, but we keep the safe
+  //! pattern for any future dynamically loaded modules.
   //!
   //! A constant-initialized static std::atomic<T*> has NO guard variable
   //! (its zero init is compile-time), so we use a leaked heap singleton with

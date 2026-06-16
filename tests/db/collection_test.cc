@@ -2797,7 +2797,6 @@ TEST_F(CollectionTest, Feature_Optimize_Repeated) {
     run_repeated_optimize_test(
         enable_mmap, std::make_shared<DiskAnnIndexParams>(
                          MetricType::IP, 10, 4, 0, QuantizeType::UNDEFINED));
-#endif
 #if RABITQ_SUPPORTED
     run_repeated_optimize_test(
         enable_mmap, std::make_shared<HnswRabitqIndexParams>(MetricType::IP, 7,
@@ -5297,7 +5296,6 @@ TEST_F(CollectionTest, Feature_Optimize_HNSW_RABITQ) {
 }
 #endif
 
-#if DISKANN_SUPPORTED
 TEST_F(CollectionTest, Feature_Optimize_DiskAnn) {
   auto func = [](MetricType metric_type, int concurrency) {
     FileHelper::RemoveDirectory(col_path);
@@ -5370,7 +5368,6 @@ TEST_F(CollectionTest, Feature_Optimize_DiskAnn) {
   // func(MetricType::COSINE, 0);
   // func(MetricType::COSINE, 4);
 }
-#endif
 
 // **** CORNER CASES **** //
 TEST_F(CollectionTest, CornerCase_CreateAndOpen) {

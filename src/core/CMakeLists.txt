@@ -61,21 +61,12 @@ if(NOT RABITQ_SUPPORTED)
   list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/hnsw_rabitq/.*")
 endif()
 
-# Always exclude algorithm/diskann implementation files from zvec_core.
-# The DiskAnn algorithm is provided by the separate core_knn_diskann library
-# (real on Linux x86_64, stub on other platforms). Including them here causes
-# duplicate symbols and missing -laio when test binaries link both zvec_core
-# (via zvec) and core_knn_diskann.
+# Exclude algorithm/diskann implementation files from zvec_core — they are
+# provided by the separate core_knn_diskann static library to keep each
+# algorithm's object files in a dedicated target (like HNSW, IVF, etc.).
 list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/diskann/.*")
-if(NOT DISKANN_SUPPORTED)
-  list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/interface/indexes/diskann_index\\.cc")
-endif()
 
 set(ZVEC_CORE_LIBS zvec_ailego zvec_turbo sparsehash magic_enum rabitqlib)
-# The plugin loader uses dlopen/dlsym, so link libdl on Linux.
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  list(APPEND ZVEC_CORE_LIBS ${CMAKE_DL_LIBS})
-endif()
 
 cc_library(
     NAME zvec_core STATIC STRICT PACKED

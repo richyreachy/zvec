@@ -20,34 +20,19 @@
 #include <iostream>
 #include <zvec/core/framework/index_logger.h>
 
-#define MAX_EVENTS 1024
-
 namespace zvec {
 namespace core {
 
-#if (defined(__linux) || defined(__linux__))
-typedef struct io_event io_event_t;
-typedef struct iocb iocb_t;
-#endif
-
 int setup_io_ctx(IOContext &ctx) {
-#if (defined(__linux) || defined(__linux__))
-  int ret = io_setup(MAX_EVENTS, &ctx);
-
-  return ret;
-#else
+  // No-op: AIO removed. Kept for API compatibility.
+  ctx = 0;
   return 0;
-#endif
 }
 
 int destroy_io_ctx(IOContext &ctx) {
-#if (defined(__linux) || defined(__linux__))
-  int ret = io_destroy(ctx);
-
-  return ret;
-#else
+  // No-op: AIO removed.
+  (void)ctx;
   return 0;
-#endif
 }
 
 static int execute_io_pread(int fd, std::vector<AlignedRead> &read_reqs) {
@@ -66,87 +51,6 @@ static int execute_io_pread(int fd, std::vector<AlignedRead> &read_reqs) {
     }
   }
   return 0;
-}
-
-int execute_io(IOContext ctx, int fd, std::vector<AlignedRead> &read_reqs,
-               uint64_t n_retries = 0) {
-#if (defined(__linux) || defined(__linux__))
-  uint64_t iters = DiskAnnUtil::div_round_up(read_reqs.size(), MAX_EVENTS);
-
-  for (uint64_t iter = 0; iter < iters; iter++) {
-    uint64_t n_ops = std::min((uint64_t)read_reqs.size() - (iter * MAX_EVENTS),
-                              (uint64_t)MAX_EVENTS);
-
-    std::vector<iocb_t *> cbs(n_ops, nullptr);
-    std::vector<io_event_t> evts(n_ops);
-    std::vector<struct iocb> cb(n_ops);
-    for (uint64_t j = 0; j < n_ops; j++) {
-      io_prep_pread(cb.data() + j, fd, read_reqs[j + iter * MAX_EVENTS].buf,
-                    read_reqs[j + iter * MAX_EVENTS].len,
-                    read_reqs[j + iter * MAX_EVENTS].offset);
-    }
-
-    for (uint64_t i = 0; i < n_ops; i++) {
-      cbs[i] = cb.data() + i;
-    }
-
-    size_t n_tries = 0;
-    // Phase 1: io_submit with retry.
-    while (true) {
-      int ret = io_submit(ctx, (int64_t)n_ops, cbs.data());
-      if (ret == (int)n_ops) {
-        break;
-      }
-      if ((ret == -EAGAIN || ret == -EINTR) && n_tries < n_retries) {
-        n_tries++;
-        continue;
-      }
-      LOG_WARN(
-          "io_submit failed; returned: %d, expected=%lu. falling back to "
-          "pread",
-          ret, n_ops);
-      return execute_io_pread(fd, read_reqs);
-    }
-
-    // Phase 2: io_getevents with retry (never re-submits).
-    n_tries = 0;
-    while (true) {
-      int ret = io_getevents(ctx, (int64_t)n_ops, (int64_t)n_ops, evts.data(),
-                             nullptr);
-      if (ret == (int)n_ops) {
-        break;
-      }
-      if (ret == -EINTR && n_tries < n_retries) {
-        n_tries++;
-        continue;
-      }
-      LOG_WARN(
-          "io_getevents failed; returned: %d, expected=%lu, errno=%d, %s, "
-          "falling back to pread",
-          ret, n_ops, errno, ::strerror(-ret));
-      return execute_io_pread(fd, read_reqs);
-    }
-
-    // Phase 3: verify each completed read (res must equal requested length).
-    bool all_ok = true;
-    for (uint64_t i = 0; i < n_ops; i++) {
-      int64_t expected_len = read_reqs[i + iter * MAX_EVENTS].len;
-      if ((int64_t)evts[i].res != expected_len) {
-        LOG_WARN("aio request %zu failed: res=%ld, expected=%ld, offset=%zu",
-                 (size_t)i, (long)evts[i].res, (long)expected_len,
-                 (size_t)read_reqs[i + iter * MAX_EVENTS].offset);
-        all_ok = false;
-      }
-    }
-    if (!all_ok) {
-      return execute_io_pread(fd, read_reqs);
-    }
-  }
-
-  return 0;
-#else
-  return execute_io_pread(fd, read_reqs);
-#endif
 }
 
 LinuxAlignedFileReader::LinuxAlignedFileReader(int file_desc) {
@@ -169,7 +73,7 @@ IOContext &LinuxAlignedFileReader::get_ctx() {
   std::unique_lock<std::mutex> lk(ctx_mut);
   auto it = ctx_map.find(std::this_thread::get_id());
   if (it == ctx_map.end()) {
-    LOG_ERROR("bad thread access; returning -1 as io_context_t");
+    LOG_ERROR("bad thread access; returning bad_ctx");
     return this->bad_ctx;
   } else {
     return it->second;
@@ -177,69 +81,24 @@ IOContext &LinuxAlignedFileReader::get_ctx() {
 }
 
 void LinuxAlignedFileReader::register_thread() {
-#if (defined(__linux) || defined(__linux__))
   auto thread_id = std::this_thread::get_id();
   std::unique_lock<std::mutex> lk(ctx_mut);
   if (ctx_map.find(thread_id) != ctx_map.end()) {
-    LOG_ERROR("multiple calls to register_thread from the same thread");
-
     return;
   }
-
-  IOContext ctx = nullptr;
-
-  int ret = io_setup(MAX_EVENTS, &ctx);
-  if (ret != 0) {
-    lk.unlock();
-    if (ret == -EAGAIN) {
-      LOG_ERROR(
-          "io_setup failed with EAGAIN: Consider increasing "
-          "/proc/sys/fs/aio-max-nr");
-    } else {
-      LOG_ERROR("io_setup failed; returned: %d, %s", ret, ::strerror(-ret));
-      ;
-    }
-  } else {
-    LOG_INFO("allocating ctx: %lu", (uint64_t)ctx);
-
-    ctx_map[thread_id] = ctx;
-  }
-
-  lk.unlock();
-#endif
+  IOContext ctx = 0;
+  ctx_map[thread_id] = ctx;
 }
 
 void LinuxAlignedFileReader::deregister_thread() {
-#if (defined(__linux) || defined(__linux__))
   auto thread_id = std::this_thread::get_id();
-  IOContext ctx;
-
-  {
-    std::lock_guard<std::mutex> lk(ctx_mut);
-    auto it = ctx_map.find(thread_id);
-    if (it == ctx_map.end()) {
-      LOG_ERROR("deregister_thread: thread not registered");
-      return;
-    }
-    ctx = it->second;
-    ctx_map.erase(it);
-  }
-
-  // io_destroy is a syscall; keep it outside the lock to avoid blocking others
-  io_destroy(ctx);
-  LOG_INFO("returned ctx from thread");
-#endif
+  std::lock_guard<std::mutex> lk(ctx_mut);
+  ctx_map.erase(thread_id);
 }
 
 void LinuxAlignedFileReader::deregister_all_threads() {
-#if (defined(__linux) || defined(__linux__))
   std::unique_lock<std::mutex> lk(ctx_mut);
-  for (auto x = ctx_map.begin(); x != ctx_map.end(); x++) {
-    IOContext ctx = x->second;
-    io_destroy(ctx);
-  }
   ctx_map.clear();
-#endif
 }
 
 void LinuxAlignedFileReader::open(const std::string &fname) {
@@ -283,17 +142,15 @@ int LinuxAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,
   if (async == true) {
     LOG_WARN("Async currently not supported");
   }
+  (void)ctx;
 
   if (this->file_desc == -1) {
     LOG_ERROR("Attempt to read from invalid file descriptor");
     return IndexError_Runtime;
   }
 
-  int ret = execute_io(ctx, this->file_desc, read_reqs);
-
-  return ret;
+  return execute_io_pread(this->file_desc, read_reqs);
 }
-
 
 }  // namespace core
 }  // namespace zvec
