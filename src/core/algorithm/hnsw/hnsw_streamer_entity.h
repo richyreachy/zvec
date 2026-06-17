@@ -34,7 +34,6 @@
 namespace zvec {
 namespace core {
 
-
 //! Storage mode for HnswStreamerEntity
 enum class HnswStorageMode { kMmap = 0, kBufferPool = 1, kContiguous = 2 };
 

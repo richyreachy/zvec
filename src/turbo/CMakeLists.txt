@@ -116,9 +116,23 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
     endif()
 endif()
 
+# Apply RaBitQ architecture flags to rabitq_quantizer sources
+if(RABITQ_SUPPORTED AND RABITQ_ARCH_FLAG)
+    file(GLOB_RECURSE RABITQ_QUANTIZER_SRCS
+      ${CMAKE_CURRENT_SOURCE_DIR}/quantizer/rabitq_quantizer/*.cc
+      ${CMAKE_CURRENT_SOURCE_DIR}/quantizer/rabitq_quantizer/*.c)
+    if(RABITQ_QUANTIZER_SRCS)
+        set_source_files_properties(
+            ${RABITQ_QUANTIZER_SRCS}
+            PROPERTIES
+            COMPILE_FLAGS "${RABITQ_ARCH_FLAG}"
+        )
+    endif()
+endif()
+
 cc_library(
     NAME zvec_turbo STATIC STRICT PACKED ALWAYS_LINK
     SRCS ${ALL_SRCS}
-    LIBS zvec_ailego
+    LIBS zvec_ailego rabitqlib
     INCS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/distance ${PROJECT_ROOT_DIR}/src/include ${PROJECT_ROOT_DIR}/src
 )
