@@ -4169,6 +4169,71 @@ TEST_F(HnswStreamerTest, TestContiguousMultiThreadSearch) {
   s3.wait();
 }
 
+TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
+  auto holder =
+      make_shared<MultiPassIndexProvider<IndexMeta::DataType::DT_FP32>>(dim);
+  size_t doc_cnt = 1000UL;
+  for (size_t i = 0; i < doc_cnt; i++) {
+    NumericalVector<float> vec(dim);
+    for (size_t j = 0; j < dim; ++j) {
+      vec[j] = static_cast<float>(i * dim + j) / 1000.0f;
+    }
+    ASSERT_TRUE(holder->emplace(i, vec));
+  }
+
+  RabitqConverter converter;
+  converter.init(*index_meta_ptr_, ailego::Params());
+  ASSERT_EQ(converter.train(holder), 0);
+  std::shared_ptr<IndexReformer> index_reformer;
+  ASSERT_EQ(converter.to_reformer(&index_reformer), 0);
+  auto reformer = std::dynamic_pointer_cast<RabitqReformer>(index_reformer);
+  IndexStreamer::Pointer streamer =
+      std::make_shared<HnswStreamer>(holder, reformer);
+
+  ailego::Params params;
+  params.set("proxima.hnsw.streamer.max_neighbor_count", 16U);
+  params.set("proxima.hnsw.streamer.upper_neighbor_count", 8U);
+  params.set("proxima.hnsw.streamer.scaling_factor", 5U);
+  params.set("proxima.hnsw.general.dimension", dim);
+  ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
+  auto storage = IndexFactory::CreateStorage("MMapFileStorage");
+  ASSERT_NE(nullptr, storage);
+  ailego::Params stg_params;
+  ASSERT_EQ(0, storage->init(stg_params));
+  ASSERT_EQ(0, storage->open(dir_ + "/Test/AddVector", true));
+  ASSERT_EQ(0, streamer->open(storage));
+
+  auto context = streamer->create_context();
+  for (auto it = holder->create_iterator(); it->is_valid(); it->next()) {
+    IndexQueryMeta query_meta(IndexMeta::DataType::DT_FP32, dim);
+    ASSERT_EQ(0,
+              streamer->add_impl(it->key(), it->data(), query_meta, context));
+  }
+  streamer->flush(0UL);
+
+  // Perform search verification
+  NumericalVector<float> query_vec(dim);
+  for (size_t j = 0; j < dim; ++j) {
+    query_vec[j] = static_cast<float>(j) / 1000.0f;
+  }
+
+  IndexQueryMeta query_meta(IndexMeta::DataType::DT_FP32, dim);
+
+  context->set_topk(10);
+  ASSERT_EQ(0, streamer->search_impl(query_vec.data(), query_meta, 1, context));
+
+  const auto &result = context->result(0);
+  ASSERT_GT(result.size(), 0UL);
+  ASSERT_LE(result.size(), 10UL);
+
+  // reopen and load reformer from storage
+  ASSERT_EQ(0, streamer->close());
+  IndexStreamer::Pointer new_streamer =
+      std::make_shared<HnswRabitqStreamer>(holder);
+  ASSERT_EQ(0, new_streamer->init(*index_meta_ptr_, params));
+  ASSERT_EQ(0, new_streamer->open(storage));
+}
+
 }  // namespace core
 }  // namespace zvec
 
