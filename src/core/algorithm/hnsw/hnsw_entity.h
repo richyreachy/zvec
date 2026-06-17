@@ -28,11 +28,53 @@ using node_id_t = uint32_t;
 using key_t = uint64_t;
 using level_t = int32_t;
 using dist_t = float;
+
+struct EstimateRecord {
+  float ip_x0_qr;
+  float est_dist;
+  float low_dist;
+
+  bool operator<(const EstimateRecord &other) const {
+    return this->est_dist < other.est_dist;
+  }
+};
+
+struct ResultRecord {
+  float dist;
+  float est_dist;
+  float low_dist;
+
+  ResultRecord() : dist(0.0f), est_dist(0.0f), low_dist(0.0f) {}
+  ResultRecord(float dist) : dist(dist), est_dist(dist), low_dist(dist) {}
+  ResultRecord(float dist, float est_dist, float low_dist)
+      : dist(dist), est_dist(est_dist), low_dist(low_dist) {}
+  explicit ResultRecord(const EstimateRecord &other)
+      : est_dist(other.est_dist), low_dist(other.low_dist) {}
+  ResultRecord(float est_dist, float low_dist)
+      : est_dist(est_dist), low_dist(low_dist) {}
+
+  bool operator<(const ResultRecord &other) const {
+    return this->est_dist < other.est_dist;
+  }
+  bool operator<=(const ResultRecord &other) const {
+    return this->est_dist <= other.est_dist;
+  }
+  bool operator>(const ResultRecord &other) const {
+    return this->est_dist > other.est_dist;
+  }
+};
+
 using TopkHeap = ailego::KeyValueHeap<node_id_t, dist_t>;
 using CandidateHeap =
     ailego::KeyValueHeap<node_id_t, dist_t, std::greater<dist_t>>;
+
+using ResultRecordTopkHeap = ailego::KeyValueHeap<node_id_t, ResultRecord>;
+using ResultRecordCandidateHeap =
+    ailego::KeyValueHeap<node_id_t, ResultRecord, std::greater<ResultRecord>>;
+
 constexpr node_id_t kInvalidNodeId = static_cast<node_id_t>(-1);
 constexpr key_t kInvalidKey = static_cast<key_t>(-1);
+
 class DistCalculator;
 
 struct GraphHeader {
@@ -593,7 +635,7 @@ class HnswEntity {
 
   virtual int update_neighbors(
       level_t /*level*/, node_id_t /*id*/,
-      const std::vector<std::pair<node_id_t, dist_t>> & /*neighbors*/) {
+      const std::vector<std::pair<node_id_t, ResultRecord>> & /*neighbors*/) {
     LOG_ERROR("Update neighbors dense not implemented");
 
     return 0;
