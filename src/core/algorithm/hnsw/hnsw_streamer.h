@@ -43,6 +43,13 @@ class HnswStreamer : public IndexStreamer {
     return entity_->storage_mode();
   }
 
+  //! Set the original (unquantized) data provider.  Used by RaBitQ and
+  //! other quantization modes that need access to the raw vectors at
+  //! build / search time.
+  void set_original_provider(IndexProvider::Pointer provider) override {
+    original_provider_ = std::move(provider);
+  }
+
  protected:
   //! Initialize Streamer
   int init(const IndexMeta &imeta, const ailego::Params &params) override;
@@ -195,6 +202,7 @@ class HnswStreamer : public IndexStreamer {
 
   std::unique_ptr<HnswStreamerEntity> entity_;
   HnswAlgorithmBase::UPointer alg_;
+  IndexProvider::Pointer original_provider_{};
   IndexMeta meta_{};
   IndexMetric::Pointer metric_{};
   //! Search-side metric, used as fallback when the search-side turbo

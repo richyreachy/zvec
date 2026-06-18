@@ -22,8 +22,8 @@
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_reformer.h>
 #include <zvec/core/framework/index_stats.h>
-#include "quantizer/quantizer.h"
-#include "quantizer/rotator/rotator.h"
+#include "turbo/quantizer/quantizer.h"
+#include "turbo/quantizer/rotator/rotator.h"
 
 #if RABITQ_SUPPORTED
 #include <rabitqlib/quantization/rabitq.hpp>

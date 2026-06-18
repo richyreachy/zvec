@@ -548,7 +548,8 @@ class IndexMeta {
         sizeof(int16_t),   // DT_INT16
         sizeof(uint8_t),   // DT_INT4
         sizeof(uint32_t),  // DT_BINARY32
-        sizeof(uint64_t)   // DT_BINARY64
+        sizeof(uint64_t),  // DT_BINARY64
+        sizeof(uint64_t)   // DT_RABITQ
     };
     return unit_size_table[data_type];
   }
@@ -564,7 +565,8 @@ class IndexMeta {
         sizeof(int16_t),      // DT_INT16
         sizeof(uint8_t) * 4,  // DT_INT4
         sizeof(uint32_t),     // DT_BINARY32
-        sizeof(uint64_t)      // DT_BINARY64
+        sizeof(uint64_t),     // DT_BINARY64
+        sizeof(uint64_t)      // DT_RABITQ
     };
     return align_size_table[ft];
   }
@@ -585,6 +587,8 @@ class IndexMeta {
         return (dim + unit * 2 - 1) / (unit * 2) * unit;
       case DataType::DT_BINARY32:
       case DataType::DT_BINARY64:
+        return (dim + unit * 8 - 1) / (unit * 8) * unit;
+      case DataType::DT_RABITQ:
         return (dim + unit * 8 - 1) / (unit * 8) * unit;
     }
     return 0;

@@ -28,6 +28,10 @@
 #include "tests/test_util.h"
 #include "turbo/quantizer/quantizer.h"
 
+#ifdef RABITQ_SUPPORTED
+#include "turbo/quantizer/rabitq_quantizer/rabitq_quantizer.h"
+#endif
+
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
@@ -4182,15 +4186,15 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
     ASSERT_TRUE(holder->emplace(i, vec));
   }
 
-  RabitqQuantizer quantizer;
+  turbo::RabitqQuantizer quantizer;
 
   quantizer.init(*index_meta_ptr_, ailego::Params());
   ASSERT_EQ(quantizer.train(holder), 0);
-  std::shared_ptr<IndexReformer> index_reformer;
-  ASSERT_EQ(quantizer.to_reformer(&index_reformer), 0);
-  auto reformer = std::dynamic_pointer_cast<RabitqReformer>(index_reformer);
-  IndexStreamer::Pointer streamer =
-      std::make_shared<HnswStreamer>(holder, reformer);
+
+  auto streamer = IndexFactory::CreateStreamer("HnswStreamer");
+
+  streamer->set_original_provider(holder);
+  // streamer->set_quantizer(quantizer);
 
   ailego::Params params;
   params.set("proxima.hnsw.streamer.max_neighbor_count", 16U);
@@ -4208,8 +4212,11 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
   auto context = streamer->create_context();
   for (auto it = holder->create_iterator(); it->is_valid(); it->next()) {
     IndexQueryMeta query_meta(IndexMeta::DataType::DT_FP32, dim);
-    ASSERT_EQ(0,
-              streamer->add_impl(it->key(), it->data(), query_meta, context));
+
+    std::string quantize_data;
+    quantizer.quantize(it->data(), query_meta, &quantize_data, nullptr);
+    ASSERT_EQ(0, streamer->add_impl(it->key(), quantize_data.data(), query_meta,
+                                    context));
   }
   streamer->flush(0UL);
 
@@ -4230,8 +4237,8 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
 
   // reopen and load reformer from storage
   ASSERT_EQ(0, streamer->close());
-  IndexStreamer::Pointer new_streamer =
-      std::make_shared<HnswRabitqStreamer>(holder);
+  IndexStreamer::Pointer new_streamer = std::make_shared<HnswStreamer>();
+  new_streamer->set_original_provider(holder);
   ASSERT_EQ(0, new_streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, new_streamer->open(storage));
 }
