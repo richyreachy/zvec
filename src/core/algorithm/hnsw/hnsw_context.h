@@ -182,9 +182,9 @@ class HnswContext : public IndexContext {
       if (fetch_vector_) {
         IndexStorage::MemoryBlock block;
         entity_->get_vector(id, block);
-        results_[idx].emplace_back(entity_->get_key(id), score, id, block);
+        results_[idx].emplace_back(entity_->get_key(id), score.dist, id, block);
       } else {
-        results_[idx].emplace_back(entity_->get_key(id), score, id);
+        results_[idx].emplace_back(entity_->get_key(id), score.dist, id);
       }
     }
 
@@ -206,7 +206,7 @@ class HnswContext : public IndexContext {
       heap.sort();
 
       if (heap.size() > 0) {
-        float best_score = heap[0].second;
+        float best_score = heap[0].second.dist;
         best_score_in_groups.push_back(std::make_pair(group_id, best_score));
       }
     }
@@ -247,10 +247,10 @@ class HnswContext : public IndexContext {
           IndexStorage::MemoryBlock block;
           entity_->get_vector(id, block);
           group_results_[idx][i].mutable_docs()->emplace_back(
-              entity_->get_key(id), score, id, block);
+              entity_->get_key(id), score.dist, id, block);
         } else {
           group_results_[idx][i].mutable_docs()->emplace_back(
-              entity_->get_key(id), score, id);
+              entity_->get_key(id), score.dist, id);
         }
       }
     }

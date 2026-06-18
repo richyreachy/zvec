@@ -458,7 +458,7 @@ void VamanaAlgorithm<EntityType>::robust_prune(node_id_t id,
 
       // Add this candidate as a neighbor
       node_id_t candidate_id = candidates[i].first;
-      dist_t candidate_dist = candidates[i].second;
+      dist_t candidate_dist = candidates[i].second.dist;
       result.emplace_back(candidate_id, candidate_dist);
 
       // Update occlude_factor for remaining candidates
@@ -496,9 +496,9 @@ void VamanaAlgorithm<EntityType>::robust_prune(node_id_t id,
           if (dist_selected_to_candidate <= 0.0f) {
             occlude_factor[j] = std::numeric_limits<float>::max();
           } else {
-            occlude_factor[j] = std::max(occlude_factor[j],
-                                         (candidates[j].second + dist_offset) /
-                                             dist_selected_to_candidate);
+            occlude_factor[j] = std::max(
+                occlude_factor[j], (candidates[j].second.dist + dist_offset) /
+                                       dist_selected_to_candidate);
           }
         }
       }
@@ -522,7 +522,7 @@ void VamanaAlgorithm<EntityType>::robust_prune(node_id_t id,
         }
       }
       if (!already_selected) {
-        result.emplace_back(candidates[i].first, candidates[i].second);
+        result.emplace_back(candidates[i].first, candidates[i].second.dist);
       }
     }
   }

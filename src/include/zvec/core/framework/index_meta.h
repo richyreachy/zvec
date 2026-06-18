@@ -38,8 +38,8 @@ class IndexMeta {
     DT_INT4 = 6,
     DT_BINARY32 = 7,
     DT_BINARY64 = 8,
+    DT_RABITQ = 9,
   };
-
 
   /*! Major Orders
    */

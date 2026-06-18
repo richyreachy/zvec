@@ -41,30 +41,37 @@ struct EstimateRecord {
 
 struct ResultRecord {
   float dist;
-  float est_dist;
   float low_dist;
 
-  ResultRecord() : dist(0.0f), est_dist(0.0f), low_dist(0.0f) {}
-  ResultRecord(float dist) : dist(dist), est_dist(dist), low_dist(dist) {}
-  ResultRecord(float dist, float est_dist, float low_dist)
-      : dist(dist), est_dist(est_dist), low_dist(low_dist) {}
+  ResultRecord() : dist(0.0f), low_dist(0.0f) {}
+  ResultRecord(float dist) : dist(dist), low_dist(0.0f) {}
+  ResultRecord(float dist, float low_dist) : dist(dist), low_dist(low_dist) {}
   explicit ResultRecord(const EstimateRecord &other)
-      : est_dist(other.est_dist), low_dist(other.low_dist) {}
-  ResultRecord(float est_dist, float low_dist)
-      : est_dist(est_dist), low_dist(low_dist) {}
+      : dist(other.est_dist), low_dist(other.low_dist) {}
 
   bool operator<(const ResultRecord &other) const {
-    return this->est_dist < other.est_dist;
+    return this->dist < other.dist;
   }
   bool operator<=(const ResultRecord &other) const {
-    return this->est_dist <= other.est_dist;
+    return this->dist <= other.dist;
   }
   bool operator>(const ResultRecord &other) const {
-    return this->est_dist > other.est_dist;
+    return this->dist > other.dist;
+  }
+
+  // Cross-type comparisons for float <-> ResultRecord
+  friend bool operator<(float lhs, const ResultRecord &rhs) {
+    return lhs < rhs.dist;
+  }
+  friend bool operator>(const ResultRecord &lhs, float rhs) {
+    return lhs.dist > rhs;
+  }
+  friend bool operator>(float lhs, const ResultRecord &rhs) {
+    return lhs > rhs.dist;
   }
 };
 
-using TopkHeap = ailego::KeyValueHeap<node_id_t, dist_t>;
+using TopkHeap = ailego::KeyValueHeap<node_id_t, ResultRecord>;
 using CandidateHeap =
     ailego::KeyValueHeap<node_id_t, dist_t, std::greater<dist_t>>;
 

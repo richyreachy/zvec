@@ -4169,6 +4169,7 @@ TEST_F(HnswStreamerTest, TestContiguousMultiThreadSearch) {
   s3.wait();
 }
 
+#ifdef RABITQ_SUPPORTED
 TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
   auto holder =
       make_shared<MultiPassIndexProvider<IndexMeta::DataType::DT_FP32>>(dim);
@@ -4181,11 +4182,12 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
     ASSERT_TRUE(holder->emplace(i, vec));
   }
 
-  RabitqConverter converter;
-  converter.init(*index_meta_ptr_, ailego::Params());
-  ASSERT_EQ(converter.train(holder), 0);
+  RabitqQuantizer quantizer;
+
+  quantizer.init(*index_meta_ptr_, ailego::Params());
+  ASSERT_EQ(quantizer.train(holder), 0);
   std::shared_ptr<IndexReformer> index_reformer;
-  ASSERT_EQ(converter.to_reformer(&index_reformer), 0);
+  ASSERT_EQ(quantizer.to_reformer(&index_reformer), 0);
   auto reformer = std::dynamic_pointer_cast<RabitqReformer>(index_reformer);
   IndexStreamer::Pointer streamer =
       std::make_shared<HnswStreamer>(holder, reformer);
@@ -4234,6 +4236,7 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
   ASSERT_EQ(0, new_streamer->open(storage));
 }
 
+#endif
 }  // namespace core
 }  // namespace zvec
 

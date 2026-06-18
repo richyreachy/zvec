@@ -149,10 +149,10 @@ void VamanaContext::topk_to_result(uint32_t idx) {
     }
     node_id_t id = topk_heap_[i].first;
     if (fetch_vector_) {
-      results_[idx].emplace_back(entity_->get_key(id), score, id,
+      results_[idx].emplace_back(entity_->get_key(id), score.dist, id,
                                  entity_->get_vector(id));
     } else {
-      results_[idx].emplace_back(entity_->get_key(id), score, id);
+      results_[idx].emplace_back(entity_->get_key(id), score.dist, id);
     }
   }
 }

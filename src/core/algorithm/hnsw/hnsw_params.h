@@ -18,6 +18,9 @@
 namespace zvec {
 namespace core {
 
+inline const std::string PARAM_HNSW_GENERAL_DIMENSION(
+    "proxima.hnsw.general.dimension");
+
 static const std::string PARAM_HNSW_BUILDER_THREAD_COUNT(
     "proxima.hnsw.builder.thread_count");
 static const std::string PARAM_HNSW_BUILDER_MEMORY_QUOTA(

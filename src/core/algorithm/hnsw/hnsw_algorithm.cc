@@ -165,7 +165,7 @@ void HnswAlgorithm<EntityType>::add_neighbors(node_id_t id, level_t level,
   // reverse update neighbors
   for (size_t i = 0; i < topk_heap.size(); ++i) {
     reverse_update_neighbors(dc, topk_heap[i].first, level, id,
-                             topk_heap[i].second, ctx->update_heap());
+                             topk_heap[i].second.dist, ctx->update_heap());
   }
 
   return;
@@ -489,7 +489,7 @@ void HnswAlgorithm<EntityType>::expand_neighbors_by_group(
     visit.clear();
     for (uint32_t i = 0; i < topk.size(); ++i) {
       node_id_t id = topk[i].first;
-      float score = topk[i].second;
+      float score = topk[i].second.dist;
 
       visit.set_visited(id);
       candidates.emplace_back(id, score);
@@ -581,7 +581,7 @@ void HnswAlgorithm<EntityType>::update_neighbors(HnswDistCalculator &dc,
   uint32_t cur_size = 0;
   for (size_t i = 0; i < topk_heap.size(); ++i) {
     node_id_t cur_node = topk_heap[i].first;
-    dist_t cur_node_dist = topk_heap[i].second;
+    dist_t cur_node_dist = topk_heap[i].second.dist;
     bool good = true;
     for (uint32_t j = 0; j < cur_size; ++j) {
       dist_t tmp_dist = dc.dist(cur_node, topk_heap[j].first);
@@ -659,7 +659,7 @@ void HnswAlgorithm<EntityType>::reverse_update_neighbors(
   size_t cur_size = 0;
   for (size_t i = 0; i < update_heap.size(); ++i) {
     node_id_t cur_node = update_heap[i].first;
-    dist_t cur_node_dist = update_heap[i].second;
+    dist_t cur_node_dist = update_heap[i].second.dist;
     bool good = true;
     for (size_t j = 0; j < cur_size; ++j) {
       dist_t tmp_dist = dc.dist(cur_node, update_heap[j].first);
