@@ -202,6 +202,8 @@ int HnswStreamer::cleanup(void) {
   LOG_INFO("HnswStreamer cleanup");
 
   meta_.clear();
+  original_meta_.clear();
+  has_original_meta_ = false;
   metric_.reset();
   add_quantizer_.reset();
   search_quantizer_.reset();
@@ -454,8 +456,17 @@ IndexStreamer::Context::Pointer HnswStreamer::create_context(void) const {
     LOG_ERROR("CreateContext clone init failed");
     return Context::Pointer();
   }
-  HnswContext *ctx = new (std::nothrow) HnswContext(
-      meta_.dimension(), add_quantizer_, meta_.data_type(), metric_, entity);
+  // Determine dimension and data type for the distance calculator.
+  // When original_meta_ is set (e.g. FP32 original vectors with RaBitQ
+  // storage), prefer it over the quantized meta_.
+  uint32_t dc_dim = meta_.dimension();
+  IndexMeta::DataType dc_dtype = meta_.data_type();
+  if (has_original_meta_) {
+    dc_dim = original_meta_.dimension();
+    dc_dtype = original_meta_.data_type();
+  }
+  HnswContext *ctx = new (std::nothrow)
+      HnswContext(dc_dim, add_quantizer_, dc_dtype, metric_, entity);
   if (ailego_unlikely(ctx == nullptr)) {
     LOG_ERROR("Failed to new HnswContext");
     return Context::Pointer();
@@ -512,7 +523,8 @@ int HnswStreamer::update_context(HnswContext *ctx) const {
   ctx->set_max_scan_ratio(max_scan_ratio_);
   ctx->set_bruteforce_threshold(bruteforce_threshold_);
   return ctx->update_context(HnswContext::kStreamerContext, meta_,
-                             add_quantizer_, metric_, entity, magic_);
+                             add_quantizer_, metric_, entity, magic_,
+                             has_original_meta_ ? &original_meta_ : nullptr);
 }
 
 //! Add a vector with id into index

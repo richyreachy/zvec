@@ -50,10 +50,13 @@ class IndexStreamer : public IndexRunner {
   //! Retrieve meta of index
   virtual const IndexMeta &meta(void) const = 0;
 
-  //! Set the original (unquantized) data provider.  Default is a no-op;
+  //! Set the original (unquantized) data provider together with the
+  //! original (unquantized) IndexMeta.  Default is a no-op;
   //! quantization-aware streamers (e.g. HnswStreamer in RaBitQ mode)
-  //! override this to store the provider for build / search time use.
-  virtual void set_original_provider(IndexProvider::Pointer /*provider*/) {}
+  //! override this to store the provider and meta for build / search
+  //! time distance calculation.
+  virtual void set_original_provider(const IndexMeta & /*original_meta*/,
+                                     IndexProvider::Pointer /*provider*/) {}
 };
 
 }  // namespace core

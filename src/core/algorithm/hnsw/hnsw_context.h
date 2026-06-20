@@ -120,7 +120,8 @@ class HnswContext : public IndexContext {
   int update_context(ContextType type, const IndexMeta &meta,
                      zvec::turbo::Quantizer::Pointer quantizer,
                      const IndexMetric::Pointer &metric,
-                     const HnswEntity::Pointer &entity, uint32_t magic_num);
+                     const HnswEntity::Pointer &entity, uint32_t magic_num,
+                     const IndexMeta *original_meta = nullptr);
 
   inline const HnswEntity &get_entity() const {
     return *entity_;

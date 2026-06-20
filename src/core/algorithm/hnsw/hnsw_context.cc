@@ -224,7 +224,8 @@ int HnswContext::update_context(ContextType type, const IndexMeta &meta,
                                 zvec::turbo::Quantizer::Pointer quantizer,
                                 const IndexMetric::Pointer &metric,
                                 const HnswEntity::Pointer &entity,
-                                uint32_t magic_num) {
+                                uint32_t magic_num,
+                                const IndexMeta *original_meta) {
   uint32_t doc_cnt;
 
   if (ailego_unlikely(static_cast<uint32_t>(type) != type_)) {
@@ -273,8 +274,15 @@ int HnswContext::update_context(ContextType type, const IndexMeta &meta,
   }
 
   entity_ = entity;
-  dc_.update(entity_.get(), std::move(quantizer), metric, meta.dimension(),
-             meta.data_type());
+  // Use original_meta for distance calculation dimension and data type
+  // when available (e.g. FP32 original vectors with RaBitQ storage).
+  if (original_meta != nullptr && original_meta->dimension() > 0) {
+    dc_.update(entity_.get(), std::move(quantizer), metric,
+               original_meta->dimension(), original_meta->data_type());
+  } else {
+    dc_.update(entity_.get(), std::move(quantizer), metric, meta.dimension(),
+               meta.data_type());
+  }
   metric_ = metric;
   magic_ = magic_num;
   level_topks_.clear();

@@ -43,11 +43,15 @@ class HnswStreamer : public IndexStreamer {
     return entity_->storage_mode();
   }
 
-  //! Set the original (unquantized) data provider.  Used by RaBitQ and
-  //! other quantization modes that need access to the raw vectors at
-  //! build / search time.
-  void set_original_provider(IndexProvider::Pointer provider) override {
+  //! Set the original (unquantized) data provider together with the
+  //! original (unquantized) IndexMeta.  Used by RaBitQ and other
+  //! quantization modes that need access to the raw vectors and the
+  //! original meta at build / search time for distance calculation.
+  void set_original_provider(const IndexMeta &original_meta,
+                             IndexProvider::Pointer provider) override {
     original_provider_ = std::move(provider);
+    original_meta_ = original_meta;
+    has_original_meta_ = true;
   }
 
  protected:
@@ -203,6 +207,8 @@ class HnswStreamer : public IndexStreamer {
   std::unique_ptr<HnswStreamerEntity> entity_;
   HnswAlgorithmBase::UPointer alg_;
   IndexProvider::Pointer original_provider_{};
+  IndexMeta original_meta_{};
+  bool has_original_meta_{false};
   IndexMeta meta_{};
   IndexMetric::Pointer metric_{};
   //! Search-side metric, used as fallback when the search-side turbo

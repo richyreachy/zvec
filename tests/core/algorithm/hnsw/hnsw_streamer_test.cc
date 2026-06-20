@@ -4189,6 +4189,7 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
   turbo::RabitqQuantizer quantizer;
 
   IndexMeta rabitq_meta(IndexMeta::DataType::DT_RABITQ, dim);
+  IndexMeta original_meta(IndexMeta::DataType::DT_FP32, dim);
 
   quantizer.init(rabitq_meta, ailego::Params());
   ASSERT_EQ(quantizer.train(provider), 0);
@@ -4202,7 +4203,7 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
   params.set("proxima.hnsw.general.dimension", dim);
   params.set("proxima.hnsw.streamer.build_with_original_vector", true);
 
-  streamer->set_original_provider(provider);
+  streamer->set_original_provider(original_meta, provider);
   ASSERT_EQ(0, streamer->init(rabitq_meta, params));
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_NE(nullptr, storage);
@@ -4238,7 +4239,7 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
   // reopen and load reformer from storage
   ASSERT_EQ(0, streamer->close());
   IndexStreamer::Pointer new_streamer = std::make_shared<HnswStreamer>();
-  new_streamer->set_original_provider(provider);
+  new_streamer->set_original_provider(original_meta, provider);
   ASSERT_EQ(0, new_streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, new_streamer->open(storage));
 }
