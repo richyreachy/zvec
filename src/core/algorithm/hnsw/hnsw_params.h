@@ -105,6 +105,8 @@ static const std::string PARAM_HNSW_STREAMER_ESTIMATE_DOC_COUNT(
     "proxima.hnsw.streamer.estimate_doc_count");
 static const std::string PARAM_HNSW_STREAMER_USE_ID_MAP(
     "proxima.hnsw.streamer.use_id_map");
+static const std::string PARAM_HNSW_STREAMER_BUILD_WITH_ORIGINAL_VECTOR(
+    "proxima.hnsw.streamer.build_with_original_vector");
 
 static const std::string PARAM_HNSW_REDUCER_WORKING_PATH(
     "proxima.hnsw.reducer.working_path");

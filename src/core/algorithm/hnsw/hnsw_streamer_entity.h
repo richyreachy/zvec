@@ -614,6 +614,8 @@ class HnswStreamerEntity : public HnswEntity {
       upper_neighbor_chunk_bases_{};
 
   ChunkBroker::Pointer broker_{};  // chunk broker
+
+  IndexProvider::Pointer original_provider_{};
 };
 
 // --- Template specializations for typed MemoryBlock access ---

@@ -4175,7 +4175,7 @@ TEST_F(HnswStreamerTest, TestContiguousMultiThreadSearch) {
 
 #ifdef RABITQ_SUPPORTED
 TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
-  auto holder =
+  auto provider =
       make_shared<MultiPassIndexProvider<IndexMeta::DataType::DT_FP32>>(dim);
   size_t doc_cnt = 1000UL;
   for (size_t i = 0; i < doc_cnt; i++) {
@@ -4183,34 +4183,35 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
     for (size_t j = 0; j < dim; ++j) {
       vec[j] = static_cast<float>(i * dim + j) / 1000.0f;
     }
-    ASSERT_TRUE(holder->emplace(i, vec));
+    ASSERT_TRUE(provider->emplace(i, vec));
   }
 
   turbo::RabitqQuantizer quantizer;
 
-  quantizer.init(*index_meta_ptr_, ailego::Params());
-  ASSERT_EQ(quantizer.train(holder), 0);
+  IndexMeta rabitq_meta(IndexMeta::DataType::DT_RABITQ, dim);
+
+  quantizer.init(rabitq_meta, ailego::Params());
+  ASSERT_EQ(quantizer.train(provider), 0);
 
   auto streamer = IndexFactory::CreateStreamer("HnswStreamer");
-
-  streamer->set_original_provider(holder);
-  // streamer->set_quantizer(quantizer);
 
   ailego::Params params;
   params.set("proxima.hnsw.streamer.max_neighbor_count", 16U);
   params.set("proxima.hnsw.streamer.upper_neighbor_count", 8U);
   params.set("proxima.hnsw.streamer.scaling_factor", 5U);
   params.set("proxima.hnsw.general.dimension", dim);
-  ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
+
+  ASSERT_EQ(0, streamer->init(rabitq_meta, params));
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_NE(nullptr, storage);
+
   ailego::Params stg_params;
   ASSERT_EQ(0, storage->init(stg_params));
   ASSERT_EQ(0, storage->open(dir_ + "/Test/AddVector", true));
   ASSERT_EQ(0, streamer->open(storage));
 
   auto context = streamer->create_context();
-  for (auto it = holder->create_iterator(); it->is_valid(); it->next()) {
+  for (auto it = provider->create_iterator(); it->is_valid(); it->next()) {
     IndexQueryMeta query_meta(IndexMeta::DataType::DT_FP32, dim);
 
     std::string quantize_data;
@@ -4238,7 +4239,7 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
   // reopen and load reformer from storage
   ASSERT_EQ(0, streamer->close());
   IndexStreamer::Pointer new_streamer = std::make_shared<HnswStreamer>();
-  new_streamer->set_original_provider(holder);
+  new_streamer->set_original_provider(provider);
   ASSERT_EQ(0, new_streamer->init(*index_meta_ptr_, params));
   ASSERT_EQ(0, new_streamer->open(storage));
 }
