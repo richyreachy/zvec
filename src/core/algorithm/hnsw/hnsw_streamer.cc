@@ -489,6 +489,10 @@ IndexStreamer::Context::Pointer HnswStreamer::create_context(void) const {
     delete ctx;
     return Context::Pointer();
   }
+  // Initialize the search-side distance calculator with the quantized
+  // meta (may differ from the add-side original meta for RaBitQ).
+  ctx->init_search_calculator(entity.get(), search_quantizer_, search_metric_,
+                              meta_.dimension(), meta_.data_type());
   uint32_t estimate_doc_count = 0;
   if (meta_.streamer_params().get(PARAM_HNSW_STREAMER_ESTIMATE_DOC_COUNT,
                                   &estimate_doc_count)) {
@@ -523,7 +527,8 @@ int HnswStreamer::update_context(HnswContext *ctx) const {
   ctx->set_max_scan_ratio(max_scan_ratio_);
   ctx->set_bruteforce_threshold(bruteforce_threshold_);
   return ctx->update_context(HnswContext::kStreamerContext, meta_,
-                             add_quantizer_, metric_, entity, magic_,
+                             add_quantizer_, search_quantizer_, metric_,
+                             search_metric_, entity, magic_,
                              has_original_meta_ ? &original_meta_ : nullptr);
 }
 
@@ -568,6 +573,7 @@ int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
   }
   AILEGO_DEFER([&]() { shared_mutex_.unlock_shared(); });
 
+  ctx->set_mode(HnswContext::kBuildMode);
   ctx->clear();
   ctx->update_dist_caculator_quantizer(add_quantizer_);
   ctx->update_dist_caculator_metric(metric_);
@@ -649,6 +655,7 @@ int HnswStreamer::add_impl(uint64_t pkey, const void *query,
   }
   AILEGO_DEFER([&]() { shared_mutex_.unlock_shared(); });
 
+  ctx->set_mode(HnswContext::kBuildMode);
   ctx->clear();
   ctx->update_dist_caculator_quantizer(add_quantizer_);
   ctx->update_dist_caculator_metric(metric_);
@@ -722,6 +729,7 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
     }
   }
 
+  ctx->set_mode(HnswContext::kSearchMode);
   ctx->clear();
   ctx->update_dist_caculator_quantizer(search_quantizer_);
   ctx->update_dist_caculator_metric(search_metric_);
@@ -793,6 +801,7 @@ int HnswStreamer::search_bf_impl(
     }
   }
 
+  ctx->set_mode(HnswContext::kSearchMode);
   ctx->clear();
   ctx->update_dist_caculator_quantizer(search_quantizer_);
   ctx->update_dist_caculator_metric(search_metric_);
@@ -888,6 +897,7 @@ int HnswStreamer::search_bf_by_p_keys_impl(
     }
   }
 
+  ctx->set_mode(HnswContext::kSearchMode);
   ctx->clear();
   ctx->update_dist_caculator_quantizer(search_quantizer_);
   ctx->update_dist_caculator_metric(search_metric_);

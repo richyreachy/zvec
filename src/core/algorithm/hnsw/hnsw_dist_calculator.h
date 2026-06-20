@@ -32,6 +32,10 @@ class HnswDistCalculator {
   typedef std::shared_ptr<HnswDistCalculator> Pointer;
 
  public:
+  //! Default constructor (for lazy init via update()).
+  HnswDistCalculator()
+      : entity_(nullptr), query_(nullptr), dim_(0), compare_cnt_(0) {}
+
   enum DistType {
     DIST_NONE = 0,
     DIST_DENSE = 1,

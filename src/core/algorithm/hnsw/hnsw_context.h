@@ -36,6 +36,20 @@ class HnswContext : public IndexContext {
     kStreamerContext = 3
   };
 
+  //! Mode to select which distance calculator to use.
+  //! kBuildMode  – original-vector calculator for graph construction (add).
+  //! kSearchMode – quantized-vector calculator for query search.
+  enum ContextMode { kBuildMode = 0, kSearchMode = 1 };
+
+  //! Set the active calculator mode (build vs search).
+  void set_mode(ContextMode mode) {
+    mode_ = mode;
+  }
+  //! Get the active calculator mode.
+  ContextMode mode() const {
+    return mode_;
+  }
+
   //! Construct with an explicit turbo quantizer (used for building the
   //! internal HnswDistCalculator).
   HnswContext(size_t dimension, zvec::turbo::Quantizer::Pointer quantizer,
@@ -118,8 +132,10 @@ class HnswContext : public IndexContext {
 
   //! Update context, the context may be shared by different searcher/streamer
   int update_context(ContextType type, const IndexMeta &meta,
-                     zvec::turbo::Quantizer::Pointer quantizer,
-                     const IndexMetric::Pointer &metric,
+                     zvec::turbo::Quantizer::Pointer add_quantizer,
+                     zvec::turbo::Quantizer::Pointer search_quantizer,
+                     const IndexMetric::Pointer &add_metric,
+                     const IndexMetric::Pointer &search_metric,
                      const HnswEntity::Pointer &entity, uint32_t magic_num,
                      const IndexMeta *original_meta = nullptr);
 
@@ -154,7 +170,7 @@ class HnswContext : public IndexContext {
 
     for (size_t i = 0; i < heap.size(); ++i) {
       node_id_t id = heap[i].first;
-      dist_t dist = dc_.dist(id);
+      dist_t dist = active_dc().dist(id);
       topk_heap_.emplace_back(id, dist);
     }
   }
@@ -260,19 +276,19 @@ class HnswContext : public IndexContext {
   inline void reset_query(const void *query) {
     if (auto query_preprocess_func = index_metric_->get_query_preprocess_func();
         query_preprocess_func != nullptr) {
-      size_t dim = dc_.dimension();
+      size_t dim = active_dc().dimension();
       preprocess_buffer_.resize(dim);
       memcpy(preprocess_buffer_.data(), query, dim);
       query_preprocess_func(preprocess_buffer_.data(), dim);
       query = preprocess_buffer_.data();
     }
 
-    dc_.reset_query(query);
-    dc_.clear_compare_cnt();
+    active_dc().reset_query(query);
+    active_dc().clear_compare_cnt();
   }
 
   inline HnswDistCalculator &dist_calculator() {
-    return dc_;
+    return active_dc();
   }
 
   inline TopkHeap &topk_heap() {
@@ -440,19 +456,19 @@ class HnswContext : public IndexContext {
   }
 
   inline size_t get_scan_num() const {
-    return dc_.compare_cnt();
+    return active_dc().compare_cnt();
   }
 
   inline uint64_t reach_scan_limit() const {
-    return dc_.compare_cnt() >= max_scan_num_;
+    return active_dc().compare_cnt() >= max_scan_num_;
   }
 
   inline bool error() const {
-    return dc_.error();
+    return active_dc().error();
   }
 
   inline void clear() {
-    dc_.clear();
+    active_dc().clear();
     if (ailego_unlikely(this->debugging())) {
       stats_get_neighbors_cnt_ = 0u;
       stats_get_vector_cnt_ = 0u;
@@ -483,20 +499,30 @@ class HnswContext : public IndexContext {
     return debug_mode_;
   }
 
-  //! Swap the turbo quantizer used by the dist calculator (e.g. when
-  //! switching between add/search metrics). Caller must then invoke
+  //! Swap the turbo quantizer used by the active dist calculator (e.g.
+  //! when switching between add/search metrics). Caller must then invoke
   //! reset_query before using the calculator.
   inline void update_dist_caculator_quantizer(
       zvec::turbo::Quantizer::Pointer quantizer) {
-    dc_.update_quantizer(std::move(quantizer));
+    active_dc().update_quantizer(std::move(quantizer));
   }
 
-  //! Swap the IndexMetric fallback used by the dist calculator (e.g. when
-  //! switching between add/search metrics for MipsSquaredEuclidean, whose
-  //! query-time metric is InnerProduct). Caller must then invoke
+  //! Swap the IndexMetric fallback used by the active dist calculator (e.g.
+  //! when switching between add/search metrics for MipsSquaredEuclidean,
+  //! whose query-time metric is InnerProduct). Caller must then invoke
   //! reset_query before using the calculator.
   inline void update_dist_caculator_metric(IndexMetric::Pointer metric) {
-    dc_.update_metric(std::move(metric));
+    active_dc().update_metric(std::move(metric));
+  }
+
+  //! Initialize the search-side distance calculator (called once after
+  //! create_context, before any search operation).
+  void init_search_calculator(const HnswEntity *entity,
+                              zvec::turbo::Quantizer::Pointer quantizer,
+                              IndexMetric::Pointer metric, uint32_t dim,
+                              IndexMeta::DataType qmeta_data_type) {
+    search_dc_.update(entity, std::move(quantizer), std::move(metric), dim,
+                      qmeta_data_type);
   }
 
   //! Get topk
@@ -541,8 +567,18 @@ class HnswContext : public IndexContext {
   constexpr static uint32_t kInvalidMgic = -1U;
 
  private:
+  inline HnswDistCalculator &active_dc() {
+    return mode_ == kBuildMode ? add_dc_ : search_dc_;
+  }
+  inline const HnswDistCalculator &active_dc() const {
+    return mode_ == kBuildMode ? add_dc_ : search_dc_;
+  }
+
+ private:
   HnswEntity::Pointer entity_;
-  HnswDistCalculator dc_;
+  HnswDistCalculator add_dc_;
+  HnswDistCalculator search_dc_;
+  ContextMode mode_{kBuildMode};
   IndexMetric::Pointer metric_;
 
   bool debug_mode_{false};

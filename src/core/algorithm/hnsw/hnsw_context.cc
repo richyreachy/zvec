@@ -25,8 +25,8 @@ HnswContext::HnswContext(size_t dimension,
                          const HnswEntity::Pointer &entity)
     : IndexContext(metric),
       entity_(entity),
-      dc_(entity_.get(), std::move(quantizer), metric, dimension,
-          qmeta_data_type) {
+      add_dc_(entity_.get(), std::move(quantizer), metric, dimension,
+              qmeta_data_type) {
   metric_ = metric;
 }
 
@@ -35,7 +35,7 @@ HnswContext::HnswContext(zvec::turbo::Quantizer::Pointer quantizer,
                          const HnswEntity::Pointer &entity)
     : IndexContext(metric),
       entity_(entity),
-      dc_(entity_.get(), std::move(quantizer), metric) {
+      add_dc_(entity_.get(), std::move(quantizer), metric) {
   metric_ = metric;
 }
 
@@ -220,12 +220,14 @@ int HnswContext::update(const ailego::Params &params) {
   }
 }
 
-int HnswContext::update_context(ContextType type, const IndexMeta &meta,
-                                zvec::turbo::Quantizer::Pointer quantizer,
-                                const IndexMetric::Pointer &metric,
-                                const HnswEntity::Pointer &entity,
-                                uint32_t magic_num,
-                                const IndexMeta *original_meta) {
+int HnswContext::update_context(
+    ContextType type, const IndexMeta &meta,
+    zvec::turbo::Quantizer::Pointer add_quantizer,
+    zvec::turbo::Quantizer::Pointer search_quantizer,
+    const IndexMetric::Pointer &add_metric,
+    const IndexMetric::Pointer &search_metric,
+    const HnswEntity::Pointer &entity, uint32_t magic_num,
+    const IndexMeta *original_meta) {
   uint32_t doc_cnt;
 
   if (ailego_unlikely(static_cast<uint32_t>(type) != type_)) {
@@ -274,16 +276,19 @@ int HnswContext::update_context(ContextType type, const IndexMeta &meta,
   }
 
   entity_ = entity;
-  // Use original_meta for distance calculation dimension and data type
-  // when available (e.g. FP32 original vectors with RaBitQ storage).
+  // add_dc_ uses original_meta when available (e.g. FP32 original vectors
+  // with RaBitQ storage) for accurate graph construction.
   if (original_meta != nullptr && original_meta->dimension() > 0) {
-    dc_.update(entity_.get(), std::move(quantizer), metric,
-               original_meta->dimension(), original_meta->data_type());
+    add_dc_.update(entity_.get(), std::move(add_quantizer), add_metric,
+                   original_meta->dimension(), original_meta->data_type());
   } else {
-    dc_.update(entity_.get(), std::move(quantizer), metric, meta.dimension(),
-               meta.data_type());
+    add_dc_.update(entity_.get(), std::move(add_quantizer), add_metric,
+                   meta.dimension(), meta.data_type());
   }
-  metric_ = metric;
+  // search_dc_ always uses the quantized meta for search.
+  search_dc_.update(entity_.get(), std::move(search_quantizer), search_metric,
+                    meta.dimension(), meta.data_type());
+  metric_ = add_metric;
   magic_ = magic_num;
   level_topks_.clear();
 
@@ -318,7 +323,7 @@ void HnswContext::fill_random_to_topk_full(void) {
     const auto id = gen();
     if (!visit_filter_.visited(id) && !myfilter(id)) {
       visit_filter_.set_visited(id);
-      topk_heap_.emplace(id, dc_.dist(id));
+      topk_heap_.emplace(id, active_dc().dist(id));
     }
   }
   return;
