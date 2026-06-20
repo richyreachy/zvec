@@ -276,18 +276,21 @@ int HnswContext::update_context(
   }
 
   entity_ = entity;
-  // add_dc_ uses original_meta when available (e.g. FP32 original vectors
-  // with RaBitQ storage) for accurate graph construction.
+  // When original_meta is available (e.g. FP32 original vectors with
+  // RaBitQ storage), both calculators use it for the query meta since
+  // the query is always in the original data type. The difference between
+  // the two calculators is in the quantizer/metric, not the query format.
   if (original_meta != nullptr && original_meta->dimension() > 0) {
     add_dc_.update(entity_.get(), std::move(add_quantizer), add_metric,
                    original_meta->dimension(), original_meta->data_type());
+    search_dc_.update(entity_.get(), std::move(search_quantizer), search_metric,
+                      original_meta->dimension(), original_meta->data_type());
   } else {
     add_dc_.update(entity_.get(), std::move(add_quantizer), add_metric,
                    meta.dimension(), meta.data_type());
+    search_dc_.update(entity_.get(), std::move(search_quantizer), search_metric,
+                      meta.dimension(), meta.data_type());
   }
-  // search_dc_ always uses the quantized meta for search.
-  search_dc_.update(entity_.get(), std::move(search_quantizer), search_metric,
-                    meta.dimension(), meta.data_type());
   metric_ = add_metric;
   magic_ = magic_num;
   level_topks_.clear();

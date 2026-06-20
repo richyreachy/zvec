@@ -157,9 +157,17 @@ class HnswStreamer : public IndexStreamer {
       LOG_ERROR("null query");
       return IndexError_InvalidArgument;
     }
-    if (ailego_unlikely(qmeta.dimension() != meta_.dimension() ||
-                        qmeta.data_type() != meta_.data_type() ||
-                        qmeta.element_size() != meta_.element_size())) {
+    // Accept query meta that matches either the stored meta (for add,
+    // where the data is in quantized format) or the original meta (for
+    // search, where the query is in the original FP32 format).
+    bool matches_stored = qmeta.dimension() == meta_.dimension() &&
+                          qmeta.data_type() == meta_.data_type() &&
+                          qmeta.element_size() == meta_.element_size();
+    bool matches_original =
+        has_original_meta_ && qmeta.dimension() == original_meta_.dimension() &&
+        qmeta.data_type() == original_meta_.data_type() &&
+        qmeta.element_size() == original_meta_.element_size();
+    if (ailego_unlikely(!matches_stored && !matches_original)) {
       LOG_ERROR("Unsupported query meta");
       return IndexError_Mismatch;
     }

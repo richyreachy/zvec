@@ -83,12 +83,19 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
     turbo_quantizer_class_ = "Fp32Quantizer";
   }
 
-  // When building with original (unquantized) vectors, override the
-  // data type to FP32 so that the entity stores raw floats and the
-  // standard FP32 distance path is used for graph construction.
+  // When building with original vectors, keep the quantized meta (e.g.
+  // DT_RABITQ) for storage but auto-derive the turbo quantizer class
+  // from the data type so distance calculation matches the stored format.
+  // The original (FP32) meta is used for the query side of the distance
+  // calculators via set_original_provider / update_context.
   if (build_with_original_vector_) {
-    meta_.set_meta(IndexMeta::DataType::DT_FP32, meta_.dimension());
-    turbo_quantizer_class_ = "Fp32Quantizer";
+    switch (meta_.data_type()) {
+      case IndexMeta::DataType::DT_RABITQ:
+        turbo_quantizer_class_ = "RabitqQuantizer";
+        break;
+      default:
+        break;  // keep whatever was set by params or default
+    }
   }
 
   params.get(PARAM_HNSW_STREAMER_DOCS_SOFT_LIMIT, &docs_soft_limit_);
@@ -324,7 +331,15 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
     LOG_ERROR("Failed to create metric %s", meta_.metric_name().c_str());
     return IndexError_NoExist;
   }
-  ret = metric_->init(meta_, meta_.metric_params());
+  // When building with original vectors, the metric handles FP32 distance
+  // computation (the turbo quantizer handles RaBitQ-specific distance).
+  // Initialize the metric with the original (FP32) meta so it can set up
+  // its distance functions correctly.
+  if (build_with_original_vector_ && has_original_meta_) {
+    ret = metric_->init(original_meta_, original_meta_.metric_params());
+  } else {
+    ret = metric_->init(meta_, meta_.metric_params());
+  }
   if (ret != 0) {
     LOG_ERROR("Failed to init metric, ret=%d", ret);
     return ret;
@@ -352,6 +367,18 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
     LOG_ERROR("Failed to init turbo quantizer '%s', ret=%d",
               turbo_quantizer_class_.c_str(), ret);
     return ret;
+  }
+  // When building with original vectors, train the quantizer using the
+  // original provider so that distance calculation works on quantized data.
+  if (build_with_original_vector_ && original_provider_) {
+    ret = add_quantizer_->train(original_provider_);
+    if (ret != 0) {
+      LOG_ERROR(
+          "Failed to train turbo quantizer for build_with_original_vector, "
+          "ret=%d",
+          ret);
+      return ret;
+    }
   }
   // Default: use the same quantizer for search. When the underlying
   // metric exposes a query-side variant (e.g. MipsSquaredEuclidean) we
@@ -492,7 +519,7 @@ IndexStreamer::Context::Pointer HnswStreamer::create_context(void) const {
   // Initialize the search-side distance calculator with the quantized
   // meta (may differ from the add-side original meta for RaBitQ).
   ctx->init_search_calculator(entity.get(), search_quantizer_, search_metric_,
-                              meta_.dimension(), meta_.data_type());
+                              dc_dim, dc_dtype);
   uint32_t estimate_doc_count = 0;
   if (meta_.streamer_params().get(PARAM_HNSW_STREAMER_ESTIMATE_DOC_COUNT,
                                   &estimate_doc_count)) {
@@ -577,12 +604,23 @@ int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
   ctx->clear();
   ctx->update_dist_caculator_quantizer(add_quantizer_);
   ctx->update_dist_caculator_metric(metric_);
-  ctx->reset_query(query);
+  // When building with original vectors, use the original FP32 vector
+  // for distance calculation (looked up from original_provider_) instead
+  // of the quantized data. The quantized data is still stored in the entity.
+  const void *dist_query = query;
+  if (build_with_original_vector_ && original_provider_) {
+    const void *original =
+        original_provider_->get_vector(static_cast<uint64_t>(id));
+    if (original) {
+      dist_query = original;
+    }
+  }
+  ctx->reset_query(dist_query);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
 
   if (metric_->support_train()) {
     const std::lock_guard<std::mutex> lk(mutex_);
-    ret = metric_->train(query, meta_.dimension());
+    ret = metric_->train(dist_query, meta_.dimension());
     if (ailego_unlikely(ret != 0)) {
       LOG_ERROR("Hnsw streamer metric train failed");
       (*stats_.mutable_discarded_count())++;
@@ -659,12 +697,22 @@ int HnswStreamer::add_impl(uint64_t pkey, const void *query,
   ctx->clear();
   ctx->update_dist_caculator_quantizer(add_quantizer_);
   ctx->update_dist_caculator_metric(metric_);
-  ctx->reset_query(query);
+  // When building with original vectors, use the original FP32 vector
+  // for distance calculation (looked up from original_provider_) instead
+  // of the quantized data. The quantized data is still stored in the entity.
+  const void *dist_query = query;
+  if (build_with_original_vector_ && original_provider_) {
+    const void *original = original_provider_->get_vector(pkey);
+    if (original) {
+      dist_query = original;
+    }
+  }
+  ctx->reset_query(dist_query);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
 
   if (metric_->support_train()) {
     const std::lock_guard<std::mutex> lk(mutex_);
-    ret = metric_->train(query, meta_.dimension());
+    ret = metric_->train(dist_query, meta_.dimension());
     if (ailego_unlikely(ret != 0)) {
       LOG_ERROR("Hnsw streamer metric train failed");
       (*stats_.mutable_discarded_count())++;

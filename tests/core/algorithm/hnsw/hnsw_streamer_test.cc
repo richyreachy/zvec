@@ -4214,10 +4214,13 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
   ASSERT_EQ(0, streamer->open(storage));
 
   auto context = streamer->create_context();
+  IndexQueryMeta add_meta(IndexMeta::DataType::DT_RABITQ, dim);
+  IndexQueryMeta input_meta(IndexMeta::DataType::DT_FP32, dim);
   for (auto it = provider->create_iterator(); it->is_valid(); it->next()) {
-    IndexQueryMeta query_meta(IndexMeta::DataType::DT_FP32, dim);
-    ASSERT_EQ(0,
-              streamer->add_impl(it->key(), it->data(), query_meta, context));
+    std::string quantized_data;
+    quantizer.quantize(it->data(), input_meta, &quantized_data, nullptr);
+    ASSERT_EQ(0, streamer->add_impl(it->key(), quantized_data.data(), add_meta,
+                                    context));
   }
   streamer->flush(0UL);
 
@@ -4240,7 +4243,7 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
   ASSERT_EQ(0, streamer->close());
   IndexStreamer::Pointer new_streamer = std::make_shared<HnswStreamer>();
   new_streamer->set_original_provider(original_meta, provider);
-  ASSERT_EQ(0, new_streamer->init(*index_meta_ptr_, params));
+  ASSERT_EQ(0, new_streamer->init(rabitq_meta, params));
   ASSERT_EQ(0, new_streamer->open(storage));
 }
 
