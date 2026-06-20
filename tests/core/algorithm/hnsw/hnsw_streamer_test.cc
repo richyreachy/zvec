@@ -4200,7 +4200,9 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
   params.set("proxima.hnsw.streamer.upper_neighbor_count", 8U);
   params.set("proxima.hnsw.streamer.scaling_factor", 5U);
   params.set("proxima.hnsw.general.dimension", dim);
+  params.set("proxima.hnsw.streamer.build_with_original_vector", true);
 
+  streamer->set_original_provider(provider);
   ASSERT_EQ(0, streamer->init(rabitq_meta, params));
   auto storage = IndexFactory::CreateStorage("MMapFileStorage");
   ASSERT_NE(nullptr, storage);
@@ -4213,11 +4215,8 @@ TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
   auto context = streamer->create_context();
   for (auto it = provider->create_iterator(); it->is_valid(); it->next()) {
     IndexQueryMeta query_meta(IndexMeta::DataType::DT_FP32, dim);
-
-    std::string quantize_data;
-    quantizer.quantize(it->data(), query_meta, &quantize_data, nullptr);
-    ASSERT_EQ(0, streamer->add_impl(it->key(), quantize_data.data(), query_meta,
-                                    context));
+    ASSERT_EQ(0,
+              streamer->add_impl(it->key(), it->data(), query_meta, context));
   }
   streamer->flush(0UL);
 

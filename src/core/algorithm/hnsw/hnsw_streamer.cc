@@ -73,11 +73,21 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
   params.get(PARAM_HNSW_STREAMER_USE_ID_MAP, &use_id_map_);
   params.get(PARAM_HNSW_STREAMER_USE_CONTIGUOUS_MEMORY,
              &use_contiguous_memory_);
+  params.get(PARAM_HNSW_STREAMER_BUILD_WITH_ORIGINAL_VECTOR,
+             &build_with_original_vector_);
 
   turbo_quantizer_class_ = "Fp32Quantizer";
   params.get(PARAM_HNSW_STREAMER_TURBO_QUANTIZER_CLASS,
              &turbo_quantizer_class_);
   if (turbo_quantizer_class_.empty()) {
+    turbo_quantizer_class_ = "Fp32Quantizer";
+  }
+
+  // When building with original (unquantized) vectors, override the
+  // data type to FP32 so that the entity stores raw floats and the
+  // standard FP32 distance path is used for graph construction.
+  if (build_with_original_vector_) {
+    meta_.set_meta(IndexMeta::DataType::DT_FP32, meta_.dimension());
     turbo_quantizer_class_ = "Fp32Quantizer";
   }
 
@@ -224,6 +234,7 @@ int HnswStreamer::cleanup(void) {
   check_crc_enabled_ = false;
   filter_same_key_ = false;
   get_vector_enabled_ = false;
+  build_with_original_vector_ = false;
 
   return 0;
 }
