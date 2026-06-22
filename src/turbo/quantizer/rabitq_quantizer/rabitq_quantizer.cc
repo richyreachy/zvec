@@ -88,8 +88,7 @@ int RabitqQuantizer::init(const IndexMeta &meta, const ailego::Params &params) {
     rabitq_config_ = rabitqlib::quant::faster_config(padded_dim_, total_bits_);
   }
 
-  meta_.set_meta(IndexMeta::DataType::DT_RABITQ, 1,
-                 static_cast<uint32_t>(quantized_data_length()));
+  meta_.set_meta(IndexMeta::DataType::DT_RABITQ, 1, padded_dim_);
 
   LOG_DEBUG(
       "RaBitQ quantizer initialized: dim=%u, padded_dim=%u, total_bits=%u",
@@ -254,8 +253,8 @@ void RabitqQuantizer::calc_distance_dp_query_batch(const void *const *dp_list,
 float RabitqQuantizer::calc_distance_dp_query_unquantized(
     const void *dp, const void *query) const {
   // Quantize the raw query on-the-fly then compute distance
-  thread_local std::string qbuf;
-  qbuf.resize(quantized_query_length(), '\0');
+  std::string qbuf;
+  qbuf.resize(padded_dim_, '\0');
   quantize_query(query, &qbuf[0]);
   return calc_distance_dp_query(dp, qbuf.data());
 }
@@ -264,7 +263,7 @@ void RabitqQuantizer::calc_distance_dp_query_batch_unquantized(
     const void *const *dp_list, int dp_num, const void *query,
     float *dist_list) const {
   thread_local std::string qbuf;
-  qbuf.resize(quantized_query_length(), '\0');
+  qbuf.resize(padded_dim_, '\0');
   quantize_query(query, &qbuf[0]);
   calc_distance_dp_query_batch(dp_list, dp_num, qbuf.data(), dist_list);
 }
@@ -340,9 +339,8 @@ int RabitqQuantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
     return IndexError_Unsupported;
   }
 
-  ometa->set_meta(IndexMeta::DataType::DT_RABITQ, 1,
-                  static_cast<uint32_t>(quantized_query_length()));
-  out->resize(quantized_query_length(), '\0');
+  ometa->set_meta(IndexMeta::DataType::DT_RABITQ, 1, padded_dim_);
+  out->resize(padded_dim_, '\0');
   quantize_query(query, &(*out)[0]);
   return 0;
 #else

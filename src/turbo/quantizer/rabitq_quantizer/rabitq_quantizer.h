@@ -82,11 +82,11 @@ class RabitqQuantizer : public Quantizer {
   }
 
   size_t quantized_datapoint_vector_length() const override {
-    return quantized_data_length();
+    return padded_dim_;
   }
 
   size_t quantized_query_vector_length() const override {
-    return quantized_query_length();
+    return padded_dim_;
   }
 
   void quantize_data(const void *input, void *output) const override;
@@ -148,19 +148,6 @@ class RabitqQuantizer : public Quantizer {
   }
 
  private:
-  //! Byte length of a quantized data vector.
-  //! Layout: [codes: padded_dim bytes] [f_add: 4B] [f_rescale: 4B] [f_error:
-  //! 4B]
-  size_t quantized_data_length() const {
-    return static_cast<size_t>(padded_dim_) + 3 * sizeof(float);
-  }
-
-  //! Byte length of a quantized query vector.
-  //! Layout: [rotated_fp32: padded_dim*4B] [sum_q: 4B] [norm_sq_q: 4B]
-  size_t quantized_query_length() const {
-    return (static_cast<size_t>(padded_dim_) + 2) * sizeof(float);
-  }
-
   //! Compute the centering constant cb for the code interpretation.
   //! cb = -((1 << (total_bits - 1)) - 0.5)
   float cb() const {

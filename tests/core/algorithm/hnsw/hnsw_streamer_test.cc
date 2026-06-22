@@ -4177,7 +4177,7 @@ TEST_F(HnswStreamerTest, TestContiguousMultiThreadSearch) {
 TEST_F(HnswStreamerTest, TestRabitqBuildAndSearch) {
   auto provider =
       make_shared<MultiPassIndexProvider<IndexMeta::DataType::DT_FP32>>(dim);
-  size_t doc_cnt = 1000UL;
+  size_t doc_cnt = 10000UL;
   for (size_t i = 0; i < doc_cnt; i++) {
     NumericalVector<float> vec(dim);
     for (size_t j = 0; j < dim; ++j) {
