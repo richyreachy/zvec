@@ -30,4 +30,10 @@ namespace zvec::turbo::avx512_vnni {
 void uniform_int8_quantize(const float *in, std::size_t dim, float scale,
                            float bias, std::int8_t *out);
 
+// Returns true only when the AVX-512 implementation is actually compiled
+// (i.e. the translation unit was built with -mavx512f or equivalent).
+// When false, uniform_int8_quantize is a no-op stub and callers must NOT
+// use it — they should fall back to the scalar reference instead.
+bool uniform_int8_quantize_available();
+
 }  // namespace zvec::turbo::avx512_vnni

@@ -36,6 +36,10 @@
 
 namespace zvec::turbo::avx512_vnni {
 
+bool uniform_int8_quantize_available() {
+  return true;
+}
+
 void uniform_int8_quantize(const float *in, std::size_t dim, float scale,
                            float bias, std::int8_t *out) {
   const __m512 vscale = _mm512_set1_ps(scale);
@@ -70,6 +74,10 @@ void uniform_int8_quantize(const float *in, std::size_t dim, float scale,
 #else  // no AVX-512 support — provide a no-op stub so dispatch can fall back
 
 namespace zvec::turbo::avx512_vnni {
+
+bool uniform_int8_quantize_available() {
+  return false;
+}
 
 void uniform_int8_quantize(const float * /*in*/, std::size_t /*dim*/,
                            float /*scale*/, float /*bias*/,

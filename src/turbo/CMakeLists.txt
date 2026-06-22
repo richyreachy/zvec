@@ -38,9 +38,18 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
         # set_source_files_properties is directory-scoped, so it must be called in the
         # same directory that adds the sources to a target (i.e. here, not in a
         # subdirectory).
+        #
+        # Two sets of patterns are needed: `*/avx512_vnni/*.cc` matches files
+        # nested under a subdirectory (e.g. distance/avx512_vnni/…), while
+        # `avx512_vnni/*.cc` matches files directly under src/turbo/avx512_vnni/
+        # (e.g. avx512_vnni/uniform_int8/quantize.cc).  Without the second set,
+        # those top-level files fall through to the base -march and silently
+        # compile as no-op stubs (see the `#else` branch in quantize.cc).
         file(GLOB_RECURSE AVX512_VNNI_SRCS 
           ${CMAKE_CURRENT_SOURCE_DIR}/*/avx512_vnni/*.cc
-          ${CMAKE_CURRENT_SOURCE_DIR}/*/avx512_vnni/*.c)
+          ${CMAKE_CURRENT_SOURCE_DIR}/*/avx512_vnni/*.c
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx512_vnni/*.cc
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx512_vnni/*.c)
         set_source_files_properties(
             ${AVX512_VNNI_SRCS}
             PROPERTIES
@@ -49,7 +58,9 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
 
         file(GLOB_RECURSE AVX512_SRCS 
           ${CMAKE_CURRENT_SOURCE_DIR}/*/avx512/*.cc
-          ${CMAKE_CURRENT_SOURCE_DIR}/*/avx512/*.c)
+          ${CMAKE_CURRENT_SOURCE_DIR}/*/avx512/*.c
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx512/*.cc
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx512/*.c)
         set_source_files_properties(
             ${AVX512_SRCS}
             PROPERTIES

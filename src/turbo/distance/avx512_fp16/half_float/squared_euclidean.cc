@@ -14,7 +14,7 @@
 
 #include <cstddef>
 
-#if defined(__AVX512F__)
+#if defined(__AVX512FP16__)
 #include <immintrin.h>
 #include <zvec/ailego/utility/float_helper.h>
 #include "avx512_fp16/half_float/squared_euclidean.h"

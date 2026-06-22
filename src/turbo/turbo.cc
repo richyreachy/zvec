@@ -422,7 +422,14 @@ UniformQuantizeFunc get_uniform_quantize_func(DataType data_type) {
     // Quantize uses AVX-512F (no VNNI required), but we gate on the same
     // AVX512_VNNI flag for now since the kernel lives in the avx512_vnni
     // directory and is compiled with the same march flag.
-    if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512_VNNI) {
+    //
+    // The compile-time availability check (uniform_int8_quantize_available)
+    // is essential: when the build toolchain cannot emit AVX-512 code, the
+    // translation unit falls back to a no-op stub.  Without this guard the
+    // dispatch would hand back that stub — which silently writes nothing and
+    // leaves the output buffer as all-zeros — producing garbage quantization.
+    if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512_VNNI &&
+        avx512_vnni::uniform_int8_quantize_available()) {
       return avx512_vnni::uniform_int8_quantize;
     }
   }
