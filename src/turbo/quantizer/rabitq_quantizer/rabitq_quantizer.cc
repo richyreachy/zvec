@@ -28,18 +28,6 @@ namespace turbo {
 // ---------------------------------------------------------------------------
 // Utility helpers
 // ---------------------------------------------------------------------------
-
-uint32_t RabitqQuantizer::next_power_of_two(uint32_t n) {
-  if (n == 0) return 1;
-  n--;
-  n |= n >> 1;
-  n |= n >> 2;
-  n |= n >> 4;
-  n |= n >> 8;
-  n |= n >> 16;
-  return n + 1;
-}
-
 float RabitqQuantizer::ip_float_code(const float *q, const uint8_t *code,
                                      size_t dim) {
   float sum = 0.0f;
@@ -58,8 +46,11 @@ int RabitqQuantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   LOG_ERROR("RaBitQ quantizer is not supported on this platform");
   return IndexError_Unsupported;
 #else
+  original_meta_ = meta;
+
   original_dim_ = meta.dimension();
-  padded_dim_ = next_power_of_two(original_dim_);
+  padded_dim_ = ((original_dim_ + 63) / 64) * 64;
+
 
   // Read total_bits from params (default = 2)
   uint32_t bits = kDefaultTotalBits;
@@ -501,8 +492,7 @@ int RabitqQuantizer::deserialize(const void *data, size_t len) {
     }
   }
 
-  // Re-initialize config
-  padded_dim_ = next_power_of_two(original_dim_);
+  padded_dim_ = ((original_dim_ + 63) / 64) * 64;
   if (total_bits_ > 1) {
     rabitq_config_ = rabitqlib::quant::faster_config(padded_dim_, total_bits_);
   }

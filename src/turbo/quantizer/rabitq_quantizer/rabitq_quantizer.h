@@ -182,6 +182,7 @@ class RabitqQuantizer : public Quantizer {
   uint32_t padded_dim_{0};
 
   MetricType metric_type_{MetricType::kSquaredEuclidean};
+  IndexMeta original_meta_{};
   IndexMeta meta_{};
   IndexMeta::DataType data_type_{};
 
