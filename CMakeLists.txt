@@ -74,13 +74,19 @@ endif()
 include_directories(${PROJECT_ROOT_DIR}/src/include)
 include_directories(${PROJECT_ROOT_DIR}/src)
 
+option(BUILD_ZVEC_SHARED "Build all-in-one C++ shared library libzvec" ON)
+option(BUILD_ZVEC_AILEGO_SHARED "Build all-in-one zvec-ailego shared library libzvec_ailego" ON)
+option(BUILD_ZVEC_CORE_SHARED "Build all-in-one zvec-core shared library libzvec_core" ON)
+
 option(BUILD_PYTHON_BINDINGS "Build Python bindings using pybind11" OFF)
-message(STATUS "BUILD_PYTHON_BINDINGS:${BUILD_PYTHON_BINDINGS}")
-
 option(BUILD_C_BINDINGS "Build C bindings" ON)
-message(STATUS "BUILD_C_BINDINGS:${BUILD_C_BINDINGS}")
-
 option(BUILD_TOOLS "Build tools" ON)
+
+message(STATUS "BUILD_ZVEC_SHARED:${BUILD_ZVEC_SHARED}")
+message(STATUS "BUILD_ZVEC_AILEGO_SHARED:${BUILD_ZVEC_AILEGO_SHARED}")
+message(STATUS "BUILD_ZVEC_CORE_SHARED:${BUILD_ZVEC_CORE_SHARED}")
+message(STATUS "BUILD_PYTHON_BINDINGS:${BUILD_PYTHON_BINDINGS}")
+message(STATUS "BUILD_C_BINDINGS:${BUILD_C_BINDINGS}")
 message(STATUS "BUILD_TOOLS:${BUILD_TOOLS}")
 
 option(RABITQ_ENABLE_AVX512 "Compile RaBitQ with AVX-512 support" OFF)
@@ -135,6 +141,7 @@ message(STATUS "USE_OSS_MIRROR:${USE_OSS_MIRROR}")
 
 cc_directory(thirdparty)
 cc_directories(src)
+
 cc_directories(tests)
 
 add_custom_target(clang_tidy_deps DEPENDS zvec_proto ARROW.BUILD glog gflags Lz4.BUILD)
