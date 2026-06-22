@@ -20,9 +20,6 @@
 #include "hnsw_streamer_entity.h"
 
 namespace zvec {
-namespace turbo {
-class RabitqQuantizer;
-}  // namespace turbo
 namespace core {
 
 class HnswStreamer : public IndexStreamer {

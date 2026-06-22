@@ -202,16 +202,16 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
 }
 
 int HnswStreamer::init_quantizer(turbo::Quantizer *quantizer) {
-  add_quantizer_ = quantizer;
-  search_quantizer_ = quantizer;
+  add_quantizer_.reset(quantizer);
+  search_quantizer_ = add_quantizer_;
 
   return 0;
 }
 
 int HnswStreamer::init_quantizer(turbo::Quantizer *add_quantizer,
                                  turbo::Quantizer *search_quantizer) {
-  add_quantizer_ = add_quantizer;
-  search_quantizer_ = search_quantizer;
+  add_quantizer_.reset(add_quantizer);
+  search_quantizer_.reset(search_quantizer);
 
   return 0;
 }
