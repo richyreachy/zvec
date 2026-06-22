@@ -589,7 +589,7 @@ class IndexMeta {
       case DataType::DT_BINARY64:
         return (dim + unit * 8 - 1) / (unit * 8) * unit;
       case DataType::DT_RABITQ:
-        return (dim + unit * 8 - 1) / (unit * 8) * unit;
+        return dim * unit;
     }
     return 0;
   }

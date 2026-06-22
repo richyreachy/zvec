@@ -58,7 +58,6 @@ int RabitqQuantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   LOG_ERROR("RaBitQ quantizer is not supported on this platform");
   return IndexError_Unsupported;
 #else
-  meta_ = meta;
   original_dim_ = meta.dimension();
   padded_dim_ = next_power_of_two(original_dim_);
 
@@ -98,10 +97,8 @@ int RabitqQuantizer::init(const IndexMeta &meta, const ailego::Params &params) {
     rabitq_config_ = rabitqlib::quant::faster_config(padded_dim_, total_bits_);
   }
 
-  // Set output meta: element type is uint8 with effective size =
-  // quantized_data_length()
-  data_type_ = IndexMeta::DataType::DT_INT8;
-  meta_.set_meta(data_type_, static_cast<uint32_t>(quantized_data_length()));
+  meta_.set_meta(IndexMeta::DataType::DT_RABITQ, 1,
+                 static_cast<uint32_t>(quantized_data_length()));
 
   LOG_DEBUG(
       "RaBitQ quantizer initialized: dim=%u, padded_dim=%u, total_bits=%u",
@@ -352,8 +349,8 @@ int RabitqQuantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
     return IndexError_Unsupported;
   }
 
-  *ometa = qmeta;
-  ometa->set_meta(data_type_, static_cast<uint32_t>(quantized_query_length()));
+  ometa->set_meta(IndexMeta::DataType::DT_RABITQ, 1,
+                  static_cast<uint32_t>(quantized_query_length()));
   out->resize(quantized_query_length(), '\0');
   quantize_query(query, &(*out)[0]);
   return 0;

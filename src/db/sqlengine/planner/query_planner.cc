@@ -469,9 +469,32 @@ Result<PlanInfo::Ptr> QueryPlanner::forward_scan(
     std::unique_ptr<arrow::compute::Expression> forward_filter) {
   auto reader = seg->scan(query_info->get_all_fetched_scalar_field_names());
   auto schema = reader->schema();
-  ac::Declaration node{
-      "record_batch_reader_source",
-      ac::RecordBatchReaderSourceNodeOptions{std::move(reader)}};
+  // Wrap the RecordBatchReader in a generator so we can use "source" with
+  // Ordering::Implicit().  The "record_batch_reader_source" node does not
+  // assign an implicit ordering, which causes Arrow >= 21 to reject fetch
+  // (LIMIT) nodes placed downstream.
+  auto reader_ptr = std::make_shared<std::shared_ptr<arrow::RecordBatchReader>>(
+      std::move(reader));
+  arrow::acero::SourceNodeOptions source_node_options{
+      schema,
+      [reader_ptr]() -> arrow::Future<std::optional<cp::ExecBatch>> {
+        std::shared_ptr<arrow::RecordBatch> batch;
+        auto s = (*reader_ptr)->ReadNext(&batch);
+        if (!s.ok()) {
+          return arrow::Future<std::optional<cp::ExecBatch>>::MakeFinished(
+              arrow::Status::ExecutionError("read next batch failed:",
+                                            s.ToString()));
+        }
+        if (batch == nullptr) {
+          return arrow::Future<std::optional<cp::ExecBatch>>::MakeFinished(
+              std::nullopt);
+        }
+        cp::ExecBatch exec_batch(*batch);
+        return arrow::Future<std::optional<cp::ExecBatch>>::MakeFinished(
+            std::move(exec_batch));
+      },
+      arrow::compute::Ordering::Implicit()};
+  ac::Declaration node{"source", source_node_options};
 
   auto seg_filter = seg->get_filter();
   if (seg_filter) {
@@ -539,10 +562,37 @@ DocFilter::Ptr QueryPlanner::build_doc_filter(
   // forward bitmap, then filter during search. otherwise, filter forward
   // during search.
   if (forward_filter && !single_stage_search) {
-    ac::RecordBatchReaderSourceNodeOptions source_options{
-        seg->scan(query_info->get_forward_filter_field_names())};
+    // Wrap the RecordBatchReader in a generator so we can use "source"
+    // with Ordering::Implicit().  The "record_batch_reader_source" node
+    // uses MakeBackgroundGenerator with a shared IO thread pool, which can
+    // cause intermittent data loss when multiple plans are executed in
+    // sequence (e.g. when a prior query leaves pending IO tasks).
+    auto reader = seg->scan(query_info->get_forward_filter_field_names());
+    auto filter_schema = reader->schema();
+    auto reader_ptr =
+        std::make_shared<std::shared_ptr<arrow::RecordBatchReader>>(
+            std::move(reader));
+    arrow::acero::SourceNodeOptions source_node_options{
+        filter_schema,
+        [reader_ptr]() -> arrow::Future<std::optional<cp::ExecBatch>> {
+          std::shared_ptr<arrow::RecordBatch> batch;
+          auto s = (*reader_ptr)->ReadNext(&batch);
+          if (!s.ok()) {
+            return arrow::Future<std::optional<cp::ExecBatch>>::MakeFinished(
+                arrow::Status::ExecutionError("read next batch failed:",
+                                              s.ToString()));
+          }
+          if (batch == nullptr) {
+            return arrow::Future<std::optional<cp::ExecBatch>>::MakeFinished(
+                std::nullopt);
+          }
+          cp::ExecBatch exec_batch(*batch);
+          return arrow::Future<std::optional<cp::ExecBatch>>::MakeFinished(
+              std::move(exec_batch));
+        },
+        arrow::compute::Ordering::Implicit()};
     forward_filter_plan.reset(new ac::Declaration{ac::Declaration::Sequence({
-        {"record_batch_reader_source", std::move(source_options)},
+        {"source", std::move(source_node_options)},
         {
             "project",
             ac::ProjectNodeOptions{{std::move(*forward_filter)},

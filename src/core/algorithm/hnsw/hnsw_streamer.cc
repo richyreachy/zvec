@@ -201,6 +201,21 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
   return 0;
 }
 
+int HnswStreamer::init_quantizer(turbo::Quantizer *quantizer) {
+  add_quantizer_ = quantizer;
+  search_quantizer_ = quantizer;
+
+  return 0;
+}
+
+int HnswStreamer::init_quantizer(turbo::Quantizer *add_quantizer,
+                                 turbo::Quantizer *search_quantizer) {
+  add_quantizer_ = add_quantizer;
+  search_quantizer_ = search_quantizer;
+
+  return 0;
+}
+
 int HnswStreamer::cleanup(void) {
   if (state_ == STATE_OPENED) {
     this->close();
@@ -212,8 +227,8 @@ int HnswStreamer::cleanup(void) {
   original_meta_.clear();
   has_original_meta_ = false;
   metric_.reset();
-  add_quantizer_.reset();
   search_quantizer_.reset();
+  add_quantizer_.reset();
   original_provider_.reset();
   stats_.clear();
   if (entity_) {
@@ -355,43 +370,6 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
     return IndexError_InvalidArgument;
   }
 
-  // Create and initialize the turbo quantizer used by HnswDistCalculator.
-  add_quantizer_ = IndexFactory::CreateQuantizer(turbo_quantizer_class_);
-  if (!add_quantizer_) {
-    LOG_ERROR("Failed to create turbo quantizer '%s'",
-              turbo_quantizer_class_.c_str());
-    return IndexError_NoExist;
-  }
-  ret = add_quantizer_->init(meta_, meta_.streamer_params());
-  if (ret != 0) {
-    LOG_ERROR("Failed to init turbo quantizer '%s', ret=%d",
-              turbo_quantizer_class_.c_str(), ret);
-    return ret;
-  }
-  // When building with original vectors, train the quantizer using the
-  // original provider so that distance calculation works on quantized data.
-  if (build_with_original_vector_ && original_provider_) {
-    ret = add_quantizer_->train(original_provider_);
-    if (ret != 0) {
-      LOG_ERROR(
-          "Failed to train turbo quantizer for build_with_original_vector, "
-          "ret=%d",
-          ret);
-      return ret;
-    }
-  }
-  // Default: use the same quantizer for search. When the underlying
-  // metric exposes a query-side variant (e.g. MipsSquaredEuclidean) we
-  // still keep the add_quantizer_ as a conservative choice here. Any
-  // specialized handling can be layered on top later.
-  search_quantizer_ = add_quantizer_;
-
-  // Resolve the search-side metric. For metrics like MipsSquaredEuclidean
-  // the index distance (used while building the graph) is not the same as
-  // the user-facing query distance: the metric exposes a `query_metric`
-  // (e.g. InnerProduct) which should be used at search time so that the
-  // top-k results reflect the intended ranking. Fall back to `metric_`
-  // when no usable query metric is provided.
   if (metric_->query_metric() && metric_->query_metric()->distance() &&
       metric_->query_metric()->batch_distance()) {
     search_metric_ = metric_->query_metric();

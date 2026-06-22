@@ -20,6 +20,9 @@
 #include "hnsw_streamer_entity.h"
 
 namespace zvec {
+namespace turbo {
+class RabitqQuantizer;
+}  // namespace turbo
 namespace core {
 
 class HnswStreamer : public IndexStreamer {
@@ -53,6 +56,13 @@ class HnswStreamer : public IndexStreamer {
     original_meta_ = original_meta;
     has_original_meta_ = true;
   }
+
+  //! Initialize quantizer used for both add and search
+  int init_quantizer(turbo::Quantizer *quantizer);
+
+  //! Initialize separate quantizers for add and search
+  int init_quantizer(turbo::Quantizer *add_quantizer,
+                     turbo::Quantizer *search_quantizer);
 
  protected:
   //! Initialize Streamer
@@ -157,17 +167,11 @@ class HnswStreamer : public IndexStreamer {
       LOG_ERROR("null query");
       return IndexError_InvalidArgument;
     }
-    // Accept query meta that matches either the stored meta (for add,
-    // where the data is in quantized format) or the original meta (for
-    // search, where the query is in the original FP32 format).
-    bool matches_stored = qmeta.dimension() == meta_.dimension() &&
-                          qmeta.data_type() == meta_.data_type() &&
-                          qmeta.element_size() == meta_.element_size();
-    bool matches_original =
-        has_original_meta_ && qmeta.dimension() == original_meta_.dimension() &&
-        qmeta.data_type() == original_meta_.data_type() &&
-        qmeta.element_size() == original_meta_.element_size();
-    if (ailego_unlikely(!matches_stored && !matches_original)) {
+
+    bool matches = qmeta.dimension() == meta_.dimension() &&
+                   qmeta.data_type() == meta_.data_type() &&
+                   qmeta.element_size() == meta_.element_size();
+    if (ailego_unlikely(!matches)) {
       LOG_ERROR("Unsupported query meta");
       return IndexError_Mismatch;
     }
@@ -219,16 +223,8 @@ class HnswStreamer : public IndexStreamer {
   bool has_original_meta_{false};
   IndexMeta meta_{};
   IndexMetric::Pointer metric_{};
-  //! Search-side metric, used as fallback when the search-side turbo
-  //! quantizer does not implement a distance for the current metric/dtype
-  //! (e.g. MipsSquaredEuclidean's query_metric is InnerProduct).
   IndexMetric::Pointer search_metric_{};
 
-  //! Turbo quantizers bound to this streamer. `add_quantizer_` is used
-  //! when inserting vectors (mirrors the old `metric_->distance()`).
-  //! `search_quantizer_` is used for queries and falls back to
-  //! `add_quantizer_` when the metric does not expose a query-side
-  //! variant.
   zvec::turbo::Quantizer::Pointer add_quantizer_{};
   zvec::turbo::Quantizer::Pointer search_quantizer_{};
   std::string turbo_quantizer_class_{};
