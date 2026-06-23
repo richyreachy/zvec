@@ -16,11 +16,27 @@ else()
     apply_patch_once("glog_fix" "${GLOG_SRC_DIR}" "${GLOG_PATCH}")
 endif()
 
+# Force glog to build as a STATIC library. glog 0.5.0 declares several
+# internal helpers (e.g. google::glog_internal_namespace_::
+# IsGoogleLoggingInitialized()) without GOOGLE_GLOG_DLL_DECL, so with the
+# default hidden visibility they remain local symbols in a shared libglog and
+# cannot be resolved by consumers like libzvec.so. Building glog static makes
+# those symbols linkable.
+set(_SAVED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS OFF)
+
+set(_SAVED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS OFF)
 set(_SAVED_CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${EXTERNAL_LIB_DIR})
 add_subdirectory(glog-0.5.0)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${_SAVED_CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 unset(_SAVED_CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
+set(BUILD_SHARED_LIBS ${_SAVED_BUILD_SHARED_LIBS})
+unset(_SAVED_BUILD_SHARED_LIBS)
+
+set(BUILD_SHARED_LIBS ${_SAVED_BUILD_SHARED_LIBS})
+unset(_SAVED_BUILD_SHARED_LIBS)
 
 add_dependencies(glog gflags)
 
