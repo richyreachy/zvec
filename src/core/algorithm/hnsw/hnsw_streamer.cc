@@ -387,7 +387,7 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
   switch (entity_->storage_mode()) {
     case HnswStorageMode::kBufferPool:
       alg_ = HnswAlgorithmBase::UPointer(
-          new HnswAlgorithm<HnswBufferPoolStreamerEntity>(
+          new HnswAlgorithm<HnswBufferPoolStreamerEntity, dist_t>(
               static_cast<HnswBufferPoolStreamerEntity &>(*entity_)));
       break;
     case HnswStorageMode::kContiguous: {
@@ -399,12 +399,13 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
         return build_ret;
       }
       alg_ = HnswAlgorithmBase::UPointer(
-          new HnswAlgorithm<HnswContiguousStreamerEntity>(contiguous_entity));
+          new HnswAlgorithm<HnswContiguousStreamerEntity, dist_t>(
+              contiguous_entity));
       break;
     }
     default:
-      alg_ =
-          HnswAlgorithmBase::UPointer(new HnswAlgorithm<HnswMmapStreamerEntity>(
+      alg_ = HnswAlgorithmBase::UPointer(
+          new HnswAlgorithm<HnswMmapStreamerEntity, dist_t>(
               static_cast<HnswMmapStreamerEntity &>(*entity_)));
       break;
   }

@@ -41,7 +41,7 @@ class HnswAlgorithmBase {
 };
 
 //! hnsw graph algorithm implement, templated on EntityType
-template <typename EntityType>
+template <typename EntityType, typename ScoreType>
 class HnswAlgorithm : public HnswAlgorithmBase {
  public:
   using MemBlockType = typename EntityType::MemoryBlock;
@@ -104,8 +104,8 @@ class HnswAlgorithm : public HnswAlgorithmBase {
 
  private:
   //! Select in upper layer to get entry point for next layer search
-  void select_entry_point(level_t level, node_id_t *entry_point, dist_t *dist,
-                          HnswContext *ctx) const;
+  void select_entry_point(level_t level, node_id_t *entry_point,
+                          ScoreType *dist, HnswContext *ctx) const;
 
   //! update node id neighbors from topkHeap, and reverse link is also updated
   void add_neighbors(node_id_t id, level_t level, TopkHeap &topk_heap,
@@ -117,7 +117,7 @@ class HnswAlgorithm : public HnswAlgorithmBase {
   //! (CandidateHeap + TopkHeap) for add_node, filtered search, upper levels,
   //! and BufferPool fallback.
   //! Note: entry_point and dist will be updated to current level nearest node.
-  void search_neighbors(level_t level, node_id_t *entry_point, dist_t *dist,
+  void search_neighbors(level_t level, node_id_t *entry_point, ScoreType *dist,
                         TopkHeap &topk, HnswContext *ctx, bool use_pool) const;
 
   //! Update the node's neighbors
@@ -128,8 +128,8 @@ class HnswAlgorithm : public HnswAlgorithmBase {
   //! @dc         distance calculator
   //! @updateHeap temporary heap in updating neighbors
   void reverse_update_neighbors(HnswDistCalculator &dc, node_id_t id,
-                                level_t level, node_id_t link_id, dist_t dist,
-                                TopkHeap &update_heap);
+                                level_t level, node_id_t link_id,
+                                ScoreType dist, TopkHeap &update_heap);
 
   //! expand neighbors until group nums are reached
   void expand_neighbors_by_group(TopkHeap &topk, HnswContext *ctx) const;

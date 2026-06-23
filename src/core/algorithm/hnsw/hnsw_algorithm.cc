@@ -17,9 +17,9 @@
 namespace zvec {
 namespace core {
 
-template <typename EntityType>
-int HnswAlgorithm<EntityType>::add_node(node_id_t id, level_t level,
-                                        HnswContext *ctx) {
+template <typename EntityType, typename ScoreType>
+int HnswAlgorithm<EntityType, ScoreType>::add_node(node_id_t id, level_t level,
+                                                   HnswContext *ctx) {
   spin_lock_.lock();
 
   auto cur_max_level = entity_.cur_max_level();
@@ -69,8 +69,8 @@ int HnswAlgorithm<EntityType>::add_node(node_id_t id, level_t level,
   return 0;
 }
 
-template <typename EntityType>
-int HnswAlgorithm<EntityType>::search(HnswContext *ctx) const {
+template <typename EntityType, typename ScoreType>
+int HnswAlgorithm<EntityType, ScoreType>::search(HnswContext *ctx) const {
   spin_lock_.lock();
   auto maxLevel = entity_.cur_max_level();
   auto entry_point = entity_.entry_point();
@@ -96,11 +96,10 @@ int HnswAlgorithm<EntityType>::search(HnswContext *ctx) const {
   return 0;
 }
 
-template <typename EntityType>
-void HnswAlgorithm<EntityType>::select_entry_point(level_t level,
-                                                   node_id_t *entry_point,
-                                                   dist_t *dist,
-                                                   HnswContext *ctx) const {
+template <typename EntityType, typename ScoreType>
+void HnswAlgorithm<EntityType, ScoreType>::select_entry_point(
+    level_t level, node_id_t *entry_point, ScoreType *dist,
+    HnswContext *ctx) const {
   const auto &entity = static_cast<const EntityType &>(ctx->get_entity());
   HnswDistCalculator &dc = ctx->dist_calculator();
   while (true) {
@@ -150,10 +149,11 @@ void HnswAlgorithm<EntityType>::select_entry_point(level_t level,
   return;
 }
 
-template <typename EntityType>
-void HnswAlgorithm<EntityType>::add_neighbors(node_id_t id, level_t level,
-                                              TopkHeap &topk_heap,
-                                              HnswContext *ctx) {
+template <typename EntityType, typename ScoreType>
+void HnswAlgorithm<EntityType, ScoreType>::add_neighbors(node_id_t id,
+                                                         level_t level,
+                                                         TopkHeap &topk_heap,
+                                                         HnswContext *ctx) {
   if (ailego_unlikely(topk_heap.size() == 0)) {
     return;
   }
@@ -187,11 +187,11 @@ void HnswAlgorithm<EntityType>::add_neighbors(node_id_t id, level_t level,
 // mmap/contiguous variant: resolve vectors via get_vector_ptr and use
 // LinearPool or BlockHeap for visited tracking + top-k maintenance.
 // HeapType must expose reset/set_visited/check_visited/push_block/has_next/pop.
-template <typename EntityType, typename HeapType>
+template <typename EntityType, typename HeapType, typename ScoreType>
 void fast_search_neighbors(const EntityType &entity, HeapType &pool,
                            VisitFilter &visit, HnswDistCalculator &dc,
                            uint32_t topk, uint32_t ef, node_id_t entry_point,
-                           dist_t entry_dist, uint32_t prefetch_lines,
+                           ScoreType entry_dist, uint32_t prefetch_lines,
                            uint32_t prefetch_offset) {
   const uint32_t max_deg = entity.max_degree(0);  // level 0 only
   const uint32_t cap = std::max(topk, ef);
@@ -264,9 +264,10 @@ void fast_search_neighbors(const EntityType &entity, HeapType &pool,
 // arbitrary levels, filters, and MemoryBlock types (BufferPool/Mmap).
 // Also updates entry_point/dist for next-level continuation.
 // ============================================================================
-template <typename EntityType, typename MemBlockType, typename FilterFn>
+template <typename EntityType, typename MemBlockType, typename ScoreType,
+          typename FilterFn>
 void dual_heap_search_neighbors(const EntityType &entity, level_t level,
-                                node_id_t *entry_point, dist_t *dist,
+                                node_id_t *entry_point, ScoreType *dist,
                                 TopkHeap &topk, HnswContext *ctx,
                                 HnswDistCalculator &dc, FilterFn &&filter) {
   const uint32_t prefetch_offset = ctx->po();
@@ -294,7 +295,7 @@ void dual_heap_search_neighbors(const EntityType &entity, level_t level,
   while (!candidates.empty() && !ctx->reach_scan_limit()) {
     auto top = candidates.begin();
     node_id_t main_node = top->first;
-    dist_t main_dist = top->second;
+    ScoreType main_dist = top->second;
 
     if (topk.full() && main_dist > topk[0].second) {
       break;
@@ -358,7 +359,7 @@ void dual_heap_search_neighbors(const EntityType &entity, level_t level,
 
     for (uint32_t i = 0; i < size; ++i) {
       node_id_t node = neighbor_ids[i];
-      dist_t cur_dist = dists[i];
+      ScoreType cur_dist = dists[i];
 
       if ((!topk.full()) || cur_dist < topk[0].second) {
         candidates.emplace(node, cur_dist);
@@ -383,19 +384,17 @@ void dual_heap_search_neighbors(const EntityType &entity, level_t level,
 //     MmapMemoryBlock  →  fast_search_neighbors (BlockHeap/LinearPool)
 //     BufferPool       →  dual_heap_search_neighbors (fallback)
 // ============================================================================
-template <typename EntityType>
-void HnswAlgorithm<EntityType>::search_neighbors(level_t level,
-                                                 node_id_t *entry_point,
-                                                 dist_t *dist, TopkHeap &topk,
-                                                 HnswContext *ctx,
-                                                 bool use_pool) const {
+template <typename EntityType, typename ScoreType>
+void HnswAlgorithm<EntityType, ScoreType>::search_neighbors(
+    level_t level, node_id_t *entry_point, ScoreType *dist, TopkHeap &topk,
+    HnswContext *ctx, bool use_pool) const {
   const auto &entity = static_cast<const EntityType &>(ctx->get_entity());
   HnswDistCalculator &dc = ctx->dist_calculator();
 
   if (!use_pool || ctx->filter().is_valid() || level != 0) {
     // Dual-heap path: add_node, filtered search, or upper-level scan.
     auto run_with_filter = [&](auto &&filter) {
-      dual_heap_search_neighbors<EntityType, MemBlockType>(
+      dual_heap_search_neighbors<EntityType, MemBlockType, ScoreType>(
           entity, level, entry_point, dist, topk, ctx, dc,
           std::forward<decltype(filter)>(filter));
     };
@@ -438,14 +437,14 @@ void HnswAlgorithm<EntityType>::search_neighbors(level_t level,
     } else {
       // BufferPool entities: fallback to dual-heap path.
       auto filter = [](node_id_t) { return false; };
-      dual_heap_search_neighbors<EntityType, MemBlockType>(
+      dual_heap_search_neighbors<EntityType, MemBlockType, ScoreType>(
           entity, level, entry_point, dist, topk, ctx, dc, filter);
     }
   }
 }
 
-template <typename EntityType>
-void HnswAlgorithm<EntityType>::expand_neighbors_by_group(
+template <typename EntityType, typename ScoreType>
+void HnswAlgorithm<EntityType, ScoreType>::expand_neighbors_by_group(
     TopkHeap &topk, HnswContext *ctx) const {
   if (!ctx->group_by().is_valid()) {
     return;
@@ -542,7 +541,7 @@ void HnswAlgorithm<EntityType>::expand_neighbors_by_group(
 
       for (uint32_t i = 0; i < size; ++i) {
         node_id_t node = neighbor_ids[i];
-        dist_t cur_dist = dists[i];
+        ScoreType cur_dist = dists[i];
 
         if (!filter(node)) {
           std::string group_id = group_by(node);
@@ -564,10 +563,9 @@ void HnswAlgorithm<EntityType>::expand_neighbors_by_group(
   }
 }
 
-template <typename EntityType>
-void HnswAlgorithm<EntityType>::update_neighbors(HnswDistCalculator &dc,
-                                                 node_id_t id, level_t level,
-                                                 TopkHeap &topk_heap) {
+template <typename EntityType, typename ScoreType>
+void HnswAlgorithm<EntityType, ScoreType>::update_neighbors(
+    HnswDistCalculator &dc, node_id_t id, level_t level, TopkHeap &topk_heap) {
   topk_heap.sort();
 
   uint32_t max_neighbor_cnt = entity_.neighbor_cnt(level);
@@ -581,10 +579,10 @@ void HnswAlgorithm<EntityType>::update_neighbors(HnswDistCalculator &dc,
   uint32_t cur_size = 0;
   for (size_t i = 0; i < topk_heap.size(); ++i) {
     node_id_t cur_node = topk_heap[i].first;
-    dist_t cur_node_dist = topk_heap[i].second.dist;
+    ScoreType cur_node_dist = topk_heap[i].second.dist;
     bool good = true;
     for (uint32_t j = 0; j < cur_size; ++j) {
-      dist_t tmp_dist = dc.dist(cur_node, topk_heap[j].first);
+      ScoreType tmp_dist = dc.dist(cur_node, topk_heap[j].first);
       if (tmp_dist <= cur_node_dist) {
         good = false;
         break;
@@ -628,10 +626,10 @@ void HnswAlgorithm<EntityType>::update_neighbors(HnswDistCalculator &dc,
   return;
 }
 
-template <typename EntityType>
-void HnswAlgorithm<EntityType>::reverse_update_neighbors(
+template <typename EntityType, typename ScoreType>
+void HnswAlgorithm<EntityType, ScoreType>::reverse_update_neighbors(
     HnswDistCalculator &dc, node_id_t id, level_t level, node_id_t link_id,
-    dist_t dist, TopkHeap &update_heap) {
+    ScoreType dist, TopkHeap &update_heap) {
   const size_t max_neighbor_cnt = entity_.neighbor_cnt(level);
 
   uint32_t lock_idx = id & kLockMask;
@@ -649,7 +647,7 @@ void HnswAlgorithm<EntityType>::reverse_update_neighbors(
 
   for (size_t i = 0; i < size; ++i) {
     node_id_t node = neighbors[i];
-    dist_t cur_dist = dc.dist(id, node);
+    ScoreType cur_dist = dc.dist(id, node);
     update_heap.emplace(node, cur_dist);
   }
 
@@ -659,10 +657,10 @@ void HnswAlgorithm<EntityType>::reverse_update_neighbors(
   size_t cur_size = 0;
   for (size_t i = 0; i < update_heap.size(); ++i) {
     node_id_t cur_node = update_heap[i].first;
-    dist_t cur_node_dist = update_heap[i].second.dist;
+    ScoreType cur_node_dist = update_heap[i].second.dist;
     bool good = true;
     for (size_t j = 0; j < cur_size; ++j) {
-      dist_t tmp_dist = dc.dist(cur_node, update_heap[j].first);
+      ScoreType tmp_dist = dc.dist(cur_node, update_heap[j].first);
       if (tmp_dist <= cur_node_dist) {
         good = false;
         break;
@@ -690,9 +688,9 @@ void HnswAlgorithm<EntityType>::reverse_update_neighbors(
 }
 
 // Explicit template instantiation
-template class HnswAlgorithm<HnswMmapStreamerEntity>;
-template class HnswAlgorithm<HnswBufferPoolStreamerEntity>;
-template class HnswAlgorithm<HnswContiguousStreamerEntity>;
+template class HnswAlgorithm<HnswMmapStreamerEntity, dist_t>;
+template class HnswAlgorithm<HnswBufferPoolStreamerEntity, dist_t>;
+template class HnswAlgorithm<HnswContiguousStreamerEntity, dist_t>;
 
 }  // namespace core
 }  // namespace zvec
