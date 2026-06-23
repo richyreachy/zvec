@@ -587,11 +587,10 @@ int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
   ctx->set_mode(HnswContext::kBuildMode);
   ctx->set_use_original_provider(build_with_original_vector_);
   ctx->clear();
-  ctx->update_dist_caculator_quantizer(add_quantizer_);
+  ctx->update_dist_caculator_quantizer(build_with_original_vector_
+                                           ? zvec::turbo::Quantizer::Pointer()
+                                           : add_quantizer_);
   ctx->update_dist_caculator_metric(metric_);
-  // When building with original vectors, use the original FP32 vector
-  // for distance calculation (looked up from original_provider_) instead
-  // of the quantized data. The quantized data is still stored in the entity.
   const void *dist_query = query;
   if (build_with_original_vector_ && original_provider_) {
     const void *original =
@@ -681,11 +680,14 @@ int HnswStreamer::add_impl(uint64_t pkey, const void *query,
   ctx->set_mode(HnswContext::kBuildMode);
   ctx->set_use_original_provider(build_with_original_vector_);
   ctx->clear();
-  ctx->update_dist_caculator_quantizer(add_quantizer_);
+  // When building with original vectors, the entity's get_vector returns
+  // FP32 data from original_provider_.  We must NOT use the RaBitQ quantizer
+  // (which expects quantized stored data); pass nullptr so the distance
+  // calculator falls back to the metric's FP32 distance function.
+  ctx->update_dist_caculator_quantizer(build_with_original_vector_
+                                           ? zvec::turbo::Quantizer::Pointer()
+                                           : add_quantizer_);
   ctx->update_dist_caculator_metric(metric_);
-  // When building with original vectors, use the original FP32 vector
-  // for distance calculation (looked up from original_provider_) instead
-  // of the quantized data. The quantized data is still stored in the entity.
   const void *dist_query = query;
   if (build_with_original_vector_ && original_provider_) {
     const void *original = original_provider_->get_vector(pkey);
