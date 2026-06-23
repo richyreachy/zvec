@@ -63,11 +63,11 @@ int RecordInt4Quantizer::init(const core::IndexMeta &meta,
 
   // Cache the distance dispatch for the new Quantizer interface.
   dp_query_func_ =
-      get_distance_func(origin_metric_, DataType::kInt4,
-                        QuantizeType::kRecordInt4, CpuArchType::kAuto);
+      get_distance_func(origin_metric_, DataType::kInt4, QuantizeType::kDefault,
+                        CpuArchType::kAuto);
   dp_query_batch_func_ =
       get_batch_distance_func(origin_metric_, DataType::kInt4,
-                              QuantizeType::kRecordInt4, CpuArchType::kAuto);
+                              QuantizeType::kDefault, CpuArchType::kAuto);
 
   return 0;
 }
@@ -171,23 +171,20 @@ int RecordInt4Quantizer::dequantize(const void *in,
 
 DistanceImpl RecordInt4Quantizer::distance(
     const void *query, const core::IndexQueryMeta &qmeta) const {
-  std::string buf;
-  core::IndexQueryMeta ometa;
-  if (this->quantize(query, qmeta, &buf, &ometa) != 0) {
-    return DistanceImpl{};
-  }
-
   auto func = get_distance_func(origin_metric_, DataType::kInt4,
-                                QuantizeType::kRecordInt4, CpuArchType::kAuto);
+                                QuantizeType::kDefault, CpuArchType::kAuto);
   if (!func) {
     return DistanceImpl{};
   }
   auto batch_func =
       get_batch_distance_func(origin_metric_, DataType::kInt4,
-                              QuantizeType::kRecordInt4, CpuArchType::kAuto);
+                              QuantizeType::kDefault, CpuArchType::kAuto);
 
-  return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
-                      ometa.dimension());
+  // The query is assumed to be already quantized — copy it directly.
+  std::string quantized_query(static_cast<const char *>(query),
+                              qmeta.element_size());
+  return DistanceImpl(std::move(func), std::move(batch_func),
+                      std::move(quantized_query), original_dim_);
 }
 
 float RecordInt4Quantizer::calc_distance_dp_query(const void *dp,

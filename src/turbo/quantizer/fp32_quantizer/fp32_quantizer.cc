@@ -92,12 +92,6 @@ int Fp32Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
 
 DistanceImpl Fp32Quantizer::distance(const void *query,
                                      const IndexQueryMeta &qmeta) const {
-  std::string buf;
-  IndexQueryMeta ometa;
-  if (this->quantize(query, qmeta, &buf, &ometa) != 0) {
-    return DistanceImpl{};
-  }
-
   auto metric = metric_from_name(meta_.metric_name());
   auto func = get_distance_func(metric, DataType::kFp32, QuantizeType::kDefault,
                                 CpuArchType::kAuto);
@@ -107,8 +101,11 @@ DistanceImpl Fp32Quantizer::distance(const void *query,
   auto batch_func = get_batch_distance_func(
       metric, DataType::kFp32, QuantizeType::kDefault, CpuArchType::kAuto);
 
-  return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
-                      ometa.dimension());
+  // The query is assumed to be already quantized — copy it directly.
+  std::string quantized_query(static_cast<const char *>(query),
+                              qmeta.element_size());
+  return DistanceImpl(std::move(func), std::move(batch_func),
+                      std::move(quantized_query), original_dim_);
 }
 
 void Fp32Quantizer::quantize_one(const void *input, void *output) const {

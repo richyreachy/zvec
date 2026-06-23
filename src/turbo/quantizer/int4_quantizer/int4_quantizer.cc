@@ -65,10 +65,10 @@ int Int4Quantizer::init(const core::IndexMeta &meta,
   // Cache the distance dispatch for the new Quantizer interface.
   dp_query_func_ =
       get_distance_func(metric_from_name(metric_name), DataType::kInt4,
-                        QuantizeType::kInt4, CpuArchType::kAuto);
+                        QuantizeType::kDefault, CpuArchType::kAuto);
   dp_query_batch_func_ =
       get_batch_distance_func(metric_from_name(metric_name), DataType::kInt4,
-                              QuantizeType::kInt4, CpuArchType::kAuto);
+                              QuantizeType::kDefault, CpuArchType::kAuto);
 
   LOG_DEBUG("Init integer reformer, bias %f, scale %f", bias_, scale_);
   return 0;
@@ -275,23 +275,20 @@ int Int4Quantizer::deserialize(const void *data, size_t len) {
 
 DistanceImpl Int4Quantizer::distance(const void *query,
                                      const IndexQueryMeta &qmeta) const {
-  std::string buf;
-  IndexQueryMeta ometa;
-  if (this->quantize(query, qmeta, &buf, &ometa) != 0) {
-    return DistanceImpl{};
-  }
-
   auto metric = metric_from_name(meta_.metric_name());
-  auto func = get_distance_func(metric, DataType::kInt4, QuantizeType::kInt4,
+  auto func = get_distance_func(metric, DataType::kInt4, QuantizeType::kDefault,
                                 CpuArchType::kAuto);
   if (!func) {
     return DistanceImpl{};
   }
   auto batch_func = get_batch_distance_func(
-      metric, DataType::kInt4, QuantizeType::kInt4, CpuArchType::kAuto);
+      metric, DataType::kInt4, QuantizeType::kDefault, CpuArchType::kAuto);
 
-  return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
-                      ometa.dimension());
+  // The query is assumed to be already quantized — copy it directly.
+  std::string quantized_query(static_cast<const char *>(query),
+                              qmeta.element_size());
+  return DistanceImpl(std::move(func), std::move(batch_func),
+                      std::move(quantized_query), original_dim_);
 }
 
 void Int4Quantizer::train(const void *data, size_t num, size_t stride) {
