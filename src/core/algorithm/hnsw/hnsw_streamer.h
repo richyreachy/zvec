@@ -47,6 +47,10 @@ class HnswStreamer : public IndexStreamer {
   //! Initialize Streamer
   int init(const IndexMeta &imeta, const ailego::Params &params) override;
 
+  //! Initialize Streamer with a pre-created quantizer
+  int init(const IndexMeta &imeta, const ailego::Params &params,
+           const zvec::turbo::Quantizer::Pointer &quantizer) override;
+
   //! Cleanup Streamer
   int cleanup(void) override;
 

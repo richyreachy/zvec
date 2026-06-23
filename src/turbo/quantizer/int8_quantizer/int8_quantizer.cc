@@ -87,10 +87,12 @@ int Int8Quantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   // we keep the original metric for the turbo dispatch.
   dist_metric_ =
       record_quantize_ ? origin_metric_ : metric_from_name(metric_name);
-  dp_query_func_ = get_distance_func(dist_metric_, DataType::kInt8,
-                                     QuantizeType::kInt8, CpuArchType::kAuto);
-  dp_query_batch_func_ = get_batch_distance_func(
-      dist_metric_, DataType::kInt8, QuantizeType::kInt8, CpuArchType::kAuto);
+  dp_query_func_ =
+      get_distance_func(dist_metric_, DataType::kInt8, QuantizeType::kDefault,
+                        CpuArchType::kAuto);
+  dp_query_batch_func_ =
+      get_batch_distance_func(dist_metric_, DataType::kInt8,
+                              QuantizeType::kDefault, CpuArchType::kAuto);
 
   LOG_DEBUG("Init integer reformer, bias %f, scale %f", bias_, scale_);
   return 0;
@@ -399,23 +401,21 @@ int Int8Quantizer::set_rotator(Rotator::Pointer r) {
 
 DistanceImpl Int8Quantizer::distance(const void *query,
                                      const IndexQueryMeta &qmeta) const {
-  std::string buf;
-  IndexQueryMeta ometa;
-  if (this->quantize(query, qmeta, &buf, &ometa) != 0) {
-    return DistanceImpl{};
-  }
-
   auto func = get_distance_func(dist_metric_, DataType::kInt8,
-                                QuantizeType::kInt8, CpuArchType::kAuto);
+                                QuantizeType::kDefault, CpuArchType::kAuto);
   if (!func) {
     return DistanceImpl{};
   }
-  auto batch_func = get_batch_distance_func(
-      dist_metric_, DataType::kInt8, QuantizeType::kInt8, CpuArchType::kAuto);
+  auto batch_func =
+      get_batch_distance_func(dist_metric_, DataType::kInt8,
+                              QuantizeType::kDefault, CpuArchType::kAuto);
 
+  // The query is assumed to be already quantized — copy it directly.
+  std::string quantized_query(static_cast<const char *>(query),
+                              qmeta.element_size());
   // Pass the raw (non-inflated) dimension to the distance implementation.
-  return DistanceImpl(std::move(func), std::move(batch_func), std::move(buf),
-                      qmeta.dimension());
+  return DistanceImpl(std::move(func), std::move(batch_func),
+                      std::move(quantized_query), original_dim_);
 }
 
 float Int8Quantizer::calc_distance_dp_query(const void *dp,

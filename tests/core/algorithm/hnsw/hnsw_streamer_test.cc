@@ -3603,7 +3603,7 @@ TEST_F(HnswStreamerTest, TestTurboCosineRecordInt8Quantizer) {
   ASSERT_EQ(0, storage->init(stg_params));
   ASSERT_EQ(0,
             storage->open(dir_ + "TestTurboCosineInt8Quantizer.index", true));
-  ASSERT_EQ(0, streamer->init(index_meta, params));
+  ASSERT_EQ(0, streamer->init(index_meta, params, quantizer));
   ASSERT_EQ(0, streamer->open(storage));
 
   NumericalVector<float> vec(dim);

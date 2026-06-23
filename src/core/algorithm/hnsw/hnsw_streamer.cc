@@ -34,6 +34,13 @@ HnswStreamer::~HnswStreamer() {
   }
 }
 
+int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params,
+                       const zvec::turbo::Quantizer::Pointer &quantizer) {
+  add_quantizer_ = quantizer;
+  search_quantizer_ = quantizer;
+  return init(imeta, params);
+}
+
 int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
   meta_ = imeta;
   meta_.set_streamer("HnswStreamer", HnswEntity::kRevision, params);
@@ -327,23 +334,28 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
   }
 
   // Create and initialize the turbo quantizer used by HnswDistCalculator.
-  add_quantizer_ = IndexFactory::CreateQuantizer(turbo_quantizer_class_);
+  // When a quantizer was supplied via the 3-arg init overload, add_quantizer_
+  // is already set — use it directly instead of creating one from
+  // turbo_quantizer_class_.
   if (!add_quantizer_) {
-    LOG_ERROR("Failed to create turbo quantizer '%s'",
-              turbo_quantizer_class_.c_str());
-    return IndexError_NoExist;
+    add_quantizer_ = IndexFactory::CreateQuantizer(turbo_quantizer_class_);
+    if (!add_quantizer_) {
+      LOG_ERROR("Failed to create turbo quantizer '%s'",
+                turbo_quantizer_class_.c_str());
+      return IndexError_NoExist;
+    }
+    ret = add_quantizer_->init(meta_, meta_.streamer_params());
+    if (ret != 0) {
+      LOG_ERROR("Failed to init turbo quantizer '%s', ret=%d",
+                turbo_quantizer_class_.c_str(), ret);
+      return ret;
+    }
+    // Default: use the same quantizer for search. When the underlying
+    // metric exposes a query-side variant (e.g. MipsSquaredEuclidean) we
+    // still keep the add_quantizer_ as a conservative choice here. Any
+    // specialized handling can be layered on top later.
+    search_quantizer_ = add_quantizer_;
   }
-  ret = add_quantizer_->init(meta_, meta_.streamer_params());
-  if (ret != 0) {
-    LOG_ERROR("Failed to init turbo quantizer '%s', ret=%d",
-              turbo_quantizer_class_.c_str(), ret);
-    return ret;
-  }
-  // Default: use the same quantizer for search. When the underlying
-  // metric exposes a query-side variant (e.g. MipsSquaredEuclidean) we
-  // still keep the add_quantizer_ as a conservative choice here. Any
-  // specialized handling can be layered on top later.
-  search_quantizer_ = add_quantizer_;
 
   // Resolve the search-side metric. For metrics like MipsSquaredEuclidean
   // the index distance (used while building the graph) is not the same as
