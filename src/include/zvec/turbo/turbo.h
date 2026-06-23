@@ -57,6 +57,7 @@ enum class QuantizeType {
   kInt8,
   kInt4,
   kFp16,
+  kFp32,
   kPQ,
   kRabit
 };

@@ -59,12 +59,10 @@ int RecordInt8Quantizer::init(const core::IndexMeta &meta,
   meta_.set_metric("QuantizedInteger", 0, metric_params);
 
   // Cache the distance dispatch for the new Quantizer interface.
-  dp_query_func_ =
-      get_distance_func(origin_metric_, DataType::kInt8, QuantizeType::kDefault,
-                        CpuArchType::kAuto);
-  dp_query_batch_func_ =
-      get_batch_distance_func(origin_metric_, DataType::kInt8,
-                              QuantizeType::kDefault, CpuArchType::kAuto);
+  dp_query_func_ = get_distance_func(origin_metric_, DataType::kInt8,
+                                     QuantizeType::kInt8, CpuArchType::kAuto);
+  dp_query_batch_func_ = get_batch_distance_func(
+      origin_metric_, DataType::kInt8, QuantizeType::kInt8, CpuArchType::kAuto);
 
   return 0;
 }
