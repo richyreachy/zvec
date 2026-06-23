@@ -55,11 +55,11 @@ class HnswStreamer : public IndexStreamer {
   }
 
   //! Initialize quantizer used for both add and search
-  int init_quantizer(turbo::Quantizer *quantizer);
+  int init_quantizer(turbo::Quantizer::Pointer quantizer) override;
 
   //! Initialize separate quantizers for add and search
-  int init_quantizer(turbo::Quantizer *add_quantizer,
-                     turbo::Quantizer *search_quantizer);
+  int init_quantizer(turbo::Quantizer::Pointer add_quantizer,
+                     turbo::Quantizer::Pointer search_quantizer) override;
 
  protected:
   //! Initialize Streamer

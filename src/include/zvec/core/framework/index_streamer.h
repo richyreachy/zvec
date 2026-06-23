@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <turbo/quantizer/quantizer.h>
 #include <zvec/core/framework/index_context.h>
 #include <zvec/core/framework/index_helper.h>
 #include <zvec/core/framework/index_provider.h>
@@ -57,6 +58,17 @@ class IndexStreamer : public IndexRunner {
   //! time distance calculation.
   virtual void set_original_provider(const IndexMeta & /*original_meta*/,
                                      IndexProvider::Pointer /*provider*/) {}
+
+  //! Initialize quantizer used for both add and search
+  virtual int init_quantizer(turbo::Quantizer::Pointer /*quantizer*/) {
+    return IndexError_NotImplemented;
+  }
+
+  //! Initialize separate quantizers for add and search
+  virtual int init_quantizer(turbo::Quantizer::Pointer /*add_quantizer*/,
+                             turbo::Quantizer::Pointer /*search_quantizer*/) {
+    return IndexError_NotImplemented;
+  }
 };
 
 }  // namespace core
