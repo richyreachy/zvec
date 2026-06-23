@@ -623,6 +623,11 @@ class HnswEntity {
     return IndexError_NotImplemented;
   }
 
+  //! Toggle whether get_vector should read from the original provider
+  //! (FP32) instead of the stored (quantized) data.  Used by
+  //! HnswStreamerEntity when building with original vectors.
+  virtual void set_use_original_provider(bool /*use*/) {}
+
   //! Get the node id's neighbors on graph level
   //! Note: the neighbors cannot be modified, using the following
   //! method to get WritableNeighbors if want to

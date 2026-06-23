@@ -163,6 +163,16 @@ const Neighbors HnswStreamerEntity::get_neighbors(level_t level,
 
 //! Get vector data by key
 const void *HnswStreamerEntity::get_vector(node_id_t id) const {
+  // When building with original vectors, read from the original provider
+  // (FP32) instead of the stored quantized data.
+  if (use_original_provider_ && original_provider_) {
+    key_t key = get_key(id);
+    if (key == kInvalidKey) {
+      return nullptr;
+    }
+    return original_provider_->get_vector(static_cast<uint64_t>(key));
+  }
+
   auto loc = get_vector_chunk_loc(id);
   ailego_assert_with(loc.first < node_chunks_.size(), "invalid chunk idx");
 
@@ -187,6 +197,21 @@ const void *HnswStreamerEntity::get_vector(node_id_t id) const {
 
 int HnswStreamerEntity::get_vector(const node_id_t *ids, uint32_t count,
                                    const void **vecs) const {
+  // When building with original vectors, read from the original provider.
+  if (use_original_provider_ && original_provider_) {
+    for (auto i = 0U; i < count; ++i) {
+      key_t key = get_key(ids[i]);
+      if (key == kInvalidKey) {
+        return IndexError_NoExist;
+      }
+      vecs[i] = original_provider_->get_vector(static_cast<uint64_t>(key));
+      if (ailego_unlikely(!vecs[i])) {
+        return IndexError_NoExist;
+      }
+    }
+    return 0;
+  }
+
   for (auto i = 0U; i < count; ++i) {
     auto loc = get_vector_chunk_loc(ids[i]);
     ailego_assert_with(loc.first < node_chunks_.size(), "invalid chunk idx");
@@ -214,6 +239,21 @@ int HnswStreamerEntity::get_vector(const node_id_t *ids, uint32_t count,
 
 int HnswStreamerEntity::get_vector(const node_id_t id,
                                    IndexStorage::MemoryBlock &block) const {
+  // When building with original vectors, read from the original provider.
+  if (use_original_provider_ && original_provider_) {
+    key_t key = get_key(id);
+    if (key == kInvalidKey) {
+      return IndexError_NoExist;
+    }
+    const void *vec =
+        original_provider_->get_vector(static_cast<uint64_t>(key));
+    if (ailego_unlikely(!vec)) {
+      return IndexError_NoExist;
+    }
+    block.reset(const_cast<void *>(vec));
+    return 0;
+  }
+
   auto loc = get_vector_chunk_loc(id);
   ailego_assert_with(loc.first < node_chunks_.size(), "invalid chunk idx");
 
@@ -241,6 +281,23 @@ int HnswStreamerEntity::get_vector(
     const node_id_t *ids, uint32_t count,
     std::vector<IndexStorage::MemoryBlock> &vec_blocks) const {
   vec_blocks.resize(count);
+  // When building with original vectors, read from the original provider.
+  if (use_original_provider_ && original_provider_) {
+    for (auto i = 0U; i < count; ++i) {
+      key_t key = get_key(ids[i]);
+      if (key == kInvalidKey) {
+        return IndexError_NoExist;
+      }
+      const void *vec =
+          original_provider_->get_vector(static_cast<uint64_t>(key));
+      if (ailego_unlikely(!vec)) {
+        return IndexError_NoExist;
+      }
+      vec_blocks[i].reset(const_cast<void *>(vec));
+    }
+    return 0;
+  }
+
   for (auto i = 0U; i < count; ++i) {
     auto loc = get_vector_chunk_loc(ids[i]);
     ailego_assert_with(loc.first < node_chunks_.size(), "invalid chunk idx");
@@ -775,6 +832,7 @@ const HnswEntity::Pointer HnswStreamerEntity::clone() const {
   if (ailego_unlikely(!entity)) {
     LOG_ERROR("HnswStreamerEntity new failed");
   }
+  entity->original_provider_ = original_provider_;
   return HnswEntity::Pointer(entity);
 }
 
@@ -808,6 +866,7 @@ const HnswEntity::Pointer HnswMmapStreamerEntity::clone() const {
   if (ailego_unlikely(!entity)) {
     LOG_ERROR("HnswMmapStreamerEntity new failed");
   }
+  entity->original_provider_ = original_provider_;
   return HnswEntity::Pointer(entity);
 }
 
@@ -853,6 +912,7 @@ const HnswEntity::Pointer HnswContiguousStreamerEntity::clone() const {
   entity->upper_neighbor_base_ = upper_neighbor_base_;
   entity->upper_chunk_offsets_ = upper_chunk_offsets_;
 
+  entity->original_provider_ = original_provider_;
   return HnswEntity::Pointer(entity);
 }
 

@@ -102,6 +102,18 @@ class HnswStreamerEntity : public HnswEntity {
     LOG_DEBUG("use_key_info_map_: %d", (int)use_key_info_map_);
   }
 
+  //! Set the original (unquantized) data provider.  When
+  //! use_original_provider_ is true, get_vector reads from this
+  //! provider instead of the stored quantized data.
+  void set_original_provider(IndexProvider::Pointer provider) {
+    original_provider_ = std::move(provider);
+  }
+
+  //! Toggle whether get_vector reads from original_provider_.
+  void set_use_original_provider(bool use) override {
+    use_original_provider_ = use;
+  }
+
  public:
   //! Constructor
   HnswStreamerEntity(IndexStreamer::Stats &stats);
@@ -616,6 +628,11 @@ class HnswStreamerEntity : public HnswEntity {
   ChunkBroker::Pointer broker_{};  // chunk broker
 
   IndexProvider::Pointer original_provider_{};
+
+  //! When true, get_vector reads from original_provider_ (FP32 data)
+  //! instead of the stored quantized data.  Toggled per-operation by
+  //! the streamer: true during build (add_impl), false during search.
+  mutable bool use_original_provider_{false};
 };
 
 // --- Template specializations for typed MemoryBlock access ---

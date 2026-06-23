@@ -311,6 +311,12 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
     return ret;
   }
 
+  // Propagate the original (FP32) provider to the entity so that
+  // get_vector can read original vectors during build.
+  if (original_provider_) {
+    entity_->set_original_provider(original_provider_);
+  }
+
   ret = entity_->open(std::move(stg), max_index_size_, check_crc_enabled_);
   if (ret != 0) {
     return ret;
@@ -579,6 +585,7 @@ int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
   AILEGO_DEFER([&]() { shared_mutex_.unlock_shared(); });
 
   ctx->set_mode(HnswContext::kBuildMode);
+  ctx->set_use_original_provider(build_with_original_vector_);
   ctx->clear();
   ctx->update_dist_caculator_quantizer(add_quantizer_);
   ctx->update_dist_caculator_metric(metric_);
@@ -672,6 +679,7 @@ int HnswStreamer::add_impl(uint64_t pkey, const void *query,
   AILEGO_DEFER([&]() { shared_mutex_.unlock_shared(); });
 
   ctx->set_mode(HnswContext::kBuildMode);
+  ctx->set_use_original_provider(build_with_original_vector_);
   ctx->clear();
   ctx->update_dist_caculator_quantizer(add_quantizer_);
   ctx->update_dist_caculator_metric(metric_);
@@ -756,6 +764,7 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
   }
 
   ctx->set_mode(HnswContext::kSearchMode);
+  ctx->set_use_original_provider(false);
   ctx->clear();
   ctx->update_dist_caculator_quantizer(search_quantizer_);
   ctx->update_dist_caculator_metric(search_metric_);
@@ -828,6 +837,7 @@ int HnswStreamer::search_bf_impl(
   }
 
   ctx->set_mode(HnswContext::kSearchMode);
+  ctx->set_use_original_provider(false);
   ctx->clear();
   ctx->update_dist_caculator_quantizer(search_quantizer_);
   ctx->update_dist_caculator_metric(search_metric_);
@@ -924,6 +934,7 @@ int HnswStreamer::search_bf_by_p_keys_impl(
   }
 
   ctx->set_mode(HnswContext::kSearchMode);
+  ctx->set_use_original_provider(false);
   ctx->clear();
   ctx->update_dist_caculator_quantizer(search_quantizer_);
   ctx->update_dist_caculator_metric(search_metric_);

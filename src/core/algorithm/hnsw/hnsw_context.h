@@ -143,6 +143,12 @@ class HnswContext : public IndexContext {
     return *entity_;
   }
 
+  //! Toggle whether the entity's get_vector reads from the original
+  //! provider (FP32) instead of stored quantized data.
+  void set_use_original_provider(bool use) {
+    entity_->set_use_original_provider(use);
+  }
+
   inline void resize_results(size_t size) {
     if (group_by_search()) {
       group_results_.resize(size);
