@@ -32,7 +32,10 @@ typedef struct iocb iocb_t;
 
 int setup_io_ctx(IOContext &ctx) {
 #if (defined(__linux) || defined(__linux__))
-  int ret = io_setup(MAX_EVENTS, &ctx);
+  if (!LibAioLoader::Instance().Load()) {
+    return -ENOSYS;
+  }
+  int ret = LibAioLoader::Instance().io_setup(MAX_EVENTS, &ctx);
 
   return ret;
 #else
@@ -42,7 +45,10 @@ int setup_io_ctx(IOContext &ctx) {
 
 int destroy_io_ctx(IOContext &ctx) {
 #if (defined(__linux) || defined(__linux__))
-  int ret = io_destroy(ctx);
+  if (!LibAioLoader::Instance().IsAvailable()) {
+    return 0;
+  }
+  int ret = LibAioLoader::Instance().io_destroy(ctx);
 
   return ret;
 #else
@@ -71,6 +77,9 @@ static int execute_io_pread(int fd, std::vector<AlignedRead> &read_reqs) {
 int execute_io(IOContext ctx, int fd, std::vector<AlignedRead> &read_reqs,
                uint64_t n_retries = 0) {
 #if (defined(__linux) || defined(__linux__))
+  if (!LibAioLoader::Instance().Load()) {
+    return execute_io_pread(fd, read_reqs);
+  }
   uint64_t iters = DiskAnnUtil::div_round_up(read_reqs.size(), MAX_EVENTS);
 
   for (uint64_t iter = 0; iter < iters; iter++) {
@@ -93,7 +102,8 @@ int execute_io(IOContext ctx, int fd, std::vector<AlignedRead> &read_reqs,
     size_t n_tries = 0;
     // Phase 1: io_submit with retry.
     while (true) {
-      int ret = io_submit(ctx, (int64_t)n_ops, cbs.data());
+      int ret =
+          LibAioLoader::Instance().io_submit(ctx, (int64_t)n_ops, cbs.data());
       if (ret == (int)n_ops) {
         break;
       }
@@ -111,8 +121,8 @@ int execute_io(IOContext ctx, int fd, std::vector<AlignedRead> &read_reqs,
     // Phase 2: io_getevents with retry (never re-submits).
     n_tries = 0;
     while (true) {
-      int ret = io_getevents(ctx, (int64_t)n_ops, (int64_t)n_ops, evts.data(),
-                             nullptr);
+      int ret = LibAioLoader::Instance().io_getevents(
+          ctx, (int64_t)n_ops, (int64_t)n_ops, evts.data(), nullptr);
       if (ret == (int)n_ops) {
         break;
       }
@@ -188,7 +198,12 @@ void LinuxAlignedFileReader::register_thread() {
 
   IOContext ctx = nullptr;
 
-  int ret = io_setup(MAX_EVENTS, &ctx);
+  if (!LibAioLoader::Instance().Load()) {
+    LOG_ERROR("libaio not available; cannot register thread for async I/O");
+    lk.unlock();
+    return;
+  }
+  int ret = LibAioLoader::Instance().io_setup(MAX_EVENTS, &ctx);
   if (ret != 0) {
     lk.unlock();
     if (ret == -EAGAIN) {
@@ -226,7 +241,9 @@ void LinuxAlignedFileReader::deregister_thread() {
   }
 
   // io_destroy is a syscall; keep it outside the lock to avoid blocking others
-  io_destroy(ctx);
+  if (LibAioLoader::Instance().IsAvailable()) {
+    LibAioLoader::Instance().io_destroy(ctx);
+  }
   LOG_INFO("returned ctx from thread");
 #endif
 }
@@ -234,9 +251,12 @@ void LinuxAlignedFileReader::deregister_thread() {
 void LinuxAlignedFileReader::deregister_all_threads() {
 #if (defined(__linux) || defined(__linux__))
   std::unique_lock<std::mutex> lk(ctx_mut);
+  bool aio_available = LibAioLoader::Instance().IsAvailable();
   for (auto x = ctx_map.begin(); x != ctx_map.end(); x++) {
     IOContext ctx = x->second;
-    io_destroy(ctx);
+    if (aio_available) {
+      LibAioLoader::Instance().io_destroy(ctx);
+    }
   }
   ctx_map.clear();
 #endif

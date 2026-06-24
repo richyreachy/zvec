@@ -13,14 +13,13 @@ file(GLOB_RECURSE ALL_SRCS *.cc *.c)
 # before invoking dlopen's RTLD_GLOBAL symbol sharing, and the Python wheel
 # (which only ships _zvec.so + the plugin) would fail to load.
 #
-# We therefore link the plugin only against its system-level dependency
-# (libaio) and rely on the global include dirs plus -Wl,--unresolved-symbols
-# =ignore-all to let the linker build a shared library with unresolved
-# references to internal APIs.
+# libaio is loaded at runtime via dlopen()/dlsym() (see libaio_loader.h), so
+# we do NOT link against -laio. The only system-level link dependency is
+# ${CMAKE_DL_LIBS} for dlopen/dlsym/dlclose.
 set(CORE_KNN_DISKANN_LIBS "")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386")
-    list(APPEND CORE_KNN_DISKANN_LIBS aio)
+    list(APPEND CORE_KNN_DISKANN_LIBS ${CMAKE_DL_LIBS})
 endif()
 
 cc_library(
