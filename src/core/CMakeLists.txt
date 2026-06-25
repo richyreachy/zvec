@@ -63,9 +63,10 @@ endif()
 
 # Always exclude algorithm/diskann implementation files from zvec_core.
 # The DiskAnn algorithm is provided by the separate core_knn_diskann library
-# (real on Linux x86_64, stub on other platforms). Including them here causes
-# duplicate symbols and missing -laio when test binaries link both zvec_core
-# (via zvec) and core_knn_diskann.
+# (STATIC+SHARED, real on Linux x86_64, stub on other platforms). The static
+# variant is whole-archived into _zvec.so for the Python wheel; the shared
+# variant is used by C++ tools and tests. Including the sources here would
+# cause duplicate symbols.
 list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/diskann/.*")
 if(NOT DISKANN_SUPPORTED)
   list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/interface/indexes/diskann_index\\.cc")

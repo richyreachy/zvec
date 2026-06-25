@@ -201,7 +201,7 @@ __all__ = [
     "StatusCode",
     # Tools
     "require_module",
-    # DiskAnn plugin
+    # DiskAnn runtime
     "load_diskann_plugin",
     "is_diskann_plugin_loaded",
     "is_libaio_available",

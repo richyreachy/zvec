@@ -107,10 +107,10 @@ TEST_F(DiskAnnBuilderTest, TestGeneral) {
 // test via the ``core_knn_diskann`` target), its factory entries are
 // registered automatically and the global ``IndexFactory`` can hand out a
 // ``DiskAnnBuilder`` without any explicit setup step. On hosts missing
-// libaio, DiskAnn would fail at the index-creation layer with a clear error
-// while other index types (HNSW/IVF/Flat/Vamana) remain unaffected; that
-// runtime branch lives in ``DiskAnnIndex::CreateAndInitStreamer`` and is
-// covered by the higher-level interface tests.
+// libaio, DiskAnn falls back to synchronous pread() with a warning while
+// other index types (HNSW/IVF/Flat/Vamana) remain unaffected; that runtime
+// branch lives in ``DiskAnnIndex::CreateAndInitStreamer`` and is covered by
+// the higher-level interface tests.
 TEST_F(DiskAnnBuilderTest, TestImplicitFactoryRegistration) {
   IndexBuilder::Pointer builder = IndexFactory::CreateBuilder("DiskAnnBuilder");
   ASSERT_NE(builder, nullptr)

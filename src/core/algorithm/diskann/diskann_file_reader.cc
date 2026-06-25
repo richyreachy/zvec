@@ -33,7 +33,8 @@ typedef struct iocb iocb_t;
 int setup_io_ctx(IOContext &ctx) {
 #if (defined(__linux) || defined(__linux__))
   if (!LibAioLoader::Instance().Load()) {
-    return -ENOSYS;
+    LOG_WARN("libaio not available; falling back to synchronous pread");
+    return 0;
   }
   int ret = LibAioLoader::Instance().io_setup(MAX_EVENTS, &ctx);
 
@@ -199,7 +200,7 @@ void LinuxAlignedFileReader::register_thread() {
   IOContext ctx = nullptr;
 
   if (!LibAioLoader::Instance().Load()) {
-    LOG_ERROR("libaio not available; cannot register thread for async I/O");
+    LOG_WARN("libaio not available; async I/O disabled, will use pread");
     lk.unlock();
     return;
   }
