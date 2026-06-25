@@ -28,6 +28,10 @@
 #include <limits.h>
 #endif
 
+#if defined(_WIN32) || defined(_WIN64)
+#include <Windows.h>
+#endif
+
 namespace zvec {
 
 namespace {
@@ -40,6 +44,9 @@ constexpr const char *kLibAioSoNames[] = {
     "libaio.so.1",
     "libaio.so.1t64",
 };
+constexpr bool kPlatformSupportsDiskAnnPlugin = true;
+#elif defined(_WIN32) || defined(_WIN64)
+constexpr const char *kPluginFileName = "zvec_diskann_plugin.dll";
 constexpr bool kPlatformSupportsDiskAnnPlugin = true;
 #elif defined(__APPLE__)
 [[maybe_unused]] constexpr const char *kPluginFileName =
@@ -203,6 +210,78 @@ std::vector<std::string> BuildCandidatePaths(const std::string &explicit_path) {
 
 #endif  // linux
 
+#if defined(_WIN32) || defined(_WIN64)
+
+// Resolve the directory containing the currently running executable.
+std::string GetExecutableDir() {
+  char buf[MAX_PATH];
+  DWORD n = ::GetModuleFileNameA(NULL, buf, sizeof(buf));
+  if (n == 0 || n >= sizeof(buf)) {
+    return {};
+  }
+  std::string path(buf);
+  auto slash = path.find_last_of("\\/");
+  if (slash == std::string::npos) {
+    return {};
+  }
+  return path.substr(0, slash);
+}
+
+// Resolve the directory containing the DLL that hosts this function.
+// Uses GetModuleHandleEx to find the module from a function address.
+std::string ResolveHostingSoDir() {
+  HMODULE hmod = NULL;
+  BOOL ok = ::GetModuleHandleExA(
+      GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+          GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+      reinterpret_cast<LPCSTR>(&::zvec::LoadDiskAnnPlugin), &hmod);
+  if (!ok || hmod == NULL) {
+    return {};
+  }
+  char buf[MAX_PATH];
+  DWORD n = ::GetModuleFileNameA(hmod, buf, sizeof(buf));
+  if (n == 0 || n >= sizeof(buf)) {
+    return {};
+  }
+  std::string path(buf);
+  auto slash = path.find_last_of("\\/");
+  if (slash == std::string::npos) {
+    return {};
+  }
+  return path.substr(0, slash);
+}
+
+// Build the list of candidate paths for the plugin.
+std::vector<std::string> BuildCandidatePaths(const std::string &explicit_path) {
+  std::vector<std::string> candidates;
+  if (!explicit_path.empty()) {
+    candidates.push_back(explicit_path);
+    return candidates;
+  }
+
+  auto push_dir_candidates = [&candidates](const std::string &dir) {
+    if (dir.empty()) {
+      return;
+    }
+    candidates.push_back(dir + "\\" + kPluginFileName);
+  };
+
+  // 1. Directory of the module that hosts LoadDiskAnnPlugin.
+  const std::string own_dir = ResolveHostingSoDir();
+  push_dir_candidates(own_dir);
+  // 2. Directory of the running executable.
+  const std::string exe_dir = GetExecutableDir();
+  if (!exe_dir.empty() && exe_dir != own_dir) {
+    push_dir_candidates(exe_dir);
+  }
+  // 3. Fallback: let Windows search the default paths (application dir,
+  //    system dirs, PATH).
+  candidates.emplace_back(kPluginFileName);
+  return candidates;
+}
+
+#endif  // _WIN32
+
 }  // namespace
 
 bool IsLibAioAvailable() {
@@ -229,6 +308,9 @@ bool IsLibAioAvailable() {
     }
   }
   return false;
+#elif defined(_WIN32) || defined(_WIN64)
+  // libaio is not needed on Windows; I/O Completion Ports are built-in.
+  return true;
 #else
   return false;
 #endif
@@ -295,6 +377,40 @@ int LoadDiskAnnPlugin(const std::string &path) {
 
   g_plugin_handle.store(handle, std::memory_order_release);
   return kDiskAnnPluginOk;
+#elif defined(_WIN32) || defined(_WIN64)
+  // Fast path: already loaded.
+  if (g_plugin_handle.load(std::memory_order_acquire) != nullptr) {
+    return kDiskAnnPluginOk;
+  }
+
+  std::lock_guard<std::mutex> lock(g_plugin_mutex);
+  if (g_plugin_handle.load(std::memory_order_relaxed) != nullptr) {
+    return kDiskAnnPluginOk;
+  }
+
+  const std::vector<std::string> candidates = BuildCandidatePaths(path);
+  HMODULE handle = nullptr;
+  std::string last_error;
+  for (const std::string &candidate : candidates) {
+    handle = ::LoadLibraryA(candidate.c_str());
+    if (handle != nullptr) {
+      LOG_INFO("Loaded DiskAnn plugin from: %s", candidate.c_str());
+      break;
+    }
+    DWORD err = ::GetLastError();
+    last_error = "LoadLibraryA failed (error=" + std::to_string(err) + ")";
+    LOG_DEBUG("LoadLibraryA(%s) failed: %s", candidate.c_str(),
+              last_error.c_str());
+  }
+
+  if (handle == nullptr) {
+    LOG_ERROR("Failed to load DiskAnn plugin; last error: %s",
+              last_error.c_str());
+    return kDiskAnnPluginDlopenFailed;
+  }
+
+  g_plugin_handle.store(handle, std::memory_order_release);
+  return kDiskAnnPluginOk;
 #else
   (void)path;
   return kDiskAnnPluginUnsupportedPlatform;
@@ -312,6 +428,18 @@ bool UnloadDiskAnnPlugin() {
     const char *err = ::dlerror();
     LOG_WARN("dlclose for DiskAnn plugin returned non-zero: %s",
              err ? err : "unknown");
+  }
+  return true;
+#elif defined(_WIN32) || defined(_WIN64)
+  std::lock_guard<std::mutex> lock(g_plugin_mutex);
+  HMODULE handle = reinterpret_cast<HMODULE>(
+      g_plugin_handle.exchange(nullptr, std::memory_order_acq_rel));
+  if (handle == nullptr) {
+    return false;
+  }
+  if (!::FreeLibrary(handle)) {
+    DWORD err = ::GetLastError();
+    LOG_WARN("FreeLibrary for DiskAnn plugin failed (error=%lu)", err);
   }
   return true;
 #else

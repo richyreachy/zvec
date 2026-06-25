@@ -15,23 +15,28 @@
 
 #define MAX_IO_DEPTH 128
 
-#include <fcntl.h>
-
-#if (defined(__linux) || defined(__linux__))
-#include <libaio.h>
-#endif
-
-#include <unistd.h>
 #include <atomic>
 #include <vector>
 #include <zvec/core/framework/index_context.h>
 #include "diskann_util.h"
+
+#if (defined(__linux) || defined(__linux__))
+#include <fcntl.h>
+#include <libaio.h>
+#include <unistd.h>
+#elif defined(_WIN32) || defined(_WIN64)
+#include <Windows.h>
+#endif
 
 namespace zvec {
 namespace core {
 
 #if (defined(__linux) || defined(__linux__))
 typedef io_context_t IOContext;
+#elif defined(_WIN32) || defined(_WIN64)
+struct IOContext {
+  std::vector<OVERLAPPED> reqs;
+};
 #else
 typedef uint32_t IOContext;
 #endif
@@ -75,6 +80,7 @@ class AlignedFileReader {
                    bool async = false) = 0;
 };
 
+#if (defined(__linux) || defined(__linux__))
 class LinuxAlignedFileReader : public AlignedFileReader {
  private:
   int file_desc;
@@ -98,6 +104,36 @@ class LinuxAlignedFileReader : public AlignedFileReader {
   int read(std::vector<AlignedRead> &read_reqs, IOContext &ctx,
            bool async = false);
 };
+#elif defined(_WIN32) || defined(_WIN64)
+class WindowsAlignedFileReader : public AlignedFileReader {
+ private:
+  HANDLE file_handle_ = INVALID_HANDLE_VALUE;
+  HANDLE iocp_ = NULL;
+
+ public:
+  WindowsAlignedFileReader();
+  ~WindowsAlignedFileReader();
+
+ public:
+  IOContext &get_ctx();
+
+  void register_thread();
+  void deregister_thread();
+  void deregister_all_threads();
+  void open(const std::string &fname);
+  void close();
+
+  int read(std::vector<AlignedRead> &read_reqs, IOContext &ctx,
+           bool async = false);
+};
+#endif
+
+// Platform-agnostic reader typedef
+#if (defined(__linux) || defined(__linux__))
+typedef LinuxAlignedFileReader PlatformAlignedFileReader;
+#elif defined(_WIN32) || defined(_WIN64)
+typedef WindowsAlignedFileReader PlatformAlignedFileReader;
+#endif
 
 }  // namespace core
 }  // namespace zvec

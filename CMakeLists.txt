@@ -131,14 +131,15 @@ else()
 endif()
 message(STATUS "RABITQ_ARCH_FLAG: ${RABITQ_ARCH_FLAG}")
 
-# DiskAnn support (Linux x86_64 only, requires libaio)
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386" AND NOT ANDROID AND NOT IOS)
+# DiskAnn support (Linux x86_64 with libaio, or Windows x86_64/x86 with IOCP)
+if((CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386" AND NOT ANDROID AND NOT IOS)
+   OR (WIN32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64|i686|i386"))
   set(DISKANN_SUPPORTED ON)
   add_definitions(-DDISKANN_SUPPORTED=1)
 else()
   set(DISKANN_SUPPORTED OFF)
   add_definitions(-DDISKANN_SUPPORTED=0)
-  message(STATUS "DiskAnn support disabled - only supported on Linux x86_64")
+  message(STATUS "DiskAnn support disabled - only supported on Linux x86_64 or Windows")
 endif()
 message(STATUS "DISKANN_SUPPORTED: ${DISKANN_SUPPORTED}")
 
@@ -191,13 +192,14 @@ if(BUILD_PYTHON_BINDINGS)
     install(TARGETS _zvec LIBRARY DESTINATION ${ZVEC_PY_INSTALL_DIR})
 
     # DiskAnn ships as a runtime-loaded shared module
-    # (libzvec_diskann_plugin.so) that is brought online implicitly the
-    # first time a DiskAnn index is created — users never call any load
-    # function. The Python extension resolves the module next to _zvec.so
-    # (see the $ORIGIN rpath in src/binding/python/CMakeLists.txt); the
-    # module must therefore be installed alongside _zvec.so in the wheel.
-    # The target exists only on platforms where DiskAnn is buildable
-    # (currently Linux x86_64 with libaio).
+    # (libzvec_diskann_plugin.so on Linux, zvec_diskann_plugin.dll on
+    # Windows) that is brought online implicitly the first time a DiskAnn
+    # index is created — users never call any load function. The Python
+    # extension resolves the module next to _zvec.so/.pyd (see the $ORIGIN
+    # rpath in src/binding/python/CMakeLists.txt); the module must therefore
+    # be installed alongside _zvec in the wheel. The target exists only on
+    # platforms where DiskAnn is buildable (Linux x86_64 with libaio or
+    # Windows x86_64 with IOCP).
     if(TARGET core_knn_diskann)
         install(TARGETS core_knn_diskann LIBRARY DESTINATION ${ZVEC_PY_INSTALL_DIR})
     endif()

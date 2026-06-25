@@ -82,12 +82,12 @@ int DiskAnnContext::init(ContextType type, uint32_t graph_degree,
 }
 
 DiskAnnContext::~DiskAnnContext() {
-  free(query_);
-  free(query_rotated_);
-  free(pq_table_dist_buffer_);
-  free(pq_coord_buffer_);
-  free(coord_buffer_);
-  free(sector_buffer_);
+  DiskAnnUtil::free_aligned(query_);
+  DiskAnnUtil::free_aligned(query_rotated_);
+  DiskAnnUtil::free_aligned(pq_table_dist_buffer_);
+  DiskAnnUtil::free_aligned(pq_coord_buffer_);
+  DiskAnnUtil::free_aligned(coord_buffer_);
+  DiskAnnUtil::free_aligned(sector_buffer_);
 
   if (type_ == kSearcherContext) {
     destroy_io_ctx(io_ctx_);

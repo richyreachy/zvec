@@ -30,26 +30,33 @@ typedef struct io_event io_event_t;
 typedef struct iocb iocb_t;
 #endif
 
-int setup_io_ctx(IOContext &ctx) {
 #if (defined(__linux) || defined(__linux__))
+int setup_io_ctx(IOContext &ctx) {
   int ret = io_setup(MAX_EVENTS, &ctx);
-
   return ret;
-#else
-  return 0;
-#endif
 }
 
 int destroy_io_ctx(IOContext &ctx) {
-#if (defined(__linux) || defined(__linux__))
   int ret = io_destroy(ctx);
-
   return ret;
-#else
+}
+#elif defined(_WIN32) || defined(_WIN64)
+int setup_io_ctx(IOContext &ctx) {
+  for (uint64_t i = 0; i < MAX_IO_DEPTH; i++) {
+    OVERLAPPED os;
+    memset(&os, 0, sizeof(OVERLAPPED));
+    ctx.reqs.push_back(os);
+  }
   return 0;
-#endif
 }
 
+int destroy_io_ctx(IOContext &ctx) {
+  ctx.reqs.clear();
+  return 0;
+}
+#endif
+
+#if (defined(__linux) || defined(__linux__))
 static int execute_io_pread(int fd, std::vector<AlignedRead> &read_reqs) {
   for (auto &req : read_reqs) {
     ssize_t bytes_read = ::pread(fd, req.buf, req.len, req.offset);
@@ -294,6 +301,198 @@ int LinuxAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,
   return ret;
 }
 
+#endif  // (defined(__linux) || defined(__linux__))
+
+#if defined(_WIN32) || defined(_WIN64)
+
+// ============================================================================
+// Windows implementation using I/O Completion Ports (IOCP)
+// Based on the DiskANN Windows aligned file reader.
+// ============================================================================
+
+WindowsAlignedFileReader::WindowsAlignedFileReader() {}
+
+WindowsAlignedFileReader::~WindowsAlignedFileReader() {
+  deregister_all_threads();
+  close();
+}
+
+IOContext &WindowsAlignedFileReader::get_ctx() {
+  std::unique_lock<std::mutex> lk(ctx_mut);
+  auto thread_id = std::this_thread::get_id();
+  auto it = ctx_map.find(thread_id);
+  if (it == ctx_map.end()) {
+    LOG_ERROR("unable to find IOContext for thread_id");
+    static IOContext empty_ctx;
+    return empty_ctx;
+  }
+  return it->second;
+}
+
+void WindowsAlignedFileReader::register_thread() {
+  auto thread_id = std::this_thread::get_id();
+  std::unique_lock<std::mutex> lk(ctx_mut);
+  if (ctx_map.find(thread_id) != ctx_map.end()) {
+    LOG_ERROR("multiple calls to register_thread from the same thread");
+    return;
+  }
+
+  IOContext ctx;
+  setup_io_ctx(ctx);
+  ctx_map[thread_id] = std::move(ctx);
+}
+
+void WindowsAlignedFileReader::deregister_thread() {
+  auto thread_id = std::this_thread::get_id();
+  std::unique_lock<std::mutex> lk(ctx_mut);
+  auto it = ctx_map.find(thread_id);
+  if (it == ctx_map.end()) {
+    LOG_ERROR("deregister_thread: thread not registered");
+    return;
+  }
+  ctx_map.erase(it);
+}
+
+void WindowsAlignedFileReader::deregister_all_threads() {
+  std::unique_lock<std::mutex> lk(ctx_mut);
+  ctx_map.clear();
+}
+
+void WindowsAlignedFileReader::open(const std::string &fname) {
+  file_handle_ = CreateFileA(fname.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                             OPEN_EXISTING,
+                             FILE_ATTRIBUTE_READONLY | FILE_FLAG_NO_BUFFERING |
+                                 FILE_FLAG_OVERLAPPED | FILE_FLAG_RANDOM_ACCESS,
+                             NULL);
+
+  if (file_handle_ == INVALID_HANDLE_VALUE) {
+    DWORD error = GetLastError();
+    LOG_ERROR("Failed to open file: %s (error=%lu)", fname.c_str(), error);
+    return;
+  }
+
+  // Create an I/O Completion Port and associate the file handle with it.
+  iocp_ = CreateIoCompletionPort(file_handle_, NULL, 0, 0);
+  if (iocp_ == NULL) {
+    DWORD error = GetLastError();
+    LOG_ERROR("CreateIoCompletionPort failed (error=%lu)", error);
+    CloseHandle(file_handle_);
+    file_handle_ = INVALID_HANDLE_VALUE;
+    return;
+  }
+
+  LOG_INFO("Opened file: %s", fname.c_str());
+}
+
+void WindowsAlignedFileReader::close() {
+  if (file_handle_ != INVALID_HANDLE_VALUE) {
+    CloseHandle(file_handle_);
+    file_handle_ = INVALID_HANDLE_VALUE;
+  }
+  if (iocp_ != NULL) {
+    CloseHandle(iocp_);
+    iocp_ = NULL;
+  }
+}
+
+int WindowsAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,
+                                   IOContext &ctx, bool async) {
+  if (async == true) {
+    LOG_WARN("Async currently not supported");
+  }
+
+  if (file_handle_ == INVALID_HANDLE_VALUE) {
+    LOG_ERROR("Attempt to read from invalid file handle");
+    return IndexError_Runtime;
+  }
+
+  // Ensure the context has enough OVERLAPPED slots.
+  if (ctx.reqs.size() < MAX_IO_DEPTH) {
+    for (size_t i = ctx.reqs.size(); i < MAX_IO_DEPTH; i++) {
+      OVERLAPPED os;
+      memset(&os, 0, sizeof(OVERLAPPED));
+      ctx.reqs.push_back(os);
+    }
+  }
+
+  static const DWORD kSectorLen = 4096;
+  size_t n_reqs = read_reqs.size();
+  uint64_t n_batches = DiskAnnUtil::div_round_up(n_reqs, MAX_IO_DEPTH);
+
+  for (uint64_t batch = 0; batch < n_batches; batch++) {
+    // Reset all OVERLAPPED objects for this batch.
+    for (auto &os : ctx.reqs) {
+      memset(&os, 0, sizeof(OVERLAPPED));
+    }
+
+    uint64_t batch_start = MAX_IO_DEPTH * batch;
+    uint64_t batch_size =
+        std::min((uint64_t)(n_reqs - batch_start), (uint64_t)MAX_IO_DEPTH);
+
+    // Issue ReadFile calls for this batch.
+    for (uint64_t j = 0; j < batch_size; j++) {
+      AlignedRead &req = read_reqs[batch_start + j];
+      OVERLAPPED &os = ctx.reqs[j];
+
+      uint64_t offset = req.offset;
+      uint64_t nbytes = req.len;
+      char *read_buf = (char *)req.buf;
+
+      // Alignment assertions (must be sector-aligned for unbuffered I/O).
+      assert((size_t)read_buf % kSectorLen == 0);
+      assert(offset % kSectorLen == 0);
+      assert(nbytes % kSectorLen == 0);
+
+      // Fill in the OVERLAPPED struct with the file offset.
+      os.Offset = (DWORD)(offset & 0xffffffff);
+      os.OffsetHigh = (DWORD)(offset >> 32);
+
+      BOOL ret = ReadFile(file_handle_, read_buf, (DWORD)nbytes, NULL, &os);
+      if (ret == FALSE) {
+        DWORD error = GetLastError();
+        if (error != ERROR_IO_PENDING) {
+          LOG_ERROR("Error queuing IO -- error=%lu", error);
+          return IndexError_Runtime;
+        }
+      }
+    }
+
+    // Wait for all batch reads to complete via the IOCP.
+    DWORD n_read = 0;
+    uint64_t n_complete = 0;
+    ULONG_PTR completion_key = 0;
+    OVERLAPPED *lp_os = NULL;
+
+    while (n_complete < batch_size) {
+      BOOL ok = GetQueuedCompletionStatus(iocp_, &n_read, &completion_key,
+                                          &lp_os, INFINITE);
+      if (ok != 0) {
+        // Successfully dequeued a completed I/O.
+        n_complete++;
+      } else {
+        if (lp_os == NULL) {
+          DWORD error = GetLastError();
+          if (error != WAIT_TIMEOUT) {
+            LOG_ERROR("GetQueuedCompletionStatus() failed with error = %lu",
+                      error);
+            return IndexError_Runtime;
+          }
+          // No completion packet dequeued; sleep briefly and retry.
+          std::this_thread::sleep_for(std::chrono::microseconds(5));
+        } else {
+          // Completion packet for a failed I/O.
+          DWORD error = GetLastError();
+          LOG_ERROR("I/O failed with error code: %lu", error);
+          return IndexError_Runtime;
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+
+#endif  // defined(_WIN32) || defined(_WIN64)
 
 }  // namespace core
 }  // namespace zvec
