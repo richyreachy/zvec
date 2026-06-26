@@ -158,16 +158,16 @@ class HnswRabitqContext : public IndexContext {
 
     for (int i = 0; i < size; ++i) {
       auto score = topk_heap_[i].second;
-      if (score.est_dist > this->threshold()) {
+      if (score > this->threshold()) {
         break;
       }
 
       node_id_t id = topk_heap_[i].first;
       if (fetch_vector_) {
-        results_[idx].emplace_back(entity_->get_key(id), score.est_dist, id,
+        results_[idx].emplace_back(entity_->get_key(id), score, id,
                                    entity_->get_vector(id));
       } else {
-        results_[idx].emplace_back(entity_->get_key(id), score.est_dist, id);
+        results_[idx].emplace_back(entity_->get_key(id), score, id);
       }
     }
 
@@ -181,7 +181,7 @@ class HnswRabitqContext : public IndexContext {
     group_results_[idx].clear();
 
     std::vector<std::pair<std::string, TopkHeap>> group_topk_list;
-    std::vector<std::pair<std::string, ResultRecord>> best_score_in_groups;
+    std::vector<std::pair<std::string, dist_t>> best_score_in_groups;
     for (auto itr = group_topk_heaps_.begin(); itr != group_topk_heaps_.end();
          itr++) {
       const std::string &group_id = (*itr).first;
@@ -189,14 +189,14 @@ class HnswRabitqContext : public IndexContext {
       heap.sort();
 
       if (heap.size() > 0) {
-        ResultRecord best_score = heap[0].second;
+        dist_t best_score = heap[0].second;
         best_score_in_groups.push_back(std::make_pair(group_id, best_score));
       }
     }
 
     std::sort(best_score_in_groups.begin(), best_score_in_groups.end(),
-              [](const std::pair<std::string, ResultRecord> &a,
-                 const std::pair<std::string, ResultRecord> &b) -> int {
+              [](const std::pair<std::string, dist_t> &a,
+                 const std::pair<std::string, dist_t> &b) -> int {
                 return a.second < b.second;
               });
 
@@ -228,11 +228,10 @@ class HnswRabitqContext : public IndexContext {
 
         if (fetch_vector_) {
           group_results_[idx][i].mutable_docs()->emplace_back(
-              entity_->get_key(id), score.est_dist, id,
-              entity_->get_vector(id));
+              entity_->get_key(id), score, id, entity_->get_vector(id));
         } else {
           group_results_[idx][i].mutable_docs()->emplace_back(
-              entity_->get_key(id), score.est_dist, id);
+              entity_->get_key(id), score, id);
         }
       }
     }

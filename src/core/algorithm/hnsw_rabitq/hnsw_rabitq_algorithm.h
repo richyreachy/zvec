@@ -77,8 +77,8 @@ class HnswRabitqAlgorithm {
 
  private:
   //! Select in upper layer to get entry point for next layer search
-  void select_entry_point(level_t level, node_id_t *entry_point,
-                          ResultRecord *dist, HnswRabitqContext *ctx) const;
+  void select_entry_point(level_t level, node_id_t *entry_point, dist_t *dist,
+                          HnswRabitqContext *ctx) const;
 
   //! update node id neighbors from topkHeap, and reverse link is also updated
   void add_neighbors(node_id_t id, level_t level, TopkHeap &topk_heap,
@@ -87,9 +87,8 @@ class HnswRabitqAlgorithm {
   //! Given a node id and level, search the nearest neighbors in graph
   //! Note: the nearest neighbors result keeps in topk, and entry_point and
   //! dist will be updated to current level nearest node id and distance
-  void search_neighbors(level_t level, node_id_t *entry_point,
-                        ResultRecord *dist, TopkHeap &topk,
-                        HnswRabitqContext *ctx) const;
+  void search_neighbors(level_t level, node_id_t *entry_point, dist_t *dist,
+                        TopkHeap &topk, HnswRabitqContext *ctx) const;
 
   //! Update the node's neighbors
   void update_neighbors(HnswRabitqAddDistCalculator &dc, node_id_t id,
@@ -99,8 +98,8 @@ class HnswRabitqAlgorithm {
   //! @dc         distance calculator
   //! @updateHeap temporary heap in updating neighbors
   void reverse_update_neighbors(HnswRabitqAddDistCalculator &dc, node_id_t id,
-                                level_t level, node_id_t link_id,
-                                ResultRecord dist, TopkHeap &update_heap);
+                                level_t level, node_id_t link_id, dist_t dist,
+                                TopkHeap &update_heap);
 
  private:
   HnswRabitqAlgorithm(const HnswRabitqAlgorithm &) = delete;
