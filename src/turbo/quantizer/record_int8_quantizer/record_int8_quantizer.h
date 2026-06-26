@@ -34,9 +34,18 @@ class RecordInt8Quantizer : public Quantizer {
   virtual ~RecordInt8Quantizer() {}
 
  public:
-  // ---- New Quantizer interface ----
+  int init(const IndexMeta &meta, const ailego::Params &params);
+
+  const IndexMeta &meta(void) const {
+    return meta_;
+  }
+
   DataType input_data_type() const override {
     return DataType::kFp32;
+  }
+
+  QuantizeType type() const {
+    return type_;
   }
 
   int dim() const override {
@@ -79,19 +88,9 @@ class RecordInt8Quantizer : public Quantizer {
 
   float calc_distance_dp_dp(const void *dp1, const void *dp2) const override;
 
-  // ---- Retained legacy helpers ----
-  QuantizeType type() const {
-    return type_;
-  }
-
-  int init(const IndexMeta &meta, const ailego::Params &params);
-
-  const IndexMeta &meta(void) const {
-    return meta_;
-  }
-
   int quantize(const void *query, const IndexQueryMeta &qmeta, std::string *out,
                IndexQueryMeta *ometa) const;
+
   int dequantize(const void *in, const IndexQueryMeta &qmeta,
                  std::string *out) const;
 

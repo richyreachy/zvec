@@ -56,21 +56,36 @@ class Quantizer {
   Quantizer() {}
   virtual ~Quantizer() {}
 
+  //! Initialize quantizer with index metadata and parameters
+  virtual int init(const IndexMeta &meta, const ailego::Params &params) = 0;
+
+  //! Get the output metadata after initialization
+  virtual const IndexMeta &meta() const = 0;
+
   //! Input data type accepted by the quantizer
   virtual DataType input_data_type() const = 0;
+
+  // ---- Legacy interface (retained for configuration and existing callers)
+  // ----
+  virtual QuantizeType type() const {
+    return type_;
+  }
 
   //! Dimensionality of the input vectors
   virtual int dim() const = 0;
 
   //! Train the quantizer with a contiguous batch of data
-  virtual void train(const void *data, size_t num, size_t stride) {
-    (void)data;
-    (void)num;
-    (void)stride;
+  virtual int train(const void * /*data*/, size_t /*num*/, size_t /*stride*/) {
+    return IndexError_NotImplemented;
   }
 
   //! Whether the quantizer requires training before use
   virtual bool require_train() const = 0;
+
+  //! Train the quantizer with data from an IndexHolder
+  virtual int train(IndexHolder::Pointer /*holder*/) {
+    return IndexError_NotImplemented;
+  }
 
   //! Byte length of a quantized datapoint vector
   virtual size_t quantized_datapoint_vector_length() const = 0;
@@ -105,23 +120,6 @@ class Quantizer {
   //! Distance between two quantized datapoints
   virtual float calc_distance_dp_dp(const void *dp1, const void *dp2) const = 0;
 
-  // ---- Legacy interface (retained for configuration and existing callers)
-  // ----
-  virtual QuantizeType type() const {
-    return type_;
-  }
-
-  //! Initialize quantizer with index metadata and parameters
-  virtual int init(const IndexMeta &meta, const ailego::Params &params) = 0;
-
-  //! Get the output metadata after initialization
-  virtual const IndexMeta &meta() const = 0;
-
-  //! Train the quantizer with data from an IndexHolder
-  virtual int train(IndexHolder::Pointer /*holder*/) {
-    return IndexError_NotImplemented;
-  }
-
   //! Quantize a query vector for search
   virtual int quantize(const void * /*query*/, const IndexQueryMeta & /*qmeta*/,
                        std::string * /*out*/,
@@ -133,6 +131,11 @@ class Quantizer {
   virtual int dequantize(const void * /*in*/, const IndexQueryMeta & /*qmeta*/,
                          std::string * /*out*/) const {
     return IndexError_NotImplemented;
+  }
+
+  virtual DistanceImpl distance(const void * /*query*/,
+                                const IndexQueryMeta & /*qmeta*/) const {
+    return DistanceImpl{};
   }
 
   //! Serialize quantizer parameters
@@ -149,11 +152,6 @@ class Quantizer {
   //! (zero-copy entry point for large payloads such as codebooks/matrices).
   virtual int deserialize(const void * /*data*/, size_t /*len*/) {
     return IndexError_NotImplemented;
-  }
-
-  virtual DistanceImpl distance(const void * /*query*/,
-                                const IndexQueryMeta & /*qmeta*/) const {
-    return DistanceImpl{};
   }
 
  protected:

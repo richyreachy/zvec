@@ -36,20 +36,31 @@ class Int8Quantizer : public Quantizer {
   virtual ~Int8Quantizer() {}
 
  public:
-  // ---- New Quantizer interface ----
+  int init(const core::IndexMeta &meta, const ailego::Params &params);
+
+  const core::IndexMeta &meta(void) const {
+    return meta_;
+  }
+
   DataType input_data_type() const override {
     return DataType::kFp32;
+  }
+
+  QuantizeType type() const {
+    return type_;
   }
 
   int dim() const override {
     return static_cast<int>(original_dim_);
   }
 
-  void train(const void *data, size_t num, size_t stride) override;
+  int train(const void *data, size_t num, size_t stride) override;
 
   bool require_train() const override {
     return true;
   }
+
+  int train(core::IndexHolder::Pointer holder);
 
   size_t quantized_datapoint_vector_length() const override {
     return quantized_length();
@@ -83,30 +94,14 @@ class Int8Quantizer : public Quantizer {
 
   float calc_distance_dp_dp(const void *dp1, const void *dp2) const override;
 
-  // ---- Retained legacy helpers ----
-  QuantizeType type() const {
-    return type_;
-  }
-
-  int init(const core::IndexMeta &meta, const ailego::Params &params);
-
-  int train(core::IndexHolder::Pointer holder);
-
-  const core::IndexMeta &meta(void) const {
-    return meta_;
-  }
-
   int quantize(const void *query, const core::IndexQueryMeta &qmeta,
                std::string *out, core::IndexQueryMeta *ometa) const;
 
   int dequantize(const void *in, const core::IndexQueryMeta &qmeta,
                  std::string *out) const;
 
-  //! Attach a rotation preprocessing stage. The rotator must be dimension
-  //! preserving and match the quantizer dimension
-  //! (in_dim == out_dim == dim()); otherwise IndexError_InvalidArgument is
-  //! returned and the rotator is not attached.
-  int set_rotator(Rotator::Pointer r);
+  DistanceImpl distance(const void *query,
+                        const core::IndexQueryMeta &qmeta) const;
 
   int serialize(std::string *out) const;
 
@@ -114,8 +109,11 @@ class Int8Quantizer : public Quantizer {
 
   int deserialize(const void *data, size_t len);
 
-  DistanceImpl distance(const void *query,
-                        const core::IndexQueryMeta &qmeta) const;
+  //! Attach a rotation preprocessing stage. The rotator must be dimension
+  //! preserving and match the quantizer dimension
+  //! (in_dim == out_dim == dim()); otherwise IndexError_InvalidArgument is
+  //! returned and the rotator is not attached.
+  int set_rotator(Rotator::Pointer r);
 
   float bias() const {
     return bias_;

@@ -28,15 +28,24 @@ using namespace zvec::core;
 class Fp32Quantizer : public Quantizer {
  public:
   Fp32Quantizer() {
-    type_ = QuantizeType::kRecordInt8;
+    type_ = QuantizeType::kFp32;
   }
 
   virtual ~Fp32Quantizer() {}
 
  public:
-  // ---- New Quantizer interface ----
+  int init(const core::IndexMeta &meta, const ailego::Params &params) override;
+
+  const core::IndexMeta &meta(void) const override {
+    return meta_;
+  }
+
   DataType input_data_type() const override {
     return DataType::kFp32;
+  }
+
+  QuantizeType type() const override {
+    return type_;
   }
 
   int dim() const override {
@@ -45,6 +54,10 @@ class Fp32Quantizer : public Quantizer {
 
   bool require_train() const override {
     return false;
+  }
+
+  int train(core::IndexHolder::Pointer /*holder*/) override {
+    return 0;
   }
 
   size_t quantized_datapoint_vector_length() const override {
@@ -78,21 +91,6 @@ class Fp32Quantizer : public Quantizer {
       float *dist_list) const override;
 
   float calc_distance_dp_dp(const void *dp1, const void *dp2) const override;
-
-  // ---- Legacy interface ----
-  QuantizeType type() const override {
-    return type_;
-  }
-
-  int init(const core::IndexMeta &meta, const ailego::Params &params) override;
-
-  int train(core::IndexHolder::Pointer /*holder*/) override {
-    return 0;
-  }
-
-  const core::IndexMeta &meta(void) const override {
-    return meta_;
-  }
 
   int quantize(const void *query, const core::IndexQueryMeta &qmeta,
                std::string *out, core::IndexQueryMeta *ometa) const override;

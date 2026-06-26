@@ -291,7 +291,7 @@ DistanceImpl Int4Quantizer::distance(const void *query,
                       std::move(quantized_query), original_dim_);
 }
 
-void Int4Quantizer::train(const void *data, size_t num, size_t stride) {
+int Int4Quantizer::train(const void *data, size_t num, size_t stride) {
   ailego::ElapsedTime timer;
 
   std::vector<float> features;
@@ -316,7 +316,7 @@ void Int4Quantizer::train(const void *data, size_t num, size_t stride) {
 
   if (!quantizer_.train()) {
     LOG_ERROR("Quantizer train failed");
-    return;
+    return IndexError_Runtime;
   }
 
   bias_ = quantizer_.bias();
@@ -324,6 +324,7 @@ void Int4Quantizer::train(const void *data, size_t num, size_t stride) {
 
   LOG_DEBUG("Int4Quantizer train done, costtime %zums, scale %f, bias %f",
             (size_t)timer.milli_seconds(), scale_, bias_);
+  return 0;
 }
 
 float Int4Quantizer::calc_distance_dp_query(const void *dp,

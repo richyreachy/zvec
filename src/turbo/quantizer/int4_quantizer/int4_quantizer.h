@@ -36,20 +36,31 @@ class Int4Quantizer : public Quantizer {
   virtual ~Int4Quantizer() {}
 
  public:
-  // ---- New Quantizer interface ----
+  int init(const IndexMeta &meta, const ailego::Params &params) override;
+
+  const IndexMeta &meta(void) const override {
+    return meta_;
+  }
+
   DataType input_data_type() const override {
     return DataType::kFp32;
+  }
+
+  QuantizeType type() const override {
+    return type_;
   }
 
   int dim() const override {
     return static_cast<int>(original_dim_);
   }
 
-  void train(const void *data, size_t num, size_t stride) override;
+  int train(const void *data, size_t num, size_t stride) override;
 
   bool require_train() const override {
     return true;
   }
+
+  int train(IndexHolder::Pointer holder) override;
 
   size_t quantized_datapoint_vector_length() const override {
     return quantized_length();
@@ -83,33 +94,20 @@ class Int4Quantizer : public Quantizer {
 
   float calc_distance_dp_dp(const void *dp1, const void *dp2) const override;
 
-  // ---- Legacy interface ----
-  QuantizeType type() const override {
-    return type_;
-  }
-
-  int init(const IndexMeta &meta, const ailego::Params &params) override;
-
-  int train(IndexHolder::Pointer holder) override;
-
-  const IndexMeta &meta(void) const override {
-    return meta_;
-  }
-
   int quantize(const void *query, const IndexQueryMeta &qmeta, std::string *out,
                IndexQueryMeta *ometa) const override;
 
   int dequantize(const void *in, const IndexQueryMeta &qmeta,
                  std::string *out) const override;
 
+  DistanceImpl distance(const void *query,
+                        const IndexQueryMeta &qmeta) const override;
+
   int serialize(std::string *out) const override;
 
   int deserialize(std::string &in) override;
 
   int deserialize(const void *data, size_t len) override;
-
-  DistanceImpl distance(const void *query,
-                        const IndexQueryMeta &qmeta) const override;
 
   float bias() const {
     return bias_;

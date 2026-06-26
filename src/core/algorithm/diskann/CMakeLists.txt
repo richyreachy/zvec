@@ -20,7 +20,21 @@ file(GLOB_RECURSE ALL_SRCS *.cc *.c)
 set(CORE_KNN_DISKANN_LIBS "")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386")
-    list(APPEND CORE_KNN_DISKANN_LIBS aio)
+    # Prefer the shared libaio; avoid the static library because its versioned
+    # symbols (io_getevents@@LIBAIO_0.4) are incompatible with shared library
+    # output without a matching version script.  If the shared library is not
+    # available (e.g. broken symlink on Ubuntu 24.04 t64), fall back to
+    # --unresolved-symbols=ignore-all which is already set below.
+    set(_orig_suffixes ${CMAKE_FIND_LIBRARY_SUFFIXES})
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
+    find_library(AIO_SHARED_LIB aio)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ${_orig_suffixes})
+    if(AIO_SHARED_LIB AND EXISTS "${AIO_SHARED_LIB}")
+        list(APPEND CORE_KNN_DISKANN_LIBS ${AIO_SHARED_LIB})
+    else()
+        message(STATUS "libaio shared library not available; "
+                       "relying on --unresolved-symbols=ignore-all for io_getevents")
+    endif()
 endif()
 
 cc_library(

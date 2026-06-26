@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include "quantizer/preprocessor/preprocessor.h"
 
 namespace zvec {
 namespace turbo {
@@ -50,37 +51,18 @@ static_assert(sizeof(RotatorSerHeader) == 24,
 //! A pluggable, dimension-aware vector rotation stage. A rotation is an
 //! orthogonal (distance-preserving) transform applied to fp32 vectors before
 //! quantization, with the inverse used to recover the original space.
-class Rotator {
+//!
+//! Inherits the general preprocessing contract from Preprocessor and adds
+//! the rotator-specific type() accessor.
+class Rotator : public Preprocessor {
  public:
   using Pointer = std::shared_ptr<Rotator>;
-
-  virtual ~Rotator() = default;
 
   //! Kind of rotator.
   virtual RotatorType type() const = 0;
 
-  //! Input dimensionality accepted by apply().
-  virtual int in_dim() const = 0;
-
-  //! Output dimensionality produced by apply().
-  virtual int out_dim() const = 0;
-
-  //! Forward rotation: out = R * in (out has out_dim() elements).
-  virtual void apply(const float *in, float *out) const = 0;
-
-  //! Inverse rotation: out = R^T * in (out has in_dim() elements).
-  virtual void apply_inverse(const float *in, float *out) const = 0;
-
-  //! Fit the rotation from a contiguous batch of training data. The
-  //! random-rotation baseline ignores the data; the signature is kept for
-  //! data-driven rotations (e.g. OPQ) added later.
-  virtual void train(const void *data, size_t num, size_t stride) = 0;
-
-  //! Serialize the rotator into a self-contained blob (header + payload).
-  virtual int serialize(std::string *out) const = 0;
-
-  //! Deserialize the rotator from a raw, possibly mmap-backed buffer.
-  virtual int deserialize(const void *data, size_t len) = 0;
+  // in_dim(), out_dim(), apply(), apply_inverse(), train(), serialize(),
+  // and deserialize() are inherited from Preprocessor.
 };
 
 //! Create an untrained rotator of the given type for in_dim dimensions.
