@@ -98,22 +98,41 @@ class QuantizedIntegerMetric : public IndexMetric {
         if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
           auto turbo_ret = turbo::get_distance_func(
               turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt8,
-              turbo::QuantizeType::kDefault);
+              static_cast<turbo::QuantizeType>(quantize_type_));
           if (turbo_ret && m == 1 && n == 1) {
-            return turbo_ret;
+            return wrap_turbo_distance(std::move(turbo_ret));
           }
+
           return DistanceMatrixCompute<SquaredEuclidean, int8_t>(m, n);
         }
         if (meta_.data_type() == IndexMeta::DataType::DT_INT4) {
+          auto turbo_ret = turbo::get_distance_func(
+              turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt4,
+              static_cast<turbo::QuantizeType>(quantize_type_));
+          if (turbo_ret && m == 1 && n == 1) {
+            return wrap_turbo_distance(std::move(turbo_ret));
+          }
           return DistanceMatrixCompute<SquaredEuclidean, uint8_t>(m, n);
         }
         break;
 
       case MetricType::kInnerProduct:
         if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
+          auto turbo_ret = turbo::get_distance_func(
+              turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
+              static_cast<turbo::QuantizeType>(quantize_type_));
+          if (turbo_ret && m == 1 && n == 1) {
+            return wrap_turbo_distance(std::move(turbo_ret));
+          }
           return DistanceMatrixCompute<MinusInnerProduct, int8_t>(m, n);
         }
         if (meta_.data_type() == IndexMeta::DataType::DT_INT4) {
+          auto turbo_ret = turbo::get_distance_func(
+              turbo::MetricType::kInnerProduct, turbo::DataType::kInt4,
+              static_cast<turbo::QuantizeType>(quantize_type_));
+          if (turbo_ret && m == 1 && n == 1) {
+            return wrap_turbo_distance(std::move(turbo_ret));
+          }
           return DistanceMatrixCompute<MinusInnerProduct, uint8_t>(m, n);
         }
         break;
@@ -139,13 +158,19 @@ class QuantizedIntegerMetric : public IndexMetric {
         if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
           auto turbo_ret = turbo::get_distance_func(
               turbo::MetricType::kCosine, turbo::DataType::kInt8,
-              turbo::QuantizeType::kDefault);
+              static_cast<turbo::QuantizeType>(quantize_type_));
           if (turbo_ret) {
-            return turbo_ret;
+            return wrap_turbo_distance(std::move(turbo_ret));
           }
           return DistanceMatrixCompute<CosineMinusInnerProduct, int8_t>(m, n);
         }
         if (meta_.data_type() == IndexMeta::DataType::DT_INT4) {
+          auto turbo_ret = turbo::get_distance_func(
+              turbo::MetricType::kCosine, turbo::DataType::kInt4,
+              static_cast<turbo::QuantizeType>(quantize_type_));
+          if (turbo_ret) {
+            return wrap_turbo_distance(std::move(turbo_ret));
+          }
           return DistanceMatrixCompute<CosineMinusInnerProduct, uint8_t>(m, n);
         }
         break;
@@ -160,15 +185,21 @@ class QuantizedIntegerMetric : public IndexMetric {
         if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
           auto turbo_ret = turbo::get_batch_distance_func(
               turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt8,
-              turbo::QuantizeType::kDefault);
+              static_cast<turbo::QuantizeType>(quantize_type_));
           if (turbo_ret) {
-            return turbo_ret;
+            return wrap_turbo_batch_distance(std::move(turbo_ret));
           }
           return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
               BaseDistanceBatchWithScoreUnquantized<SquaredEuclidean, int8_t,
                                                     12, 2>::ComputeBatch);
         }
         if (meta_.data_type() == IndexMeta::DataType::DT_INT4) {
+          auto turbo_ret = turbo::get_batch_distance_func(
+              turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt4,
+              static_cast<turbo::QuantizeType>(quantize_type_));
+          if (turbo_ret) {
+            return wrap_turbo_batch_distance(std::move(turbo_ret));
+          }
           return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
               BaseDistanceBatchWithScoreUnquantized<SquaredEuclidean, uint8_t,
                                                     12, 2>::ComputeBatch);
@@ -177,11 +208,23 @@ class QuantizedIntegerMetric : public IndexMetric {
 
       case MetricType::kInnerProduct:
         if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
+          auto turbo_ret = turbo::get_batch_distance_func(
+              turbo::MetricType::kInnerProduct, turbo::DataType::kInt8,
+              static_cast<turbo::QuantizeType>(quantize_type_));
+          if (turbo_ret) {
+            return wrap_turbo_batch_distance(std::move(turbo_ret));
+          }
           return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
               BaseDistanceBatchWithScoreUnquantized<MinusInnerProduct, int8_t,
                                                     12, 2>::ComputeBatch);
         }
         if (meta_.data_type() == IndexMeta::DataType::DT_INT4) {
+          auto turbo_ret = turbo::get_batch_distance_func(
+              turbo::MetricType::kInnerProduct, turbo::DataType::kInt4,
+              static_cast<turbo::QuantizeType>(quantize_type_));
+          if (turbo_ret) {
+            return wrap_turbo_batch_distance(std::move(turbo_ret));
+          }
           return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
               BaseDistanceBatchWithScoreUnquantized<MinusInnerProduct, uint8_t,
                                                     12, 2>::ComputeBatch);
@@ -215,15 +258,21 @@ class QuantizedIntegerMetric : public IndexMetric {
         if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
           auto turbo_ret = turbo::get_batch_distance_func(
               turbo::MetricType::kCosine, turbo::DataType::kInt8,
-              turbo::QuantizeType::kDefault);
+              static_cast<turbo::QuantizeType>(quantize_type_));
           if (turbo_ret) {
-            return turbo_ret;
+            return wrap_turbo_batch_distance(std::move(turbo_ret));
           }
           return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
               BaseDistanceBatchWithScoreUnquantized<
                   CosineMinusInnerProduct, int8_t, 12, 2>::ComputeBatch);
         }
         if (meta_.data_type() == IndexMeta::DataType::DT_INT4) {
+          auto turbo_ret = turbo::get_batch_distance_func(
+              turbo::MetricType::kCosine, turbo::DataType::kInt4,
+              static_cast<turbo::QuantizeType>(quantize_type_));
+          if (turbo_ret) {
+            return wrap_turbo_batch_distance(std::move(turbo_ret));
+          }
           return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
               BaseDistanceBatchWithScoreUnquantized<
                   CosineMinusInnerProduct, uint8_t, 12, 2>::ComputeBatch);
@@ -302,7 +351,12 @@ class QuantizedIntegerMetric : public IndexMetric {
           turbo::MetricType::kCosine, turbo::DataType::kInt8,
           turbo::QuantizeType::kDefault);
       if (turbo_ret) {
-        return turbo_ret;
+        // Turbo's batch distance function preprocesses the query internally
+        // (per-call, into a thread-local buffer) so the single-distance path
+        // can keep receiving raw int8 queries. Return nullptr here to avoid
+        // a global shift that would corrupt the symmetric single-distance
+        // contract used by node-vs-node calls.
+        return nullptr;
       }
       return CosineMinusInnerProductDistanceBatchWithScoreUnquantized<
           int8_t, 1, 1>::GetQueryPreprocessFunc();
@@ -312,7 +366,8 @@ class QuantizedIntegerMetric : public IndexMetric {
           turbo::MetricType::kSquaredEuclidean, turbo::DataType::kInt8,
           turbo::QuantizeType::kDefault);
       if (turbo_ret) {
-        return turbo_ret;
+        // See comment above: turbo handles query preprocessing internally.
+        return nullptr;
       }
       return SquaredEuclideanDistanceBatchWithScoreUnquantized<
           int8_t, 1, 1>::GetQueryPreprocessFunc();
@@ -322,6 +377,48 @@ class QuantizedIntegerMetric : public IndexMetric {
 
 
  private:
+  //! Extras embedded in each quantized record by the converter/reformer.
+  //! The HnswStreamer (and friends) inflate the meta dimension by these
+  //! "extra" units so element_size() reflects per-vector storage. Turbo
+  //! distance funcs expect the *raw* original dim, so we need to subtract.
+  //!
+  //! Layouts:
+  //!  - IntegerStreamingReformer (IP/L2):
+  //!      INT8: data + 20 bytes extras   (extra_units = 20)
+  //!      INT4: data + 32 nibbles extras (extra_units = 32 == 16 bytes)
+  //!  - CosineConverter (Cosine):
+  //!      INT8: data + 20 bytes extras + 4 bytes norm  (extra_units = 24)
+  //!      INT4: data + 32 nibbles extras + 8 nibbles norm (extra_units = 40)
+  size_t extra_dim() const {
+    bool is_cosine = (origin_metric_type_ == MetricType::kCosine ||
+                      origin_metric_type_ == MetricType::kNormalizedCosine);
+    if (meta_.data_type() == IndexMeta::DataType::DT_INT8) {
+      return is_cosine ? 24 : 20;
+    }
+    if (meta_.data_type() == IndexMeta::DataType::DT_INT4) {
+      return is_cosine ? 40 : 32;
+    }
+    return 0;
+  }
+
+  //! Wrap a turbo distance function so callers can keep passing the inflated
+  //! dim from IndexMeta::dimension(); turbo expects the raw original dim.
+  MatrixDistance wrap_turbo_distance(turbo::DistanceFunc f) const {
+    size_t extra = extra_dim();
+    return [f = std::move(f), extra](const void *m, const void *q, size_t dim,
+                                     float *out) { f(m, q, dim - extra, out); };
+  }
+
+  //! Wrap a turbo batch distance function with the same dim adjustment.
+  MatrixBatchDistance wrap_turbo_batch_distance(
+      turbo::BatchDistanceFunc f) const {
+    size_t extra = extra_dim();
+    return [f = std::move(f), extra](const void **m, const void *q, size_t num,
+                                     size_t dim, float *out) {
+      f(m, q, num, dim - extra, out);
+    };
+  }
+
   //! Returns m x n distance matrix compute function.
   template <template <typename, size_t, size_t> class DistanceMatrix,
             typename T>

@@ -308,6 +308,13 @@ class CosineConverter : public IndexConverter {
     }
 
     meta_.set_meta(dst_type_, meta_.dimension() + ExtraDimension(dst_type_));
+    // Mark the extra meta bytes appended to each vector (the norm float for
+    // FP32/FP16, plus quantization params for INT4/INT8). Downstream
+    // consumers (e.g. Fp32Quantizer) use meta.extra_meta_size() to detect
+    // that the dimension has been inflated and recover the raw dim.
+    meta_.set_extra_meta_size(
+        ExtraDimension(dst_type_) *
+        static_cast<uint32_t>(IndexMeta::UnitSizeof(dst_type_)));
 
     return 0;
   }

@@ -150,6 +150,9 @@ struct IndexMetric : public IndexModule {
   virtual float build_distance_offset(void) const {
     return 0.0f;
   }
+
+ protected:
+  int quantize_type_{0};
 };
 
 }  // namespace core

@@ -14,6 +14,7 @@
 #pragma once
 
 #include <ailego/parallel/lock.h>
+#include <turbo/quantizer/quantizer.h>
 #include <zvec/core/framework/index_framework.h>
 #include "hnsw_algorithm.h"
 #include "hnsw_streamer_entity.h"
@@ -45,6 +46,10 @@ class HnswStreamer : public IndexStreamer {
  protected:
   //! Initialize Streamer
   int init(const IndexMeta &imeta, const ailego::Params &params) override;
+
+  //! Initialize Streamer with a pre-created quantizer
+  int init(const IndexMeta &imeta, const ailego::Params &params,
+           const zvec::turbo::Quantizer::Pointer &quantizer) override;
 
   //! Cleanup Streamer
   int cleanup(void) override;
@@ -196,12 +201,19 @@ class HnswStreamer : public IndexStreamer {
   HnswAlgorithmBase::UPointer alg_;
   IndexMeta meta_{};
   IndexMetric::Pointer metric_{};
+  //! Search-side metric, used as fallback when the search-side turbo
+  //! quantizer does not implement a distance for the current metric/dtype
+  //! (e.g. MipsSquaredEuclidean's query_metric is InnerProduct).
+  IndexMetric::Pointer search_metric_{};
 
-  IndexMetric::MatrixDistance add_distance_{};
-  IndexMetric::MatrixDistance search_distance_{};
-
-  IndexMetric::MatrixBatchDistance add_batch_distance_{};
-  IndexMetric::MatrixBatchDistance search_batch_distance_{};
+  //! Turbo quantizers bound to this streamer. `add_quantizer_` is used
+  //! when inserting vectors (mirrors the old `metric_->distance()`).
+  //! `search_quantizer_` is used for queries and falls back to
+  //! `add_quantizer_` when the metric does not expose a query-side
+  //! variant.
+  zvec::turbo::Quantizer::Pointer add_quantizer_{};
+  zvec::turbo::Quantizer::Pointer search_quantizer_{};
+  std::string turbo_quantizer_class_{};
 
   Stats stats_{};
   std::mutex mutex_{};

@@ -1,0 +1,158 @@
+// Copyright 2025-present the zvec project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "quantizer/fp16_quantizer/fp16_quantizer.h"
+#include <cmath>
+#include <cstring>
+#include <vector>
+#include <zvec/core/framework/index_error.h>
+#include <zvec/core/framework/index_factory.h>
+#include <zvec/core/framework/index_logger.h>
+#include "core/quantizer/record_quantizer.h"
+
+namespace zvec {
+namespace turbo {
+
+int Fp16Quantizer::init(const IndexMeta &meta,
+                        const ailego::Params & /*params*/) {
+  meta_ = meta;
+
+  meta_.set_meta(IndexMeta::DataType::DT_FP16, meta.dimension());
+
+  auto metric_name = meta.metric_name();
+  if (metric_name == "Cosine") {
+    extra_meta_size_ = EXTRA_META_SIZE_COSINE;
+    meta_.set_extra_meta_size(extra_meta_size_);
+  }
+
+  if (meta.extra_meta_size() > 0) {
+    original_dim_ = meta.dimension() - meta.extra_meta_size() / sizeof(float);
+  } else {
+    original_dim_ = meta.dimension();
+  }
+
+  // Cache the distance dispatch for the new Quantizer interface.
+  dp_query_func_ =
+      get_distance_func(metric_from_name(metric_name), DataType::kFp16,
+                        QuantizeType::kDefault, CpuArchType::kAuto);
+  dp_query_batch_func_ =
+      get_batch_distance_func(metric_from_name(metric_name), DataType::kFp16,
+                              QuantizeType::kDefault, CpuArchType::kAuto);
+
+  return 0;
+}
+
+int Fp16Quantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
+                            std::string *out, IndexQueryMeta *ometa) const {
+  if (qmeta.unit_size() != sizeof(float)) {
+    return IndexError_Unsupported;
+  }
+  out->resize(qmeta.dimension() * sizeof(ailego::Float16));
+  ailego::FloatHelper::ToFP16(reinterpret_cast<const float *>(query),
+                              qmeta.dimension(),
+                              reinterpret_cast<uint16_t *>(&(*out)[0]));
+  *ometa = qmeta;
+  ometa->set_meta(IndexMeta::DataType::DT_FP16, qmeta.dimension(),
+                  static_cast<uint32_t>(type_), extra_meta_size_);
+
+  return 0;
+}
+
+int Fp16Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
+                              std::string *out) const {
+  if (qmeta.data_type() == IndexMeta::DataType::DT_FP16) {
+    size_t dimension = qmeta.dimension();
+
+    out->resize(dimension * sizeof(float));
+    float *out_buf = reinterpret_cast<float *>(out->data());
+
+    const uint16_t *in_buf = reinterpret_cast<const uint16_t *>(in);
+    for (size_t i = 0; i < dimension; ++i) {
+      out_buf[i] = ailego::FloatHelper::ToFP32(in_buf[i]);
+    }
+  }
+
+  return 0;
+}
+
+DistanceImpl Fp16Quantizer::distance(const void *query,
+                                     const IndexQueryMeta &qmeta) const {
+  auto metric = metric_from_name(meta_.metric_name());
+  auto func = get_distance_func(metric, DataType::kFp16, QuantizeType::kDefault,
+                                CpuArchType::kAuto);
+  if (!func) {
+    return DistanceImpl{};
+  }
+  auto batch_func = get_batch_distance_func(
+      metric, DataType::kFp16, QuantizeType::kDefault, CpuArchType::kAuto);
+
+  // The query is assumed to be already quantized — copy it directly.
+  std::string quantized_query(static_cast<const char *>(query),
+                              qmeta.element_size());
+  return DistanceImpl(std::move(func), std::move(batch_func),
+                      std::move(quantized_query), original_dim_);
+}
+
+void Fp16Quantizer::quantize_one(const void *input, void *output) const {
+  ailego::FloatHelper::ToFP16(reinterpret_cast<const float *>(input),
+                              original_dim_,
+                              reinterpret_cast<uint16_t *>(output));
+}
+
+float Fp16Quantizer::calc_distance_dp_query(const void *dp,
+                                            const void *query) const {
+  float d = 0.0f;
+  if (dp_query_func_) {
+    dp_query_func_(dp, query, original_dim_, &d);
+  }
+  return d;
+}
+
+void Fp16Quantizer::calc_distance_dp_query_batch(const void *const *dp_list,
+                                                 int dp_num, const void *query,
+                                                 float *dist_list) const {
+  if (dp_query_batch_func_) {
+    dp_query_batch_func_(const_cast<const void **>(dp_list), query,
+                         static_cast<size_t>(dp_num), original_dim_, dist_list);
+    return;
+  }
+  for (int i = 0; i < dp_num; ++i) {
+    dist_list[i] = calc_distance_dp_query(dp_list[i], query);
+  }
+}
+
+float Fp16Quantizer::calc_distance_dp_query_unquantized(
+    const void *dp, const void *query) const {
+  std::string buf(quantized_length(), '\0');
+  quantize_one(query, &buf[0]);
+  return calc_distance_dp_query(dp, buf.data());
+}
+
+void Fp16Quantizer::calc_distance_dp_query_batch_unquantized(
+    const void *const *dp_list, int dp_num, const void *query,
+    float *dist_list) const {
+  std::string buf(quantized_length(), '\0');
+  quantize_one(query, &buf[0]);
+  calc_distance_dp_query_batch(dp_list, dp_num, buf.data(), dist_list);
+}
+
+float Fp16Quantizer::calc_distance_dp_dp(const void *dp1,
+                                         const void *dp2) const {
+  return calc_distance_dp_query(dp1, dp2);
+}
+
+INDEX_FACTORY_REGISTER_QUANTIZER(Fp16Quantizer);
+
+}  // namespace turbo
+}  // namespace zvec

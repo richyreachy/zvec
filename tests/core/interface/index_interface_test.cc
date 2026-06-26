@@ -42,7 +42,7 @@ TEST(IndexInterface, General) {
   auto func = [&](const BaseIndexParam::Pointer &param,
                   const BaseIndexQueryParam::Pointer &query_param) {
     zvec::test_util::RemoveTestFiles(index_name);
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
 
@@ -195,7 +195,8 @@ TEST(IndexInterface, BufferGeneral) {
                   const BaseIndexQueryParam::Pointer &query_param) {
     std::string real_index_name = index_name;
     zvec::test_util::RemoveTestFiles(index_name + "*");
-    auto write_index = IndexFactory::CreateAndInitIndex(*param);
+    auto write_index =
+        zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, write_index);
 
     write_index->Open(real_index_name,
@@ -209,7 +210,8 @@ TEST(IndexInterface, BufferGeneral) {
     ASSERT_TRUE(0 == write_index->Add(vector_data, 233));
     write_index->Close();
 
-    auto read_index = IndexFactory::CreateAndInitIndex(*param);
+    auto read_index =
+        zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, read_index);
     read_index->Open(real_index_name,
                      {StorageOptions::StorageType::kBufferPool, false});
@@ -304,7 +306,7 @@ TEST(IndexInterface, SparseGeneral) {
   auto func = [&](const BaseIndexParam::Pointer &param,
                   const BaseIndexQueryParam::Pointer &query_param) {
     zvec::test_util::RemoveTestFiles(index_name);
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
 
@@ -425,7 +427,7 @@ TEST(IndexInterface, Merge) {
       [&](const BaseIndexParam::Pointer &param,
           const std::string &index_name) -> Index::Pointer {
     del_index_file_func(index_name);
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     if (index == nullptr ||
         0 != index->Open(index_name,
                          {StorageOptions::StorageType::kMMAP, true})) {
@@ -590,7 +592,8 @@ TEST(IndexInterface, Serialize) {
     std::cout << "omit=false: " << param->SerializeToJson() << std::endl;
 
     auto deserialized_param =
-        IndexFactory::DeserializeIndexParamFromJson(param->SerializeToJson());
+        zvec::core_interface::IndexFactory::DeserializeIndexParamFromJson(
+            param->SerializeToJson());
     ASSERT_NE(nullptr, deserialized_param.get());
 
 
@@ -619,7 +622,8 @@ TEST(IndexInterface, Serialize) {
               << std::endl;
 
     auto deserialized_param =
-        IndexFactory::DeserializeIndexParamFromJson(param->SerializeToJson());
+        zvec::core_interface::IndexFactory::DeserializeIndexParamFromJson(
+            param->SerializeToJson());
     ASSERT_NE(nullptr, deserialized_param.get());
 
     std::cout << "serialize then de then se:"
@@ -637,22 +641,30 @@ TEST(IndexInterface, Serialize) {
     auto param =
         FlatQueryParamBuilder().with_topk(10).with_fetch_vector(true).build();
     std::cout << "flat query -- omit=true: "
-              << IndexFactory::QueryParamSerializeToJson(*param, true)
+              << zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+                     *param, true)
               << std::endl;
     std::cout << "flat query -- omit=false: "
-              << IndexFactory::QueryParamSerializeToJson(*param) << std::endl;
+              << zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+                     *param)
+              << std::endl;
 
     auto deserialized_param =
-        IndexFactory::QueryParamDeserializeFromJson<FlatQueryParam>(
-            IndexFactory::QueryParamSerializeToJson(*param));
+        zvec::core_interface::IndexFactory::QueryParamDeserializeFromJson<
+            FlatQueryParam>(
+            zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+                *param));
     ASSERT_NE(nullptr, deserialized_param.get());
 
     std::cout << "serialize then de then se:"
-              << IndexFactory::QueryParamSerializeToJson(*deserialized_param)
+              << zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+                     *deserialized_param)
               << std::endl;
 
-    ASSERT_TRUE(IndexFactory::QueryParamSerializeToJson(*deserialized_param) ==
-                IndexFactory::QueryParamSerializeToJson(*param));
+    ASSERT_TRUE(
+        zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+            *deserialized_param) ==
+        zvec::core_interface::IndexFactory::QueryParamSerializeToJson(*param));
   }
 
   {
@@ -663,23 +675,30 @@ TEST(IndexInterface, Serialize) {
                      .with_ef_search(20)
                      .build();
     std::cout << "hnsw query -- omit=true: "
-              << IndexFactory::QueryParamSerializeToJson(*param, true)
+              << zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+                     *param, true)
               << std::endl;
     std::cout << "hnsw query -- omit=false: "
-              << IndexFactory::QueryParamSerializeToJson(*param, false)
+              << zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+                     *param, false)
               << std::endl;
 
     auto deserialized_param =
-        IndexFactory::QueryParamDeserializeFromJson<HNSWQueryParam>(
-            IndexFactory::QueryParamSerializeToJson(*param));
+        zvec::core_interface::IndexFactory::QueryParamDeserializeFromJson<
+            HNSWQueryParam>(
+            zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+                *param));
     ASSERT_NE(nullptr, deserialized_param.get());
 
     std::cout << "serialize then de then se:"
-              << IndexFactory::QueryParamSerializeToJson(*deserialized_param)
+              << zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+                     *deserialized_param)
               << std::endl;
 
-    ASSERT_TRUE(IndexFactory::QueryParamSerializeToJson(*deserialized_param) ==
-                IndexFactory::QueryParamSerializeToJson(*param));
+    ASSERT_TRUE(
+        zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+            *deserialized_param) ==
+        zvec::core_interface::IndexFactory::QueryParamSerializeToJson(*param));
   }
 
   {
@@ -700,7 +719,8 @@ TEST(IndexInterface, Serialize) {
               << std::endl;
 
     auto deserialized_param =
-        IndexFactory::DeserializeIndexParamFromJson(param->SerializeToJson());
+        zvec::core_interface::IndexFactory::DeserializeIndexParamFromJson(
+            param->SerializeToJson());
     ASSERT_NE(nullptr, deserialized_param.get());
 
     std::cout << "serialize then de then se:"
@@ -726,7 +746,8 @@ TEST(IndexInterface, Serialize) {
     ASSERT_TRUE(json_str.find("use_contiguous_memory") != std::string::npos);
 
     auto deserialized_param =
-        IndexFactory::DeserializeIndexParamFromJson(json_str);
+        zvec::core_interface::IndexFactory::DeserializeIndexParamFromJson(
+            json_str);
     ASSERT_NE(nullptr, deserialized_param.get());
     auto hnsw_param =
         std::dynamic_pointer_cast<HNSWIndexParam>(deserialized_param);
@@ -753,7 +774,8 @@ TEST(IndexInterface, Serialize) {
     ASSERT_TRUE(json_str.find("use_contiguous_memory") != std::string::npos);
 
     auto deserialized_param =
-        IndexFactory::DeserializeIndexParamFromJson(json_str);
+        zvec::core_interface::IndexFactory::DeserializeIndexParamFromJson(
+            json_str);
     ASSERT_NE(nullptr, deserialized_param.get());
     auto vamana_param =
         std::dynamic_pointer_cast<VamanaIndexParam>(deserialized_param);
@@ -774,22 +796,30 @@ TEST(IndexInterface, Serialize) {
                      .with_ef_search(50)
                      .build();
     std::cout << "vamana query -- omit=true: "
-              << IndexFactory::QueryParamSerializeToJson(*param, true)
+              << zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+                     *param, true)
               << std::endl;
     std::cout << "vamana query -- omit=false: "
-              << IndexFactory::QueryParamSerializeToJson(*param) << std::endl;
+              << zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+                     *param)
+              << std::endl;
 
     auto deserialized_param =
-        IndexFactory::QueryParamDeserializeFromJson<VamanaQueryParam>(
-            IndexFactory::QueryParamSerializeToJson(*param));
+        zvec::core_interface::IndexFactory::QueryParamDeserializeFromJson<
+            VamanaQueryParam>(
+            zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+                *param));
     ASSERT_NE(nullptr, deserialized_param.get());
 
     std::cout << "serialize then de then se:"
-              << IndexFactory::QueryParamSerializeToJson(*deserialized_param)
+              << zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+                     *deserialized_param)
               << std::endl;
 
-    ASSERT_TRUE(IndexFactory::QueryParamSerializeToJson(*deserialized_param) ==
-                IndexFactory::QueryParamSerializeToJson(*param));
+    ASSERT_TRUE(
+        zvec::core_interface::IndexFactory::QueryParamSerializeToJson(
+            *deserialized_param) ==
+        zvec::core_interface::IndexFactory::QueryParamSerializeToJson(*param));
   }
 }
 
@@ -797,7 +827,7 @@ TEST(IndexInterface, Failure) {
   // Test unsupported index type
   {
     auto param = std::make_shared<BaseIndexParam>(IndexType::kIVF);
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_EQ(nullptr, index);
   }
 
@@ -808,7 +838,7 @@ TEST(IndexInterface, Failure) {
             .WithMetricType(MetricType::kNone)  // L2 not supported for sparse
             .WithDataType(DataType::DT_FP32)
             .Build();
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_EQ(nullptr, index);
   }
 
@@ -820,7 +850,7 @@ TEST(IndexInterface, Failure) {
             .WithDataType(DataType::DT_FP32)
             .WithIsSparse(true)
             .Build();
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_EQ(nullptr, index);
   }
 
@@ -847,7 +877,7 @@ TEST(IndexInterface, Failure) {
                      .WithQuantizerParam(
                          QuantizerParam(QuantizerType::kInt8))  // Unsupported
                      .Build();
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_EQ(nullptr, index);
   }
 
@@ -859,7 +889,7 @@ TEST(IndexInterface, Failure) {
                      .WithDimension(64)
                      .WithIsSparse(false)
                      .Build();
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_EQ(nullptr, index);
   }
 
@@ -871,7 +901,7 @@ TEST(IndexInterface, Failure) {
                      .WithDimension(64)
                      .WithIsSparse(false)
                      .Build();
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
     StorageOptions invalid_storage;
@@ -888,7 +918,7 @@ TEST(IndexInterface, Failure) {
                      .WithDimension(64)
                      .WithIsSparse(false)
                      .Build();
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
     index->Open("test.index", {StorageOptions::StorageType::kMMAP, true});
@@ -913,7 +943,7 @@ TEST(IndexInterface, Failure) {
                      .WithDataType(DataType::DT_FP32)
                      .WithIsSparse(true)
                      .Build();
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
     index->Open("test.index", {StorageOptions::StorageType::kMMAP, true});
@@ -937,7 +967,7 @@ TEST(IndexInterface, Failure) {
                      .WithDimension(64)
                      .WithIsSparse(false)
                      .Build();
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
     index->Open("test.index", {StorageOptions::StorageType::kMMAP, true});
@@ -958,7 +988,7 @@ TEST(IndexInterface, Failure) {
                      .WithDimension(64)
                      .WithIsSparse(false)
                      .Build();
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
     index->Open("test.index", {StorageOptions::StorageType::kMMAP, true});
@@ -991,7 +1021,8 @@ TEST(IndexInterface, Failure) {
                       .WithDimension(64)
                       .WithIsSparse(false)
                       .Build();
-    auto index1 = IndexFactory::CreateAndInitIndex(*param1);
+    auto index1 =
+        zvec::core_interface::IndexFactory::CreateAndInitIndex(*param1);
     ASSERT_NE(nullptr, index1);
     index1->Open("test1.index", {StorageOptions::StorageType::kMMAP, true});
 
@@ -1001,7 +1032,8 @@ TEST(IndexInterface, Failure) {
                       .WithDimension(64)
                       .WithIsSparse(false)
                       .Build();
-    auto index2 = IndexFactory::CreateAndInitIndex(*param2);
+    auto index2 =
+        zvec::core_interface::IndexFactory::CreateAndInitIndex(*param2);
     ASSERT_NE(nullptr, index2);
     index2->Open("test2.index", {StorageOptions::StorageType::kMMAP, true});
 
@@ -1011,7 +1043,8 @@ TEST(IndexInterface, Failure) {
                       .WithDimension(64)
                       .WithIsSparse(false)
                       .Build();
-    auto index3 = IndexFactory::CreateAndInitIndex(*param3);
+    auto index3 =
+        zvec::core_interface::IndexFactory::CreateAndInitIndex(*param3);
     ASSERT_NE(nullptr, index3);
     index3->Open("test3.index", {StorageOptions::StorageType::kMMAP, true});
 
@@ -1040,7 +1073,7 @@ TEST(IndexInterface, Failure) {
                      .WithSearchListSize(100)
                      .WithAlpha(1.2f)
                      .Build();
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
     index->Open("test.index", {StorageOptions::StorageType::kMMAP, true});
@@ -1074,7 +1107,7 @@ TEST(IndexInterface, Failure) {
                      .WithSearchListSize(100)
                      .WithAlpha(1.2f)
                      .Build();
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
     index->Open("test.index", {StorageOptions::StorageType::kMMAP, true});
@@ -1109,7 +1142,7 @@ TEST(IndexInterface, Failure) {
                      .WithSearchListSize(100)
                      .WithAlpha(1.2f)
                      .Build();
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
     index->Open("test.index", {StorageOptions::StorageType::kMMAP, true});
@@ -1138,7 +1171,9 @@ TEST(IndexInterface, SerializeFailure) {
   // Test invalid JSON deserialization
   {
     std::string invalid_json = "invalid json string";
-    auto param = IndexFactory::DeserializeIndexParamFromJson(invalid_json);
+    auto param =
+        zvec::core_interface::IndexFactory::DeserializeIndexParamFromJson(
+            invalid_json);
     ASSERT_EQ(nullptr, param);
   }
 
@@ -1151,7 +1186,9 @@ TEST(IndexInterface, SerializeFailure) {
       "is_sparse": false,
       "data_type": "DT_FP32"
     })";
-    auto param = IndexFactory::DeserializeIndexParamFromJson(invalid_enum_json);
+    auto param =
+        zvec::core_interface::IndexFactory::DeserializeIndexParamFromJson(
+            invalid_enum_json);
     ASSERT_EQ(nullptr, param);
   }
 
@@ -1164,7 +1201,9 @@ TEST(IndexInterface, SerializeFailure) {
       "is_sparse": false,
       "data_type": "DT_FP32"
     })";
-    auto param = IndexFactory::DeserializeIndexParamFromJson(invalid_type_json);
+    auto param =
+        zvec::core_interface::IndexFactory::DeserializeIndexParamFromJson(
+            invalid_type_json);
     ASSERT_EQ(nullptr, param);
   }
 
@@ -1177,7 +1216,9 @@ TEST(IndexInterface, SerializeFailure) {
       "is_sparse": "false",
       "data_type": "DT_FP32"
     })";
-    auto param = IndexFactory::DeserializeIndexParamFromJson(invalid_type_json);
+    auto param =
+        zvec::core_interface::IndexFactory::DeserializeIndexParamFromJson(
+            invalid_type_json);
     ASSERT_EQ(nullptr, param);
   }
 
@@ -1190,15 +1231,18 @@ TEST(IndexInterface, SerializeFailure) {
       "is_sparse": false,
       "data_type": "DT_FP32"
     })";
-    auto param = IndexFactory::DeserializeIndexParamFromJson(wrong_type_json);
+    auto param =
+        zvec::core_interface::IndexFactory::DeserializeIndexParamFromJson(
+            wrong_type_json);
     ASSERT_EQ(nullptr, param);
   }
 
   // Test QueryParam deserialization with invalid JSON
   {
     std::string invalid_json = "invalid json";
-    auto param = IndexFactory::QueryParamDeserializeFromJson<FlatQueryParam>(
-        invalid_json);
+    auto param =
+        zvec::core_interface::IndexFactory::QueryParamDeserializeFromJson<
+            FlatQueryParam>(invalid_json);
     ASSERT_EQ(nullptr, param);
   }
 
@@ -1211,8 +1255,9 @@ TEST(IndexInterface, SerializeFailure) {
       "radius": 0.0,
       "is_linear": false
     })";
-    auto param = IndexFactory::QueryParamDeserializeFromJson<FlatQueryParam>(
-        invalid_enum_json);
+    auto param =
+        zvec::core_interface::IndexFactory::QueryParamDeserializeFromJson<
+            FlatQueryParam>(invalid_enum_json);
     ASSERT_EQ(nullptr, param);
   }
 
@@ -1225,8 +1270,9 @@ TEST(IndexInterface, SerializeFailure) {
       "radius": 0.0,
       "is_linear": false
     })";
-    auto param = IndexFactory::QueryParamDeserializeFromJson<FlatQueryParam>(
-        invalid_type_json);
+    auto param =
+        zvec::core_interface::IndexFactory::QueryParamDeserializeFromJson<
+            FlatQueryParam>(invalid_type_json);
     ASSERT_EQ(nullptr, param);
   }
 
@@ -1240,8 +1286,9 @@ TEST(IndexInterface, SerializeFailure) {
       "is_linear": false,
       "ef_search": "not_a_number"
     })";
-    auto param = IndexFactory::QueryParamDeserializeFromJson<HNSWQueryParam>(
-        invalid_type_json);
+    auto param =
+        zvec::core_interface::IndexFactory::QueryParamDeserializeFromJson<
+            HNSWQueryParam>(invalid_type_json);
     ASSERT_EQ(nullptr, param);
   }
 }
@@ -1332,7 +1379,7 @@ TEST(IndexInterface, Score) {
                         const BaseIndexQueryParam::Pointer query_param,
                         MetricType metric_type) {
     zvec::test_util::RemoveTestFiles(index_file_path);
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
     index->Open(index_file_path, {StorageOptions::StorageType::kMMAP, true});
@@ -1360,7 +1407,7 @@ TEST(IndexInterface, Score) {
                          const BaseIndexQueryParam::Pointer query_param,
                          MetricType metric_type) {
     zvec::test_util::RemoveTestFiles(index_file_path);
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
     index->Open(index_file_path, {StorageOptions::StorageType::kMMAP, true});
@@ -1615,7 +1662,7 @@ TEST(IndexInterface, HNSWRabitqGeneral) {
   auto func = [&](const BaseIndexParam::Pointer &param,
                   const BaseIndexQueryParam::Pointer &query_param) {
     zvec::test_util::RemoveTestFiles(cleanup_pattern);
-    auto index = IndexFactory::CreateAndInitIndex(*param);
+    auto index = zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
     ASSERT_NE(nullptr, index);
 
     index->Open(index_name, {StorageOptions::StorageType::kMMAP, true});
@@ -1746,7 +1793,8 @@ TEST(IndexInterface, ContiguousMemoryEndToEnd) {
 
         // Phase 1: build & persist.
         {
-          auto index = IndexFactory::CreateAndInitIndex(*param);
+          auto index =
+              zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
           ASSERT_NE(nullptr, index);
           ASSERT_EQ(0, index->Open(index_name,
                                    {StorageOptions::StorageType::kMMAP, true}));
@@ -1766,7 +1814,8 @@ TEST(IndexInterface, ContiguousMemoryEndToEnd) {
         // Phase 2: reopen with same params (contiguous memory takes effect
         // here) and search.
         {
-          auto index = IndexFactory::CreateAndInitIndex(*param);
+          auto index =
+              zvec::core_interface::IndexFactory::CreateAndInitIndex(*param);
           ASSERT_NE(nullptr, index);
           ASSERT_EQ(0,
                     index->Open(index_name,

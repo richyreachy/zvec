@@ -793,7 +793,7 @@ TEST_F(CollectionTest, Feature_Insert_Duplicate) {
       TestHelper::CreateCollectionWithDoc(col_path, *schema, options, 0, 100);
 
   // update all docs then
-  Result<WriteResults> s;
+  zvec::Result<WriteResults> s;
   for (int i = 0; i < 100; i++) {
     Doc new_doc = TestHelper::CreateDoc(i, *schema);
     std::vector<Doc> docs = {new_doc};
@@ -1152,7 +1152,7 @@ TEST_F(CollectionTest, Feature_Update_General) {
     };
 
     // update all docs then
-    Result<WriteResults> s;
+    zvec::Result<WriteResults> s;
     for (int i = 0; i < doc_count; i++) {
       Doc new_doc =
           TestHelper::CreateDoc(i + 1, *schema, TestHelper::MakePK(i));
@@ -1261,7 +1261,7 @@ TEST_F(CollectionTest, Feature_Update_Incremental) {
     };
 
     // update all docs then
-    Result<WriteResults> s;
+    zvec::Result<WriteResults> s;
     for (int i = 0; i < doc_count; i++) {
       Doc new_doc =
           TestHelper::CreateDoc(i + 1, *schema, TestHelper::MakePK(i));
@@ -1431,7 +1431,7 @@ TEST_F(CollectionTest, Feature_Update_Empty) {
       TestHelper::CreateCollectionWithDoc(col_path, *schema, options, 0, 0);
 
   // update all docs then
-  Result<WriteResults> s;
+  zvec::Result<WriteResults> s;
   for (int i = 0; i < 100; i++) {
     Doc new_doc = TestHelper::CreateDoc(i + 1, *schema, TestHelper::MakePK(i));
     std::vector<Doc> docs = {new_doc};
@@ -1487,7 +1487,7 @@ TEST_F(CollectionTest, Feature_Delete_General) {
       }
     };
 
-    Result<WriteResults> s;
+    zvec::Result<WriteResults> s;
     for (int i = 0; i < doc_count; i++) {
       s = collection->Delete({TestHelper::MakePK(i)});
       if (!s.has_value()) {
@@ -1563,7 +1563,7 @@ TEST_F(CollectionTest, Feature_Delete_Repeated) {
 
     for (int i = 0; i < 10; i++) {
       // delete first
-      Result<WriteResults> s;
+      zvec::Result<WriteResults> s;
       for (int i = 0; i < doc_count; i++) {
         s = collection->Delete({TestHelper::MakePK(i)});
         if (!s.has_value()) {
