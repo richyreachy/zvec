@@ -28,12 +28,18 @@ namespace core {
 #if (defined(__linux) || defined(__linux__))
 typedef struct io_event io_event_t;
 typedef struct iocb iocb_t;
+
+// Ensures the libaio-unavailable warning is logged only once per process,
+// regardless of how many threads or readers trigger the fallback path.
+static std::once_flag g_libaio_warn_once;
 #endif
 
 int setup_io_ctx(IOContext &ctx) {
 #if (defined(__linux) || defined(__linux__))
   if (!LibAioLoader::Instance().Load()) {
-    LOG_WARN("libaio not available; falling back to synchronous pread");
+    std::call_once(g_libaio_warn_once, [] {
+      LOG_WARN("libaio not available; falling back to synchronous pread");
+    });
     return 0;
   }
   int ret = LibAioLoader::Instance().io_setup(MAX_EVENTS, &ctx);
@@ -200,7 +206,9 @@ void LinuxAlignedFileReader::register_thread() {
   IOContext ctx = nullptr;
 
   if (!LibAioLoader::Instance().Load()) {
-    LOG_WARN("libaio not available; async I/O disabled, will use pread");
+    std::call_once(g_libaio_warn_once, [] {
+      LOG_WARN("libaio not available; async I/O disabled, will use pread");
+    });
     lk.unlock();
     return;
   }
