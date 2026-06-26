@@ -29,17 +29,23 @@ namespace core {
 typedef struct io_event io_event_t;
 typedef struct iocb iocb_t;
 
-// Ensures the libaio-unavailable warning is logged only once per process,
-// regardless of how many threads or readers trigger the fallback path.
-static std::once_flag g_libaio_warn_once;
+// Ensures the I/O backend selection is logged exactly once per process,
+// regardless of which entry point (setup_io_ctx or register_thread)
+// triggers it first.
+static std::once_flag g_io_backend_log_once;
 #endif
 
 int setup_io_ctx(IOContext &ctx) {
 #if (defined(__linux) || defined(__linux__))
-  if (!LibAioLoader::Instance().Load()) {
-    std::call_once(g_libaio_warn_once, [] {
-      LOG_WARN("libaio not available; falling back to synchronous pread");
-    });
+  LibAioLoader::Instance().Load();
+  std::call_once(g_io_backend_log_once, [] {
+    if (LibAioLoader::Instance().IsAvailable()) {
+      LOG_INFO("DiskAnn I/O backend: libaio (async I/O enabled)");
+    } else {
+      LOG_WARN("DiskAnn I/O backend: synchronous pread (libaio not available)");
+    }
+  });
+  if (!LibAioLoader::Instance().IsAvailable()) {
     return 0;
   }
   int ret = LibAioLoader::Instance().io_setup(MAX_EVENTS, &ctx);
@@ -205,10 +211,15 @@ void LinuxAlignedFileReader::register_thread() {
 
   IOContext ctx = nullptr;
 
-  if (!LibAioLoader::Instance().Load()) {
-    std::call_once(g_libaio_warn_once, [] {
-      LOG_WARN("libaio not available; async I/O disabled, will use pread");
-    });
+  LibAioLoader::Instance().Load();
+  std::call_once(g_io_backend_log_once, [] {
+    if (LibAioLoader::Instance().IsAvailable()) {
+      LOG_INFO("DiskAnn I/O backend: libaio (async I/O enabled)");
+    } else {
+      LOG_WARN("DiskAnn I/O backend: synchronous pread (libaio not available)");
+    }
+  });
+  if (!LibAioLoader::Instance().IsAvailable()) {
     lk.unlock();
     return;
   }
