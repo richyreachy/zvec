@@ -28,6 +28,10 @@ namespace core {
 #if (defined(__linux) || defined(__linux__))
 typedef struct io_event io_event_t;
 typedef struct iocb iocb_t;
+
+// Ensures the libaio-unavailable warning is logged only once per process,
+// regardless of how many threads or readers trigger the fallback path.
+static std::once_flag g_libaio_warn_once;
 #endif
 
 int setup_io_ctx(IOContext &ctx) {
@@ -52,7 +56,9 @@ int setup_io_ctx(IOContext &ctx) {
     LOG_WARN("io_setup failed; returned: %d, %s. falling back to pread", ret,
              ::strerror(-ret));
   } else {
-    LOG_WARN("libaio not available; falling back to synchronous pread");
+    std::call_once(g_libaio_warn_once, [] {
+      LOG_WARN("libaio not available; falling back to synchronous pread");
+    });
   }
 
   // Priority 3: synchronous pread (always available).
