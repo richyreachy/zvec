@@ -164,8 +164,6 @@ class IoUringRing {
       sq_array_[i] = i;
     }
 
-    LOG_INFO("io_uring initialized: sq_entries=%u, cq_entries=%u", sq_entries_,
-             cq_entries_);
     return true;
   }
 
