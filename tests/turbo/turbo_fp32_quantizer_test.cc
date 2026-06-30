@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
 #include <iostream>
+#include <vector>
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/params.h>
 #include <zvec/turbo/turbo.h>
@@ -21,6 +23,18 @@
 using namespace zvec;
 using namespace zvec::core;
 using namespace zvec::ailego;
+
+// Helper: reference cosine distance between two raw fp32 vectors.
+static float reference_cosine(const float *a, const float *b, size_t dim) {
+  float dot = 0.0f, na = 0.0f, nb = 0.0f;
+  for (size_t i = 0; i < dim; ++i) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  float denom = std::sqrt(na) * std::sqrt(nb);
+  return (denom < 1e-12f) ? 1.0f : 1.0f - dot / denom;
+}
 
 TEST(Fp32Quantizer, General) {
   std::mt19937 gen(15583);
@@ -79,5 +93,110 @@ TEST(Fp32Quantizer, General) {
     for (size_t i = 0; i < holder->dimension(); ++i) {
       EXPECT_NEAR(original_data[i], dequantize_data[i], 1e-3);
     }
+  }
+}
+
+TEST(Fp32Quantizer, Score) {
+  std::mt19937 gen(42);
+  std::uniform_real_distribution<float> dist(0.0, 1.0);
+
+  const size_t DIMENSION = 12;
+  const size_t COUNT = 100;
+
+  IndexMeta meta;
+  meta.set_meta(IndexMeta::DataType::DT_FP32, DIMENSION);
+  meta.set_metric("Cosine", 0, Params());
+
+  auto quantizer = IndexFactory::CreateQuantizer("Fp32Quantizer");
+  ASSERT_TRUE(quantizer);
+  zvec::ailego::Params params;
+  ASSERT_EQ(0u, quantizer->init(meta, params));
+
+  // Generate raw vectors and quantize them.
+  std::vector<std::vector<float>> raw_vecs(COUNT);
+  std::vector<std::string> quant_vecs(COUNT);
+  for (size_t i = 0; i < COUNT; ++i) {
+    raw_vecs[i].resize(DIMENSION);
+    for (size_t j = 0; j < DIMENSION; ++j) {
+      raw_vecs[i][j] = dist(gen);
+    }
+    IndexQueryMeta ometa;
+    EXPECT_EQ(0, quantizer->quantize(
+                     raw_vecs[i].data(),
+                     IndexQueryMeta(IndexMeta::DataType::DT_FP32, DIMENSION),
+                     &quant_vecs[i], &ometa));
+  }
+
+  // --- calc_distance_dp_query (single) ---
+  for (size_t i = 1; i < COUNT; ++i) {
+    float d = quantizer->calc_distance_dp_query(quant_vecs[i].data(),
+                                                quant_vecs[0].data());
+    float expected =
+        reference_cosine(raw_vecs[i].data(), raw_vecs[0].data(), DIMENSION);
+    EXPECT_NEAR(d, expected, 1e-4) << "i=" << i;
+  }
+
+  // --- calc_distance_dp_query_batch ---
+  {
+    std::vector<const void *> dp_list(COUNT - 1);
+    for (size_t i = 1; i < COUNT; ++i) {
+      dp_list[i - 1] = quant_vecs[i].data();
+    }
+    std::vector<float> results(COUNT - 1);
+    quantizer->calc_distance_dp_query_batch(
+        dp_list.data(), static_cast<int>(dp_list.size()), quant_vecs[0].data(),
+        results.data());
+
+    for (size_t i = 0; i < dp_list.size(); ++i) {
+      float expected = reference_cosine(raw_vecs[i + 1].data(),
+                                        raw_vecs[0].data(), DIMENSION);
+      EXPECT_NEAR(results[i], expected, 1e-4) << "i=" << i;
+    }
+  }
+
+  // --- distance() + DistanceImpl (single + batch) ---
+  {
+    IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, DIMENSION);
+    auto dist_impl = quantizer->distance(quant_vecs[0].data(), qmeta);
+    ASSERT_TRUE(dist_impl.valid());
+
+    for (size_t i = 1; i < COUNT; ++i) {
+      float d = dist_impl(quant_vecs[i].data());
+      float expected =
+          reference_cosine(raw_vecs[0].data(), raw_vecs[i].data(), DIMENSION);
+      EXPECT_NEAR(d, expected, 1e-4) << "i=" << i;
+    }
+
+    // Batch via DistanceImpl.
+    ASSERT_TRUE(dist_impl.batch_valid());
+    std::vector<const void *> dp_list(COUNT - 1);
+    for (size_t i = 1; i < COUNT; ++i) {
+      dp_list[i - 1] = quant_vecs[i].data();
+    }
+    std::vector<float> batch_results(COUNT - 1);
+    dist_impl.batch(dp_list.data(), dp_list.size(), batch_results.data());
+    for (size_t i = 0; i < dp_list.size(); ++i) {
+      float expected = reference_cosine(raw_vecs[0].data(),
+                                        raw_vecs[i + 1].data(), DIMENSION);
+      EXPECT_NEAR(batch_results[i], expected, 1e-4) << "i=" << i;
+    }
+  }
+
+  // --- calc_distance_dp_dp (pairwise) ---
+  for (size_t i = 1; i < 10; ++i) {
+    float d = quantizer->calc_distance_dp_dp(quant_vecs[i].data(),
+                                             quant_vecs[0].data());
+    float expected =
+        reference_cosine(raw_vecs[i].data(), raw_vecs[0].data(), DIMENSION);
+    EXPECT_NEAR(d, expected, 1e-4) << "i=" << i;
+  }
+
+  // --- calc_distance_dp_query_unquantized ---
+  for (size_t i = 1; i < 10; ++i) {
+    float d = quantizer->calc_distance_dp_query_unquantized(
+        quant_vecs[i].data(), raw_vecs[0].data());
+    float expected =
+        reference_cosine(raw_vecs[i].data(), raw_vecs[0].data(), DIMENSION);
+    EXPECT_NEAR(d, expected, 1e-4) << "i=" << i;
   }
 }

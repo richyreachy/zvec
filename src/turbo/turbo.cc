@@ -18,12 +18,30 @@
 #include "avx512_vnni/record_quantized_int8/squared_euclidean.h"
 #include "avx512_vnni/uniform_int8/quantize.h"
 #include "avx512_vnni/uniform_int8/squared_euclidean.h"
+#include "scalar/fp32/cosine.h"
+#include "scalar/fp32/inner_product.h"
+#include "scalar/fp32/squared_euclidean.h"
 
 namespace zvec::turbo {
 
 DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
                                QuantizeType quantize_type,
                                CpuArchType cpu_arch_type) {
+  if (data_type == DataType::kFp32) {
+    if (quantize_type == QuantizeType::kDefault ||
+        quantize_type == QuantizeType::kFp32) {
+      if (metric_type == MetricType::kCosine) {
+        return scalar::cosine_fp32_distance;
+      }
+      if (metric_type == MetricType::kSquaredEuclidean) {
+        return scalar::squared_euclidean_fp32_distance;
+      }
+      if (metric_type == MetricType::kInnerProduct) {
+        return scalar::inner_product_fp32_distance;
+      }
+    }
+    return nullptr;
+  }
   if (data_type == DataType::kInt8) {
     if (quantize_type == QuantizeType::kDefault) {
       if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512_VNNI &&
@@ -52,6 +70,21 @@ BatchDistanceFunc get_batch_distance_func(MetricType metric_type,
                                           DataType data_type,
                                           QuantizeType quantize_type,
                                           CpuArchType cpu_arch_type) {
+  if (data_type == DataType::kFp32) {
+    if (quantize_type == QuantizeType::kDefault ||
+        quantize_type == QuantizeType::kFp32) {
+      if (metric_type == MetricType::kCosine) {
+        return scalar::cosine_fp32_batch_distance;
+      }
+      if (metric_type == MetricType::kSquaredEuclidean) {
+        return scalar::squared_euclidean_fp32_batch_distance;
+      }
+      if (metric_type == MetricType::kInnerProduct) {
+        return scalar::inner_product_fp32_batch_distance;
+      }
+    }
+    return nullptr;
+  }
   if (data_type == DataType::kInt8) {
     if (quantize_type == QuantizeType::kDefault) {
       if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512_VNNI &&
