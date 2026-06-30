@@ -24,10 +24,12 @@ void cosine_fp16_distance(const void *a, const void *b, size_t dim,
   constexpr size_t extra_dim = 2;
   size_t original_dim = dim - extra_dim;
 
+  // inner_product_fp16_distance returns -real_IP; cosine = 1 - real_IP = 1 +
+  // ip.
   float ip;
   inner_product_fp16_distance(a, b, original_dim, &ip);
 
-  *distance = 1 - ip;
+  *distance = 1 + ip;
 #else
   (void)a;
   (void)b;
@@ -47,8 +49,10 @@ void cosine_fp16_batch_distance(const void *const *vectors, const void *query,
 
   inner_product_fp16_batch_armv8(vectors, query, n, original_dim, distances);
 
+  // inner_product batch returns -real_IP per element; cosine = 1 - real_IP = 1
+  // + d.
   for (size_t i = 0; i < n; ++i) {
-    distances[i] = 1 - distances[i];
+    distances[i] = 1 + distances[i];
   }
 #else
   (void)vectors;

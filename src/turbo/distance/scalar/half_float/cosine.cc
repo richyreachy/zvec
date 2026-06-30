@@ -19,10 +19,12 @@ namespace zvec::turbo::scalar {
 
 void cosine_fp16_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
+  // inner_product_fp16_distance returns -real_IP; cosine = 1 - real_IP = 1 +
+  // ip.
   float ip;
   inner_product_fp16_distance(a, b, dim, &ip);
 
-  *distance = 1 - ip;
+  *distance = 1 + ip;
 }
 
 void cosine_fp16_batch_distance(const void *const *vectors, const void *query,

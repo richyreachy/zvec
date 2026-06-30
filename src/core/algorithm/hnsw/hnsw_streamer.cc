@@ -340,38 +340,55 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
   if (!add_quantizer_) {
     // Infer the turbo quantizer class from the meta data type when the
     // converter has changed the storage format (e.g. FP32 -> FP16).
+    // For raw VECTOR_INT8/VECTOR_INT4 data (no converter, no extra meta),
+    // skip turbo quantizer creation entirely: the Fp32Quantizer would use
+    // FP32 distance functions on int8 data (giving wrong results), and
+    // Int8/Int4Quantizer expects quantized format with tail parameters.
+    // Instead, let HnswDistCalculator fall back to IndexMetric's correct
+    // int8 distance functions.
+    bool skip_turbo_quantizer = false;
     if (turbo_quantizer_class_ == "Fp32Quantizer") {
       switch (meta_.data_type()) {
         case IndexMeta::DataType::DT_FP16:
           turbo_quantizer_class_ = "Fp16Quantizer";
           break;
         case IndexMeta::DataType::DT_INT8:
-          turbo_quantizer_class_ = "Int8Quantizer";
+          if (meta_.extra_meta_size() > 0) {
+            turbo_quantizer_class_ = "Int8Quantizer";
+          } else {
+            skip_turbo_quantizer = true;
+          }
           break;
         case IndexMeta::DataType::DT_INT4:
-          turbo_quantizer_class_ = "Int4Quantizer";
+          if (meta_.extra_meta_size() > 0) {
+            turbo_quantizer_class_ = "Int4Quantizer";
+          } else {
+            skip_turbo_quantizer = true;
+          }
           break;
         default:
           break;
       }
     }
-    add_quantizer_ = IndexFactory::CreateQuantizer(turbo_quantizer_class_);
-    if (!add_quantizer_) {
-      LOG_ERROR("Failed to create turbo quantizer '%s'",
-                turbo_quantizer_class_.c_str());
-      return IndexError_NoExist;
+    if (!skip_turbo_quantizer) {
+      add_quantizer_ = IndexFactory::CreateQuantizer(turbo_quantizer_class_);
+      if (!add_quantizer_) {
+        LOG_ERROR("Failed to create turbo quantizer '%s'",
+                  turbo_quantizer_class_.c_str());
+        return IndexError_NoExist;
+      }
+      ret = add_quantizer_->init(meta_, meta_.streamer_params());
+      if (ret != 0) {
+        LOG_ERROR("Failed to init turbo quantizer '%s', ret=%d",
+                  turbo_quantizer_class_.c_str(), ret);
+        return ret;
+      }
+      // Default: use the same quantizer for search. When the underlying
+      // metric exposes a query-side variant (e.g. MipsSquaredEuclidean) we
+      // still keep the add_quantizer_ as a conservative choice here. Any
+      // specialized handling can be layered on top later.
+      search_quantizer_ = add_quantizer_;
     }
-    ret = add_quantizer_->init(meta_, meta_.streamer_params());
-    if (ret != 0) {
-      LOG_ERROR("Failed to init turbo quantizer '%s', ret=%d",
-                turbo_quantizer_class_.c_str(), ret);
-      return ret;
-    }
-    // Default: use the same quantizer for search. When the underlying
-    // metric exposes a query-side variant (e.g. MipsSquaredEuclidean) we
-    // still keep the add_quantizer_ as a conservative choice here. Any
-    // specialized handling can be layered on top later.
-    search_quantizer_ = add_quantizer_;
   }
 
   // Resolve the search-side metric. For metrics like MipsSquaredEuclidean
@@ -471,11 +488,8 @@ IndexStreamer::Context::Pointer HnswStreamer::create_context(void) const {
     LOG_ERROR("CreateContext clone init failed");
     return Context::Pointer();
   }
-  // The raw query accepted by reset_query is always in the input format
-  // (FP32), regardless of the converter/quantizer used for stored data.
-  HnswContext *ctx = new (std::nothrow)
-      HnswContext(meta_.dimension(), add_quantizer_,
-                  IndexMeta::DataType::DT_FP32, metric_, entity);
+  HnswContext *ctx = new (std::nothrow) HnswContext(
+      meta_.dimension(), add_quantizer_, meta_.data_type(), metric_, entity);
   if (ailego_unlikely(ctx == nullptr)) {
     LOG_ERROR("Failed to new HnswContext");
     return Context::Pointer();
@@ -721,7 +735,6 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
   if (entity_->doc_cnt() <= ctx->get_bruteforce_threshold()) {
     return search_bf_impl(query, qmeta, count, context);
   }
-
   if (ctx->magic() != magic_) {
     //! context is created by another searcher or streamer
     ret = update_context(ctx);
@@ -848,11 +861,12 @@ int HnswStreamer::search_bf_impl(
       ctx->reset_query(query);
       topk.clear();
       for (node_id_t id = 0; id < entity_->doc_cnt(); ++id) {
-        if (entity_->get_key(id) == kInvalidKey) {
+        auto key = entity_->get_key(id);
+        if (key == kInvalidKey) {
           continue;
         }
 
-        if (!filter.is_valid() || !filter(entity_->get_key(id))) {
+        if (!filter.is_valid() || !filter(key)) {
           dist_t dist = ctx->dist_calculator().batch_dist(id);
           topk.emplace(id, dist);
         }

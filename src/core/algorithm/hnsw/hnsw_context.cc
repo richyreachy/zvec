@@ -273,10 +273,8 @@ int HnswContext::update_context(ContextType type, const IndexMeta &meta,
   }
 
   entity_ = entity;
-  // The raw query accepted by reset_query is always in the input format
-  // (FP32), regardless of the converter/quantizer used for stored data.
   dc_.update(entity_.get(), std::move(quantizer), metric, meta.dimension(),
-             IndexMeta::DataType::DT_FP32);
+             meta.data_type());
   metric_ = metric;
   magic_ = magic_num;
   level_topks_.clear();

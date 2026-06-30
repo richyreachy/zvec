@@ -43,7 +43,6 @@ int Fp16Quantizer::init(const IndexMeta &meta,
   } else {
     original_dim_ = meta.dimension();
   }
-
   // Cache the distance dispatch for the new Quantizer interface.
   dp_query_func_ =
       get_distance_func(metric_from_name(metric_name), DataType::kFp16,
@@ -99,16 +98,9 @@ DistanceImpl Fp16Quantizer::distance(const void *query,
   auto batch_func = get_batch_distance_func(
       metric, DataType::kFp16, QuantizeType::kDefault, CpuArchType::kAuto);
 
-  std::string quantized_query;
-  if (qmeta.data_type() == IndexMeta::DataType::DT_FP16) {
-    // Query is already quantized — copy it directly.
-    quantized_query.assign(static_cast<const char *>(query),
-                           qmeta.element_size());
-  } else {
-    // Query needs to be quantized (e.g. FP32 → FP16).
-    quantized_query.resize(quantized_length(), '\0');
-    quantize_one(query, &quantized_query[0]);
-  }
+  // The query is assumed to be already quantized — copy it directly.
+  std::string quantized_query(static_cast<const char *>(query),
+                              qmeta.element_size());
   return DistanceImpl(std::move(func), std::move(batch_func),
                       std::move(quantized_query), original_dim_);
 }
