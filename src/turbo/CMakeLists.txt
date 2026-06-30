@@ -40,7 +40,9 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
         # subdirectory).
         file(GLOB_RECURSE AVX512_VNNI_SRCS 
           ${CMAKE_CURRENT_SOURCE_DIR}/*/avx512_vnni/*.cc
-          ${CMAKE_CURRENT_SOURCE_DIR}/*/avx512_vnni/*.c)
+          ${CMAKE_CURRENT_SOURCE_DIR}/*/avx512_vnni/*.c
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx512_vnni/*.cc
+          ${CMAKE_CURRENT_SOURCE_DIR}/avx512_vnni/*.c)
         set_source_files_properties(
             ${AVX512_VNNI_SRCS}
             PROPERTIES

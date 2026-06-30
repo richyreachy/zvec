@@ -169,9 +169,16 @@ DistanceImpl RecordInt8Quantizer::distance(
       get_batch_distance_func(origin_metric_, DataType::kInt8,
                               QuantizeType::kDefault, CpuArchType::kAuto);
 
-  // The query is assumed to be already quantized — copy it directly.
-  std::string quantized_query(static_cast<const char *>(query),
-                              qmeta.element_size());
+  std::string quantized_query;
+  if (qmeta.data_type() == IndexMeta::DataType::DT_INT8) {
+    // Query is already quantized — copy it directly.
+    quantized_query.assign(static_cast<const char *>(query),
+                           qmeta.element_size());
+  } else {
+    // Query needs to be quantized (e.g. FP32 → INT8).
+    quantized_query.resize(quantized_length(), '\0');
+    quantize_one(query, &quantized_query[0]);
+  }
   // Pass the raw (non-inflated) dimension to the distance implementation.
   return DistanceImpl(std::move(func), std::move(batch_func),
                       std::move(quantized_query), original_dim_);

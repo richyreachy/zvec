@@ -338,6 +338,23 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
   // is already set — use it directly instead of creating one from
   // turbo_quantizer_class_.
   if (!add_quantizer_) {
+    // Infer the turbo quantizer class from the meta data type when the
+    // converter has changed the storage format (e.g. FP32 -> FP16).
+    if (turbo_quantizer_class_ == "Fp32Quantizer") {
+      switch (meta_.data_type()) {
+        case IndexMeta::DataType::DT_FP16:
+          turbo_quantizer_class_ = "Fp16Quantizer";
+          break;
+        case IndexMeta::DataType::DT_INT8:
+          turbo_quantizer_class_ = "Int8Quantizer";
+          break;
+        case IndexMeta::DataType::DT_INT4:
+          turbo_quantizer_class_ = "Int4Quantizer";
+          break;
+        default:
+          break;
+      }
+    }
     add_quantizer_ = IndexFactory::CreateQuantizer(turbo_quantizer_class_);
     if (!add_quantizer_) {
       LOG_ERROR("Failed to create turbo quantizer '%s'",
@@ -454,8 +471,11 @@ IndexStreamer::Context::Pointer HnswStreamer::create_context(void) const {
     LOG_ERROR("CreateContext clone init failed");
     return Context::Pointer();
   }
-  HnswContext *ctx = new (std::nothrow) HnswContext(
-      meta_.dimension(), add_quantizer_, meta_.data_type(), metric_, entity);
+  // The raw query accepted by reset_query is always in the input format
+  // (FP32), regardless of the converter/quantizer used for stored data.
+  HnswContext *ctx = new (std::nothrow)
+      HnswContext(meta_.dimension(), add_quantizer_,
+                  IndexMeta::DataType::DT_FP32, metric_, entity);
   if (ailego_unlikely(ctx == nullptr)) {
     LOG_ERROR("Failed to new HnswContext");
     return Context::Pointer();

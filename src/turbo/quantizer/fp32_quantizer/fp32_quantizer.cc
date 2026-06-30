@@ -43,7 +43,9 @@ int Fp32Quantizer::init(const IndexMeta &meta,
   // meta's extra_meta_size: if it is already set, the dim is inflated and
   // we strip the extras to recover the raw dim; otherwise the dim is raw.
   if (meta.extra_meta_size() > 0) {
-    original_dim_ = meta.dimension() - meta.extra_meta_size() / sizeof(float);
+    original_dim_ =
+        meta.dimension() -
+        meta.extra_meta_size() / IndexMeta::UnitSizeof(meta.data_type());
   } else {
     original_dim_ = meta.dimension();
   }

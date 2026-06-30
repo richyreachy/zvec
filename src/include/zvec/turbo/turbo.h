@@ -68,7 +68,6 @@ enum class CpuArchType {
   kAVX512,
   kAVX512VNNI,
   kAVX512FP16
-
 };
 
 DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
