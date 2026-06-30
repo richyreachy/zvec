@@ -24,10 +24,10 @@
 #include <zvec/turbo/turbo.h>
 #include "distance.h"
 
-using namespace zvec::core;
-
 namespace zvec {
 namespace turbo {
+
+using namespace zvec::core;
 
 //! Magic number ('QTZR') stamped at the start of a serialized quantizer blob.
 constexpr uint32_t kQuantizerMagic = 0x52545A51u;
