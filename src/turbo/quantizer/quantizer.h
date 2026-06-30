@@ -65,8 +65,7 @@ class Quantizer {
   //! Input data type accepted by the quantizer
   virtual DataType input_data_type() const = 0;
 
-  // ---- Legacy interface (retained for configuration and existing callers)
-  // ----
+  //! Data type
   virtual QuantizeType type() const {
     return type_;
   }

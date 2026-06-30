@@ -30,7 +30,7 @@ using namespace zvec::core;
 class Int4Quantizer : public Quantizer {
  public:
   Int4Quantizer() {
-    type_ = QuantizeType::kRecordInt4;
+    type_ = QuantizeType::kRecord;
   }
 
   virtual ~Int4Quantizer() {}

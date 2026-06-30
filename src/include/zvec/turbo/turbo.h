@@ -52,10 +52,7 @@ enum class DataType {
 enum class QuantizeType {
   kDefault,
   kUniform,
-  kRecordInt8,
-  kRecordInt4,
-  kInt8,
-  kInt4,
+  kRecord,
   kFp16,
   kFp32,
   kPQ,

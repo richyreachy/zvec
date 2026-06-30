@@ -28,7 +28,7 @@ using namespace zvec::core;
 class Fp16Quantizer : public Quantizer {
  public:
   Fp16Quantizer() {
-    type_ = QuantizeType::kRecordInt8;
+    type_ = QuantizeType::kFp16;
   }
 
   virtual ~Fp16Quantizer() {}

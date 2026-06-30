@@ -73,7 +73,7 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
 #if defined(__ARM_NEON)
   // INT8
   if (data_type == DataType::kInt8) {
-    if (quantize_type == QuantizeType::kInt8) {
+    if (quantize_type == QuantizeType::kDefault) {
       if (metric_type == MetricType::kSquaredEuclidean) {
         return scalar::squared_euclidean_int8_distance;
       }
@@ -90,7 +90,7 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
 
   // INT$
   if (data_type == DataType::kInt4) {
-    if (quantize_type == QuantizeType::kInt4) {
+    if (quantize_type == QuantizeType::kDefault) {
       if (metric_type == MetricType::kSquaredEuclidean) {
         return scalar::squared_euclidean_int4_distance;
       }
@@ -107,7 +107,7 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
 
   // FP32
   if (data_type == DataType::kFp32) {
-    if (quantize_type == QuantizeType::kFp32) {
+    if (quantize_type == QuantizeType::kDefault) {
       if (metric_type == MetricType::kSquaredEuclidean) {
         return armv8::squared_euclidean_fp32_distance;
       }
@@ -124,7 +124,7 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
 
   // FP16
   if (data_type == DataType::kFp16) {
-    if (quantize_type == QuantizeType::kFp16) {
+    if (quantize_type == QuantizeType::kDefault) {
       if (metric_type == MetricType::kSquaredEuclidean) {
         return armv8::squared_euclidean_fp16_distance;
       }
@@ -141,7 +141,7 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
 #else
   // INT8
   if (data_type == DataType::kInt8) {
-    if (quantize_type == QuantizeType::kInt8) {
+    if (quantize_type == QuantizeType::kDefault) {
       if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512_VNNI &&
           (cpu_arch_type == CpuArchType::kAuto ||
            cpu_arch_type == CpuArchType::kAVX512VNNI)) {
@@ -209,7 +209,7 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
 
   // INT4
   if (data_type == DataType::kInt4) {
-    if (quantize_type == QuantizeType::kInt4) {
+    if (quantize_type == QuantizeType::kDefault) {
       if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX2 &&
           (cpu_arch_type == CpuArchType::kAuto ||
            cpu_arch_type == CpuArchType::kAVX2)) {
@@ -250,7 +250,7 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
 
   // FP32
   if (data_type == DataType::kFp32) {
-    if (quantize_type == QuantizeType::kFp32) {
+    if (quantize_type == QuantizeType::kDefault) {
       if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F &&
           (cpu_arch_type == CpuArchType::kAuto ||
            cpu_arch_type == CpuArchType::kAVX512)) {
@@ -293,7 +293,7 @@ DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
 
   // FP16
   if (data_type == DataType::kFp16) {
-    if (quantize_type == QuantizeType::kFp16) {
+    if (quantize_type == QuantizeType::kDefault) {
       if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512_FP16 &&
           (cpu_arch_type == CpuArchType::kAuto ||
            cpu_arch_type == CpuArchType::kAVX512FP16)) {

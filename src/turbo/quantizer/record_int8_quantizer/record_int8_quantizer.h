@@ -28,7 +28,7 @@ namespace turbo {
 class RecordInt8Quantizer : public Quantizer {
  public:
   RecordInt8Quantizer() {
-    type_ = QuantizeType::kRecordInt8;
+    type_ = QuantizeType::kRecord;
   }
 
   virtual ~RecordInt8Quantizer() {}
