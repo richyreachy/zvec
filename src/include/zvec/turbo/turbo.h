@@ -36,18 +36,38 @@ using UniformQuantizeFunc = void (*)(const float *in, size_t dim, float scale,
 enum class MetricType {
   kSquaredEuclidean,
   kCosine,
+  kInnerProduct,
   kMipsSquaredEuclidean,
   kUnknown,
 };
 
 enum class DataType {
+  kInt4,
   kInt8,
+  kFp16,
+  kFp32,
   kUnknown,
 };
 
 enum class QuantizeType {
   kDefault,
   kUniform,
+  kRecord,
+  kFp16,
+  kFp32,
+  kPQ,
+  kRabit
+};
+
+enum class CpuArchType {
+  kAuto,
+  kScalar,
+  kSSE,
+  kAVX,
+  kAVX2,
+  kAVX512,
+  kAVX512VNNI,
+  kAVX512FP16
 };
 
 DistanceFunc get_distance_func(MetricType metric_type, DataType data_type,
