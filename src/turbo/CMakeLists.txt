@@ -29,7 +29,7 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
 endif()
 
 cc_library(
-    NAME zvec_turbo STATIC STRICT PACKED
+    NAME zvec_turbo STATIC STRICT ALWAYS_LINK PACKED
     SRCS ${ALL_SRCS}
     LIBS zvec_ailego
     INCS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/distance ${PROJECT_ROOT_DIR}/src/include
