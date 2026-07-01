@@ -13,34 +13,27 @@
 // limitations under the License.
 
 #include "scalar/fp32/cosine.h"
-#include <cmath>
+#include "scalar/fp32/inner_product.h"
 
 namespace zvec::turbo::scalar {
 
 void cosine_fp32_distance(const void *a, const void *b, size_t dim,
                           float *distance) {
-  const float *fa = static_cast<const float *>(a);
-  const float *fb = static_cast<const float *>(b);
-  float dot = 0.0f;
-  float na = 0.0f;
-  float nb = 0.0f;
-  for (size_t i = 0; i < dim; ++i) {
-    dot += fa[i] * fb[i];
-    na += fa[i] * fa[i];
-    nb += fb[i] * fb[i];
-  }
-  float denom = std::sqrt(na) * std::sqrt(nb);
-  if (denom < 1e-12f) {
-    *distance = 1.0f;
-  } else {
-    *distance = 1.0f - dot / denom;
-  }
+  // inner_product_fp32_distance returns -real_IP; cosine = 1 - real_IP = 1 +
+  // ip.
+  float ip;
+  inner_product_fp32_distance(a, b, dim, &ip);
+
+  *distance = 1 + ip;
 }
 
 void cosine_fp32_batch_distance(const void *const *vectors, const void *query,
                                 size_t n, size_t dim, float *distances) {
-  for (size_t i = 0; i < n; ++i) {
-    cosine_fp32_distance(vectors[i], query, dim, &distances[i]);
+  inner_product_fp32_batch_distance(vectors, query, n, dim, distances);
+  // inner_product batch returns -real_IP per element; cosine = 1 - real_IP = 1
+  // + d.
+  for (size_t i = 0; i < n; i++) {
+    distances[i] = 1 + distances[i];
   }
 }
 

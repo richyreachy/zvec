@@ -57,7 +57,7 @@ class Fp32Quantizer : public Quantizer {
   }
 
   int train(core::IndexHolder::Pointer /*holder*/) override {
-    return IndexError_NotImplemented;
+    return 0;
   }
 
   size_t quantized_datapoint_vector_length() const override {
