@@ -16,8 +16,8 @@
 
 namespace zvec::turbo::scalar {
 
-// Compute squared Euclidean distance between a single quantized FP32
-// vector pair.
+// Compute negated inner product between a single FP32 vector pair.
+// Returns -dot(a, b) so that callers can derive cosine distance as 1 + ip.
 void inner_product_fp32_distance(const void *a, const void *b, size_t dim,
                                  float *distance) {
   const float *m = reinterpret_cast<const float *>(a);
