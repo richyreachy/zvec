@@ -102,9 +102,10 @@ class Fp32Quantizer : public Quantizer {
                         const core::IndexQueryMeta &qmeta) const override;
 
  private:
-  //! Byte length of a quantized vector (raw fp32 data).
+  //! Byte length of a quantized vector (raw fp32 data + extra meta).
   size_t quantized_length() const {
-    return static_cast<size_t>(original_dim_) * sizeof(float);
+    return static_cast<size_t>(original_dim_) * sizeof(float) +
+           extra_meta_size_;
   }
 
   //! Quantize a single fp32 vector into a caller-provided buffer of
