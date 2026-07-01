@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstring>
 #include <vector>
+#include <ailego/math/normalizer.h>
 #include <zvec/core/framework/index_error.h>
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_logger.h>
@@ -30,16 +31,12 @@ int Fp32Quantizer::init(const IndexMeta &meta,
 
   meta_.set_meta(IndexMeta::DataType::DT_FP32, meta.dimension());
 
+
+  original_dim_ = meta.dimension();
   auto metric_name = meta.metric_name();
   if (metric_name == "Cosine") {
     extra_meta_size_ = EXTRA_META_SIZE_COSINE;
     meta_.set_extra_meta_size(extra_meta_size_);
-  }
-
-  if (meta.extra_meta_size() > 0) {
-    original_dim_ = meta.dimension() - meta.extra_meta_size() / sizeof(float);
-  } else {
-    original_dim_ = meta.dimension();
   }
 
   // Cache the distance dispatch for the new Quantizer interface.
@@ -65,9 +62,22 @@ int Fp32Quantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
   size_t raw_dim = (original_dim_ != 0 && qmeta.dimension() >= original_dim_)
                        ? original_dim_
                        : qmeta.dimension();
-  size_t byte_size = raw_dim * sizeof(float);
+  size_t byte_size = raw_dim * sizeof(float) + extra_meta_size_;
   out->resize(byte_size);
-  std::memcpy(&(*out)[0], query, byte_size);
+
+  if (meta_.metric_name() == "Cosine") {
+    // L2-normalize the vector in-place and store the norm at the end so the
+    // original vector can be reconstructed during dequantize.
+    float *buf = reinterpret_cast<float *>(&(*out)[0]);
+    std::memcpy(buf, query, raw_dim * sizeof(float));
+    float norm = 0.0f;
+    ailego::Normalizer<float>::L2(buf, raw_dim, &norm);
+    std::memcpy(
+        reinterpret_cast<uint8_t *>(&(*out)[0]) + raw_dim * sizeof(float),
+        &norm, extra_meta_size_);
+  } else {
+    std::memcpy(&(*out)[0], query, byte_size);
+  }
 
   *ometa = qmeta;
   ometa->set_meta(IndexMeta::DataType::DT_FP32, raw_dim,
@@ -78,9 +88,26 @@ int Fp32Quantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
 
 int Fp32Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
                               std::string *out) const {
-  size_t byte_size = qmeta.dimension() * sizeof(float);
-  out->resize(byte_size);
-  std::memcpy(out->data(), in, byte_size);
+  size_t raw_dim = (original_dim_ != 0 && qmeta.dimension() >= original_dim_)
+                       ? original_dim_
+                       : qmeta.dimension();
+  size_t byte_size = raw_dim * sizeof(float);
+
+  if (meta_.metric_name() == "Cosine") {
+    // Denormalize the vector using the stored norm.
+    out->resize(byte_size);
+    const float *in_buf = reinterpret_cast<const float *>(in);
+    float *out_buf = reinterpret_cast<float *>(&(*out)[0]);
+    float norm = 0.0f;
+    std::memcpy(&norm, reinterpret_cast<const uint8_t *>(in) + byte_size,
+                extra_meta_size_);
+    for (size_t i = 0; i < raw_dim; ++i) {
+      out_buf[i] = in_buf[i] * norm;
+    }
+  } else {
+    out->resize(byte_size);
+    std::memcpy(out->data(), in, byte_size);
+  }
   return 0;
 }
 
@@ -103,8 +130,19 @@ DistanceImpl Fp32Quantizer::distance(const void *query,
 }
 
 void Fp32Quantizer::quantize_one(const void *input, void *output) const {
-  std::memcpy(output, input,
-              static_cast<size_t>(original_dim_) * sizeof(float));
+  size_t byte_size = static_cast<size_t>(original_dim_) * sizeof(float);
+
+  if (meta_.metric_name() == "Cosine") {
+    // L2-normalize and store the norm at the end.
+    std::memcpy(output, input, byte_size);
+    float *buf = reinterpret_cast<float *>(output);
+    float norm = 0.0f;
+    ailego::Normalizer<float>::L2(buf, original_dim_, &norm);
+    std::memcpy(reinterpret_cast<uint8_t *>(output) + byte_size, &norm,
+                extra_meta_size_);
+  } else {
+    std::memcpy(output, input, byte_size);
+  }
 }
 
 float Fp32Quantizer::calc_distance_dp_query(const void *dp,
