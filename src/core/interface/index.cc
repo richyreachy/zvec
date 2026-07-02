@@ -17,6 +17,7 @@
 #include <zvec/core/framework/index_storage.h>
 #include <zvec/core/interface/index.h>
 #include "mixed_reducer/mixed_reducer_params.h"
+#include "utility/utility_params.h"
 
 namespace zvec::core_interface {
 
@@ -181,6 +182,24 @@ int Index::CreateAndInitConverterReformer(const QuantizerParam &param,
     }
   }
 
+  // Pass enable_rotate to converter_params (effective for INT8 and INT4)
+  if (param.enable_rotate) {
+    if (param.type == QuantizerType::kInt8 ||
+        param.type == QuantizerType::kInt4) {
+      if (index_param.metric_type == MetricType::kCosine) {
+        converter_params.set("cosine.converter.enable_rotate", true);
+      } else {
+        converter_params.set("integer_streaming.converter.enable_rotate", true);
+      }
+    } else {
+      LOG_ERROR(
+          "enable_rotate is only supported for INT8/INT4 quantizer, "
+          "but got quantizer type: %d",
+          static_cast<int>(param.type));
+      return core::IndexError_Unsupported;
+    }
+  }
+
   proxima_index_meta_.set_converter(converter_name, 0, converter_params);
   converter_ = core::IndexFactory::CreateConverter(converter_name);
   if (converter_ == nullptr ||
@@ -255,6 +274,16 @@ int Index::Open(const std::string &file_path, StorageOptions storage_options) {
   // storage_params.set("proxima.mmap_file.storage.memory_warmup", true);
   // storage_params.set("proxima.mmap_file.storage.segment_meta_capacity",
   // 1024);
+
+  storage_params.set(core::MMAPFILE_STORAGE_COPY_ON_WRITE,
+                     storage_options.copy_on_write);
+  // force_flush must be enabled with copy_on_write so that
+  // IndexMapping::flush() actually persists data written via file_.write() to
+  // disk; without it, data would be lost. See IndexMapping::flush() in
+  // index_mapping.cc.
+  storage_params.set(core::MMAPFILE_STORAGE_FORCE_FLUSH,
+                     storage_options.copy_on_write);
+
   switch (storage_options.type) {
     case StorageOptions::StorageType::kMMAP: {
       storage_ = core::IndexFactory::CreateStorage("MMapFileStorage");
@@ -325,6 +354,25 @@ int Index::Open(const std::string &file_path, StorageOptions storage_options) {
   // converter/reformer/metric are created in IndexFactory::CreateIndex
   // TODO: init
 
+  // Load reformer data from storage (e.g., rotation matrix for
+  // IntegerStreaming)
+  if (reformer_ != nullptr) {
+    // When building a new index, dump converter state (e.g., rotator) to
+    // storage so the reformer can load it.  This is needed for
+    // enable_rotate with INT8 quantization.
+    if (storage_options.create_new && converter_ != nullptr) {
+      if (converter_->dump_to_storage(storage_) != 0) {
+        LOG_ERROR("Failed to dump converter to storage, path: %s",
+                  file_path.c_str());
+        return core::IndexError_Runtime;
+      }
+    }
+    if (reformer_->load(storage_) != 0) {
+      LOG_ERROR("Failed to load reformer, path: %s", file_path.c_str());
+      return core::IndexError_Runtime;
+    }
+  }
+
   // TODO: context pool
   if (!init_context()) {  // to validate if any error, will be overwritten
     LOG_ERROR("Failed to init context");
@@ -381,6 +429,13 @@ int Index::Flush() {
   return 0;
 }
 
+bool Index::IsDirty() const {
+  if (!storage_) {
+    return false;
+  }
+  return storage_->is_dirty();
+}
+
 int Index::Fetch(const uint32_t doc_id, VectorDataBuffer *vector_data_buffer) {
   if (!is_open_) {
     LOG_ERROR("Index is not open");
@@ -419,6 +474,19 @@ int Index::Add(const VectorData &vector_data, const uint32_t doc_id) {
   return ret;
 }
 
+int Index::AddWithSource(const VectorData & /*vector*/, uint32_t /*doc_id*/,
+                         const core::VectorSource & /*src*/) {
+  LOG_ERROR("AddWithSource is not supported by this index type");
+  return core::IndexError_Unsupported;
+}
+
+int Index::SearchWithSource(
+    const VectorData & /*query*/,
+    const BaseIndexQueryParam::Pointer & /*search_param*/,
+    const core::VectorSource & /*src*/, SearchResult * /*result*/) {
+  LOG_ERROR("SearchWithSource is not supported by this index type");
+  return core::IndexError_Unsupported;
+}
 
 int Index::Search(const VectorData &vector_data,
                   const BaseIndexQueryParam::Pointer &search_param,
