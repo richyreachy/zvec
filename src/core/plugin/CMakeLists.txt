@@ -2,13 +2,13 @@
 ##  Copyright (C) The Software Authors. All rights reserved.
 ##
 ##  \file     CMakeLists.txt
-##  \brief    Build script for the zvec internal plugin-loading glue library.
+##  \brief    Build script for the zvec internal DiskAnn runtime-init glue.
 ##            Lives inside the main zvec_core artifact and provides the
 ##            implicit DiskAnn runtime bring-up used by DiskAnnIndex on first
 ##            use. These APIs are NOT part of the public user surface: users
 ##            simply instantiate ``DiskAnnIndexParam`` / ``DiskAnnIndex`` and
-##            the runtime (``libzvec_diskann_plugin.so``) is loaded behind
-##            the scenes.
+##            libaio is loaded behind the scenes via dlopen(). DiskAnn itself
+##            is compiled directly into the hosting binary.
 ##
 
 include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)

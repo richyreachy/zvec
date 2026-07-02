@@ -41,6 +41,12 @@ struct StorageOptions {
   StorageType type = StorageType::kNone;
   bool create_new = false;
   bool read_only = false;
+
+  // Only meaningful when type == kMMAP.
+  // false: MAP_SHARED. Writes through mmap auto-persist to the file.
+  // true : MAP_PRIVATE on a writable file. Flush/close forces dirty pages
+  //        back to disk via explicit pwrite.
+  bool copy_on_write = false;
 };
 
 struct MergeOptions {
@@ -116,12 +122,17 @@ struct QuantizerParam : public SerializableBase {
   QuantizerType type = QuantizerType::kNone;
   int num_subquantizers = 8;  // M
   int num_bits = 8;           // bits per subquantizer
+  bool enable_rotate =
+      false;  // rotate vectors before quantization to reduce error
 
   // Constructors
   // QuantizerParam() = default;
   QuantizerParam(QuantizerType t = QuantizerType::kNone, int subquantizers = 8,
-                 int bits = 8)
-      : type(t), num_subquantizers(subquantizers), num_bits(bits) {}
+                 int bits = 8, bool rotate = false)
+      : type(t),
+        num_subquantizers(subquantizers),
+        num_bits(bits),
+        enable_rotate(rotate) {}
 
 
  protected:
@@ -251,6 +262,7 @@ class BaseIndexParam : public SerializableBase {
   bool is_huge_page = false;
   DataType data_type = DataType::DT_UNDEFINED;
   bool use_id_map = true;
+  bool use_external_vector = false;
 
   // IndexMeta meta;
   ailego::Params params;

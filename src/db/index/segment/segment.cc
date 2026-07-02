@@ -1992,6 +1992,7 @@ Status SegmentImpl::create_scalar_index(const std::vector<std::string> &columns,
   auto new_segment_meta = std::make_shared<SegmentMeta>(*segment_meta_);
   if (fields.empty()) {
     *segment_meta = new_segment_meta;
+    *scalar_indexer = invert_indexers_;
     return Status::OK();
   }
 
@@ -2166,8 +2167,16 @@ Status SegmentImpl::reload_scalar_index(
   collection_schema_ = std::make_shared<CollectionSchema>(schema);
   segment_meta_ = segment_meta;
 
+  if (invert_indexers_ == scalar_indexer) {
+    return Status::OK();
+  }
+
   if (!scalar_indexer) {
-    // no need to reload inverted indexer
+    if (invert_indexers_) {
+      auto old_dir = invert_indexers_->working_dir();
+      invert_indexers_ = nullptr;
+      FileHelper::RemoveDirectory(old_dir);
+    }
     return Status::OK();
   }
 
@@ -2176,7 +2185,6 @@ Status SegmentImpl::reload_scalar_index(
   if (invert_indexers_) {
     auto old_dir = invert_indexers_->working_dir();
     invert_indexers_ = scalar_indexer;
-
     FileHelper::RemoveDirectory(old_dir);
   } else {
     invert_indexers_ = scalar_indexer;
@@ -4028,7 +4036,8 @@ Status SegmentImpl::load_vector_index_blocks() {
         if (!segment_meta_->vector_indexed(column)) {
           new_field_params.set_index_params(MakeDefaultQuantVectorIndexParams(
               vector_index_params->metric_type(),
-              vector_index_params->quantize_type()));
+              vector_index_params->quantize_type(),
+              vector_index_params->quantizer_param()));
         }
       }
 
@@ -4163,7 +4172,8 @@ Status SegmentImpl::init_memory_components() {
       block_id = allocate_block_id();
       FieldSchema normal_quant_field(*field);
       normal_quant_field.set_index_params(MakeDefaultQuantVectorIndexParams(
-          index_params->metric_type(), index_params->quantize_type()));
+          index_params->metric_type(), index_params->quantize_type(),
+          index_params->quantizer_param()));
       auto quant_vector_indexer = create_vector_indexer(
           field->name(), normal_quant_field, block_id, true);
 

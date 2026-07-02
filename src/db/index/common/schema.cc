@@ -175,25 +175,22 @@ Status FieldSchema::validate() const {
 
       if (index_params_->type() == IndexType::DISKANN) {
         // Probe the DiskAnn runtime eagerly at creation time so unsupported
-        // platforms (non Linux x86_64), missing libaio, or a missing plugin
-        // .so fail fast with a clear message instead of surfacing later during
-        // optimize(). This reuses the same gate DiskAnnIndex applies on first
-        // use (zvec::LoadDiskAnnPlugin, wrapped by EnsureDiskAnnRuntimeReady).
-        // All validate() call sites are creation-time only, so triggering the
-        // plugin load here is safe (and idempotent/cached).
+        // platforms (non Linux x86_64) fail fast with a clear message instead
+        // of surfacing later during optimize(). All validate() call sites
+        // are creation-time only, so triggering the runtime init here is
+        // safe (and idempotent/cached).
+        //
+        // kDiskAnnPluginLibAioMissing is non-fatal: DiskAnn falls back to
+        // synchronous pread() with degraded performance.
         const int rc = ::zvec::LoadDiskAnnPlugin();
         switch (rc) {
           case kDiskAnnPluginOk:
+          case kDiskAnnPluginLibAioMissing:
             break;
           case kDiskAnnPluginUnsupportedPlatform:
             return Status::NotSupported(
                 "DiskAnn is not supported on this platform (Linux x86_64 "
                 "only)");
-          case kDiskAnnPluginLibAioMissing:
-            return Status::NotSupported(
-                "DiskAnn requires libaio at runtime, but it was not found on "
-                "this host. Install it (e.g. 'apt-get install libaio1', or "
-                "'libaio1t64' on Ubuntu 24.04+) and retry.");
           default:
             return Status::NotSupported(
                 "DiskAnn runtime could not be initialized on this host");

@@ -15,24 +15,50 @@
 
 #define MAX_IO_DEPTH 128
 
+#include <fcntl.h>
+
+#if (defined(__linux) || defined(__linux__))
+#include <unistd.h>
+#include "iouring_loader.h"  // raw-syscall io_uring wrapper
+#include "libaio_loader.h"   // dlopen-based libaio wrapper
+#elif defined(_WIN32) || defined(_WIN64)
+#include <Windows.h>
+#endif
+
 #include <atomic>
 #include <vector>
 #include <zvec/core/framework/index_context.h>
 #include "diskann_util.h"
 
-#if (defined(__linux) || defined(__linux__))
-#include <fcntl.h>
-#include <libaio.h>
-#include <unistd.h>
-#elif defined(_WIN32) || defined(_WIN64)
-#include <Windows.h>
-#endif
-
 namespace zvec {
 namespace core {
 
 #if (defined(__linux) || defined(__linux__))
-typedef io_context_t IOContext;
+
+// IoBackend holds the per-thread I/O context for whichever async backend
+// was successfully initialised at setup time.  The priority is:
+//   1. io_uring  (raw kernel syscalls — zero dependency)
+//   2. libaio    (dlopen — soft dependency)
+//   3. pread     (always available — synchronous fallback)
+//
+// IOContext is a *pointer* to IoBackend, which preserves the existing
+// sentinel conventions: nullptr means uninitialised and (IOContext)-1 is
+// the invalid-handle sentinel returned by get_ctx() for unregistered
+// threads.
+struct IoBackend {
+  enum Backend : uint8_t {
+    NONE = 0,      // synchronous pread
+    IO_URING = 1,  // io_uring via raw syscalls
+    LIBAIO = 2,    // libaio via dlopen
+  };
+
+  Backend backend{NONE};
+  IoUringRing ring{};
+  io_context_t aio_ctx{nullptr};
+};
+
+typedef IoBackend *IOContext;
+
 #elif defined(_WIN32) || defined(_WIN64)
 struct IOContext {
   std::vector<OVERLAPPED> reqs;

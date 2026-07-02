@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.26)
 cmake_policy(SET CMP0077 NEW)
 project(zvec)
 set(CC_CXX_STANDARD 17)
@@ -74,25 +74,16 @@ endif()
 include_directories(${PROJECT_ROOT_DIR}/src/include)
 include_directories(${PROJECT_ROOT_DIR}/src)
 
-option(BUILD_ZVEC_CORE_ONLY "Build only zvec-core and its all-in-one shared library" OFF)
-message(STATUS "BUILD_ZVEC_CORE_ONLY:${BUILD_ZVEC_CORE_ONLY}")
-
 option(BUILD_ZVEC_SHARED "Build all-in-one C++ shared library libzvec" ON)
+option(BUILD_ZVEC_AILEGO_SHARED "Build all-in-one zvec-ailego shared library libzvec_ailego" ON)
 option(BUILD_ZVEC_CORE_SHARED "Build all-in-one zvec-core shared library libzvec_core" ON)
 
 option(BUILD_PYTHON_BINDINGS "Build Python bindings using pybind11" OFF)
 option(BUILD_C_BINDINGS "Build C bindings" ON)
 option(BUILD_TOOLS "Build tools" ON)
 
-if(BUILD_ZVEC_CORE_ONLY)
-    set(BUILD_ZVEC_SHARED OFF CACHE BOOL "Build all-in-one C++ shared library libzvec" FORCE)
-    set(BUILD_ZVEC_CORE_SHARED ON CACHE BOOL "Build all-in-one zvec-core shared library libzvec_core" FORCE)
-    set(BUILD_PYTHON_BINDINGS OFF CACHE BOOL "Build Python bindings using pybind11" FORCE)
-    set(BUILD_C_BINDINGS OFF CACHE BOOL "Build C bindings" FORCE)
-    set(BUILD_TOOLS OFF CACHE BOOL "Build tools" FORCE)
-endif()
-
 message(STATUS "BUILD_ZVEC_SHARED:${BUILD_ZVEC_SHARED}")
+message(STATUS "BUILD_ZVEC_AILEGO_SHARED:${BUILD_ZVEC_AILEGO_SHARED}")
 message(STATUS "BUILD_ZVEC_CORE_SHARED:${BUILD_ZVEC_CORE_SHARED}")
 message(STATUS "BUILD_PYTHON_BINDINGS:${BUILD_PYTHON_BINDINGS}")
 message(STATUS "BUILD_C_BINDINGS:${BUILD_C_BINDINGS}")
@@ -131,7 +122,7 @@ else()
 endif()
 message(STATUS "RABITQ_ARCH_FLAG: ${RABITQ_ARCH_FLAG}")
 
-# DiskAnn support (Linux x86_64 with libaio, or Windows x86_64/x86 with IOCP)
+# DiskAnn support (Linux x86_64 with libaio/io_uring, or Windows x86_64 with IOCP)
 if((CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386" AND NOT ANDROID AND NOT IOS)
    OR (WIN32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64|i686|i386"))
   set(DISKANN_SUPPORTED ON)
@@ -152,17 +143,9 @@ message(STATUS "USE_OSS_MIRROR:${USE_OSS_MIRROR}")
 cc_directory(thirdparty)
 cc_directories(src)
 
-if(BUILD_ZVEC_CORE_ONLY)
-    # Keep the include context from tests/CMakeLists.txt for core tests that include tests/test_util.h.
-    include_directories(${PROJECT_ROOT_DIR})
-    cc_directory(tests/core)
-else()
-    cc_directories(tests)
-endif()
+cc_directories(tests)
 
-if(NOT BUILD_ZVEC_CORE_ONLY)
-    add_custom_target(clang_tidy_deps DEPENDS zvec_proto ARROW.BUILD glog gflags Lz4.BUILD)
-endif()
+add_custom_target(clang_tidy_deps DEPENDS zvec_proto ARROW.BUILD glog gflags Lz4.BUILD)
 
 if(BUILD_TOOLS)
     cc_directories(tools)
@@ -189,20 +172,18 @@ if(BUILD_PYTHON_BINDINGS)
     endif()
 
     message(STATUS "Zvec install path: ${ZVEC_PY_INSTALL_DIR}")
-    install(TARGETS _zvec LIBRARY DESTINATION ${ZVEC_PY_INSTALL_DIR})
+    # COMPONENT python: only these runtime artifacts are pulled into the wheel
+    # (see install.components in pyproject.toml). The cc_library(PACKED) SDK
+    # install rules use the default component and are excluded from the wheel.
+    # Install the extension inside the zvec package (zvec/_zvec*.so) rather than
+    # at the site-packages root, so it does not pollute the top-level namespace.
+    # The Python code imports it as `zvec._zvec` accordingly.
+    install(TARGETS _zvec LIBRARY DESTINATION ${ZVEC_PY_INSTALL_DIR}/zvec
+            COMPONENT python)
 
-    # DiskAnn ships as a runtime-loaded shared module
-    # (libzvec_diskann_plugin.so on Linux, zvec_diskann_plugin.dll on
-    # Windows) that is brought online implicitly the first time a DiskAnn
-    # index is created — users never call any load function. The Python
-    # extension resolves the module next to _zvec.so/.pyd (see the $ORIGIN
-    # rpath in src/binding/python/CMakeLists.txt); the module must therefore
-    # be installed alongside _zvec in the wheel. The target exists only on
-    # platforms where DiskAnn is buildable (Linux x86_64 with libaio or
-    # Windows x86_64 with IOCP).
-    if(TARGET core_knn_diskann)
-        install(TARGETS core_knn_diskann LIBRARY DESTINATION ${ZVEC_PY_INSTALL_DIR})
-    endif()
+    # DiskAnn is statically linked into _zvec.so via --whole-archive
+    # (see src/binding/python/CMakeLists.txt -> core_knn_diskann_static),
+    # so no separate runtime .so needs to be installed in the wheel.
     # Bundle cppjieba's dictionary files so the `jieba` FTS tokenizer works
     # out of the box. python/zvec/__init__.py resolves this directory via
     # importlib.resources and registers it with set_default_jieba_dict_dir().
@@ -211,5 +192,6 @@ if(BUILD_PYTHON_BINDINGS)
     install(FILES
         "${ZVEC_JIEBA_DICT_SRC}/jieba.dict.utf8"
         "${ZVEC_JIEBA_DICT_SRC}/hmm_model.utf8"
-        DESTINATION ${ZVEC_PY_INSTALL_DIR}/zvec/data/jieba_dict)
+        DESTINATION ${ZVEC_PY_INSTALL_DIR}/zvec/data/jieba_dict
+        COMPONENT python)
 endif()

@@ -26,18 +26,20 @@ namespace zvec {
 
 namespace {
 
-// Expose DiskAnn plugin management to Python. The DiskAnn runtime normally
-// auto-loads on first use, but tests (and diagnostic tooling) need a way to
-// force a load up-front and get actionable errors when libaio is missing or
-// the plugin shared object cannot be located.
+// Expose DiskAnn runtime management to Python. DiskAnn is compiled directly
+// into _zvec.so, so "loading" just means eagerly dlopen()-ing libaio and
+// caching the result. Tests (and diagnostic tooling) use these entry points
+// to force the load up-front and get actionable warnings when libaio is
+// missing.
 void InitializeDiskAnnPluginBindings(pybind11::module_ &m) {
   m.def(
       "load_diskann_plugin",
       [](const std::string &path) { return ::zvec::LoadDiskAnnPlugin(path); },
       pybind11::arg("path") = std::string(),
-      "Load the DiskAnn runtime plugin. Returns 0 on success or a negative "
-      "DiskAnnPluginStatus code on failure (unsupported platform, libaio "
-      "missing, or dlopen failure).");
+      "Load libaio for the DiskAnn runtime. Returns DISKANN_PLUGIN_OK (0) "
+      "on success, or DISKANN_PLUGIN_LIBAIO_MISSING if libaio is not "
+      "available (DiskAnn falls back to synchronous pread in that case). "
+      "Returns a negative code for unsupported platforms.");
   m.def("is_diskann_plugin_loaded", &::zvec::IsDiskAnnPluginLoaded,
         "Return True if the DiskAnn runtime plugin is currently loaded.");
   m.def("is_libaio_available", &::zvec::IsLibAioAvailable,
