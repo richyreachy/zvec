@@ -36,6 +36,12 @@ cc_library(
 )
 
 if(MSVC)
+    # NOMINMAX must reach the _objects target, since _add_library() compiles
+    # sources there; the SHARED/STATIC targets only bundle object files and a
+    # PRIVATE define on them never reaches the compiler. Without this, the
+    # windows.h min/max macros collide with std::min/std::max and
+    # numeric_limits<T>::max()/min() (error C4003).
+    target_compile_definitions(core_knn_diskann_objects PRIVATE NOMINMAX)
     target_compile_definitions(core_knn_diskann PRIVATE NOMINMAX)
 endif()
 
