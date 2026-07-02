@@ -104,7 +104,8 @@ class Fp16Quantizer : public Quantizer {
  private:
   //! Byte length of a quantized vector (fp16 data).
   size_t quantized_length() const {
-    return static_cast<size_t>(original_dim_) * sizeof(uint16_t);
+    return static_cast<size_t>(original_dim_) * sizeof(uint16_t) +
+           extra_meta_size_;
   }
 
   //! Quantize a single fp32 vector into a caller-provided buffer of

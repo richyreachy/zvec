@@ -161,6 +161,27 @@ void Int4Quantizer::quantize_one(const void *input, void *output) const {
     quantizer_.encode(vec, dim, ovec);
   } else {
     const float *quantize_input = vec;
+    float norm = 1.0f;
+    std::vector<float> normalized;
+
+    if (cosine_) {
+      // L2-normalize the input so the cosine distance function (which returns
+      // -<a,b> for unit vectors) produces -cos_sim.
+      float sq = 0.0f;
+      for (size_t i = 0; i < dim; ++i) {
+        sq += quantize_input[i] * quantize_input[i];
+      }
+      norm = std::sqrt(sq);
+      normalized.resize(dim);
+      if (norm > 0.0f) {
+        for (size_t i = 0; i < dim; ++i) {
+          normalized[i] = quantize_input[i] / norm;
+        }
+      } else {
+        std::memset(normalized.data(), 0, dim * sizeof(float));
+      }
+      quantize_input = normalized.data();
+    }
 
     float abs_max = 0.0f;
     for (size_t i = 0; i < dim; ++i) {
@@ -186,14 +207,41 @@ void Int4Quantizer::quantize_one(const void *input, void *output) const {
       int_sum += lo + hi;
     }
 
-    // Write extras after packed int4 data
     size_t packed_bytes = dim / 2;
+    float qa = abs_max / 7.0f;  // dequant scale
+    float qb = 0.0f;            // dequant bias
+
+    if (cosine_) {
+      // Adjust qa/qb so the dequantized vector has unit norm.
+      float dequant_norm_sq = 0.0f;
+      for (size_t i = 0; i < packed_bytes; ++i) {
+        int8_t lo = (static_cast<int8_t>(ovec[i] << 4) >> 4);
+        int8_t hi = (static_cast<int8_t>(ovec[i] & 0xf0) >> 4);
+        float val_lo = static_cast<float>(lo) * qa + qb;
+        float val_hi = static_cast<float>(hi) * qa + qb;
+        dequant_norm_sq += val_lo * val_lo + val_hi * val_hi;
+      }
+      float dequant_norm = std::sqrt(dequant_norm_sq);
+      if (dequant_norm > 0.0f) {
+        qa /= dequant_norm;
+        qb /= dequant_norm;
+        norm *= dequant_norm;
+      }
+    }
+
+    // Write extras after packed int4 data
     float *extras = reinterpret_cast<float *>(ovec + packed_bytes);
-    extras[0] = abs_max / 7.0f;  // qa: dequant scale
-    extras[1] = 0.0f;            // qb: dequant bias
-    extras[2] = sum;             // qs: sum of quantized values
-    extras[3] = squared_sum;     // squared sum
-    reinterpret_cast<int *>(extras)[4] = int_sum;  // int_sum placeholder
+    extras[0] = qa;           // dequant scale
+    extras[1] = qb;           // dequant bias
+    extras[2] = sum;          // sum of quantized values
+    extras[3] = squared_sum;  // squared sum
+    reinterpret_cast<int *>(extras)[4] = int_sum;
+
+    if (cosine_) {
+      std::memcpy(
+          reinterpret_cast<char *>(ovec + packed_bytes) + EXTRA_META_SIZE_INT4,
+          &norm, sizeof(float));
+    }
   }
 }
 
@@ -203,7 +251,8 @@ int Int4Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
     return IndexError_InvalidArgument;
   }
 
-  size_t dim = qmeta.dimension();
+  // Use original_dim_ to avoid reading the inflated dimension (data + extras)
+  size_t dim = original_dim_;
   const uint8_t *ivec = reinterpret_cast<const uint8_t *>(in);
   out->resize(dim * sizeof(float));
   float *ovec = reinterpret_cast<float *>(&(*out)[0]);
@@ -211,8 +260,27 @@ int Int4Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
   if (!inner_product_) {
     quantizer_.decode(ivec, dim, ovec);
   } else {
-    for (size_t i = 0; i < dim; ++i) {
-      ovec[i] = static_cast<float>(ivec[i]);
+    // Read dequant metadata (qa, qb) stored after the packed int4 data
+    size_t packed_bytes = dim / 2;
+    const float *extras = reinterpret_cast<const float *>(ivec + packed_bytes);
+    float qa = extras[0];
+    float qb = extras[1];
+    for (size_t i = 0; i < packed_bytes; ++i) {
+      int8_t lo = (static_cast<int8_t>(ivec[i] << 4) >> 4);
+      int8_t hi = (static_cast<int8_t>(ivec[i] & 0xf0) >> 4);
+      ovec[i * 2] = static_cast<float>(lo) * qa + qb;
+      ovec[i * 2 + 1] = static_cast<float>(hi) * qa + qb;
+    }
+    if (cosine_) {
+      // Denormalize using the stored original norm
+      float norm = 0.0f;
+      std::memcpy(&norm,
+                  reinterpret_cast<const char *>(in) + packed_bytes +
+                      EXTRA_META_SIZE_INT4,
+                  sizeof(float));
+      for (size_t i = 0; i < dim; ++i) {
+        ovec[i] *= norm;
+      }
     }
   }
 

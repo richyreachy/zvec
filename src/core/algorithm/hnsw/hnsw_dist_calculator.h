@@ -270,6 +270,16 @@ class HnswDistCalculator {
       dist_impl_.batch(vecs, num, distances);
       return;
     }
+    // When the turbo quantizer provides a scalar DistanceImpl but no batch
+    // function (e.g. FP16 cosine), use the scalar path instead of falling
+    // back to the metric's batch_distance_ which uses the inflated storage
+    // dim_ and would process per-vector extras (norm bytes) as data.
+    if (dist_impl_.valid()) {
+      for (size_t i = 0; i < num; ++i) {
+        distances[i] = dist_impl_(vecs[i]);
+      }
+      return;
+    }
     if (batch_distance_ && query_ != nullptr) {
       batch_distance_(vecs, query_, num, dim_, distances);
       return;
@@ -302,6 +312,11 @@ class HnswDistCalculator {
       const void *feats[1] = {feat};
       dist_impl_.batch(feats, 1, &score);
       return score;
+    }
+    // Use the turbo quantizer's scalar DistanceImpl when available (correct
+    // raw dim) instead of the metric's batch_distance_ (inflated storage dim).
+    if (dist_impl_.valid()) {
+      return dist_impl_(feat);
     }
     if (batch_distance_ && query_ != nullptr) {
       dist_t score = 0;

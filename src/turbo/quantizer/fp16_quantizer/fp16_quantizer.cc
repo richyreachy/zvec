@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstring>
 #include <vector>
+#include <ailego/math/normalizer.h>
 #include <zvec/core/framework/index_error.h>
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_logger.h>
@@ -59,12 +60,32 @@ int Fp16Quantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
   if (qmeta.unit_size() != sizeof(float)) {
     return IndexError_Unsupported;
   }
-  out->resize(qmeta.dimension() * sizeof(ailego::Float16));
-  ailego::FloatHelper::ToFP16(reinterpret_cast<const float *>(query),
-                              qmeta.dimension(),
-                              reinterpret_cast<uint16_t *>(&(*out)[0]));
+
+  size_t raw_dim = (original_dim_ != 0 && qmeta.dimension() >= original_dim_)
+                       ? original_dim_
+                       : qmeta.dimension();
+  size_t byte_size = raw_dim * sizeof(ailego::Float16) + extra_meta_size_;
+  out->resize(byte_size, 0);
+
+  if (meta_.metric_name() == "Cosine") {
+    // L2-normalize the vector and store the norm at the end so the original
+    // vector can be reconstructed during dequantize.
+    std::vector<float> tmp(raw_dim);
+    std::memcpy(tmp.data(), query, raw_dim * sizeof(float));
+    float norm = 0.0f;
+    ailego::Normalizer<float>::L2(tmp.data(), raw_dim, &norm);
+    ailego::FloatHelper::ToFP16(tmp.data(), raw_dim,
+                                reinterpret_cast<uint16_t *>(&(*out)[0]));
+    std::memcpy(reinterpret_cast<uint8_t *>(&(*out)[0]) +
+                    raw_dim * sizeof(ailego::Float16),
+                &norm, extra_meta_size_);
+  } else {
+    ailego::FloatHelper::ToFP16(reinterpret_cast<const float *>(query), raw_dim,
+                                reinterpret_cast<uint16_t *>(&(*out)[0]));
+  }
+
   *ometa = qmeta;
-  ometa->set_meta(IndexMeta::DataType::DT_FP16, qmeta.dimension(),
+  ometa->set_meta(IndexMeta::DataType::DT_FP16, raw_dim,
                   static_cast<uint32_t>(type_), extra_meta_size_);
 
   return 0;
@@ -73,7 +94,7 @@ int Fp16Quantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
 int Fp16Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
                               std::string *out) const {
   if (qmeta.data_type() == IndexMeta::DataType::DT_FP16) {
-    size_t dimension = qmeta.dimension();
+    size_t dimension = original_dim_;
 
     out->resize(dimension * sizeof(float));
     float *out_buf = reinterpret_cast<float *>(out->data());
@@ -81,6 +102,18 @@ int Fp16Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
     const uint16_t *in_buf = reinterpret_cast<const uint16_t *>(in);
     for (size_t i = 0; i < dimension; ++i) {
       out_buf[i] = ailego::FloatHelper::ToFP32(in_buf[i]);
+    }
+
+    if (meta_.metric_name() == "Cosine") {
+      // Denormalize using the stored original norm
+      float norm = 0.0f;
+      std::memcpy(&norm,
+                  reinterpret_cast<const uint8_t *>(in) +
+                      dimension * sizeof(ailego::Float16),
+                  extra_meta_size_);
+      for (size_t i = 0; i < dimension; ++i) {
+        out_buf[i] *= norm;
+      }
     }
   }
 
@@ -106,9 +139,22 @@ DistanceImpl Fp16Quantizer::distance(const void *query,
 }
 
 void Fp16Quantizer::quantize_one(const void *input, void *output) const {
-  ailego::FloatHelper::ToFP16(reinterpret_cast<const float *>(input),
-                              original_dim_,
-                              reinterpret_cast<uint16_t *>(output));
+  if (meta_.metric_name() == "Cosine") {
+    // L2-normalize and store the norm at the end.
+    std::vector<float> tmp(original_dim_);
+    std::memcpy(tmp.data(), input, original_dim_ * sizeof(float));
+    float norm = 0.0f;
+    ailego::Normalizer<float>::L2(tmp.data(), original_dim_, &norm);
+    ailego::FloatHelper::ToFP16(tmp.data(), original_dim_,
+                                reinterpret_cast<uint16_t *>(output));
+    std::memcpy(reinterpret_cast<uint8_t *>(output) +
+                    original_dim_ * sizeof(ailego::Float16),
+                &norm, extra_meta_size_);
+  } else {
+    ailego::FloatHelper::ToFP16(reinterpret_cast<const float *>(input),
+                                original_dim_,
+                                reinterpret_cast<uint16_t *>(output));
+  }
 }
 
 float Fp16Quantizer::calc_distance_dp_query(const void *dp,

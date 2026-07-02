@@ -31,12 +31,18 @@ int Fp32Quantizer::init(const IndexMeta &meta,
 
   meta_.set_meta(IndexMeta::DataType::DT_FP32, meta.dimension());
 
-
-  original_dim_ = meta.dimension();
   auto metric_name = meta.metric_name();
   if (metric_name == "Cosine") {
     extra_meta_size_ = EXTRA_META_SIZE_COSINE;
     meta_.set_extra_meta_size(extra_meta_size_);
+  }
+
+  if (meta.extra_meta_size() > 0) {
+    original_dim_ =
+        meta.dimension() -
+        meta.extra_meta_size() / IndexMeta::UnitSizeof(meta.data_type());
+  } else {
+    original_dim_ = meta.dimension();
   }
 
   // Cache the distance dispatch for the new Quantizer interface.

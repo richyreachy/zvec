@@ -247,6 +247,27 @@ void Int8Quantizer::quantize_one(const void *input, void *output) const {
     quantizer_.encode(vec, dim, ovec);
   } else {
     const float *quantize_input = vec;
+    float norm = 1.0f;
+    std::vector<float> normalized;
+
+    if (cosine_) {
+      // L2-normalize the input so the cosine distance function (which returns
+      // -<a,b> for unit vectors) produces -cos_sim.
+      float sq = 0.0f;
+      for (size_t i = 0; i < dim; ++i) {
+        sq += quantize_input[i] * quantize_input[i];
+      }
+      norm = std::sqrt(sq);
+      normalized.resize(dim);
+      if (norm > 0.0f) {
+        for (size_t i = 0; i < dim; ++i) {
+          normalized[i] = quantize_input[i] / norm;
+        }
+      } else {
+        std::memset(normalized.data(), 0, dim * sizeof(float));
+      }
+      quantize_input = normalized.data();
+    }
 
     float abs_max = 0.0f;
     for (size_t i = 0; i < dim; ++i) {
@@ -266,13 +287,38 @@ void Int8Quantizer::quantize_one(const void *input, void *output) const {
       int8_sum += v;
     }
 
+    float qa = abs_max / 127.0f;  // dequant scale
+    float qb = 0.0f;              // dequant bias
+
+    if (cosine_) {
+      // Adjust qa/qb so the dequantized vector has unit norm, eliminating
+      // quantization rounding error from the cosine computation.
+      float dequant_norm_sq = 0.0f;
+      for (size_t i = 0; i < dim; ++i) {
+        float val = static_cast<float>(ovec[i]) * qa + qb;
+        dequant_norm_sq += val * val;
+      }
+      float dequant_norm = std::sqrt(dequant_norm_sq);
+      if (dequant_norm > 0.0f) {
+        qa /= dequant_norm;
+        qb /= dequant_norm;
+        norm *= dequant_norm;
+      }
+    }
+
     // Write extras after int8 data
     float *extras = reinterpret_cast<float *>(ovec + dim);
-    extras[0] = abs_max / 127.0f;  // qa: dequant scale
-    extras[1] = 0.0f;              // qb: dequant bias
-    extras[2] = sum;               // qs: sum of quantized values
-    extras[3] = squared_sum;       // squared sum
+    extras[0] = qa;           // dequant scale
+    extras[1] = qb;           // dequant bias
+    extras[2] = sum;          // sum of quantized values
+    extras[3] = squared_sum;  // squared sum
     reinterpret_cast<int32_t *>(extras + 4)[0] = int8_sum;
+
+    if (cosine_) {
+      // Store the original norm for dequantization
+      std::memcpy(reinterpret_cast<char *>(ovec + dim) + EXTRA_META_SIZE_INT8,
+                  &norm, sizeof(float));
+    }
   }
 }
 
@@ -297,8 +343,23 @@ int Int8Quantizer::dequantize(const void *in, const IndexQueryMeta & /*qmeta*/,
   } else if (!inner_product_) {
     quantizer_.decode(ivec, dim, ovec);
   } else {
+    // Read dequant metadata (qa, qb) stored after the int8 data
+    const float *extras = reinterpret_cast<const float *>(ivec + dim);
+    float qa = extras[0];
+    float qb = extras[1];
     for (size_t i = 0; i < dim; ++i) {
-      ovec[i] = static_cast<float>(ivec[i]);
+      ovec[i] = static_cast<float>(ivec[i]) * qa + qb;
+    }
+    if (cosine_) {
+      // Denormalize using the stored original norm
+      float norm = 0.0f;
+      std::memcpy(
+          &norm,
+          reinterpret_cast<const char *>(in) + dim + EXTRA_META_SIZE_INT8,
+          sizeof(float));
+      for (size_t i = 0; i < dim; ++i) {
+        ovec[i] *= norm;
+      }
     }
   }
 
