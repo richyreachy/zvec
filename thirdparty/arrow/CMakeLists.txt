@@ -42,45 +42,14 @@ endif()
 
 set(CONFIGURE_ENV_LIST "")
 if(USE_OSS_MIRROR)
-        set(_OSS_BASE "https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty")
-
-        # Prefer local tarballs (manually placed in repo root) over network
-        # downloads to avoid flaky mirrors, HTTP/2 PROTOCOL_ERROR, or hash
-        # mismatches.  Falls back to the OSS mirror when the local file is
-        # absent.  Verified SHA-256 hashes match Arrow's expectations:
-        #   boost-1.88.0-cmake.tar.gz  dcea50f4...
-        #   thrift-0.22.0.tar.gz       794a0e45...
-        #   13.0.0.tar.gz (xsimd)      8bdbbad0...
-        set(_LOCAL_BOOST "${PROJECT_ROOT_DIR}/boost-1.88.0-cmake.tar.gz")
-        if(EXISTS "${_LOCAL_BOOST}")
-                list(APPEND CONFIGURE_ENV_LIST "ARROW_BOOST_URL=file://${_LOCAL_BOOST}")
-                message(STATUS "Arrow: using local Boost tarball")
-        else()
-                list(APPEND CONFIGURE_ENV_LIST "ARROW_BOOST_URL=${_OSS_BASE}/boost-1.88.0-cmake.tar.gz")
-        endif()
-
-        set(_LOCAL_THRIFT "${PROJECT_ROOT_DIR}/thrift-0.22.0.tar.gz")
-        if(EXISTS "${_LOCAL_THRIFT}")
-                list(APPEND CONFIGURE_ENV_LIST "ARROW_THRIFT_URL=file://${_LOCAL_THRIFT}")
-                message(STATUS "Arrow: using local Thrift tarball")
-        else()
-                list(APPEND CONFIGURE_ENV_LIST "ARROW_THRIFT_URL=${_OSS_BASE}/thrift-0.22.0.tar.gz")
-        endif()
-
-        set(_LOCAL_XSIMD "${PROJECT_ROOT_DIR}/13.0.0.tar.gz")
-        if(EXISTS "${_LOCAL_XSIMD}")
-                list(APPEND CONFIGURE_ENV_LIST "ARROW_XSIMD_URL=file://${_LOCAL_XSIMD}")
-                message(STATUS "Arrow: using local xsimd tarball")
-        else()
-                list(APPEND CONFIGURE_ENV_LIST "ARROW_XSIMD_URL=${_OSS_BASE}/xsimd-13.0.0.tar.gz")
-        endif()
-
-        # Dependencies without local copies — always use OSS mirror
         list(APPEND CONFIGURE_ENV_LIST
-                "ARROW_RAPIDJSON_URL=${_OSS_BASE}/rapidjson-232389d4f1012dddec4ef84861face2d2ba85709.tar.gz"
-                "ARROW_RE2_URL=${_OSS_BASE}/re2-2022-06-01.tar.gz"
-                "ARROW_UTF8PROC_URL=${_OSS_BASE}/utf8proc-2.10.0.tar.gz"
-                "ARROW_ZLIB_URL=${_OSS_BASE}/zlib-1.3.1.tar.gz"
+                "ARROW_BOOST_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/boost-1.88.0-cmake.tar.gz"
+                "ARROW_RAPIDJSON_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/rapidjson-232389d4f1012dddec4ef84861face2d2ba85709.tar.gz"
+                "ARROW_RE2_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/re2-2022-06-01.tar.gz"
+                "ARROW_THRIFT_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/thrift-0.22.0.tar.gz"
+                "ARROW_UTF8PROC_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/utf8proc-2.10.0.tar.gz"
+                "ARROW_XSIMD_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/xsimd-13.0.0.tar.gz"
+                "ARROW_ZLIB_URL=https://zvec-bj.oss-cn-beijing.aliyuncs.com/thirdparty/zlib-1.3.1.tar.gz"
         )
         message(STATUS "Using OSS mirror for third-party downloads")
 endif()
