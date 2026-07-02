@@ -116,7 +116,6 @@ class Fp32Quantizer : public Quantizer {
 
   IndexMeta meta_{};
   uint32_t original_dim_{0};
-  IndexMeta::DataType data_type_{};
 
   //! Cached distance dispatch (bound in init()).
   DistanceFunc dp_query_func_{};
