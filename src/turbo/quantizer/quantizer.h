@@ -139,7 +139,7 @@ class Quantizer {
 
   //! Serialize quantizer parameters
   virtual int serialize(std::string * /*out*/) const {
-    return 0
+    return 0;
   }
 
   //! Deserialize quantizer parameters
