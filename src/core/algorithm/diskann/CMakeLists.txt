@@ -34,3 +34,37 @@ cc_library(
     LDFLAGS "${CORE_KNN_DISKANN_LDFLAGS}"
     VERSION "${PROXIMA_ZVEC_VERSION}"
 )
+
+if(MSVC)
+    target_compile_definitions(core_knn_diskann PRIVATE NOMINMAX)
+endif()
+
+# Expose internal zvec lib include dirs. On Linux, symbol resolution happens
+# at dlopen time via RTLD_GLOBAL so we do NOT add link dependencies. On
+# Windows, we must link against the import libraries because Windows has no
+# equivalent of RTLD_GLOBAL.
+foreach(_dep zvec_ailego core_framework core_knn_cluster)
+    if(TARGET ${_dep})
+        target_include_directories(core_knn_diskann PRIVATE
+            $<TARGET_PROPERTY:${_dep},INTERFACE_INCLUDE_DIRECTORIES>)
+        add_dependencies(core_knn_diskann ${_dep})
+        if(MSVC)
+            target_link_libraries(core_knn_diskann ${_dep})
+        endif()
+    endif()
+endforeach()
+
+# On Linux, allow the plugin to have unresolved symbols that will be satisfied
+# at dlopen(RTLD_NOW | RTLD_GLOBAL) time by the hosting binary.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_options(core_knn_diskann PRIVATE
+        "LINKER:--unresolved-symbols=ignore-all")
+endif()
+
+# Rename the artifact so it is clearly identified as an optional plugin that
+# users load at runtime via zvec::LoadDiskAnnPlugin().
+# On Linux: libzvec_diskann_plugin.so
+# On Windows: zvec_diskann_plugin.dll
+set_target_properties(core_knn_diskann PROPERTIES
+    OUTPUT_NAME zvec_diskann_plugin
+)

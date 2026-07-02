@@ -22,6 +22,9 @@
 #include "iouring_loader.h"  // raw-syscall io_uring wrapper
 #include "libaio_loader.h"   // dlopen-based libaio wrapper
 #elif defined(_WIN32) || defined(_WIN64)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <Windows.h>
 #endif
 
