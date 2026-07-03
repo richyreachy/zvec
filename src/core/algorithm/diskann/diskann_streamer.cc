@@ -332,9 +332,8 @@ IndexSearcher::Context::Pointer DiskAnnStreamer::create_context() const {
     return Context::Pointer();
   }
 
-  DiskAnnContext *ctx =
-      new (std::nothrow) DiskAnnContext(search_meta_, measure_,
-                                        search_ctx_entity);
+  DiskAnnContext *ctx = new (std::nothrow)
+      DiskAnnContext(search_meta_, measure_, search_ctx_entity);
   if (ctx == nullptr) {
     LOG_ERROR("Failed to allocate DiskAnn Context");
     return Context::Pointer();
