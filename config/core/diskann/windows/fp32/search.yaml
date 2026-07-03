@@ -1,0 +1,28 @@
+SearcherCommon:
+    SearcherClass: DiskAnnSearcher
+    IndexPath: .\cohere_1m_fp32.index
+    TopK: 1,10,50
+    QueryFile: C:\bench\cohere\data\1m\cohere_test_vector_1m.1000.new.txt
+    QueryType: float
+    QueryFirstSep: ";"
+    QuerySecondSep: " "
+    GroundTruthFile: C:\bench\cohere\data\1m\neighbors.txt
+
+    RecallLogDir: output.gt
+    RecallThreadCount: 16
+    RecallScorePrecision: 1e-4
+
+    BenchThreadCount: 16
+    BenchSecs: 30
+    BenchIterCount: 10000000
+
+    CompareById: true
+    ContainerType: FileReadStorage
+    LogLevel: Info
+
+SearcherParams:
+    zvec.diskann.searcher.cache_node_num: 10000
+    zvec.diskann.searcher.list_size: 100
+
+ContainerParams:
+    #zvec.file.container.enable_direct_io: true
