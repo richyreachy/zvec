@@ -1,0 +1,45 @@
+SearcherCommon:
+    SearcherClass: DiskAnnSearcher
+    IndexPath: ./cohere_1m_fp32.index
+    TopK: 1,10,50 #指定返回topk，recall时多topk用逗号隔开，bench时会使用最大值
+    #TopK: 1,10 #指定返回topk，recall时多topk用逗号隔开，bench时会使用最大值
+
+    QueryFile: /home/xingrui/bench/dataset/cohere/1m/cohere_test_vector_1000.new.txt
+
+    QueryType: float #指定query向量类型，需要与索引类型一致
+    QueryFirstSep: ";" #指定query第一分隔符，用于分割key和特征
+    QuerySecondSep: " " #指定query第二分隔符，用于分割特征各维度
+    GroundTruthFile: /home/xingrui/bench/dataset/cohere/1m/neighbors.txt
+
+    #RecallLogDir: output.no_gt #指定recall详情数据数据路径，不指定时默认不保存recall详情数据
+    RecallLogDir: output.gt #指定recall详情数据数据路径，不指定时默认不保存recall详情数据
+    #RecallThreadCount: 1
+    RecallThreadCount: 16
+    #RecallThreadCount: 64
+    #RecallScorePrecision: 1e-6 #recall precesion
+    RecallScorePrecision: 1e-4 #recall precesion
+
+    BenchThreadCount: 1  #指定bench并发数（召回并发直接使用cpu核数）
+    #BenchThreadCount: 2  #指定bench并发数（召回并发直接使用cpu核数）
+    #BenchThreadCount: 4  #指定bench并发数（召回并发直接使用cpu核数）
+    #BenchThreadCount: 8  #指定bench并发数（召回并发直接使用cpu核数）
+    #BenchThreadCount: 16  #指定bench并发数（召回并发直接使用cpu核数）
+
+    BenchSecs: 30
+    BenchIterCount: 10000000 #指定bench执行条目数，当query量较少时会对query重复使用
+
+    CompareById: true
+
+    ContainerType: FileReadStorage
+    LogLevel: Info
+
+
+SearcherParams: #各Searcher方法的params参数，类型同上
+    zvec.diskann.searcher.cache_node_num: 10000
+      #zvec.diskann.searcher.list_size: 100
+      #zvec.diskann.searcher.list_size: 300
+    zvec.diskann.searcher.list_size: 500
+    #zvec.diskann.searcher.list_size: 1000
+
+ContainerParams:
+    #proxima.file.container.enable_direct_io: true
