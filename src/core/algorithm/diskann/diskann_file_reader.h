@@ -65,6 +65,7 @@ typedef IoBackend *IOContext;
 #elif defined(_WIN32) || defined(_WIN64)
 struct IOContext {
   std::vector<OVERLAPPED> reqs;
+  std::vector<HANDLE> events;
 };
 #else
 typedef uint32_t IOContext;

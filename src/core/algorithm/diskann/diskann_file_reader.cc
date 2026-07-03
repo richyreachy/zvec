@@ -91,12 +91,25 @@ int setup_io_ctx(IOContext &ctx) {
   for (uint64_t i = 0; i < MAX_IO_DEPTH; i++) {
     OVERLAPPED os;
     memset(&os, 0, sizeof(OVERLAPPED));
+    HANDLE ev = CreateEventA(NULL, TRUE, FALSE, NULL);
+    if (ev == NULL) {
+      LOG_ERROR("CreateEventA failed (error=%lu)", GetLastError());
+      return IndexError_Runtime;
+    }
+    os.hEvent = ev;
     ctx.reqs.push_back(os);
+    ctx.events.push_back(ev);
   }
   return 0;
 }
 
 int destroy_io_ctx(IOContext &ctx) {
+  for (auto &ev : ctx.events) {
+    if (ev != NULL) {
+      CloseHandle(ev);
+    }
+  }
+  ctx.events.clear();
   ctx.reqs.clear();
   return 0;
 }
@@ -573,7 +586,14 @@ int WindowsAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,
     for (size_t i = ctx.reqs.size(); i < MAX_IO_DEPTH; i++) {
       OVERLAPPED os;
       memset(&os, 0, sizeof(OVERLAPPED));
+      HANDLE ev = CreateEventA(NULL, TRUE, FALSE, NULL);
+      if (ev == NULL) {
+        LOG_ERROR("CreateEventA failed (error=%lu)", GetLastError());
+        return IndexError_Runtime;
+      }
+      os.hEvent = ev;
       ctx.reqs.push_back(os);
+      ctx.events.push_back(ev);
     }
   }
 
@@ -582,9 +602,13 @@ int WindowsAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,
   uint64_t n_batches = DiskAnnUtil::div_round_up(n_reqs, MAX_IO_DEPTH);
 
   for (uint64_t batch = 0; batch < n_batches; batch++) {
-    // Reset all OVERLAPPED objects for this batch.
-    for (auto &os : ctx.reqs) {
+    // Reset OVERLAPPED objects for this batch (preserve hEvent).
+    for (size_t i = 0; i < ctx.reqs.size(); i++) {
+      OVERLAPPED &os = ctx.reqs[i];
+      HANDLE ev = os.hEvent;
       memset(&os, 0, sizeof(OVERLAPPED));
+      os.hEvent = ev;
+      ResetEvent(ev);
     }
 
     uint64_t batch_start = MAX_IO_DEPTH * batch;
