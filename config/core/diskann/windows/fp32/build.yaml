@@ -1,0 +1,21 @@
+BuilderCommon:
+    BuilderClass: DiskAnnBuilder
+    BuildFile: C:\bench\cohere\data\1m\cohere_train_vector_1m.new.zvec.vecs
+    NeedTrain: true
+    TrainFile: C:\bench\cohere\data\1m\cohere_train_vector_1m.new.zvec.vecs
+    DumpPath: .\cohere_1m_fp32.index
+    ThreadCount: 16
+    MetricName: Cosine
+    ConverterName: CosineFp32Converter
+    DisableIdMap: true
+    ThreadCount: 8
+    LogLevel: Info
+    
+BuilderParams:
+    zvec.general.builder.thread_count: !!int 8
+    zvec.diskann.builder.thread_count: !!int 8
+    zvec.diskann.builder.max_degree: !!int 32
+    zvec.diskann.builder.list_size: !!int 50
+    zvec.diskann.builder.memory_limit: !!float 100
+    #zvec.diskann.builder.max_pq_chunk_num : !!int 512
+    zvec.diskann.builder.max_pq_chunk_num : !!int 384
