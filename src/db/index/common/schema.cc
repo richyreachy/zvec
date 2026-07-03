@@ -16,11 +16,11 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+#include <zvec/core/interface/diskann_runtime.h>
 #include <zvec/db/index_params.h>
 #include <zvec/db/schema.h>
 #include <zvec/db/status.h>
 #include <zvec/db/type.h>
-#include <zvec/plugin/diskann_plugin.h>
 #include "ailego/internal/cpu_features.h"
 #include "db/common/constants.h"
 #include "db/common/typedef.h"
@@ -180,14 +180,14 @@ Status FieldSchema::validate() const {
         // are creation-time only, so triggering the runtime init here is
         // safe (and idempotent/cached).
         //
-        // kDiskAnnPluginLibAioMissing is non-fatal: DiskAnn falls back to
+        // kDiskAnnRuntimeLibAioMissing is non-fatal: DiskAnn falls back to
         // synchronous pread() with degraded performance.
-        const int rc = ::zvec::LoadDiskAnnPlugin();
+        const int rc = ::zvec::InitDiskAnnRuntime();
         switch (rc) {
-          case kDiskAnnPluginOk:
-          case kDiskAnnPluginLibAioMissing:
+          case kDiskAnnRuntimeOk:
+          case kDiskAnnRuntimeLibAioMissing:
             break;
-          case kDiskAnnPluginUnsupportedPlatform:
+          case kDiskAnnRuntimeUnsupportedPlatform:
             return Status::NotSupported(
                 "DiskAnn is not supported on this platform (Linux x86_64 "
                 "only)");

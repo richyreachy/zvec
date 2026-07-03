@@ -144,8 +144,8 @@ TEST_F(DiskAnnBuilderTest, SmallDatasetBuildTime) {
 }
 
 // DiskAnn is now exposed implicitly: no caller ever invokes a
-// ``LoadDiskAnnPlugin`` / ``IsLibAioAvailable`` API (those were removed from
-// the public surface together with ``zvec.load_diskann_plugin()`` in Python).
+// ``InitDiskAnnRuntime`` / ``IsLibAioAvailable`` API (those were removed from
+// the public surface together with ``zvec.init_diskann_runtime()`` in Python).
 // The only contract this test validates is the UX guarantee: once the DiskAnn
 // module has been linked into the hosting binary (here, directly into the
 // test via the ``core_knn_diskann`` target), its factory entries are

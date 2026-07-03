@@ -23,7 +23,7 @@ namespace zvec::core_interface {
 
 int DiskAnnIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
   // Platform and libaio checks are handled earlier at schema validation
-  // time (schema.cc calls LoadDiskAnnPlugin). If libaio is missing, DiskAnn
+  // time (schema.cc calls InitDiskAnnRuntime). If libaio is missing, DiskAnn
   // falls back to synchronous pread() in diskann_file_reader.cc — no need
   // to re-check here.
   if (is_sparse_) {

@@ -19,7 +19,7 @@ Two platform-level prerequisites are enforced at module import time:
 
 1. DiskAnn is currently built only for Linux x86_64 — other platforms are
    skipped wholesale.
-2. The DiskAnn runtime is initialized via ``zvec.load_diskann_plugin()``,
+2. The DiskAnn runtime is initialized via ``zvec.init_diskann_runtime()``,
    which eagerly loads libaio via dlopen(). If libaio is missing, DiskAnn
    falls back to synchronous pread() — the tests still run but with degraded
    performance. DiskAnn is compiled directly into ``_zvec.so``; there is no

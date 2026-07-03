@@ -16,7 +16,7 @@
 #include <mutex>
 #include <string>
 #include <zvec/core/framework/index_logger.h>
-#include <zvec/plugin/diskann_plugin.h>
+#include <zvec/core/interface/diskann_runtime.h>
 
 #if defined(__linux__) || defined(__linux) || defined(__APPLE__)
 #include <dlfcn.h>
@@ -64,29 +64,29 @@ bool IsLibAioAvailable() {
 #endif
 }
 
-bool IsDiskAnnPluginLoaded() {
+bool IsDiskAnnRuntimeReady() {
   return g_runtime_ready.load(std::memory_order_acquire);
 }
 
-int LoadDiskAnnPlugin(const std::string &path) {
+int InitDiskAnnRuntime(const std::string &path) {
   (void)path;  // No external path needed — DiskAnn is linked in statically.
 
   if (!kPlatformSupportsDiskAnn) {
     LOG_ERROR(
         "DiskAnn is not supported on this platform; it is only "
         "available on Linux x86_64 with libaio.");
-    return kDiskAnnPluginUnsupportedPlatform;
+    return kDiskAnnRuntimeUnsupportedPlatform;
   }
 
 #if defined(__linux__) || defined(__linux)
   // Fast path: already initialised.
   if (g_runtime_ready.load(std::memory_order_acquire)) {
-    return kDiskAnnPluginOk;
+    return kDiskAnnRuntimeOk;
   }
 
   std::lock_guard<std::mutex> lock(g_runtime_mutex);
   if (g_runtime_ready.load(std::memory_order_relaxed)) {
-    return kDiskAnnPluginOk;
+    return kDiskAnnRuntimeOk;
   }
 
   // Eagerly load libaio at DiskAnn bring-up time so the user gets immediate
@@ -104,20 +104,15 @@ int LoadDiskAnnPlugin(const std::string &path) {
     // the file reader will gracefully fall back to pread().  The user gets
     // a clear warning now rather than a hard failure later.
     g_runtime_ready.store(true, std::memory_order_release);
-    return kDiskAnnPluginLibAioMissing;
+    return kDiskAnnRuntimeLibAioMissing;
   }
 
   LOG_INFO("DiskAnn: libaio loaded successfully — async I/O enabled.");
   g_runtime_ready.store(true, std::memory_order_release);
-  return kDiskAnnPluginOk;
+  return kDiskAnnRuntimeOk;
 #else
-  return kDiskAnnPluginUnsupportedPlatform;
+  return kDiskAnnRuntimeUnsupportedPlatform;
 #endif
-}
-
-bool UnloadDiskAnnPlugin() {
-  // DiskAnn is statically linked — there is nothing to unload.
-  return false;
 }
 
 }  // namespace zvec

@@ -38,17 +38,17 @@ def _ensure_diskann_runtime_or_reason() -> str | None:
         _DISKANN_PRELOAD_REASON = "DiskAnn only supported on Linux x86_64"
         return _DISKANN_PRELOAD_REASON
 
-    status = zvec.load_diskann_plugin()
-    if status == zvec.DISKANN_PLUGIN_UNSUPPORTED_PLATFORM:
+    status = zvec.init_diskann_runtime()
+    if status == zvec.DISKANN_RUNTIME_UNSUPPORTED_PLATFORM:
         _DISKANN_PRELOAD_REASON = (
             f"DiskAnn is not supported on this platform (status={status})."
         )
         return _DISKANN_PRELOAD_REASON
-    # DISKANN_PLUGIN_OK and DISKANN_PLUGIN_LIBAIO_MISSING are both acceptable:
+    # DISKANN_RUNTIME_OK and DISKANN_RUNTIME_LIBAIO_MISSING are both acceptable:
     # the latter means DiskAnn will use synchronous pread() instead of async I/O.
     if status not in (
-        zvec.DISKANN_PLUGIN_OK,
-        zvec.DISKANN_PLUGIN_LIBAIO_MISSING,
+        zvec.DISKANN_RUNTIME_OK,
+        zvec.DISKANN_RUNTIME_LIBAIO_MISSING,
     ):
         _DISKANN_PRELOAD_REASON = (
             f"Failed to initialize DiskAnn runtime (status={status})."
