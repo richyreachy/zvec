@@ -619,34 +619,21 @@ int WindowsAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,
       }
     }
 
-    // Wait for all batch reads to complete via the IOCP.
-    DWORD n_read = 0;
-    uint64_t n_complete = 0;
-    ULONG_PTR completion_key = 0;
-    OVERLAPPED *lp_os = NULL;
+    // Wait for all batch reads to complete.
+    // Use GetOverlappedResult per-read instead of GetQueuedCompletionStatus
+    // on the shared IOCP. The shared IOCP causes completion-packet stealing
+    // when multiple threads call read() concurrently, leading to data
+    // corruption and segfaults.
+    for (uint64_t j = 0; j < batch_size; j++) {
+      OVERLAPPED &os = ctx.reqs[j];
+      DWORD bytes_transferred = 0;
 
-    while (n_complete < batch_size) {
-      BOOL ok = GetQueuedCompletionStatus(iocp_, &n_read, &completion_key,
-                                          &lp_os, INFINITE);
-      if (ok != 0) {
-        // Successfully dequeued a completed I/O.
-        n_complete++;
-      } else {
-        if (lp_os == NULL) {
-          DWORD error = GetLastError();
-          if (error != WAIT_TIMEOUT) {
-            LOG_ERROR("GetQueuedCompletionStatus() failed with error = %lu",
-                      error);
-            return IndexError_Runtime;
-          }
-          // No completion packet dequeued; sleep briefly and retry.
-          std::this_thread::sleep_for(std::chrono::microseconds(5));
-        } else {
-          // Completion packet for a failed I/O.
-          DWORD error = GetLastError();
-          LOG_ERROR("I/O failed with error code: %lu", error);
-          return IndexError_Runtime;
-        }
+      BOOL ok = GetOverlappedResult(file_handle_, &os, &bytes_transferred, TRUE);
+      if (ok == FALSE) {
+        DWORD error = GetLastError();
+        LOG_ERROR("GetOverlappedResult failed for read %lu, error=%lu",
+                  (unsigned long)j, error);
+        return IndexError_Runtime;
       }
     }
   }
