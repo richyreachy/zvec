@@ -1,31 +1,6 @@
 {
     global:
-        # Python module entry point(s).
-        PyInit_*;
-
-        # Expose the full zvec C++ namespace so that the C API binding
-        # (and any C++ consumer that links against _zvec.so) can resolve
-        # zvec:: symbols. DiskAnn is now statically linked into _zvec.so,
-        # so these exports are no longer needed for runtime plugin loading,
-        # but they are still required for the C API and for C++ consumers
-        # that link against the shared module.
-        extern "C++" {
-            "zvec::*";
-            zvec::*;
-            # Also export the compiler-generated helper symbols that live
-            # alongside symbols in the zvec namespace (guard variables for
-            # static locals, vtables, typeinfo, VTT, construction vtables,
-            # thunks). These are needed so that factory singletons and
-            # vtables are unified across translation units.
-            "guard variable for zvec::*";
-            "vtable for zvec::*";
-            "VTT for zvec::*";
-            "typeinfo for zvec::*";
-            "typeinfo name for zvec::*";
-            "construction vtable for zvec::*";
-            "non-virtual thunk to zvec::*";
-            "virtual thunk to zvec::*";
-        };
+        PyInit_*;  # export only python related functions
     local:
         *;
 };
