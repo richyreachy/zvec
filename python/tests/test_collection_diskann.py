@@ -32,7 +32,6 @@ test-suite is not affected.
 from __future__ import annotations
 
 import math
-import os
 import platform
 import sys
 
@@ -45,13 +44,6 @@ pytestmark = pytest.mark.skipif(
     not (sys.platform == "linux" and platform.machine() in ("x86_64", "AMD64")),
     reason="DiskAnn plugin is only supported on Linux x86_64",
 )
-
-# Promote all symbols in subsequently-loaded DSOs to the global namespace and
-# resolve relocations eagerly. This is REQUIRED so the DiskAnn plugin can see
-# the ``IndexFactory`` singleton that lives in ``_zvec.so`` and vice versa.
-# See: DiskAnn RTLD_GLOBAL + RTLD_NOW Requirement.
-if sys.platform == "linux":
-    sys.setdlopenflags(sys.getdlopenflags() | os.RTLD_GLOBAL | os.RTLD_NOW)
 
 import zvec  # noqa: E402
 
