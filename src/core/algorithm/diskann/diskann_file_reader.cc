@@ -652,7 +652,8 @@ int WindowsAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,
       OVERLAPPED &os = ctx.reqs[j];
       DWORD bytes_transferred = 0;
 
-      BOOL ok = GetOverlappedResult(file_handle_, &os, &bytes_transferred, TRUE);
+      BOOL ok =
+          GetOverlappedResult(file_handle_, &os, &bytes_transferred, TRUE);
       if (ok == FALSE) {
         DWORD error = GetLastError();
         LOG_ERROR("GetOverlappedResult failed for read %lu, error=%lu",
