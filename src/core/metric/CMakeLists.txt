@@ -10,7 +10,7 @@ cc_library(
     NAME core_metric 
     STATIC SHARED STRICT ALWAYS_LINK
     SRCS *.cc
-    LIBS zvec_ailego zvec_turbo core_framework 
+    LIBS zvec_ailego zvec_turbo core_framework core_quantizer 
     INCS . ${PROJECT_ROOT_DIR}/src/core
     LDFLAGS "${CORE_METRIC_LDFLAGS}"
     VERSION "${PROXIMA_ZVEC_VERSION}"
