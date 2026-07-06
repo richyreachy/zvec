@@ -16,7 +16,6 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
-#include <zvec/core/interface/diskann_runtime.h>
 #include <zvec/db/index_params.h>
 #include <zvec/db/schema.h>
 #include <zvec/db/status.h>
@@ -174,27 +173,14 @@ Status FieldSchema::validate() const {
       }
 
       if (index_params_->type() == IndexType::DISKANN) {
-        // Probe the DiskAnn runtime eagerly at creation time so unsupported
-        // platforms (non Linux x86_64) fail fast with a clear message instead
-        // of surfacing later during optimize(). All validate() call sites
-        // are creation-time only, so triggering the runtime init here is
-        // safe (and idempotent/cached).
-        //
-        // kDiskAnnRuntimeLibAioMissing is non-fatal: DiskAnn falls back to
-        // synchronous pread() with degraded performance.
-        const int rc = ::zvec::InitDiskAnnRuntime();
-        switch (rc) {
-          case kDiskAnnRuntimeOk:
-          case kDiskAnnRuntimeLibAioMissing:
-            break;
-          case kDiskAnnRuntimeUnsupportedPlatform:
-            return Status::NotSupported(
-                "DiskAnn is not supported on this platform (Linux x86_64 "
-                "only)");
-          default:
-            return Status::NotSupported(
-                "DiskAnn runtime could not be initialized on this host");
-        }
+        // DiskAnn requires Linux x86_64. The libaio runtime is loaded
+        // eagerly (via dlopen) inside DiskAnnBuilder::init() and
+        // DiskAnnStreamer::init(); if libaio is missing, DiskAnn falls back
+        // to synchronous pread() with degraded performance.
+#if !defined(__linux__) && !defined(__linux)
+        return Status::NotSupported(
+            "DiskAnn is not supported on this platform (Linux x86_64 only)");
+#endif
       }
 
 

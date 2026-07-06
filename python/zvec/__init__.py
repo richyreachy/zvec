@@ -43,21 +43,6 @@ except Exception:
 # Public API — grouped by category
 # ==============================
 
-# —— DiskAnn runtime ——
-# Re-export the runtime management entry points defined by the C++ extension.
-# DiskAnn normally auto-initializes on first use; these APIs let tests and
-# diagnostic tools force initialization up-front and get a clear error if
-# libaio is missing.
-from zvec._zvec import (
-    DISKANN_RUNTIME_DLOPEN_FAILED,
-    DISKANN_RUNTIME_LIBAIO_MISSING,
-    DISKANN_RUNTIME_OK,
-    DISKANN_RUNTIME_UNSUPPORTED_PLATFORM,
-    init_diskann_runtime,
-    is_diskann_runtime_ready,
-    is_libaio_available,
-)
-
 from . import model as model
 
 # —— Extensions ——
@@ -203,14 +188,6 @@ __all__ = [
     "StatusCode",
     # Tools
     "require_module",
-    # DiskAnn runtime
-    "init_diskann_runtime",
-    "is_diskann_runtime_ready",
-    "is_libaio_available",
-    "DISKANN_RUNTIME_OK",
-    "DISKANN_RUNTIME_UNSUPPORTED_PLATFORM",
-    "DISKANN_RUNTIME_LIBAIO_MISSING",
-    "DISKANN_RUNTIME_DLOPEN_FAILED",
 ]
 
 # ==============================
