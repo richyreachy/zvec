@@ -525,34 +525,29 @@ void WindowsAlignedFileReader::deregister_thread() {
     LOG_ERROR("deregister_thread: thread not registered");
     return;
   }
+  destroy_io_ctx(it->second);
   ctx_map.erase(it);
 }
 
 void WindowsAlignedFileReader::deregister_all_threads() {
   std::unique_lock<std::mutex> lk(ctx_mut);
+  for (auto &kv : ctx_map) {
+    destroy_io_ctx(kv.second);
+  }
   ctx_map.clear();
 }
 
 void WindowsAlignedFileReader::open(const std::string &fname) {
-  file_handle_ = CreateFileA(fname.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
-                             OPEN_EXISTING,
-                             FILE_ATTRIBUTE_READONLY | FILE_FLAG_NO_BUFFERING |
-                                 FILE_FLAG_OVERLAPPED | FILE_FLAG_RANDOM_ACCESS,
-                             NULL);
+  file_handle_ =
+      CreateFileA(fname.c_str(), GENERIC_READ,
+                  FILE_SHARE_READ | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
+                  FILE_ATTRIBUTE_READONLY | FILE_FLAG_NO_BUFFERING |
+                      FILE_FLAG_OVERLAPPED | FILE_FLAG_RANDOM_ACCESS,
+                  NULL);
 
   if (file_handle_ == INVALID_HANDLE_VALUE) {
     DWORD error = GetLastError();
     LOG_ERROR("Failed to open file: %s (error=%lu)", fname.c_str(), error);
-    return;
-  }
-
-  // Create an I/O Completion Port and associate the file handle with it.
-  iocp_ = CreateIoCompletionPort(file_handle_, NULL, 0, 0);
-  if (iocp_ == NULL) {
-    DWORD error = GetLastError();
-    LOG_ERROR("CreateIoCompletionPort failed (error=%lu)", error);
-    CloseHandle(file_handle_);
-    file_handle_ = INVALID_HANDLE_VALUE;
     return;
   }
 
@@ -563,10 +558,6 @@ void WindowsAlignedFileReader::close() {
   if (file_handle_ != INVALID_HANDLE_VALUE) {
     CloseHandle(file_handle_);
     file_handle_ = INVALID_HANDLE_VALUE;
-  }
-  if (iocp_ != NULL) {
-    CloseHandle(iocp_);
-    iocp_ = NULL;
   }
 }
 
@@ -616,6 +607,8 @@ int WindowsAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,
         std::min((uint64_t)(n_reqs - batch_start), (uint64_t)MAX_IO_DEPTH);
 
     // Issue ReadFile calls for this batch.
+    bool batch_error = false;
+    uint64_t issued_count = 0;
     for (uint64_t j = 0; j < batch_size; j++) {
       AlignedRead &req = read_reqs[batch_start + j];
       OVERLAPPED &os = ctx.reqs[j];
@@ -638,17 +631,23 @@ int WindowsAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,
         DWORD error = GetLastError();
         if (error != ERROR_IO_PENDING) {
           LOG_ERROR("Error queuing IO -- error=%lu", error);
-          return IndexError_Runtime;
+          batch_error = true;
+          break;
         }
       }
+      issued_count++;
     }
 
-    // Wait for all batch reads to complete.
+    // Wait for all issued reads to complete.
     // Use GetOverlappedResult per-read instead of GetQueuedCompletionStatus
     // on the shared IOCP. The shared IOCP causes completion-packet stealing
     // when multiple threads call read() concurrently, leading to data
     // corruption and segfaults.
-    for (uint64_t j = 0; j < batch_size; j++) {
+    //
+    // We must wait for ALL reads that were successfully issued, even if an
+    // error occurred mid-batch. Otherwise the caller may free the read
+    // buffers while the OS still has pending writes, causing a use-after-free.
+    for (uint64_t j = 0; j < issued_count; j++) {
       OVERLAPPED &os = ctx.reqs[j];
       DWORD bytes_transferred = 0;
 
@@ -658,8 +657,12 @@ int WindowsAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,
         DWORD error = GetLastError();
         LOG_ERROR("GetOverlappedResult failed for read %lu, error=%lu",
                   (unsigned long)j, error);
-        return IndexError_Runtime;
+        batch_error = true;
       }
+    }
+
+    if (batch_error) {
+      return IndexError_Runtime;
     }
   }
 

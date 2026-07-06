@@ -138,7 +138,6 @@ class LinuxAlignedFileReader : public AlignedFileReader {
 class WindowsAlignedFileReader : public AlignedFileReader {
  private:
   HANDLE file_handle_ = INVALID_HANDLE_VALUE;
-  HANDLE iocp_ = NULL;
 
  public:
   WindowsAlignedFileReader();
