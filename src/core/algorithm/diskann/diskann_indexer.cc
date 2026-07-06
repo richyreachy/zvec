@@ -983,7 +983,7 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
     return ctx->group_by()(get_key(id));
   };
 
-  // devide into groups
+  // divide into groups
   auto &topk_heap = ctx->topk_heap();
   auto &visit_filter = ctx->visit_filter();
 
@@ -1000,7 +1000,7 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
       group_topk_heap.limit(ctx->group_topk());
     }
 
-    topk_heap.emplace(id, info);
+    group_topk_heap.emplace(id, info);
   }
 
   // stage 2, expand to reach group num as possible
@@ -1414,7 +1414,7 @@ int DiskAnnIndexer::cached_in_mem_search_by_group(DiskAnnContext *ctx) {
       group_topk_heap.limit(ctx->group_topk());
     }
 
-    topk_heap.emplace(id, info);
+    group_topk_heap.emplace(id, info);
   }
 
   // stage 2, expand to reach group num as possible
