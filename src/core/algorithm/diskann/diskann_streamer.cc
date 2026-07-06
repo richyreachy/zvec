@@ -30,6 +30,7 @@ int DiskAnnStreamer::init(const IndexMeta &meta,
   meta_ = meta;
   search_params.get(PARAM_DISKANN_SEARCHER_LIST_SIZE, &list_size_);
   search_params.get(PARAM_DISKANN_SEARCHER_CACHE_NODE_NUM, &cache_nodes_num_);
+  search_params.get(PARAM_DISKANN_SEARCHER_IN_MEM_SEARCH, &in_mem_search_);
   return 0;
 }
 
@@ -66,6 +67,8 @@ int DiskAnnStreamer::open(IndexStorage::Pointer storage) {
   if (res != 0) {
     return res;
   }
+
+  diskann_indexer_->set_in_mem_search(in_mem_search_);
 
   if (cache_nodes_num_ != 0) {
     std::vector<diskann_id_t> node_list;

@@ -50,6 +50,14 @@ int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
   auto file_path = storage->file_path();
   reader_->open(file_path);
 
+  // Try to obtain an mmap-backed segment for in-memory search.
+  // Must be done before storage->cleanup() clears the segment metadata.
+  auto mmap_segment = storage->get(DiskAnnEntity::kDiskAnnVectorSegmentId, 0);
+  if (mmap_segment && mmap_segment->base_data() != nullptr) {
+    vector_segment_mmap_ = mmap_segment;
+    mmap_base_ = mmap_segment->base_data();
+  }
+
   storage->cleanup();
 
   int ret = setup_io_ctx(init_ctx_);
@@ -727,13 +735,23 @@ int DiskAnnIndexer::get_vector(diskann_id_t id, IndexContext::Pointer &context,
 }
 
 int DiskAnnIndexer::knn_search(DiskAnnContext *ctx) {
-  int ret = cached_beam_search(ctx);
+  int ret = 0;
+
+  if (in_mem_search_ && mmap_base_ != nullptr) {
+    ret = cached_in_mem_search(ctx);
+  } else {
+    ret = cached_beam_search(ctx);
+  }
   if (ret != 0) {
     return ret;
   }
 
   if (ctx->group_by_search()) {
-    ret = cached_beam_search_by_group(ctx);
+    if (in_mem_search_ && mmap_base_ != nullptr) {
+      ret = cached_in_mem_search_by_group(ctx);
+    } else {
+      ret = cached_beam_search_by_group(ctx);
+    }
     if (ret != 0) {
       return ret;
     }
@@ -1163,6 +1181,370 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
           group_topk_heap.emplace_back(
               frontier_neighbor.first,
               VectorInfo(cur_expanded_dist, make_vector_copy(data_buf)));
+
+          if (group_topk_heaps.size() >= ctx->group_num()) {
+            break;
+          }
+        }
+
+        cpu_timer.reset();
+
+        std::vector<float> distances(neighbor_num);
+        diskann_id_t *node_neighbors =
+            reinterpret_cast<diskann_id_t *>(node_buf + 1);
+        pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
+                                 ctx->pq_table_dist_buffer(),
+                                 ctx->pq_coord_buffer(), distances.data());
+
+        stats.dist_num += neighbor_num;
+        stats.cpu_us += cpu_timer.micro_seconds();
+
+        cpu_timer.reset();
+        for (uint64_t m = 0; m < neighbor_num; ++m) {
+          diskann_id_t id = node_neighbors[m];
+          visit_filter.set_visited(id);
+          stats.dist_num++;
+
+          Neighbor nn(id, distances[m]);
+          candidates.insert(nn);
+        }
+
+        stats.cpu_us += cpu_timer.micro_seconds();
+      }
+    }
+
+    stats.total_us += query_timer.micro_seconds();
+  }
+
+  return 0;
+}
+
+int DiskAnnIndexer::cached_in_mem_search(DiskAnnContext *ctx) {
+  if (mmap_base_ == nullptr) {
+    LOG_ERROR(
+        "cached_in_mem_search: mmap base is null, storage may not support "
+        "mmap");
+    return IndexError_NotImplemented;
+  }
+
+  auto &stats = ctx->query_stats();
+  auto &dc = ctx->dist_calculator();
+  auto &topk_heap = ctx->topk_heap();
+  auto &visit_filter = ctx->visit_filter();
+
+  topk_heap.clear();
+
+  pq_table_->preprocess_pq_dist_table(ctx->query_rotated(),
+                                      ctx->pq_table_dist_buffer());
+
+  ailego::ElapsedTime query_timer;
+  ailego::ElapsedTime cpu_timer;
+
+  NeighborPriorityQueue candidates;
+
+  candidates.reserve(ctx->list_size());
+
+  diskann_id_t best_medoid = 0;
+  float best_dist = (std::numeric_limits<float>::max)();
+  for (uint64_t cur_m = 0; cur_m < entrypoints_.size(); cur_m++) {
+    float cur_expanded_dist =
+        dc.dist(ctx->query(), centroid_data_ + aligned_dim_ * cur_m);
+
+    if (cur_expanded_dist < best_dist) {
+      best_medoid = entrypoints_[cur_m];
+      best_dist = cur_expanded_dist;
+    }
+  }
+
+  float dist;
+  pq_table_->compute_dists(1, &best_medoid, pq_chunk_num_,
+                           ctx->pq_table_dist_buffer(), ctx->pq_coord_buffer(),
+                           &dist);
+  candidates.insert(Neighbor(best_medoid, dist));
+  visit_filter.set_visited(best_medoid);
+
+  std::vector<diskann_id_t> frontier;
+  frontier.reserve(2 * beam_width_);
+
+  std::vector<std::tuple<diskann_id_t, uint32_t, diskann_id_t *>>
+      cached_neighbors;
+  cached_neighbors.reserve(2 * beam_width_);
+
+  while (candidates.has_unexpanded_node()) {
+    frontier.clear();
+    cached_neighbors.clear();
+
+    uint32_t num_seen = 0;
+    while (candidates.has_unexpanded_node() && frontier.size() < beam_width_ &&
+           num_seen < beam_width_) {
+      auto neighbor = candidates.closest_unexpanded();
+      num_seen++;
+
+      auto iter = neighbor_cache_.find(neighbor.id);
+      if (iter != neighbor_cache_.end()) {
+        cached_neighbors.push_back(std::make_tuple(
+            neighbor.id, iter->second.first, iter->second.second));
+        stats.cache_hits++;
+      } else {
+        frontier.push_back(neighbor.id);
+      }
+    }
+
+    if (!frontier.empty()) {
+      stats.hop_num++;
+    }
+
+    for (auto &cached_neighbor : cached_neighbors) {
+      auto global_cache_iter = coord_cache_.find(std::get<0>(cached_neighbor));
+      void *node_fp_coords_copy = global_cache_iter->second;
+
+      float cur_expanded_dist = dc.dist(ctx->query(), node_fp_coords_copy);
+
+      if (!ctx->filter().is_valid() ||
+          !ctx->filter()(get_key(std::get<0>(cached_neighbor)))) {
+        topk_heap.emplace(std::get<0>(cached_neighbor),
+                          VectorInfo(cur_expanded_dist,
+                                     make_vector_copy(node_fp_coords_copy)));
+      }
+
+      uint32_t neighbor_num = std::get<1>(cached_neighbor);
+      diskann_id_t *node_neighbors = std::get<2>(cached_neighbor);
+
+      cpu_timer.reset();
+
+      std::vector<float> distances(neighbor_num);
+      pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
+                               ctx->pq_table_dist_buffer(),
+                               ctx->pq_coord_buffer(), distances.data());
+
+      stats.dist_num += neighbor_num;
+      stats.cpu_us += cpu_timer.micro_seconds();
+
+      for (uint64_t m = 0; m < neighbor_num; ++m) {
+        diskann_id_t id = node_neighbors[m];
+        visit_filter.set_visited(id);
+
+        Neighbor nn(id, distances[m]);
+        candidates.insert(nn);
+      }
+    }
+
+    for (diskann_id_t cur_id : frontier) {
+      uint64_t sector_offset =
+          DiskAnnUtil::get_node_sector(node_per_sector_, max_node_size_,
+                                       DiskAnnUtil::kSectorSize, cur_id) *
+          DiskAnnUtil::kSectorSize;
+      uint8_t *sector_ptr = const_cast<uint8_t *>(mmap_base_ + sector_offset);
+      uint8_t *node_disk_buf = DiskAnnUtil::offset_to_node(
+          node_per_sector_, max_node_size_, sector_ptr, cur_id);
+      uint32_t *node_buf = DiskAnnUtil::offset_to_node_neighbor(
+          node_disk_buf, meta_.element_size());
+      uint32_t neighbor_num = *node_buf;
+
+      void *node_fp_coords = node_disk_buf;
+
+      float cur_expanded_dist = dc.dist(ctx->query(), node_fp_coords);
+
+      if (!ctx->filter().is_valid() || !ctx->filter()(get_key(cur_id))) {
+        topk_heap.emplace(cur_id, VectorInfo(cur_expanded_dist,
+                                             make_vector_copy(node_fp_coords)));
+      }
+
+      diskann_id_t *node_neighbors =
+          reinterpret_cast<diskann_id_t *>(node_buf + 1);
+
+      cpu_timer.reset();
+      std::vector<float> distances(neighbor_num);
+      pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
+                               ctx->pq_table_dist_buffer(),
+                               ctx->pq_coord_buffer(), distances.data());
+
+      stats.dist_num += neighbor_num;
+      stats.cpu_us += cpu_timer.micro_seconds();
+
+      cpu_timer.reset();
+      for (uint64_t m = 0; m < neighbor_num; ++m) {
+        diskann_id_t id = node_neighbors[m];
+        visit_filter.set_visited(id);
+        stats.dist_num++;
+
+        Neighbor nn(id, distances[m]);
+        candidates.insert(nn);
+      }
+
+      stats.cpu_us += cpu_timer.micro_seconds();
+    }
+  }
+
+  stats.total_us += query_timer.micro_seconds();
+
+  return 0;
+}
+
+int DiskAnnIndexer::cached_in_mem_search_by_group(DiskAnnContext *ctx) {
+  if (mmap_base_ == nullptr) {
+    LOG_ERROR(
+        "cached_in_mem_search_by_group: mmap base is null, storage may not "
+        "support mmap");
+    return IndexError_NotImplemented;
+  }
+
+  if (!ctx->group_by().is_valid()) {
+    return 0;
+  }
+
+  std::function<std::string(diskann_id_t)> group_by = [&](diskann_id_t id) {
+    return ctx->group_by()(get_key(id));
+  };
+
+  // divide into groups
+  auto &topk_heap = ctx->topk_heap();
+  auto &visit_filter = ctx->visit_filter();
+
+  std::map<std::string, TopkHeap> &group_topk_heaps = ctx->group_topk_heaps();
+
+  for (uint32_t i = 0; i < topk_heap.size(); ++i) {
+    diskann_id_t id = topk_heap[i].first;
+    auto info = topk_heap[i].second;
+
+    std::string group_id = group_by(id);
+
+    auto &group_topk_heap = group_topk_heaps[group_id];
+    if (group_topk_heap.empty()) {
+      group_topk_heap.limit(ctx->group_topk());
+    }
+
+    topk_heap.emplace(id, info);
+  }
+
+  // stage 2, expand to reach group num as possible
+  if (group_topk_heaps.size() < ctx->group_num()) {
+    NeighborPriorityQueue candidates;
+
+    candidates.reserve(ctx->list_size());
+
+    for (uint32_t i = 0; i < topk_heap.size(); ++i) {
+      diskann_id_t id = topk_heap[i].first;
+      float score = topk_heap[i].second.dist_;
+
+      visit_filter.set_visited(id);
+      candidates.insert(Neighbor(id, score));
+    }
+
+    ailego::ElapsedTime query_timer;
+    ailego::ElapsedTime cpu_timer;
+
+    auto &stats = ctx->query_stats();
+    auto &dc = ctx->dist_calculator();
+
+    pq_table_->preprocess_pq_dist_table(ctx->query_rotated(),
+                                        ctx->pq_table_dist_buffer());
+
+    std::vector<diskann_id_t> frontier;
+    frontier.reserve(2 * beam_width_);
+    std::vector<std::tuple<diskann_id_t, uint32_t, diskann_id_t *>>
+        cached_neighbors;
+    cached_neighbors.reserve(2 * beam_width_);
+
+    while (candidates.has_unexpanded_node()) {
+      frontier.clear();
+      cached_neighbors.clear();
+
+      uint32_t num_seen = 0;
+      while (candidates.has_unexpanded_node() &&
+             frontier.size() < beam_width_ && num_seen < beam_width_) {
+        auto neighbor = candidates.closest_unexpanded();
+        num_seen++;
+
+        auto iter = neighbor_cache_.find(neighbor.id);
+        if (iter != neighbor_cache_.end()) {
+          cached_neighbors.push_back(std::make_tuple(
+              neighbor.id, iter->second.first, iter->second.second));
+          stats.cache_hits++;
+        } else {
+          frontier.push_back(neighbor.id);
+        }
+      }
+
+      if (!frontier.empty()) {
+        stats.hop_num++;
+      }
+
+      for (auto &cached_neighbor : cached_neighbors) {
+        auto global_cache_iter =
+            coord_cache_.find(std::get<0>(cached_neighbor));
+        void *node_fp_coords_copy = global_cache_iter->second;
+
+        float cur_expanded_dist = dc.dist(ctx->query(), node_fp_coords_copy);
+
+        if (!ctx->filter().is_valid() ||
+            !ctx->filter()(get_key(std::get<0>(cached_neighbor)))) {
+          std::string group_id = group_by(std::get<0>(cached_neighbor));
+
+          auto &group_topk_heap = group_topk_heaps[group_id];
+          if (group_topk_heap.empty()) {
+            group_topk_heap.limit(ctx->group_topk());
+          }
+
+          group_topk_heap.emplace_back(
+              std::get<0>(cached_neighbor),
+              VectorInfo(cur_expanded_dist,
+                         make_vector_copy(node_fp_coords_copy)));
+
+          if (group_topk_heaps.size() >= ctx->group_num()) {
+            break;
+          }
+        }
+
+        uint64_t neighbor_num = std::get<1>(cached_neighbor);
+        diskann_id_t *node_neighbors = std::get<2>(cached_neighbor);
+
+        cpu_timer.reset();
+
+        std::vector<float> distances(neighbor_num);
+        pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
+                                 ctx->pq_table_dist_buffer(),
+                                 ctx->pq_coord_buffer(), distances.data());
+
+        stats.dist_num += neighbor_num;
+        stats.cpu_us += cpu_timer.micro_seconds();
+
+        for (uint64_t m = 0; m < neighbor_num; ++m) {
+          diskann_id_t id = node_neighbors[m];
+          visit_filter.set_visited(id);
+
+          Neighbor nn(id, distances[m]);
+          candidates.insert(nn);
+        }
+      }
+
+      for (diskann_id_t cur_id : frontier) {
+        uint64_t sector_offset =
+            DiskAnnUtil::get_node_sector(node_per_sector_, max_node_size_,
+                                         DiskAnnUtil::kSectorSize, cur_id) *
+            DiskAnnUtil::kSectorSize;
+        uint8_t *sector_ptr = const_cast<uint8_t *>(mmap_base_ + sector_offset);
+        uint8_t *node_disk_buf = DiskAnnUtil::offset_to_node(
+            node_per_sector_, max_node_size_, sector_ptr, cur_id);
+        uint32_t *node_buf = DiskAnnUtil::offset_to_node_neighbor(
+            node_disk_buf, meta_.element_size());
+        uint32_t neighbor_num = *node_buf;
+
+        void *node_fp_coords = node_disk_buf;
+
+        float cur_expanded_dist = dc.dist(ctx->query(), node_fp_coords);
+
+        if (!ctx->filter().is_valid() || !ctx->filter()(get_key(cur_id))) {
+          std::string group_id = group_by(cur_id);
+
+          auto &group_topk_heap = group_topk_heaps[group_id];
+          if (group_topk_heap.empty()) {
+            group_topk_heap.limit(ctx->group_topk());
+          }
+
+          group_topk_heap.emplace_back(
+              cur_id,
+              VectorInfo(cur_expanded_dist, make_vector_copy(node_fp_coords)));
 
           if (group_topk_heaps.size() >= ctx->group_num()) {
             break;

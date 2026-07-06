@@ -814,3 +814,190 @@ TEST_F(DiskAnnSearcherTest, TestRnnSearch) {
   ASSERT_EQ(topk, results.size());
   ASSERT_LT(radius, results[topk - 1].score());
 }
+
+TEST_F(DiskAnnSearcherTest, TestInMemSearch) {
+  IndexBuilder::Pointer builder = IndexFactory::CreateBuilder("DiskAnnBuilder");
+  ASSERT_NE(builder, nullptr);
+
+  auto holder =
+      make_shared<MultiPassIndexHolder<IndexMeta::DataType::DT_FP32>>(dim);
+  size_t doc_cnt = 10000UL;
+  for (size_t i = 0; i < doc_cnt; i++) {
+    NumericalVector<float> vec(dim);
+    for (size_t j = 0; j < dim; ++j) {
+      vec[j] = i;
+    }
+    ASSERT_TRUE(holder->emplace(i, vec));
+  }
+
+  Params params;
+  params.set("zvec.diskann.builder.max_degree", 32);
+  params.set("zvec.diskann.builder.list_size", 300);
+  params.set("zvec.diskann.builder.max_pq_chunk_num", 32);
+  params.set("zvec.diskann.builder.threads", 4);
+
+  ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
+  ASSERT_EQ(0, builder->train(holder));
+  ASSERT_EQ(0, builder->build(holder));
+
+  auto dumper = IndexFactory::CreateDumper("FileDumper");
+  ASSERT_NE(dumper, nullptr);
+
+  string path = _dir + "/TestInMemSearch";
+  ASSERT_EQ(0, dumper->create(path));
+  ASSERT_EQ(0, builder->dump(dumper));
+  ASSERT_EQ(0, dumper->close());
+
+  // test searcher with in_mem_search enabled
+  IndexSearcher::Pointer searcher =
+      IndexFactory::CreateSearcher("DiskAnnSearcher");
+  ASSERT_TRUE(searcher != nullptr);
+
+  Params search_params;
+  search_params.set("zvec.diskann.searcher.cache_node_num", 32);
+  search_params.set("zvec.diskann.searcher.list_size", 500);
+  search_params.set("zvec.diskann.searcher.in_mem_search", true);
+
+  ASSERT_EQ(0, searcher->init(search_params));
+
+  auto storage = IndexFactory::CreateStorage("FileReadStorage");
+  ASSERT_EQ(0, storage->open(path, false));
+  ASSERT_EQ(0, searcher->load(storage, IndexMetric::Pointer()));
+
+  auto knnCtx = searcher->create_context();
+  auto linearCtx = searcher->create_context();
+  ASSERT_TRUE(!!knnCtx);
+  ASSERT_TRUE(!!linearCtx);
+
+  NumericalVector<float> vec(dim);
+  IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dim);
+  size_t topk = 200;
+  knnCtx->set_topk(topk);
+  linearCtx->set_topk(topk);
+
+  int totalHits = 0;
+  int totalCnts = 0;
+  int topk1Hits = 0;
+  size_t step = 500;
+
+  for (size_t i = 0; i < doc_cnt; i += step) {
+    for (size_t j = 0; j < dim; ++j) {
+      vec[j] = i + 0.1f;
+    }
+
+    ASSERT_EQ(0, searcher->search_impl(vec.data(), qmeta, knnCtx));
+    ASSERT_EQ(0, searcher->search_bf_impl(vec.data(), qmeta, linearCtx));
+
+    auto &knnResult = knnCtx->result();
+    auto &linearResult = linearCtx->result();
+
+    ASSERT_EQ(topk, linearResult.size());
+    ASSERT_EQ(i, linearResult[0].key());
+
+    topk1Hits += i == knnResult[0].key();
+
+    for (size_t k = 0; k < topk; ++k) {
+      totalCnts++;
+      for (size_t j = 0; j < topk; ++j) {
+        if (linearResult[j].key() == knnResult[k].key()) {
+          totalHits++;
+          break;
+        }
+      }
+    }
+  }
+
+  float recall = totalHits * step * step * 1.0f / totalCnts;
+  float topk1Recall = topk1Hits * step * 1.0f / doc_cnt;
+
+  EXPECT_GT(recall, 0.90f);
+  EXPECT_GT(topk1Recall, 0.80f);
+}
+
+TEST_F(DiskAnnSearcherTest, TestInMemSearchGroup) {
+  IndexBuilder::Pointer builder = IndexFactory::CreateBuilder("DiskAnnBuilder");
+  ASSERT_NE(builder, nullptr);
+
+  auto holder =
+      make_shared<MultiPassIndexHolder<IndexMeta::DataType::DT_FP32>>(dim);
+  size_t doc_cnt = 10000UL;
+  for (size_t i = 0; i < doc_cnt; i++) {
+    NumericalVector<float> vec(dim);
+    for (size_t j = 0; j < dim; ++j) {
+      vec[j] = i / 10.0;
+    }
+    ASSERT_TRUE(holder->emplace(i, vec));
+  }
+
+  Params params;
+  params.set("zvec.diskann.builder.max_degree", 32);
+  params.set("zvec.diskann.builder.list_size", 300);
+  params.set("zvec.diskann.builder.max_pq_chunk_num", 32);
+  params.set("zvec.diskann.builder.threads", 4);
+
+  ASSERT_EQ(0, builder->init(*_index_meta_ptr, params));
+  ASSERT_EQ(0, builder->train(holder));
+  ASSERT_EQ(0, builder->build(holder));
+
+  auto dumper = IndexFactory::CreateDumper("FileDumper");
+  ASSERT_NE(dumper, nullptr);
+
+  string path = _dir + "/TestInMemSearchGroup";
+  ASSERT_EQ(0, dumper->create(path));
+  ASSERT_EQ(0, builder->dump(dumper));
+  ASSERT_EQ(0, dumper->close());
+
+  // test searcher with in_mem_search enabled
+  IndexSearcher::Pointer searcher =
+      IndexFactory::CreateSearcher("DiskAnnSearcher");
+  ASSERT_TRUE(searcher != nullptr);
+
+  Params search_params;
+  search_params.set("zvec.diskann.searcher.list_size", 500);
+  search_params.set("zvec.diskann.searcher.in_mem_search", true);
+
+  ASSERT_EQ(0, searcher->init(search_params));
+
+  auto storage = IndexFactory::CreateStorage("FileReadStorage");
+  ASSERT_EQ(0, storage->open(path, false));
+  ASSERT_EQ(0, searcher->load(storage, IndexMetric::Pointer()));
+
+  auto ctx = searcher->create_context();
+  ASSERT_TRUE(!!ctx);
+
+  NumericalVector<float> vec(dim);
+  IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dim);
+  size_t group_topk = 20;
+
+  auto groupbyFunc = [](uint64_t key) {
+    uint32_t group_id = key / 10 % 10;
+    return std::string("g_") + std::to_string(group_id);
+  };
+
+  size_t group_num = 5;
+  ctx->set_group_params(group_num, group_topk);
+  ctx->set_group_by(groupbyFunc);
+
+  size_t query_value = doc_cnt / 2;
+  for (size_t j = 0; j < dim; ++j) {
+    vec[j] = query_value / 10 + 0.1f;
+  }
+
+  ASSERT_EQ(0, searcher->search_impl(vec.data(), qmeta, ctx));
+
+  auto &group_result = ctx->group_result();
+  ASSERT_GT(group_result.size(), 0);
+
+  for (uint32_t i = 0; i < group_result.size(); ++i) {
+    const std::string &group_id = group_result[i].group_id();
+    auto &result = group_result[i].docs();
+    ASSERT_GT(result.size(), 0);
+
+    std::cout << "Group ID: " << group_id << std::endl;
+    for (uint32_t j = 0; j < result.size(); ++j) {
+      std::cout << "\tKey: " << result[j].key() << std::fixed
+                << std::setprecision(3) << ", Score: " << result[j].score()
+                << std::endl;
+    }
+  }
+}
