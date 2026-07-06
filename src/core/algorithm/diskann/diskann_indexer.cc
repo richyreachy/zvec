@@ -45,11 +45,6 @@ int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
 
   index_segment_offset_ = vector_segment->data_offset();
 
-  reader_.reset(new LinuxAlignedFileReader());
-
-  auto file_path = storage->file_path();
-  reader_->open(file_path);
-
   // Try to obtain an mmap-backed segment for in-memory search.
   // Must be done before storage->cleanup() clears the segment metadata.
   auto mmap_segment = storage->get(DiskAnnEntity::kDiskAnnVectorSegmentId, 0);
@@ -58,7 +53,27 @@ int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
     mmap_base_ = mmap_segment->base_data();
   }
 
-  storage->cleanup();
+  // Open the file reader for disk-based search. When the storage backend
+  // does not provide a file path (e.g. MMapFileReadStorage), the reader is
+  // skipped and all reads are served from mmap_base_ instead.
+  auto file_path = storage->file_path();
+  if (!file_path.empty()) {
+    reader_.reset(new LinuxAlignedFileReader());
+    reader_->open(file_path);
+  } else if (mmap_base_ == nullptr) {
+    LOG_ERROR("No file path and no mmap segment available");
+    return IndexError_Runtime;
+  }
+
+  // Keep storage alive when using mmap, because MMapFileReadStorage::cleanup()
+  // closes the underlying mmap which would invalidate mmap_base_.
+  // FileReadStorage is safe to cleanup since its MMapSegment holds its own
+  // file reference.
+  if (mmap_base_ != nullptr && reader_ == nullptr) {
+    storage_ = storage;  // prevent mmap from being unmapped
+  } else {
+    storage->cleanup();
+  }
 
   int ret = setup_io_ctx(init_ctx_);
   if (ret != 0) {
@@ -131,6 +146,22 @@ int DiskAnnIndexer::use_medroids_data_as_centroids() {
   return 0;
 }
 
+int DiskAnnIndexer::read_sectors(std::vector<AlignedRead> &read_reqs,
+                                 IOContext &ctx) {
+  if (mmap_base_ != nullptr) {
+    // Serve reads directly from mmap'd memory — no disk I/O needed.
+    for (auto &req : read_reqs) {
+      memcpy(req.buf, mmap_base_ + req.offset - index_segment_offset_, req.len);
+    }
+    return 0;
+  }
+  if (!reader_) {
+    LOG_ERROR("read_sectors: no reader and no mmap available");
+    return IndexError_Runtime;
+  }
+  return reader_->read(read_reqs, ctx);
+}
+
 diskann_key_t DiskAnnIndexer::get_key(diskann_id_t id) const {
   return entity_->get_key(id);
 }
@@ -169,9 +200,9 @@ std::vector<bool> DiskAnnIndexer::read_nodes(
     read_reqs.push_back(read);
   }
 
-  int read_ret = reader_->read(read_reqs, init_ctx_);
+  int read_ret = read_sectors(read_reqs, init_ctx_);
   if (read_ret != 0) {
-    LOG_ERROR("read_nodes: reader_->read failed, ret=%d", read_ret);
+    LOG_ERROR("read_nodes: read_sectors failed, ret=%d", read_ret);
     for (size_t i = 0; i < retval.size(); i++) {
       retval[i] = false;
     }
@@ -472,10 +503,10 @@ int DiskAnnIndexer::linear_search(DiskAnnContext *ctx) {
 
       io_timer.reset();
 
-      int read_ret = reader_->read(frontier_read_reqs, io_ctx);
+      int read_ret = read_sectors(frontier_read_reqs, io_ctx);
       stats.io_us += io_timer.micro_seconds();
       if (read_ret != 0) {
-        LOG_ERROR("linear_search: reader_->read failed, ret=%d", read_ret);
+        LOG_ERROR("linear_search: read_sectors failed, ret=%d", read_ret);
         ctx->set_error(true);
         return IndexError_Runtime;
       }
@@ -609,10 +640,10 @@ int DiskAnnIndexer::keys_search(const std::vector<uint64_t> &keys,
 
       io_timer.reset();
 
-      int read_ret = reader_->read(frontier_read_reqs, io_ctx);
+      int read_ret = read_sectors(frontier_read_reqs, io_ctx);
       stats.io_us += io_timer.micro_seconds();
       if (read_ret != 0) {
-        LOG_ERROR("keys_search: reader_->read failed, ret=%d", read_ret);
+        LOG_ERROR("keys_search: read_sectors failed, ret=%d", read_ret);
         ctx->set_error(true);
         return IndexError_Runtime;
       }
@@ -717,7 +748,7 @@ int DiskAnnIndexer::get_vector(diskann_id_t id, IndexContext::Pointer &context,
 
     io_timer.reset();
 
-    reader_->read(frontier_read_reqs, io_ctx);
+    read_sectors(frontier_read_reqs, io_ctx);
     stats.io_us += io_timer.micro_seconds();
 
     uint8_t *node_disk_buf = DiskAnnUtil::offset_to_node(
@@ -876,10 +907,10 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
 
       io_timer.reset();
 
-      int read_ret = reader_->read(frontier_read_reqs, io_ctx);
+      int read_ret = read_sectors(frontier_read_reqs, io_ctx);
       stats.io_us += io_timer.micro_seconds();
       if (read_ret != 0) {
-        LOG_ERROR("cached_beam_search: reader_->read failed, ret=%d", read_ret);
+        LOG_ERROR("cached_beam_search: read_sectors failed, ret=%d", read_ret);
         ctx->set_error(true);
         return IndexError_Runtime;
       }
@@ -1104,7 +1135,7 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
 
         io_timer.reset();
 
-        reader_->read(frontier_read_reqs, io_ctx);  // synchronous IO linux
+        read_sectors(frontier_read_reqs, io_ctx);  // synchronous IO linux
         stats.io_us += io_timer.micro_seconds();
       }
 

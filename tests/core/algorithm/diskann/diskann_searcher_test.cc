@@ -860,7 +860,11 @@ TEST_F(DiskAnnSearcherTest, TestInMemSearch) {
 
   ASSERT_EQ(0, searcher->init(search_params));
 
-  auto storage = IndexFactory::CreateStorage("FileReadStorage");
+  auto storage = IndexFactory::CreateStorage("MMapFileReadStorage");
+  ASSERT_NE(nullptr, storage);
+  Params stg_params;
+  stg_params.set("proxima.mmap_file.container.memory_warmup", true);
+  ASSERT_EQ(0, storage->init(stg_params));
   ASSERT_EQ(0, storage->open(path, false));
   ASSERT_EQ(0, searcher->load(storage, IndexMetric::Pointer()));
 
@@ -958,7 +962,11 @@ TEST_F(DiskAnnSearcherTest, TestInMemSearchGroup) {
 
   ASSERT_EQ(0, searcher->init(search_params));
 
-  auto storage = IndexFactory::CreateStorage("FileReadStorage");
+  auto storage = IndexFactory::CreateStorage("MMapFileReadStorage");
+  ASSERT_NE(nullptr, storage);
+  Params stg_params;
+  stg_params.set("proxima.mmap_file.container.memory_warmup", true);
+  ASSERT_EQ(0, storage->init(stg_params));
   ASSERT_EQ(0, storage->open(path, false));
   ASSERT_EQ(0, searcher->load(storage, IndexMetric::Pointer()));
 

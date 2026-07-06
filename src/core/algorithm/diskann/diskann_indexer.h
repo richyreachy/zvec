@@ -71,6 +71,11 @@ class DiskAnnIndexer {
       std::vector<void *> &coord_buffers,
       std::vector<std::pair<uint32_t, diskann_id_t *>> &nbr_buffers);
 
+  //! Read sector-aligned data from either mmap memory or file reader.
+  //! When mmap_base_ is available, reads directly from mmap'd memory;
+  //! otherwise falls back to LinuxAlignedFileReader.
+  int read_sectors(std::vector<AlignedRead> &read_reqs, IOContext &ctx);
+
  protected:
   int use_medroids_data_as_centroids();
 
