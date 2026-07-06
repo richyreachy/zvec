@@ -41,7 +41,7 @@ int DiskAnnSearcher::cleanup() {
 }
 
 int DiskAnnSearcher::load(IndexStorage::Pointer storage,
-                          IndexMetric::Pointer measure) {
+                          IndexMetric::Pointer /*measure*/) {
   LOG_INFO("DiskAnnSearcher::load Begin");
 
   auto start_time = ailego::Monotime::MilliSeconds();

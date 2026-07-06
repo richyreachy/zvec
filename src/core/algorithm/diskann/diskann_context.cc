@@ -108,7 +108,7 @@ int DiskAnnContext::update_context(ContextType type, const IndexMeta &meta,
                                    const IndexMetric::Pointer &measure,
                                    const DiskAnnEntity::Pointer &entity,
                                    uint32_t magic_num) {
-  if (ailego_unlikely(type != type_)) {
+  if (ailego_unlikely(type != static_cast<ContextType>(type_))) {
     LOG_ERROR(
         "DiskAnnContext does not support shared by different type, "
         "src=%u dst=%u",

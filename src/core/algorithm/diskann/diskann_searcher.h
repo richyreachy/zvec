@@ -39,7 +39,8 @@ class DiskAnnSearcher : public IndexSearcher {
   int cleanup(void) override;
 
   //! Load Index from storage
-  int load(IndexStorage::Pointer storage, IndexMetric::Pointer metric) override;
+  int load(IndexStorage::Pointer storage,
+           IndexMetric::Pointer /*metric*/) override;
 
   //! Unload index from storage
   int unload(void) override;
