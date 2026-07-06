@@ -21,8 +21,9 @@
 // out of the box, without users ever calling a ``load_diskann_plugin()`` /
 // ``is_libaio_available()`` entry point. External callers should not depend
 // on these symbols; they may change or be removed in future releases. On
-// hosts missing libaio the bring-up fails cleanly and only DiskAnn becomes
-// unavailable — other index types (HNSW / IVF / Flat / Vamana) keep working.
+// hosts missing the runtime dependency (libaio on Linux) the bring-up fails
+// cleanly and only DiskAnn becomes unavailable — other index types (HNSW /
+// IVF / Flat / Vamana) keep working.
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 #ifdef ZVEC_BUILD_SHARED

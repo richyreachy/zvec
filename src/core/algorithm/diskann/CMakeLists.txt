@@ -14,12 +14,15 @@ file(GLOB_RECURSE ALL_SRCS *.cc *.c)
 # (which only ships _zvec.so + the plugin) would fail to load.
 #
 # We therefore link the plugin only against its system-level dependency
-# (libaio) and rely on the global include dirs plus -Wl,--unresolved-symbols
-# =ignore-all to let the linker build a shared library with unresolved
-# references to internal APIs.
+# (libaio on Linux x86_64/ARM64) and rely on the global include dirs plus
+# linker flags to let the linker build a shared library with unresolved
+# references to internal APIs. On macOS, kqueue is part of the system
+# libraries so no extra dependency is needed.
 set(CORE_KNN_DISKANN_LIBS "")
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|i686|i386")
+# libaio is available on all mainstream Linux architectures (x86_64, aarch64,
+# arm64, ppc64le, ...). Link it on Linux regardless of CPU architecture.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID)
     list(APPEND CORE_KNN_DISKANN_LIBS aio)
 endif()
 
@@ -48,10 +51,14 @@ endforeach()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_options(core_knn_diskann PRIVATE
         "LINKER:--unresolved-symbols=ignore-all")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_link_options(core_knn_diskann PRIVATE
+        "LINKER:-undefined,dynamic_lookup")
 endif()
 
-# Rename the artifact to libzvec_diskann_plugin.so so it is clearly identified
-# as an optional plugin that users load at runtime via zvec::LoadDiskAnnPlugin().
+# Rename the artifact so it is clearly identified as an optional plugin that
+# users load at runtime via zvec::LoadDiskAnnPlugin(). The extension is
+# platform-specific (.so on Linux, .dylib on macOS).
 set_target_properties(core_knn_diskann PROPERTIES
     OUTPUT_NAME zvec_diskann_plugin
 )

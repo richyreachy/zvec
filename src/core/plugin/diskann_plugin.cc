@@ -28,6 +28,11 @@
 #include <limits.h>
 #endif
 
+#if defined(__APPLE__) || defined(__MACH__)
+#include <mach-o/dyld.h>
+#include <limits.h>
+#endif
+
 namespace zvec {
 
 namespace {
@@ -42,9 +47,10 @@ constexpr const char *kLibAioSoNames[] = {
 };
 constexpr bool kPlatformSupportsDiskAnnPlugin = true;
 #elif defined(__APPLE__)
-[[maybe_unused]] constexpr const char *kPluginFileName =
-    "libzvec_diskann_plugin.dylib";
-constexpr bool kPlatformSupportsDiskAnnPlugin = false;
+constexpr const char *kPluginFileName = "libzvec_diskann_plugin.dylib";
+// On macOS, DiskAnn uses kqueue (part of the system) instead of libaio,
+// so there is no external runtime dependency to probe.
+constexpr bool kPlatformSupportsDiskAnnPlugin = true;
 #else
 [[maybe_unused]] constexpr const char *kPluginFileName =
     "zvec_diskann_plugin.dll";
@@ -55,17 +61,31 @@ constexpr bool kPlatformSupportsDiskAnnPlugin = false;
 std::atomic<void *> g_plugin_handle{nullptr};
 std::mutex g_plugin_mutex;
 
-#if defined(__linux__) || defined(__linux)
+#if (defined(__linux__) || defined(__linux)) || \
+    (defined(__APPLE__) || defined(__MACH__))
 
 // Resolve the directory containing the currently running executable, so we
 // can look for the plugin next to it regardless of the working directory.
 std::string GetExecutableDir() {
   char buf[PATH_MAX];
+#if defined(__linux__) || defined(__linux)
   ssize_t n = ::readlink("/proc/self/exe", buf, sizeof(buf) - 1);
   if (n <= 0) {
     return {};
   }
   buf[n] = '\0';
+#elif defined(__APPLE__)
+  uint32_t bufsize = sizeof(buf);
+  if (_NSGetExecutablePath(buf, &bufsize) != 0) {
+    return {};
+  }
+  // _NSGetExecutablePath may return a path that's not absolute; resolve it.
+  char resolved[PATH_MAX];
+  if (::realpath(buf, resolved) != nullptr) {
+    ::strncpy(buf, resolved, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+  }
+#endif
   std::string path(buf);
   auto slash = path.find_last_of('/');
   if (slash == std::string::npos) {
@@ -76,9 +96,10 @@ std::string GetExecutableDir() {
 
 // Resolve the directory containing the shared object that hosts this
 // function. For Python wheels this is the directory of
-// ``_zvec.cpython-*.so``; for regular C++ binaries it is the directory of
-// ``libzvec_core.so``. In either case the DiskAnn plugin is shipped
-// alongside, so this is the most reliable lookup location.
+// ``_zvec.cpython-*.so`` (Linux) or ``_zvec.cpython-*.so`` (macOS); for
+// regular C++ binaries it is the directory of ``libzvec_core.so`` (Linux)
+// or ``libzvec_core.dylib`` (macOS). In either case the DiskAnn plugin is
+// shipped alongside, so this is the most reliable lookup location.
 //
 // NOTE: we pass the address of an *exported* function (LoadDiskAnnPlugin)
 // rather than one in this anonymous namespace, because dladdr() on a symbol
@@ -136,9 +157,19 @@ void PromoteHostingSoToGlobal() {
   const std::string exe_path = GetExecutableDir();
   if (!exe_path.empty()) {
     char exe_buf[PATH_MAX];
+#if defined(__linux__) || defined(__linux)
     ssize_t n = ::readlink("/proc/self/exe", exe_buf, sizeof(exe_buf) - 1);
     if (n > 0) {
       exe_buf[n] = '\0';
+#elif defined(__APPLE__)
+    uint32_t bufsize = sizeof(exe_buf);
+    if (_NSGetExecutablePath(exe_buf, &bufsize) == 0) {
+      char resolved[PATH_MAX];
+      if (::realpath(exe_buf, resolved) != nullptr) {
+        ::strncpy(exe_buf, resolved, sizeof(exe_buf) - 1);
+        exe_buf[sizeof(exe_buf) - 1] = '\0';
+      }
+#endif
       // Compare resolved real paths to handle relative vs absolute.
       char host_real[PATH_MAX];
       char exe_real[PATH_MAX];
@@ -196,12 +227,12 @@ std::vector<std::string> BuildCandidatePaths(const std::string &explicit_path) {
     push_dir_candidates(exe_dir);
   }
   // 3. Fallback: rely on the dynamic linker's default search path
-  //    (RPATH / LD_LIBRARY_PATH / /etc/ld.so.conf).
+  //    (RPATH / LD_LIBRARY_PATH / DYLD_LIBRARY_PATH / ld.so.conf).
   candidates.emplace_back(kPluginFileName);
   return candidates;
 }
 
-#endif  // linux
+#endif  // linux || apple
 
 }  // namespace
 
@@ -230,7 +261,9 @@ bool IsLibAioAvailable() {
   }
   return false;
 #else
-  return false;
+  // On macOS, DiskAnn uses kqueue which is part of the system libraries,
+  // so there is no external dependency to probe — always "available".
+  return true;
 #endif
 }
 
@@ -241,12 +274,13 @@ bool IsDiskAnnPluginLoaded() {
 int LoadDiskAnnPlugin(const std::string &path) {
   if (!kPlatformSupportsDiskAnnPlugin) {
     LOG_ERROR(
-        "DiskAnn plugin is not supported on this platform; it is only "
-        "available on Linux x86_64 with libaio.");
+        "DiskAnn plugin is not supported on this platform; it is available "
+        "on Linux (x86_64/ARM64 with libaio) and macOS (with kqueue).");
     return kDiskAnnPluginUnsupportedPlatform;
   }
 
-#if defined(__linux__) || defined(__linux)
+#if (defined(__linux__) || defined(__linux)) || \
+    (defined(__APPLE__) || defined(__MACH__))
   // Fast path: already loaded.
   if (g_plugin_handle.load(std::memory_order_acquire) != nullptr) {
     return kDiskAnnPluginOk;
@@ -257,6 +291,10 @@ int LoadDiskAnnPlugin(const std::string &path) {
     return kDiskAnnPluginOk;
   }
 
+#if defined(__linux__) || defined(__linux)
+  // On Linux, verify that libaio is available before attempting to load
+  // the plugin. The plugin links against libaio and will fail to load
+  // without it.
   if (!IsLibAioAvailable()) {
     LOG_ERROR(
         "libaio is not available on this host; the DiskAnn runtime cannot be "
@@ -265,6 +303,9 @@ int LoadDiskAnnPlugin(const std::string &path) {
         "other index types (HNSW, IVF, Flat, Vamana).");
     return kDiskAnnPluginLibAioMissing;
   }
+#endif
+  // On macOS, no external library check is needed — kqueue is part of the
+  // system and the plugin has no external link-time dependencies.
 
   const std::vector<std::string> candidates = BuildCandidatePaths(path);
   // Ensure the hosting module's C++ symbols (zvec::*) are visible to the
@@ -302,7 +343,8 @@ int LoadDiskAnnPlugin(const std::string &path) {
 }
 
 bool UnloadDiskAnnPlugin() {
-#if defined(__linux__) || defined(__linux)
+#if (defined(__linux__) || defined(__linux)) || \
+    (defined(__APPLE__) || defined(__MACH__))
   std::lock_guard<std::mutex> lock(g_plugin_mutex);
   void *handle = g_plugin_handle.exchange(nullptr, std::memory_order_acq_rel);
   if (handle == nullptr) {

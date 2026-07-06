@@ -2,12 +2,10 @@ import pytest
 import logging
 import platform
 
-DISKANN_SUPPORTED = platform.system() == "Linux" and platform.machine() in (
-    "x86_64",
-    "AMD64",
-    "i686",
-    "i386",
-)
+DISKANN_SUPPORTED = (
+    platform.system() == "Linux"
+    and platform.machine() in ("x86_64", "AMD64", "i686", "i386", "aarch64", "arm64")
+) or platform.system() == "Darwin"
 
 from typing import Any, Generator
 from zvec.typing import DataType, StatusCode, MetricType, QuantizeType
@@ -32,10 +30,12 @@ def _ensure_diskann_runtime_or_reason() -> str | None:
     _DISKANN_PRELOAD_DONE = True
 
     if not DISKANN_SUPPORTED:
-        _DISKANN_PRELOAD_REASON = "DiskAnn only supported on Linux x86_64"
+        _DISKANN_PRELOAD_REASON = "DiskAnn is supported on Linux (x86_64/ARM64 with libaio) and macOS (kqueue)"
         return _DISKANN_PRELOAD_REASON
 
-    if not zvec.is_libaio_available():
+    # On Linux, verify libaio is available. On macOS, kqueue is always
+    # available as part of the system.
+    if platform.system() == "Linux" and not zvec.is_libaio_available():
         _DISKANN_PRELOAD_REASON = (
             "libaio is not available on this host; DiskAnn cannot run. "
             "Install libaio1 (or libaio1t64 on Ubuntu 24.04+) and retry."
@@ -46,8 +46,8 @@ def _ensure_diskann_runtime_or_reason() -> str | None:
     if status != zvec.DISKANN_PLUGIN_OK:
         _DISKANN_PRELOAD_REASON = (
             f"Failed to load DiskAnn plugin (status={status}); "
-            "check that libzvec_diskann_plugin.so is installed alongside "
-            "_zvec.so in the Python site-packages directory."
+            "check that the DiskAnn plugin shared library is installed "
+            "alongside _zvec.so in the Python site-packages directory."
         )
         return _DISKANN_PRELOAD_REASON
 

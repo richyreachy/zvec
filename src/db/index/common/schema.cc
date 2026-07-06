@@ -175,8 +175,8 @@ Status FieldSchema::validate() const {
 
       if (index_params_->type() == IndexType::DISKANN) {
         // Probe the DiskAnn runtime eagerly at creation time so unsupported
-        // platforms (non Linux x86_64), missing libaio, or a missing plugin
-        // .so fail fast with a clear message instead of surfacing later during
+        // platforms, missing libaio (on Linux), or a missing plugin .so fail
+        // fast with a clear message instead of surfacing later during
         // optimize(). This reuses the same gate DiskAnnIndex applies on first
         // use (zvec::LoadDiskAnnPlugin, wrapped by EnsureDiskAnnRuntimeReady).
         // All validate() call sites are creation-time only, so triggering the
@@ -187,8 +187,8 @@ Status FieldSchema::validate() const {
             break;
           case kDiskAnnPluginUnsupportedPlatform:
             return Status::NotSupported(
-                "DiskAnn is not supported on this platform (Linux x86_64 "
-                "only)");
+                "DiskAnn is not supported on this platform. It is available "
+                "on Linux (x86_64/ARM64 with libaio) and macOS (with kqueue).");
           case kDiskAnnPluginLibAioMissing:
             return Status::NotSupported(
                 "DiskAnn requires libaio at runtime, but it was not found on "

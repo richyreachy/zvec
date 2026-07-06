@@ -17,8 +17,8 @@ Mirrors ``test_collection_hnsw_rabitq.py`` but targets the DiskAnn plugin.
 
 Two platform-level prerequisites are enforced at module import time:
 
-1. DiskAnn is currently built only for Linux x86_64 — other platforms are
-   skipped wholesale.
+1. DiskAnn is built for Linux (x86_64/ARM64 with libaio) and macOS (with kqueue) —
+   other platforms are skipped wholesale.
 2. The DiskAnn backend lives in a *runtime-loaded* plugin
    (``libzvec_diskann_plugin.so``). It must be loaded with ``RTLD_GLOBAL |
    RTLD_NOW`` BEFORE ``import zvec`` so that the plugin's ``IndexFactory``
@@ -42,15 +42,21 @@ import pytest
 # Platform gating (must happen BEFORE we touch zvec).
 # --------------------------------------------------------------------------- #
 pytestmark = pytest.mark.skipif(
-    not (sys.platform == "linux" and platform.machine() in ("x86_64", "AMD64")),
-    reason="DiskAnn plugin is only supported on Linux x86_64",
+    not (
+        (
+            sys.platform == "linux"
+            and platform.machine() in ("x86_64", "AMD64", "aarch64", "arm64")
+        )
+        or sys.platform == "darwin"
+    ),
+    reason="DiskAnn plugin is supported on Linux (x86_64/ARM64 with libaio) and macOS (kqueue)",
 )
 
 # Promote all symbols in subsequently-loaded DSOs to the global namespace and
 # resolve relocations eagerly. This is REQUIRED so the DiskAnn plugin can see
 # the ``IndexFactory`` singleton that lives in ``_zvec.so`` and vice versa.
 # See: DiskAnn RTLD_GLOBAL + RTLD_NOW Requirement.
-if sys.platform == "linux":
+if sys.platform in ("linux", "darwin"):
     sys.setdlopenflags(sys.getdlopenflags() | os.RTLD_GLOBAL | os.RTLD_NOW)
 
 import zvec  # noqa: E402

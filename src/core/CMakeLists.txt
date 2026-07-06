@@ -63,9 +63,9 @@ endif()
 
 # Always exclude algorithm/diskann implementation files from zvec_core.
 # The DiskAnn algorithm is provided by the separate core_knn_diskann library
-# (real on Linux x86_64, stub on other platforms). Including them here causes
-# duplicate symbols and missing -laio when test binaries link both zvec_core
-# (via zvec) and core_knn_diskann.
+# (real on Linux x86_64/ARM64 with libaio and macOS with kqueue, stub on other
+# platforms). Including them here causes duplicate symbols and missing
+# -laio when test binaries link both zvec_core (via zvec) and core_knn_diskann.
 
 list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/diskann/.*")
 if(NOT DISKANN_SUPPORTED)
@@ -73,8 +73,8 @@ if(NOT DISKANN_SUPPORTED)
 endif()
 
 set(ZVEC_CORE_LIBS zvec_ailego zvec_turbo sparsehash magic_enum rabitqlib)
-# The plugin loader uses dlopen/dlsym, so link libdl on Linux.
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+# The plugin loader uses dlopen/dlsym, so link libdl on Unix platforms.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   list(APPEND ZVEC_CORE_LIBS ${CMAKE_DL_LIBS})
 endif()
 

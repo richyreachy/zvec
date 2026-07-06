@@ -27,9 +27,10 @@ namespace {
 // Implicitly bring the DiskAnn runtime online on first use. This keeps the
 // DiskAnn index an ordinary public API (users just instantiate a
 // DiskAnnIndexParam) while still letting the rest of the library — HNSW,
-// IVF, Flat, Vamana — run on hosts that happen to lack libaio. On such
-// hosts only DiskAnn fails, with a clear, actionable error message, and
-// every other index type stays fully functional.
+// IVF, Flat, Vamana — run on hosts that happen to lack the DiskAnn runtime
+// dependency (libaio on Linux). On such hosts only DiskAnn fails, with a
+// clear, actionable error message, and every other index type stays fully
+// functional.
 int EnsureDiskAnnRuntimeReady() {
   static std::once_flag once;
   static int cached_result = 0;
@@ -48,7 +49,9 @@ int EnsureDiskAnnRuntimeReady() {
             "or 'libaio1t64' on Ubuntu 24.04+) and retry.");
         break;
       case kDiskAnnPluginUnsupportedPlatform:
-        LOG_ERROR("DiskAnn is only supported on Linux x86_64.");
+        LOG_ERROR(
+            "DiskAnn is not supported on this platform. It is available on "
+            "Linux (x86_64/ARM64 with libaio) and macOS (with kqueue).");
         break;
       case kDiskAnnPluginDlopenFailed:
       default:
