@@ -97,6 +97,14 @@ jobs:
       os: ubuntu-24.04
       compiler: clang
 
+  # DiskAnn w/ libaio: explicitly install libaio and run tests to exercise
+  # the async I/O path. The existing CI (without libaio-dev) already covers
+  # the w/o libaio pread() fallback path.
+  diskann-libaio-test:
+    name: DiskAnn w/ libaio (linux-x64)
+    needs: [lint, clang-tidy]
+    uses: ./.github/workflows/09-diskann-libaio-test.yml
+
   build-android:
     if: github.event_name != 'push' || github.ref != 'refs/heads/main'
     name: Build & Test (android)

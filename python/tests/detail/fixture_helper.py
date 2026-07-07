@@ -13,22 +13,14 @@ from typing import Any, Generator
 from zvec.typing import DataType, StatusCode, MetricType, QuantizeType
 import zvec
 
-
-# Cache the DiskAnn runtime preload status so we pay the init cost once per
-# test session. The runtime normally auto-loads on first DiskAnn use, but we
-# preload it explicitly here so a missing libaio surfaces as a clear pytest
-# skip instead of a confusing "Create vector column indexer failed" deep
-# inside the collection code path.
-# Note: DiskAnn is now compiled directly into _zvec.so — there is no separate
-# plugin .so to locate. If libaio is missing, DiskAnn falls back to
-# synchronous pread() with degraded performance.
 _DISKANN_PRELOAD_REASON: str | None = None
 _DISKANN_PRELOAD_DONE: bool = False
 
 
 def _ensure_diskann_runtime_or_reason() -> str | None:
-    """Initialize the DiskAnn runtime and return None on success or a
-    human-readable skip reason on failure. Idempotent across calls."""
+    """Check whether DiskAnn is available on this platform and return None
+    on success or a human-readable skip reason on failure. Idempotent across
+    calls."""
     global _DISKANN_PRELOAD_DONE, _DISKANN_PRELOAD_REASON
     if _DISKANN_PRELOAD_DONE:
         return _DISKANN_PRELOAD_REASON
@@ -36,23 +28,6 @@ def _ensure_diskann_runtime_or_reason() -> str | None:
 
     if not DISKANN_SUPPORTED:
         _DISKANN_PRELOAD_REASON = "DiskAnn only supported on Linux x86_64"
-        return _DISKANN_PRELOAD_REASON
-
-    status = zvec.load_diskann_plugin()
-    if status == zvec.DISKANN_PLUGIN_UNSUPPORTED_PLATFORM:
-        _DISKANN_PRELOAD_REASON = (
-            f"DiskAnn is not supported on this platform (status={status})."
-        )
-        return _DISKANN_PRELOAD_REASON
-    # DISKANN_PLUGIN_OK and DISKANN_PLUGIN_LIBAIO_MISSING are both acceptable:
-    # the latter means DiskAnn will use synchronous pread() instead of async I/O.
-    if status not in (
-        zvec.DISKANN_PLUGIN_OK,
-        zvec.DISKANN_PLUGIN_LIBAIO_MISSING,
-    ):
-        _DISKANN_PRELOAD_REASON = (
-            f"Failed to initialize DiskAnn runtime (status={status})."
-        )
         return _DISKANN_PRELOAD_REASON
 
     _DISKANN_PRELOAD_REASON = None
@@ -152,8 +127,7 @@ def full_schema_new(request) -> CollectionSchema:
     else:
         nullable, has_index, vector_index = True, False, HnswIndexParam()
 
-    # Skip DiskAnn tests on unsupported platforms or when the runtime cannot
-    # be brought up (missing libaio, plugin .so not installed, etc.).
+    # Skip DiskAnn tests on unsupported platforms.
     from zvec.model.param import DiskAnnIndexParam
 
     if isinstance(vector_index, DiskAnnIndexParam):

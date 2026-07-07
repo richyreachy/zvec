@@ -25,6 +25,21 @@ DiskAnnSearcher::DiskAnnSearcher() {}
 DiskAnnSearcher::~DiskAnnSearcher() {}
 
 int DiskAnnSearcher::init(const ailego::Params &search_params) {
+#if defined(__linux__) || defined(__linux)
+  // Eagerly load libaio at init time so the user gets immediate feedback
+  // about whether async I/O is available. LibAioLoader::Load() is idempotent
+  // and thread-safe.
+  if (!LibAioLoader::Instance().Load()) {
+    LOG_WARN(
+        "DiskAnn: libaio could not be loaded (tried libaio.so.1 and "
+        "libaio.so.1t64). Install it (e.g. 'apt-get install libaio1', or "
+        "'libaio1t64' on Ubuntu 24.04+) and retry. DiskAnn will fall back "
+        "to synchronous pread() — performance will be degraded.");
+  } else {
+    LOG_INFO("DiskAnn: libaio loaded successfully — async I/O enabled.");
+  }
+#endif
+
   search_params.get(PARAM_DISKANN_SEARCHER_LIST_SIZE, &list_size_);
   search_params.get(PARAM_DISKANN_SEARCHER_CACHE_NODE_NUM, &cache_nodes_num_);
   return 0;
