@@ -1,0 +1,109 @@
+name: DiskAnn libaio Test
+
+# Tests DiskAnn on Linux x86_64 with libaio explicitly installed, exercising
+# the async I/O path (io_setup/io_submit/io_getevents).
+#
+# The existing CI (03-macos-linux-build.yml without libaio-dev installed) and
+# non-Linux platform jobs already cover the "w/o libaio" fallback path —
+# DiskAnn gracefully degrades to synchronous pread() when libaio is absent.
+# This workflow complements that by ensuring the async I/O path is also
+# exercised when libaio is present.
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  libaio-test:
+    name: DiskAnn w/ libaio (linux-x64)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Install libaio runtime
+        run: |
+          sudo apt-get update -y
+          # libaio1t64 on Ubuntu 24.04+ (t64 transition), libaio1 on older
+          sudo apt-get install -y libaio1t64 || sudo apt-get install -y libaio1
+          echo "=== libaio status (should be present) ==="
+          dpkg -l | grep -i libaio || true
+          ldconfig -p | grep libaio || true
+        shell: bash
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: linux-x64-libaio-test
+          max-size: 150M
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: 'pyproject.toml'
+
+      - name: Set up environment variables
+        run: |
+          NPROC=$(nproc 2>/dev/null || echo 2)
+          echo "NPROC=$NPROC" >> $GITHUB_ENV
+          echo "$(python -c 'import site; print(site.USER_BASE)')/bin" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            pybind11==3.0 \
+            cmake==3.30.0 \
+            ninja==1.11.1 \
+            pytest \
+            pytest-xdist \
+            scikit-build-core \
+            setuptools_scm
+        shell: bash
+
+      - name: Build from source
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          CMAKE_GENERATOR="Ninja" \
+          CMAKE_BUILD_PARALLEL_LEVEL="$NPROC" \
+          python -m pip install -v . \
+            --no-build-isolation \
+            --config-settings='cmake.define.BUILD_TOOLS=ON' \
+            --config-settings='cmake.define.ENABLE_WERROR=ON' \
+            --config-settings='cmake.define.CMAKE_C_COMPILER_LAUNCHER=ccache' \
+            --config-settings='cmake.define.CMAKE_CXX_COMPILER_LAUNCHER=ccache'
+        shell: bash
+
+      - name: Run C++ Tests (w/ libaio)
+        run: |
+          cd "$GITHUB_WORKSPACE/build"
+          cmake --build . --target unittest --parallel $NPROC
+        shell: bash
+
+      - name: Verify no libaio in test binary
+        run: |
+          # Confirm the test binary does NOT have a NEEDED entry for libaio.
+          # This verifies the dlopen decoupling — libaio is loaded at runtime,
+          # not linked at build time.
+          TEST_BIN="$GITHUB_WORKSPACE/build/bin/diskann_searcher_test"
+          if [ -f "$TEST_BIN" ]; then
+            ldd "$TEST_BIN" | grep 'libaio' \
+              && { echo "ERROR: test binary links libaio directly!"; exit 1; } \
+              || echo "OK: test binary does not link libaio (dlopen-based)"
+          fi
+        shell: bash
+
+      - name: Run Python Tests (w/ libaio)
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          python -m pytest python/tests/
+        shell: bash

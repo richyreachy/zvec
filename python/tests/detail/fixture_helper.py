@@ -11,19 +11,14 @@ from typing import Any, Generator
 from zvec.typing import DataType, StatusCode, MetricType, QuantizeType
 import zvec
 
-
-# Cache the DiskAnn plugin preload status so we pay the load cost once per
-# test session. The plugin normally auto-loads on first DiskAnn use, but we
-# preload it explicitly here so a missing libaio / misplaced plugin .so
-# surfaces as a clear pytest skip instead of a confusing
-# "Create vector column indexer failed" deep inside the collection code path.
 _DISKANN_PRELOAD_REASON: str | None = None
 _DISKANN_PRELOAD_DONE: bool = False
 
 
 def _ensure_diskann_runtime_or_reason() -> str | None:
-    """Preload the DiskAnn plugin and return None on success or a human-readable
-    skip reason on failure. Idempotent across calls."""
+    """Check whether DiskAnn is available on this platform and return None
+    on success or a human-readable skip reason on failure. Idempotent across
+    calls."""
     global _DISKANN_PRELOAD_DONE, _DISKANN_PRELOAD_REASON
     if _DISKANN_PRELOAD_DONE:
         return _DISKANN_PRELOAD_REASON
@@ -32,25 +27,6 @@ def _ensure_diskann_runtime_or_reason() -> str | None:
     if not DISKANN_SUPPORTED:
         _DISKANN_PRELOAD_REASON = "DiskAnn is supported on Linux (x86_64/ARM64 with libaio) and macOS (kqueue)"
         return _DISKANN_PRELOAD_REASON
-
-    # On Linux, verify libaio is available. On macOS, kqueue is always
-    # available as part of the system.
-    if platform.system() == "Linux" and not zvec.is_libaio_available():
-        _DISKANN_PRELOAD_REASON = (
-            "libaio is not available on this host; DiskAnn cannot run. "
-            "Install libaio1 (or libaio1t64 on Ubuntu 24.04+) and retry."
-        )
-        return _DISKANN_PRELOAD_REASON
-
-    status = zvec.load_diskann_plugin()
-    if status != zvec.DISKANN_PLUGIN_OK:
-        _DISKANN_PRELOAD_REASON = (
-            f"Failed to load DiskAnn plugin (status={status}); "
-            "check that the DiskAnn plugin shared library is installed "
-            "alongside _zvec.so in the Python site-packages directory."
-        )
-        return _DISKANN_PRELOAD_REASON
-
     _DISKANN_PRELOAD_REASON = None
     return None
 
@@ -148,8 +124,7 @@ def full_schema_new(request) -> CollectionSchema:
     else:
         nullable, has_index, vector_index = True, False, HnswIndexParam()
 
-    # Skip DiskAnn tests on unsupported platforms or when the runtime cannot
-    # be brought up (missing libaio, plugin .so not installed, etc.).
+    # Skip DiskAnn tests on unsupported platforms.
     from zvec.model.param import DiskAnnIndexParam
 
     if isinstance(vector_index, DiskAnnIndexParam):

@@ -32,6 +32,21 @@ namespace core {
 int DiskAnnBuilder::init(const IndexMeta &meta, const ailego::Params &params) {
   LOG_INFO("Begin DiskAnnBuilder::init");
 
+#if defined(__linux__) || defined(__linux)
+  // Eagerly load libaio at init time so the user gets immediate feedback
+  // about whether async I/O is available. LibAioLoader::Load() is idempotent
+  // and thread-safe.
+  if (!LibAioLoader::Instance().Load()) {
+    LOG_WARN(
+        "DiskAnn: libaio could not be loaded (tried libaio.so.1 and "
+        "libaio.so.1t64). Install it (e.g. 'apt-get install libaio1', or "
+        "'libaio1t64' on Ubuntu 24.04+) and retry. DiskAnn will fall back "
+        "to synchronous pread() — performance will be degraded.");
+  } else {
+    LOG_INFO("DiskAnn: libaio loaded successfully — async I/O enabled.");
+  }
+#endif
+
   params.get(PARAM_DISKANN_BUILDER_MAX_DEGREE, &max_degree_);
   params.get(PARAM_DISKANN_BUILDER_LIST_SIZE, &list_size_);
   params.get(PARAM_DISKANN_BUILDER_THREAD_COUNT, &build_thread_count_);

@@ -13,17 +13,15 @@
 # limitations under the License.
 """End-to-end collection tests for the DiskAnn index.
 
-Mirrors ``test_collection_hnsw_rabitq.py`` but targets the DiskAnn plugin.
+Mirrors ``test_collection_hnsw_rabitq.py`` but targets the DiskAnn index.
 
 Two platform-level prerequisites are enforced at module import time:
 
 1. DiskAnn is built for Linux (x86_64/ARM64 with libaio) and macOS (with kqueue) —
    other platforms are skipped wholesale.
-2. The DiskAnn backend lives in a *runtime-loaded* plugin
-   (``libzvec_diskann_plugin.so``). It must be loaded with ``RTLD_GLOBAL |
-   RTLD_NOW`` BEFORE ``import zvec`` so that the plugin's ``IndexFactory``
-   singleton is unified with the one inside ``_zvec.so``. After ``import
-   zvec`` we must also call ``zvec.load_diskann_plugin()`` exactly once.
+2. libaio is loaded eagerly (via dlopen) inside DiskAnnBuilder::init() /
+   DiskAnnStreamer::init(). If libaio is missing, DiskAnn falls back to
+   synchronous pread() — the tests still run but with degraded performance.
 
 If either prerequisite fails the whole module is skipped so the rest of the
 test-suite is not affected.
@@ -32,7 +30,6 @@ test-suite is not affected.
 from __future__ import annotations
 
 import math
-import os
 import platform
 import sys
 
@@ -49,15 +46,8 @@ pytestmark = pytest.mark.skipif(
         )
         or sys.platform == "darwin"
     ),
-    reason="DiskAnn plugin is supported on Linux (x86_64/ARM64 with libaio) and macOS (kqueue)",
+    reason="DiskAnn is supported on Linux (x86_64/ARM64 with libaio) and macOS (kqueue)",
 )
-
-# Promote all symbols in subsequently-loaded DSOs to the global namespace and
-# resolve relocations eagerly. This is REQUIRED so the DiskAnn plugin can see
-# the ``IndexFactory`` singleton that lives in ``_zvec.so`` and vice versa.
-# See: DiskAnn RTLD_GLOBAL + RTLD_NOW Requirement.
-if sys.platform in ("linux", "darwin"):
-    sys.setdlopenflags(sys.getdlopenflags() | os.RTLD_GLOBAL | os.RTLD_NOW)
 
 import zvec  # noqa: E402
 

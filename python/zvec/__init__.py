@@ -43,21 +43,6 @@ except Exception:
 # Public API — grouped by category
 # ==============================
 
-# —— DiskAnn runtime plugin ——
-# Re-export the plugin management entry points defined by the C++ extension.
-# DiskAnn normally auto-loads on first use; these APIs let tests and
-# diagnostic tools preload the plugin and get a clear error if libaio is
-# missing or the plugin shared object cannot be located.
-from zvec._zvec import (
-    DISKANN_PLUGIN_DLOPEN_FAILED,
-    DISKANN_PLUGIN_LIBAIO_MISSING,
-    DISKANN_PLUGIN_OK,
-    DISKANN_PLUGIN_UNSUPPORTED_PLATFORM,
-    is_diskann_plugin_loaded,
-    is_libaio_available,
-    load_diskann_plugin,
-)
-
 from . import model as model
 
 # —— Extensions ——
@@ -203,14 +188,6 @@ __all__ = [
     "StatusCode",
     # Tools
     "require_module",
-    # DiskAnn plugin
-    "load_diskann_plugin",
-    "is_diskann_plugin_loaded",
-    "is_libaio_available",
-    "DISKANN_PLUGIN_OK",
-    "DISKANN_PLUGIN_UNSUPPORTED_PLATFORM",
-    "DISKANN_PLUGIN_LIBAIO_MISSING",
-    "DISKANN_PLUGIN_DLOPEN_FAILED",
 ]
 
 # ==============================

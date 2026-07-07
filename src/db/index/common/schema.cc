@@ -20,7 +20,6 @@
 #include <zvec/db/schema.h>
 #include <zvec/db/status.h>
 #include <zvec/db/type.h>
-#include <zvec/plugin/diskann_plugin.h>
 #include "ailego/internal/cpu_features.h"
 #include "db/common/constants.h"
 #include "db/common/typedef.h"
@@ -174,30 +173,15 @@ Status FieldSchema::validate() const {
       }
 
       if (index_params_->type() == IndexType::DISKANN) {
-        // Probe the DiskAnn runtime eagerly at creation time so unsupported
-        // platforms, missing libaio (on Linux), or a missing plugin .so fail
-        // fast with a clear message instead of surfacing later during
-        // optimize(). This reuses the same gate DiskAnnIndex applies on first
-        // use (zvec::LoadDiskAnnPlugin, wrapped by EnsureDiskAnnRuntimeReady).
-        // All validate() call sites are creation-time only, so triggering the
-        // plugin load here is safe (and idempotent/cached).
-        const int rc = ::zvec::LoadDiskAnnPlugin();
-        switch (rc) {
-          case kDiskAnnPluginOk:
-            break;
-          case kDiskAnnPluginUnsupportedPlatform:
-            return Status::NotSupported(
-                "DiskAnn is not supported on this platform. It is available "
-                "on Linux (x86_64/ARM64 with libaio) and macOS (with kqueue).");
-          case kDiskAnnPluginLibAioMissing:
-            return Status::NotSupported(
-                "DiskAnn requires libaio at runtime, but it was not found on "
-                "this host. Install it (e.g. 'apt-get install libaio1', or "
-                "'libaio1t64' on Ubuntu 24.04+) and retry.");
-          default:
-            return Status::NotSupported(
-                "DiskAnn runtime could not be initialized on this host");
-        }
+        // DiskAnn is supported on Linux (x86_64/ARM64 with libaio) and macOS
+        // (with kqueue). On Linux, libaio is loaded eagerly via dlopen; if
+        // missing, DiskAnn falls back to synchronous pread() with degraded
+        // performance.
+#if !DISKANN_SUPPORTED
+        return Status::NotSupported(
+            "DiskAnn is not supported on this platform. It is available on "
+            "Linux (x86_64/ARM64 with libaio) and macOS (with kqueue).");
+#endif
       }
 
 
