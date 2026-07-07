@@ -272,7 +272,7 @@ ailego::IOBackendType DiskAnnIndex::io_backend_type() const {
   ailego::IOBackendType type = backend.type();
   if (type == ailego::IOBackendType::kSyncPread) {
     LOG_WARN(
-        "DiskAnn: only synchronous pread() is available. Install libaio "
+        "Only synchronous pread() is available. Install libaio "
         "(e.g. 'apt-get install libaio1', or 'libaio1t64' on Ubuntu 24.04+) "
         "for async I/O support — performance will be degraded without it.");
   }
