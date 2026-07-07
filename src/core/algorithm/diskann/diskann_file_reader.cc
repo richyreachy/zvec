@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <ailego/io/io_backend.h>
 #include <zvec/core/framework/index_logger.h>
 
 #define MAX_EVENTS 1024
@@ -37,15 +38,16 @@ static std::once_flag g_io_backend_log_once;
 
 int setup_io_ctx(IOContext &ctx) {
 #if (defined(__linux) || defined(__linux__))
-  LibAioLoader::Instance().Load();
-  std::call_once(g_io_backend_log_once, [] {
-    if (LibAioLoader::Instance().IsAvailable()) {
-      LOG_INFO("DiskAnn I/O backend: libaio (async I/O enabled)");
+  auto &backend = ailego::IOBackend::Instance();
+  std::call_once(g_io_backend_log_once, [&backend] {
+    if (backend.available() != ailego::IOBackendType::kSyncPread) {
+      LOG_INFO("DiskAnn I/O backend: %s (async I/O enabled)", backend.name());
     } else {
-      LOG_WARN("DiskAnn I/O backend: synchronous pread (libaio not available)");
+      LOG_WARN(
+          "DiskAnn I/O backend: synchronous pread (no async I/O available)");
     }
   });
-  if (!LibAioLoader::Instance().IsAvailable()) {
+  if (backend.available() == ailego::IOBackendType::kSyncPread) {
     return 0;
   }
   int ret = LibAioLoader::Instance().io_setup(MAX_EVENTS, &ctx);
@@ -58,7 +60,8 @@ int setup_io_ctx(IOContext &ctx) {
 
 int destroy_io_ctx(IOContext &ctx) {
 #if (defined(__linux) || defined(__linux__))
-  if (!LibAioLoader::Instance().IsAvailable()) {
+  if (ailego::IOBackend::Instance().available() ==
+      ailego::IOBackendType::kSyncPread) {
     return 0;
   }
   int ret = LibAioLoader::Instance().io_destroy(ctx);
@@ -90,7 +93,8 @@ static int execute_io_pread(int fd, std::vector<AlignedRead> &read_reqs) {
 int execute_io(IOContext ctx, int fd, std::vector<AlignedRead> &read_reqs,
                uint64_t n_retries = 0) {
 #if (defined(__linux) || defined(__linux__))
-  if (!LibAioLoader::Instance().Load()) {
+  if (ailego::IOBackend::Instance().available() ==
+      ailego::IOBackendType::kSyncPread) {
     return execute_io_pread(fd, read_reqs);
   }
   uint64_t iters = DiskAnnUtil::div_round_up(read_reqs.size(), MAX_EVENTS);
@@ -211,28 +215,27 @@ void LinuxAlignedFileReader::register_thread() {
 
   IOContext ctx = nullptr;
 
-  LibAioLoader::Instance().Load();
-  std::call_once(g_io_backend_log_once, [] {
-    if (LibAioLoader::Instance().IsAvailable()) {
-      LOG_INFO("DiskAnn I/O backend: libaio (async I/O enabled)");
+  auto &backend = ailego::IOBackend::Instance();
+  std::call_once(g_io_backend_log_once, [&backend] {
+    if (backend.available() != ailego::IOBackendType::kSyncPread) {
+      LOG_INFO("DiskAnn I/O backend: %s (async I/O enabled)", backend.name());
     } else {
-      LOG_WARN("DiskAnn I/O backend: synchronous pread (libaio not available)");
+      LOG_WARN(
+          "DiskAnn I/O backend: synchronous pread (no async I/O available)");
     }
   });
-  if (!LibAioLoader::Instance().IsAvailable()) {
+  if (backend.available() == ailego::IOBackendType::kSyncPread) {
     lk.unlock();
     return;
   }
   int ret = LibAioLoader::Instance().io_setup(MAX_EVENTS, &ctx);
   if (ret != 0) {
-    lk.unlock();
     if (ret == -EAGAIN) {
       LOG_ERROR(
           "io_setup failed with EAGAIN: Consider increasing "
           "/proc/sys/fs/aio-max-nr");
     } else {
       LOG_ERROR("io_setup failed; returned: %d, %s", ret, ::strerror(-ret));
-      ;
     }
   } else {
     LOG_INFO("allocating ctx: %lu", (uint64_t)ctx);
@@ -261,7 +264,8 @@ void LinuxAlignedFileReader::deregister_thread() {
   }
 
   // io_destroy is a syscall; keep it outside the lock to avoid blocking others
-  if (LibAioLoader::Instance().IsAvailable()) {
+  if (ailego::IOBackend::Instance().available() !=
+      ailego::IOBackendType::kSyncPread) {
     LibAioLoader::Instance().io_destroy(ctx);
   }
   LOG_INFO("returned ctx from thread");
@@ -271,7 +275,8 @@ void LinuxAlignedFileReader::deregister_thread() {
 void LinuxAlignedFileReader::deregister_all_threads() {
 #if (defined(__linux) || defined(__linux__))
   std::unique_lock<std::mutex> lk(ctx_mut);
-  bool aio_available = LibAioLoader::Instance().IsAvailable();
+  bool aio_available = ailego::IOBackend::Instance().available() !=
+                       ailego::IOBackendType::kSyncPread;
   for (auto x = ctx_map.begin(); x != ctx_map.end(); x++) {
     IOContext ctx = x->second;
     if (aio_available) {
