@@ -1,0 +1,33 @@
+SearcherCommon:
+    SearcherClass: DiskAnnSearcher
+    IndexPath: /home/xingrui/bench/diskann/cohere/1m/fp32/cohere_1m_fp32.index
+    TopK: 1,10,50 #指定返回topk，recall时多topk用逗号隔开，bench时会使用最大值
+
+    QueryFile: /home/xingrui/bench/dataset/cohere/1m/cohere_test_vector_1000.new.txt
+
+    QueryType: float #指定query向量类型，需要与索引类型一致
+    QueryFirstSep: ";" #指定query第一分隔符，用于分割key和特征
+    QuerySecondSep: " " #指定query第二分隔符，用于分割特征各维度
+    GroundTruthFile: /home/xingrui/bench/dataset/cohere/1m/neighbors.txt
+
+    RecallLogDir: output.gt #指定recall详情数据数据路径，不指定时默认不保存recall详情数据
+    RecallThreadCount: 16
+    RecallScorePrecision: 1e-4 #recall precesion
+
+    BenchThreadCount: 4  #指定bench并发数（召回并发直接使用cpu核数）
+
+    BenchSecs: 30
+    BenchIterCount: 10000000 #指定bench执行条目数，当query量较少时会对query重复使用
+
+    CompareById: true
+
+    ContainerType: MMapFileReadStorage
+    LogLevel: Info
+
+SearcherParams: #各Searcher方法的params参数，类型同上
+    zvec.diskann.searcher.cache_node_num: 10000
+    zvec.diskann.searcher.list_size: 500
+    zvec.diskann.searcher.in_mem_search: true
+
+ContainerParams:
+    #proxima.file.container.enable_direct_io: true
