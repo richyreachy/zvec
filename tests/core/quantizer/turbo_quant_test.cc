@@ -41,8 +41,7 @@ TEST(TurboQuantCodebook, CentroidsBit1) {
   const auto &c = cb->centroids();
   ASSERT_EQ(2u, c.size());
 
-  float expected =
-      std::sqrt(2.0f / static_cast<float>(M_PI) / static_cast<float>(d));
+  float expected = std::sqrt(2.0f / kPi / static_cast<float>(d));
   // Centroids should be approximately ±expected
   ASSERT_LT(c[0], 0.0f);
   ASSERT_GT(c[1], 0.0f);

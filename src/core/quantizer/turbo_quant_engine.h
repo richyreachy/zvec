@@ -17,9 +17,6 @@
 
 #pragma once
 
-#ifndef _USE_MATH_DEFINES
-#define _USE_MATH_DEFINES
-#endif
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -33,6 +30,9 @@
 
 namespace zvec {
 namespace core {
+
+// Portable pi constant — MSVC does not define M_PI by default.
+constexpr float kPi = 3.14159265358979323846f;
 
 /*! Shared QJL matrix: d x d i.i.d. N(0,1) entries, generated from a seed.
  */
@@ -264,8 +264,7 @@ class TurboQuantEngine {
 
       std::vector<float> st_qjl(dim_);
       qjl_matrix_->matT_vec_sign(signs.data(), st_qjl.data());
-      float scale = std::sqrt(static_cast<float>(M_PI) / 2.0f) /
-                    static_cast<float>(dim_) * gamma;
+      float scale = std::sqrt(kPi / 2.0f) / static_cast<float>(dim_) * gamma;
       qjl_reconstructed.resize(dim_);
       for (size_t i = 0; i < dim_; ++i) {
         qjl_reconstructed[i] = scale * st_qjl[i];
@@ -328,8 +327,8 @@ class TurboQuantEngine {
         float sb = (sign_b[i] > 0) ? 1.0f : -1.0f;
         sign_ip += sa * sb;
       }
-      ip += static_cast<float>(M_PI) / (2.0f * static_cast<float>(dim_)) *
-            gamma_a * gamma_b * sign_ip;
+      ip +=
+          kPi / (2.0f * static_cast<float>(dim_)) * gamma_a * gamma_b * sign_ip;
     }
 
     // Scale by norms
@@ -377,17 +376,16 @@ class TurboQuantEngine {
       // x_qjl_b>
       // ||x_qjl||^2 = (π/(2d)) * γ^2 * ||S^T * qjl||^2 ≈ (π/(2d)) * γ^2 * d =
       // (π/2) * γ^2
-      float norm_a_sq = static_cast<float>(M_PI) / 2.0f * gamma_a * gamma_a;
-      float norm_b_sq = static_cast<float>(M_PI) / 2.0f * gamma_b * gamma_b;
+      float norm_a_sq = kPi / 2.0f * gamma_a * gamma_a;
+      float norm_b_sq = kPi / 2.0f * gamma_b * gamma_b;
       float sign_ip = 0.0f;
       for (size_t i = 0; i < dim_; ++i) {
         float sa = (sign_a[i] > 0) ? 1.0f : -1.0f;
         float sb = (sign_b[i] > 0) ? 1.0f : -1.0f;
         sign_ip += sa * sb;
       }
-      float ip_qjl = static_cast<float>(M_PI) /
-                     (2.0f * static_cast<float>(dim_)) * gamma_a * gamma_b *
-                     sign_ip;
+      float ip_qjl =
+          kPi / (2.0f * static_cast<float>(dim_)) * gamma_a * gamma_b * sign_ip;
       dist += norm_a_sq + norm_b_sq - 2.0f * ip_qjl;
     }
 
