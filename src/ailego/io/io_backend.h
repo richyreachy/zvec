@@ -30,10 +30,13 @@
 
 #pragma once
 
-#include <unistd.h>
 #include <cstring>
 #include <ailego/io/iouring_def.h>
 #include <ailego/io/libaio_loader.h>
+
+#if defined(__linux) || defined(__linux__)
+#include <unistd.h>  // close(), syscall() — POSIX only, used in Linux backend probe
+#endif
 
 namespace zvec {
 namespace ailego {
