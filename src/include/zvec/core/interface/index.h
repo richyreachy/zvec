@@ -19,6 +19,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <ailego/io/io_backend.h>
 #include <zvec/core/framework/index_context.h>
 #include <zvec/core/framework/index_converter.h>
 #include <zvec/core/framework/index_factory.h>
@@ -95,9 +96,13 @@ struct VectorDataBuffer {
 
 struct SearchResult {
   core::IndexDocumentList doc_list_;
+  core::IndexGroupDocumentList group_doc_list_;
   // use string to manage memory
   std::vector<std::string> reverted_vector_list_{};
   std::vector<std::string> reverted_sparse_values_list_{};
+  // Grouped reverted values, aligned with group_doc_list_.
+  std::vector<std::vector<std::string>> group_reverted_vector_list_{};
+  std::vector<std::vector<std::string>> group_reverted_sparse_values_list_{};
 };
 
 class Index {
@@ -172,6 +177,11 @@ class Index {
 
   static std::string get_metric_name(MetricType metric_type, bool is_sparse);
 
+  static bool is_group_by_unsupported_index(IndexType index_type) {
+    return index_type == IndexType::kIVF || index_type == IndexType::kDiskAnn ||
+           index_type == IndexType::kVamana;
+  }
+
  protected:
   int _sparse_fetch(const uint32_t doc_id,
                     VectorDataBuffer *vector_data_buffer);
@@ -194,6 +204,12 @@ class Index {
       core::IndexContext::Pointer &context) = 0;
   virtual int _get_coarse_search_topk(
       const BaseIndexQueryParam::Pointer &search_param);
+
+  //! Helper: set group_by on context from the query param (common for all
+  //! index types). Call this at the end of _prepare_for_search.
+  static void _set_group_by_on_context(
+      const BaseIndexQueryParam::Pointer &search_param,
+      core::IndexContext::Pointer &context);
 
  protected:
   friend class IndexFactory;
@@ -359,6 +375,10 @@ class HNSWRabitqIndex : public Index {
 class DiskAnnIndex : public Index {
  public:
   DiskAnnIndex() = default;
+
+  // Returns the I/O backend type currently loaded for DiskAnn async disk reads.
+  // If only sync_pread is available, logs a hint to install libaio.
+  ailego::IOBackendType io_backend_type() const;
 
  protected:
   virtual int CreateAndInitStreamer(const BaseIndexParam &param) override;

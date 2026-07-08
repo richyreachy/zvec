@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <ailego/io/io_backend.h>
 #include <zvec/core/framework/index_logger.h>
 
 #define MAX_EVENTS 1024
@@ -37,25 +38,32 @@ static std::once_flag g_io_backend_log_once;
 
 int setup_io_ctx(IOContext &ctx) {
 #if (defined(__linux) || defined(__linux__))
+  auto &backend = ailego::IOBackend::Instance();
+  ailego::IOBackendType selected = backend.available();
+  std::call_once(g_io_backend_log_once, [&backend] {
+    if (backend.available() != ailego::IOBackendType::kSyncPread) {
+      LOG_INFO("DiskAnn I/O backend: %s (async I/O enabled)", backend.name());
+    } else {
+      LOG_WARN(
+          "DiskAnn I/O backend: synchronous pread (no async I/O available)");
+    }
+  });
+
   ctx = new IoBackend();
 
   // Priority 1: io_uring (raw kernel syscalls — zero dependency).
-  if (ctx->ring.setup(MAX_EVENTS)) {
+  if (selected == ailego::IOBackendType::kIoUring &&
+      ctx->ring.setup(MAX_EVENTS)) {
     ctx->backend = IoBackend::IO_URING;
-    std::call_once(g_io_backend_log_once, [] {
-      LOG_INFO("DiskAnn I/O backend: io_uring (async I/O enabled)");
-    });
     return 0;
   }
 
   // Priority 2: libaio (dlopen — soft dependency).
-  if (LibAioLoader::Instance().Load()) {
+  if (selected != ailego::IOBackendType::kSyncPread &&
+      LibAioLoader::Instance().load()) {
     int ret = LibAioLoader::Instance().io_setup(MAX_EVENTS, &ctx->aio_ctx);
     if (ret == 0) {
       ctx->backend = IoBackend::LIBAIO;
-      std::call_once(g_io_backend_log_once, [] {
-        LOG_INFO("DiskAnn I/O backend: libaio (async I/O enabled)");
-      });
       return 0;
     }
     LOG_WARN("io_setup failed; returned: %d, %s. falling back to pread", ret,
@@ -64,8 +72,6 @@ int setup_io_ctx(IOContext &ctx) {
 
   // Priority 3: synchronous pread (always available).
   ctx->backend = IoBackend::NONE;
-  std::call_once(g_io_backend_log_once,
-                 [] { LOG_INFO("DiskAnn I/O backend: synchronous pread"); });
   return 0;
 #else
   return 0;
@@ -81,7 +87,7 @@ int destroy_io_ctx(IOContext &ctx) {
   if (ctx->backend == IoBackend::IO_URING) {
     ctx->ring.teardown();
   } else if (ctx->backend == IoBackend::LIBAIO &&
-             LibAioLoader::Instance().IsAvailable()) {
+             LibAioLoader::Instance().is_available()) {
     LibAioLoader::Instance().io_destroy(ctx->aio_ctx);
   }
   // IoUringRing destructor also calls teardown() — idempotent and safe.

@@ -18,8 +18,8 @@
 #include <fcntl.h>
 
 #if (defined(__linux) || defined(__linux__))
-#include "iouring_loader.h"  // raw-syscall io_uring wrapper
-#include "libaio_loader.h"   // dlopen-based libaio wrapper
+#include <ailego/io/iouring_loader.h>  // raw-syscall io_uring wrapper
+#include <ailego/io/libaio_loader.h>   // dlopen-based libaio wrapper
 #endif
 
 #include <unistd.h>
