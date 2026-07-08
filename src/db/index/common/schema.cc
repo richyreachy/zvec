@@ -197,15 +197,13 @@ Status FieldSchema::validate() const {
       }
 
       if (index_params_->type() == IndexType::DISKANN) {
-        // DiskAnn is supported wherever DISKANN_SUPPORTED is enabled (Linux
-        // x86_64 with libaio/io_uring, Windows x86_64 with IOCP). On Linux the
-        // libaio runtime is loaded eagerly via dlopen inside
-        // DiskAnnBuilder::init() and DiskAnnStreamer::init(); if libaio is
-        // missing, DiskAnn falls back to synchronous pread() with degraded
-        // performance.
-#if !DISKANN_SUPPORTED
+        // DiskAnn requires Linux x86_64. The libaio runtime is loaded
+        // eagerly (via dlopen) inside DiskAnnBuilder::init() and
+        // DiskAnnStreamer::init(); if libaio is missing, DiskAnn falls back
+        // to synchronous pread() with degraded performance.
+#if !defined(__linux__) && !defined(__linux)
         return Status::NotSupported(
-            "DiskAnn is not supported on this platform");
+            "DiskAnn is not supported on this platform (Linux x86_64 only)");
 #endif
       }
 
