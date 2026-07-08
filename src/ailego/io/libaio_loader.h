@@ -32,7 +32,7 @@
 #include <atomic>
 #include <cstring>
 #include <mutex>
-#include "libaio_def.h"  // ABI-stable struct definitions (replaces <libaio.h>)
+#include <ailego/io/libaio_def.h>  // ABI-stable struct definitions (replaces <libaio.h>)
 
 // Function-pointer typedefs for the four libaio syscalls used by DiskAnn.
 typedef int (*aio_setup_fn)(int maxevents, io_context_t *ctxp);
@@ -48,7 +48,7 @@ typedef int (*aio_getevents_fn)(io_context_t ctx, long min_nr, long nr,
 // synchronous I/O (pread).
 //
 // Usage:
-//   if (LibAioLoader::Instance().Load()) {
+//   if (LibAioLoader::Instance().load()) {
 //     LibAioLoader::Instance().io_setup(...);
 //   }
 class LibAioLoader {
@@ -60,19 +60,19 @@ class LibAioLoader {
 
   // Load (or confirm already loaded) libaio.  Returns true on success.
   // Thread-safe and idempotent.
-  bool Load() {
+  bool load() {
     if (available_.load(std::memory_order_acquire)) {
       return true;
     }
-    std::call_once(once_, [this] { this->TryLoad(); });
+    std::call_once(once_, [this] { this->try_load(); });
     return available_.load(std::memory_order_relaxed);
   }
 
-  bool IsAvailable() const {
+  bool is_available() const {
     return available_.load(std::memory_order_acquire);
   }
 
-  // Function pointers — nullptr until Load() succeeds.
+  // Function pointers — nullptr until load() succeeds.
   aio_setup_fn io_setup;
   aio_destroy_fn io_destroy;
   aio_submit_fn io_submit;
@@ -94,7 +94,7 @@ class LibAioLoader {
   LibAioLoader(const LibAioLoader &) = delete;
   LibAioLoader &operator=(const LibAioLoader &) = delete;
 
-  void TryLoad() {
+  void try_load() {
     // On Ubuntu 24.04 the libaio package was renamed with the t64 suffix
     // (64-bit time_t transition), so probe both spellings.
     static constexpr const char *kSonames[] = {

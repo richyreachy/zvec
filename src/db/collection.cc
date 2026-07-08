@@ -134,6 +134,8 @@ class CollectionImpl : public Collection {
   Result<std::string> DebugGetHnswStorageMode(
       const std::string &column_name) const override;
 
+  Result<std::string> DebugGetIoBackendType() const override;
+
  private:
   void prepare_schema();
 
@@ -1893,6 +1895,11 @@ Result<std::string> CollectionImpl::DebugGetHnswStorageMode(
       Status::NotFound("No HNSW index found for column '", column_name, "'"));
 }
 
+Result<std::string> CollectionImpl::DebugGetIoBackendType() const {
+  auto type = ailego::IOBackend::Instance().available();
+  return std::string(ailego::IOBackendTypeName(type));
+}
+
 Status CollectionImpl::recovery() {
   if (!FileHelper::DirectoryExists(path_.c_str())) {
     return Status::InvalidArgument("collection path{", path_, "} not exist.");
@@ -2090,7 +2097,7 @@ Status CollectionImpl::acquire_file_lock(bool create) {
       return Status::InternalError("Can't create lock file: ", lock_file_path);
     }
   } else {
-    if (!lock_file_.open(lock_file_path.c_str(), false)) {
+    if (!lock_file_.open(lock_file_path.c_str(), options_.read_only_)) {
       return Status::InternalError("Can't open lock file: ", lock_file_path);
     }
   }

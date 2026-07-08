@@ -19,11 +19,9 @@ Two platform-level prerequisites are enforced at module import time:
 
 1. DiskAnn is currently built only for Linux x86_64 — other platforms are
    skipped wholesale.
-2. The DiskAnn runtime is initialized via ``zvec.load_diskann_plugin()``,
-   which eagerly loads libaio via dlopen(). If libaio is missing, DiskAnn
-   falls back to synchronous pread() — the tests still run but with degraded
-   performance. DiskAnn is compiled directly into ``_zvec.so``; there is no
-   separate plugin .so to locate.
+2. libaio is loaded eagerly (via dlopen) inside DiskAnnBuilder::init() /
+   DiskAnnStreamer::init(). If libaio is missing, DiskAnn falls back to
+   synchronous pread() — the tests still run but with degraded performance.
 
 If either prerequisite fails the whole module is skipped so the rest of the
 test-suite is not affected.
@@ -32,7 +30,6 @@ test-suite is not affected.
 from __future__ import annotations
 
 import math
-import os
 import platform
 import sys
 
@@ -45,13 +42,6 @@ pytestmark = pytest.mark.skipif(
     not (sys.platform == "linux" and platform.machine() in ("x86_64", "AMD64")),
     reason="DiskAnn plugin is only supported on Linux x86_64",
 )
-
-# Promote all symbols in subsequently-loaded DSOs to the global namespace and
-# resolve relocations eagerly. This is REQUIRED so the DiskAnn plugin can see
-# the ``IndexFactory`` singleton that lives in ``_zvec.so`` and vice versa.
-# See: DiskAnn RTLD_GLOBAL + RTLD_NOW Requirement.
-if sys.platform == "linux":
-    sys.setdlopenflags(sys.getdlopenflags() | os.RTLD_GLOBAL | os.RTLD_NOW)
 
 import zvec  # noqa: E402
 

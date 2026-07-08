@@ -19,20 +19,6 @@ set(SRC_LISTS
 
 pybind11_add_module(_zvec ${SRC_LISTS})
 
-# pybind11_add_module() defaults to CXX_VISIBILITY_PRESET=hidden +
-# VISIBILITY_INLINES_HIDDEN=ON, which hides the compiler-generated helper
-# symbols attached to inline functions (guard variables for static locals,
-# vtables, typeinfo ...). DiskAnn is now whole-archived directly into
-# _zvec.so (no separate runtime .so), so guard-variable duplication across
-# DSOs is no longer a concern. We still keep default visibility so that
-# the version script (exports.map / exports.mac) — not the compiler — is
-# the sole gatekeeper of the dynamic symbol table, exporting only zvec::*
-# and PyInit_*.
-set_target_properties(_zvec PROPERTIES
-        CXX_VISIBILITY_PRESET default
-        C_VISIBILITY_PRESET default
-        VISIBILITY_INLINES_HIDDEN OFF)
-
 # Ensure any change to the linker version script (exports.map) triggers a
 # re-link of _zvec.so. target_link_options() alone is a command-line flag
 # and does not register the script file as a build dependency, so stale
@@ -61,7 +47,6 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
             $<TARGET_FILE:core_metric_static>
             $<TARGET_FILE:core_utility_static>
             $<TARGET_FILE:core_quantizer_static>
-            $<TARGET_FILE:core_plugin>
             -Wl,--no-whole-archive
             zvec
             ${CMAKE_DL_LIBS}
@@ -89,7 +74,6 @@ elseif (APPLE)
             -Wl,-force_load,$<TARGET_FILE:core_metric_static>
             -Wl,-force_load,$<TARGET_FILE:core_utility_static>
             -Wl,-force_load,$<TARGET_FILE:core_quantizer_static>
-            -Wl,-force_load,$<TARGET_FILE:core_plugin>
             zvec
     )
     target_link_libraries(_zvec PRIVATE
@@ -109,7 +93,6 @@ elseif (MSVC)
             core_metric_static
             core_utility_static
             core_quantizer_static
-            core_plugin
     )
     target_link_libraries(_zvec PRIVATE
             ${_zvec_whole_archive_libs}

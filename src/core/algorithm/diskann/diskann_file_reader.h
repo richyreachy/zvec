@@ -18,9 +18,8 @@
 #include <fcntl.h>
 
 #if (defined(__linux) || defined(__linux__))
-#include <unistd.h>
-#include "iouring_loader.h"  // raw-syscall io_uring wrapper
-#include "libaio_loader.h"   // dlopen-based libaio wrapper
+#include <ailego/io/iouring_loader.h>  // raw-syscall io_uring wrapper
+#include <ailego/io/libaio_loader.h>   // dlopen-based libaio wrapper
 #elif defined(_WIN32) || defined(_WIN64)
 #ifndef NOMINMAX
 #define NOMINMAX

@@ -20,11 +20,12 @@
 #include <zvec/db/schema.h>
 #include <zvec/db/status.h>
 #include <zvec/db/type.h>
-#include <zvec/plugin/diskann_plugin.h>
 #include "ailego/internal/cpu_features.h"
 #include "db/common/constants.h"
 #include "db/common/typedef.h"
 #include "db/common/utils.h"
+#include "db/index/column/fts_column/fts_types.h"
+#include "db/index/column/fts_column/tokenizer/tokenizer_factory.h"
 #include "db/index/common/type_helper.h"
 
 namespace zvec {
@@ -60,6 +61,28 @@ std::unordered_set<IndexType> support_dense_vector_index = {
 
 std::unordered_set<IndexType> support_sparse_vector_index = {IndexType::FLAT,
                                                              IndexType::HNSW};
+
+static Status validate_fts_index_params(const FieldSchema &field) {
+  auto params = std::dynamic_pointer_cast<FtsIndexParams>(field.index_params());
+  if (!params) {
+    return Status::InvalidArgument(
+        "schema validate failed: FTS index requires FtsIndexParams, but field[",
+        field.name(), "] has incompatible index params");
+  }
+
+  fts::FtsIndexParams internal_params;
+  internal_params.tokenizer_name = params->tokenizer_name();
+  internal_params.filters = params->filters();
+  internal_params.extra_params = params->extra_params();
+
+  auto pipeline = fts::TokenizerFactory::create(internal_params);
+  if (!pipeline) {
+    return Status::InvalidArgument(
+        "schema validate failed: invalid FTS index params for field[",
+        field.name(), "]");
+  }
+  return Status::OK();
+}
 
 Status FieldSchema::validate() const {
   if (data_type_ == DataType::UNDEFINED) {
@@ -174,27 +197,14 @@ Status FieldSchema::validate() const {
       }
 
       if (index_params_->type() == IndexType::DISKANN) {
-        // Probe the DiskAnn runtime eagerly at creation time so unsupported
-        // platforms (non Linux x86_64) fail fast with a clear message instead
-        // of surfacing later during optimize(). All validate() call sites
-        // are creation-time only, so triggering the runtime init here is
-        // safe (and idempotent/cached).
-        //
-        // kDiskAnnPluginLibAioMissing is non-fatal: DiskAnn falls back to
-        // synchronous pread() with degraded performance.
-        const int rc = ::zvec::LoadDiskAnnPlugin();
-        switch (rc) {
-          case kDiskAnnPluginOk:
-          case kDiskAnnPluginLibAioMissing:
-            break;
-          case kDiskAnnPluginUnsupportedPlatform:
-            return Status::NotSupported(
-                "DiskAnn is not supported on this platform (Linux x86_64 "
-                "only)");
-          default:
-            return Status::NotSupported(
-                "DiskAnn runtime could not be initialized on this host");
-        }
+        // DiskAnn requires Linux x86_64. The libaio runtime is loaded
+        // eagerly (via dlopen) inside DiskAnnBuilder::init() and
+        // DiskAnnStreamer::init(); if libaio is missing, DiskAnn falls back
+        // to synchronous pread() with degraded performance.
+#if !defined(__linux__) && !defined(__linux)
+        return Status::NotSupported(
+            "DiskAnn is not supported on this platform (Linux x86_64 only)");
+#endif
       }
 
 
@@ -257,6 +267,10 @@ Status FieldSchema::validate() const {
             "schema validate failed: FTS index only supports STRING data type, "
             "but field[",
             name_, "]'s data_type is ", DataTypeCodeBook::AsString(data_type_));
+      }
+      if (index_params_->type() == IndexType::FTS) {
+        auto s = validate_fts_index_params(*this);
+        CHECK_RETURN_STATUS(s);
       }
     }
   }

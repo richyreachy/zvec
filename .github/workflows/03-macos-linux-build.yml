@@ -175,3 +175,31 @@ jobs:
           ./c_api_index_example
           ./c_api_optimized_example
         shell: bash
+
+      # ------------------------------------------------------------------ #
+      # DiskAnn libaio round: install libaio and re-run tests 
+      # ------------------------------------------------------------------ #
+      - name: Install libaio runtime
+        if: matrix.platform == 'linux-x64'
+        run: |
+          sudo apt-get update -y
+          # libaio1t64 on Ubuntu 24.04+ (t64 transition), libaio1 on older
+          sudo apt-get install -y libaio1t64 || sudo apt-get install -y libaio1
+          echo "=== libaio status (should be present) ==="
+          dpkg -l | grep -i libaio || true
+          ldconfig -p | grep libaio || true
+        shell: bash
+
+      - name: Run C++ Tests (w/ libaio)
+        if: matrix.platform == 'linux-x64'
+        run: |
+          cd "$GITHUB_WORKSPACE/build"
+          cmake --build . --target unittest --parallel $NPROC
+        shell: bash
+
+      - name: Run Python Tests (w/ libaio)
+        if: matrix.platform == 'linux-x64'
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          python -m pytest python/tests/
+        shell: bash
