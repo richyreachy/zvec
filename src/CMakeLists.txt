@@ -53,12 +53,17 @@ function(zvec_add_all_in_one_shared TARGET_NAME OUTPUT_NAME)
     target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)
 
     if(MSVC)
+        # Use /WHOLEARCHIVE: instead of $<TARGET_OBJECTS:...> to avoid
+        # LNK1189 (library limit of 65535 objects exceeded).  Passing .lib
+        # files via /WHOLEARCHIVE keeps them as single archive units on
+        # the linker command line rather than expanding every .obj file.
         foreach(ZVEC_ALLIN_LIB ${ZVEC_ALLIN_LIBS})
-            target_sources(${TARGET_NAME} PRIVATE
-                $<TARGET_OBJECTS:${ZVEC_ALLIN_LIB}>
+            list(APPEND ZVEC_ALLIN_WHOLEARCHIVE_OPTS
+                /WHOLEARCHIVE:$<TARGET_FILE:${ZVEC_ALLIN_LIB}>
             )
         endforeach()
 
+        target_link_options(${TARGET_NAME} PRIVATE ${ZVEC_ALLIN_WHOLEARCHIVE_OPTS})
         target_link_libraries(${TARGET_NAME}
             PRIVATE
                 ${ZVEC_ALLIN_LIBS}
