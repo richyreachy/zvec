@@ -791,18 +791,21 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
 
   uint32_t num_ios = 0;
 
+  uint32_t effective_beam_width =
+      std::max(8u, std::min(ctx->list_size() / 5, 32u));
+
   std::vector<diskann_id_t> frontier;
-  frontier.reserve(2 * beam_width_);
+  frontier.reserve(2 * effective_beam_width);
 
   std::vector<std::pair<diskann_id_t, uint8_t *>> frontier_neighbors;
-  frontier_neighbors.reserve(2 * beam_width_);
+  frontier_neighbors.reserve(2 * effective_beam_width);
 
   std::vector<AlignedRead> frontier_read_reqs;
-  frontier_read_reqs.reserve(2 * beam_width_);
+  frontier_read_reqs.reserve(2 * effective_beam_width);
 
   std::vector<std::tuple<diskann_id_t, uint32_t, diskann_id_t *>>
       cached_neighbors;
-  cached_neighbors.reserve(2 * beam_width_);
+  cached_neighbors.reserve(2 * effective_beam_width);
 
   while (candidates.has_unexpanded_node() && num_ios < io_limit_) {
     frontier.clear();
@@ -813,8 +816,9 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
     uint64_t sector_buffer_idx = 0;
 
     uint32_t num_seen = 0;
-    while (candidates.has_unexpanded_node() && frontier.size() < beam_width_ &&
-           num_seen < beam_width_) {
+    while (candidates.has_unexpanded_node() &&
+           frontier.size() < effective_beam_width &&
+           num_seen < effective_beam_width) {
       auto neighbor = candidates.closest_unexpanded();
       num_seen++;
 
@@ -895,10 +899,11 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
 
       for (uint64_t m = 0; m < neighbor_num; ++m) {
         diskann_id_t id = node_neighbors[m];
-        visit_filter.set_visited(id);
-
-        Neighbor nn(id, distances[m]);
-        candidates.insert(nn);
+        if (!visit_filter.visited(id)) {
+          visit_filter.set_visited(id);
+          Neighbor nn(id, distances[m]);
+          candidates.insert(nn);
+        }
       }
     }
 
@@ -936,11 +941,12 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
       cpu_timer.reset();
       for (uint64_t m = 0; m < neighbor_num; ++m) {
         diskann_id_t id = node_neighbors[m];
-        visit_filter.set_visited(id);
-        stats.dist_num++;
-
-        Neighbor nn(id, distances[m]);
-        candidates.insert(nn);
+        if (!visit_filter.visited(id)) {
+          visit_filter.set_visited(id);
+          stats.dist_num++;
+          Neighbor nn(id, distances[m]);
+          candidates.insert(nn);
+        }
       }
 
       stats.cpu_us += cpu_timer.micro_seconds();
