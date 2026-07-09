@@ -15,10 +15,13 @@ endif()
 
 get_filename_component(ZVEC_ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 set(ZVEC_INCLUDE_DIR ${ZVEC_ROOT_DIR}/src/include)
+set(ZVEC_SRC_DIR ${ZVEC_ROOT_DIR}/src)
 set(ZVEC_LIB_DIR ${ZVEC_ROOT_DIR}/${HOST_BUILD_DIR}/lib)
 
-# Add include and library search paths
-include_directories(${ZVEC_INCLUDE_DIR})
+# Add include and library search paths.
+# ZVEC_SRC_DIR is needed because public headers under src/include/ reference
+# ailego/ and other internal headers that live directly under src/.
+include_directories(${ZVEC_INCLUDE_DIR} ${ZVEC_SRC_DIR})
 set(ZVEC_LIB_SEARCH_DIRS ${ZVEC_LIB_DIR})
 
 # Support multi-config builds (MSVC puts libs in Debug/Release subdirectories)
