@@ -134,6 +134,8 @@ class CollectionImpl : public Collection {
   Result<std::string> DebugGetHnswStorageMode(
       const std::string &column_name) const override;
 
+  Result<std::string> DebugGetIoBackendType() const override;
+
  private:
   void prepare_schema();
 
@@ -1893,6 +1895,11 @@ Result<std::string> CollectionImpl::DebugGetHnswStorageMode(
       Status::NotFound("No HNSW index found for column '", column_name, "'"));
 }
 
+Result<std::string> CollectionImpl::DebugGetIoBackendType() const {
+  auto type = ailego::IOBackend::Instance().available();
+  return std::string(ailego::IOBackendTypeName(type));
+}
+
 Status CollectionImpl::recovery() {
   if (!FileHelper::DirectoryExists(path_.c_str())) {
     return Status::InvalidArgument("collection path{", path_, "} not exist.");
@@ -1987,7 +1994,8 @@ Status CollectionImpl::create() {
   }
   if (ailego::FileHelper::IsExist(path_.c_str())) {
     return Status::InvalidArgument("path validate failed: path[", path_,
-                                   "] exists");
+                                   "] exists, create expects a path that does "
+                                   "not exist");
   }
 
   // check schema

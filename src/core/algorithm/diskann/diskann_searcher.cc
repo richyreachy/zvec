@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "diskann_searcher.h"
+#include <ailego/io/io_backend.h>
 #include "diskann_context.h"
 #include "diskann_indexer.h"
 #include "diskann_params.h"
@@ -26,17 +27,19 @@ DiskAnnSearcher::~DiskAnnSearcher() {}
 
 int DiskAnnSearcher::init(const ailego::Params &search_params) {
 #if defined(__linux__) || defined(__linux)
-  // Eagerly load libaio at init time so the user gets immediate feedback
-  // about whether async I/O is available. LibAioLoader::Load() is idempotent
-  // and thread-safe.
-  if (!LibAioLoader::Instance().Load()) {
+  // Eagerly probe the I/O backend at init time so the user gets immediate
+  // feedback about whether async I/O is available. IOBackend auto-probes on
+  // first Instance() access.
+  auto &backend = ailego::IOBackend::Instance();
+  if (backend.available() == ailego::IOBackendType::kSyncPread) {
     LOG_WARN(
-        "DiskAnn: libaio could not be loaded (tried libaio.so.1 and "
-        "libaio.so.1t64). Install it (e.g. 'apt-get install libaio1', or "
-        "'libaio1t64' on Ubuntu 24.04+) and retry. DiskAnn will fall back "
-        "to synchronous pread() — performance will be degraded.");
+        "DiskAnn: no async I/O backend available. Install libaio (e.g. "
+        "'apt-get install libaio1', or 'libaio1t64' on Ubuntu 24.04+) and "
+        "retry. DiskAnn will fall back to synchronous pread() — performance "
+        "will be degraded.");
   } else {
-    LOG_INFO("DiskAnn: libaio loaded successfully — async I/O enabled.");
+    LOG_INFO("DiskAnn: I/O backend '%s' loaded — async I/O enabled.",
+             backend.name());
   }
 #endif
 

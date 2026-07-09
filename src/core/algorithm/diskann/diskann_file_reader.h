@@ -18,7 +18,7 @@
 #include <fcntl.h>
 
 #if (defined(__linux) || defined(__linux__))
-#include "libaio_loader.h"  // dlopen-based libaio wrapper
+#include <ailego/io/libaio_loader.h>  // dlopen-based libaio wrapper
 #endif
 
 #if defined(__APPLE__) || defined(__MACH__)

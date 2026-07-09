@@ -30,6 +30,7 @@ try:
 
     from zvec._zvec import (
         get_default_jieba_dict_dir,
+        io_backend_type,
         set_default_jieba_dict_dir,
     )
 
@@ -127,6 +128,7 @@ __all__ = [
     "open",
     "set_default_jieba_dict_dir",
     "get_default_jieba_dict_dir",
+    "io_backend_type",
     # Core classes
     "Collection",
     "Doc",
