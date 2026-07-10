@@ -145,6 +145,7 @@ bool IndexMeta::deserialize(const void *data, size_t len) {
   unit_size_ = format->unit_size;
   element_size_ = IndexMeta::ElementSizeof(data_type_, unit_size_, dimension_);
   space_id_ = format->space_id;
+  extra_meta_size_ = format->extra_meta_size;
 
   // Read attachment
   ailego::Params attachment;
