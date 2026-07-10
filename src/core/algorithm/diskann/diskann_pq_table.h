@@ -28,7 +28,7 @@ class PQTable {
   static constexpr uint32_t kPQCentroidNum = 1 << kPQBitNum;
   static constexpr uint32_t kMaxTrainSampleCount = 200000;
   static constexpr double kTrainSampleRatio = 1.0;
-  static constexpr uint32_t kMeanIterNum = 12;
+  static constexpr uint32_t kMeanIterNum = 20;
 
  public:
   PQTable(const IndexMeta &meta, uint32_t chunk_num);

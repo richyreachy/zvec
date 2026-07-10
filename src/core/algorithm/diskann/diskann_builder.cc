@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "diskann_builder.h"
+#include <cmath>
 #include <cstring>
 #include <iostream>
 #include <thread>

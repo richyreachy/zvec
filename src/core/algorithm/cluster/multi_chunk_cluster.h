@@ -13,6 +13,8 @@
 // limitations under the License.
 #pragma once
 
+#include <cstring>
+
 #include <ailego/algorithm/kmeans.h>
 #include <ailego/parallel/multi_thread_list.h>
 #include <zvec/ailego/internal/platform.h>
@@ -113,6 +115,7 @@ class MultiChunkClusterAlgorithm {
   uint32_t max_iterations_{20u};
   bool assumption_free_{false};
   uint32_t markov_chain_length_{32};
+  uint32_t num_restarts_{1u};
   double epsilon_{std::numeric_limits<float>::epsilon()};
 
   int errcode_{0};
@@ -193,42 +196,62 @@ void MultiChunkNumericalAlgorithm<T>::do_cluster(
         cent_gen;
     cent_gen.set_chain_length(markov_chain_length_);
     cent_gen.set_assumption_free(assumption_free_);
-    cent_gen(&algorithm, *local_threads);
 
-    double cost = 0.0;
+    double best_cost = std::numeric_limits<double>::max();
+    std::vector<T> best_centroid_data(cluster_count_ * chunk_dim);
+    std::vector<double> best_cluster_costs(cluster_count_);
+    std::vector<size_t> best_cluster_counts(cluster_count_);
 
-    for (uint32_t i = 0; i < max_iterations_; ++i) {
-      double old_cost, new_epsilon;
-      old_cost = cost;
+    uint32_t effective_restarts = num_restarts_ > 0 ? num_restarts_ : 1;
 
-      bool result = algorithm.cluster_once(*local_threads, &cost);
-      if (result != true) {
-        LOG_ERROR("(%u) Failed to cluster.", i + 1);
-        errcode_ = -1;
+    for (uint32_t r = 0; r < effective_restarts; ++r) {
+      cent_gen(&algorithm, *local_threads);
 
-        return;
+      double cost = 0.0;
+
+      for (uint32_t i = 0; i < max_iterations_; ++i) {
+        double old_cost, new_epsilon;
+        old_cost = cost;
+
+        bool result = algorithm.cluster_once(*local_threads, &cost);
+        if (result != true) {
+          LOG_ERROR("(%u) Failed to cluster.", i + 1);
+          errcode_ = -1;
+
+          return;
+        }
+
+        new_epsilon = std::abs(cost - old_cost);
+        if (new_epsilon < epsilon_) {
+          break;
+        }
       }
 
-      new_epsilon = std::abs(cost - old_cost);
-      if (new_epsilon < epsilon_) {
-        break;
+      if (cost < best_cost) {
+        best_cost = cost;
+        auto &chunk_cents = algorithm.centroids();
+        auto &clusters = algorithm.context().clusters();
+        for (size_t i = 0; i < chunk_cents.count(); ++i) {
+          std::memcpy(best_centroid_data.data() + i * chunk_dim,
+                      chunk_cents[i], chunk_dim * sizeof(T));
+          best_cluster_costs[i] = clusters[i].cost();
+          best_cluster_counts[i] = clusters[i].count();
+        }
       }
     }
 
-    auto &chunk_cents = algorithm.centroids();
-
-    for (size_t i = 0; i < chunk_cents.count(); ++i) {
+    for (size_t i = 0; i < cluster_count_; ++i) {
       size_t global_cent_idx = chunk * cluster_count_ + i;
 
       IndexCluster::Centroid *centroid = &(cents->at(global_cent_idx));
-      centroid->set_score(algorithm.context().clusters()[i].cost());
-      centroid->set_follows(algorithm.context().clusters()[i].count());
-      centroid->set_feature(algorithm.centroids()[i],
+      centroid->set_score(best_cluster_costs[i]);
+      centroid->set_follows(best_cluster_counts[i]);
+      centroid->set_feature(best_centroid_data.data() + i * chunk_dim,
                             chunk_dim * meta_.unit_size());
     }
 
-    LOG_INFO("(%zu) Chunk Done. Clusters Count: %zu, Features: %zu, Cost: %f",
-             chunk, algorithm.centroids().count(), features_->count(), cost);
+    LOG_INFO("(%zu) Chunk Done. Clusters Count: %u, Features: %zu, Best Cost: %f (restarts: %u)",
+             chunk, cluster_count_, features_->count(), best_cost, effective_restarts);
 
     (*finished)++;
     {
@@ -342,42 +365,62 @@ void MultiChunkNumericalInnerProductAlgorithm<T>::do_cluster(
         cent_gen;
     cent_gen.set_chain_length(markov_chain_length_);
     cent_gen.set_assumption_free(assumption_free_);
-    cent_gen(&algorithm, *local_threads);
 
-    double cost = 0.0;
+    double best_cost = std::numeric_limits<double>::max();
+    std::vector<T> best_centroid_data(cluster_count_ * chunk_dim);
+    std::vector<double> best_cluster_costs(cluster_count_);
+    std::vector<size_t> best_cluster_counts(cluster_count_);
 
-    for (uint32_t i = 0; i < max_iterations_; ++i) {
-      double old_cost, new_epsilon;
-      old_cost = cost;
+    uint32_t effective_restarts = num_restarts_ > 0 ? num_restarts_ : 1;
 
-      bool result = algorithm.cluster_once(*local_threads, &cost);
-      if (result != true) {
-        LOG_ERROR("(%zu) Failed to cluster.", (size_t)(i + 1));
-        errcode_ = -1;
+    for (uint32_t r = 0; r < effective_restarts; ++r) {
+      cent_gen(&algorithm, *local_threads);
 
-        return;
+      double cost = 0.0;
+
+      for (uint32_t i = 0; i < max_iterations_; ++i) {
+        double old_cost, new_epsilon;
+        old_cost = cost;
+
+        bool result = algorithm.cluster_once(*local_threads, &cost);
+        if (result != true) {
+          LOG_ERROR("(%zu) Failed to cluster.", (size_t)(i + 1));
+          errcode_ = -1;
+
+          return;
+        }
+
+        new_epsilon = std::abs(cost - old_cost);
+        if (new_epsilon < epsilon_) {
+          break;
+        }
       }
 
-      new_epsilon = std::abs(cost - old_cost);
-      if (new_epsilon < epsilon_) {
-        break;
+      if (cost < best_cost) {
+        best_cost = cost;
+        auto &chunk_cents = algorithm.centroids();
+        auto &clusters = algorithm.context().clusters();
+        for (size_t i = 0; i < chunk_cents.count(); ++i) {
+          std::memcpy(best_centroid_data.data() + i * chunk_dim,
+                      chunk_cents[i], chunk_dim * sizeof(T));
+          best_cluster_costs[i] = clusters[i].cost();
+          best_cluster_counts[i] = clusters[i].count();
+        }
       }
     }
 
-    auto &chunk_cents = algorithm.centroids();
-
-    for (size_t i = 0; i < chunk_cents.count(); ++i) {
+    for (size_t i = 0; i < cluster_count_; ++i) {
       size_t global_cent_idx = chunk * cluster_count_ + i;
 
       IndexCluster::Centroid *centroid = &(cents->at(global_cent_idx));
-      centroid->set_score(algorithm.context().clusters()[i].cost());
-      centroid->set_follows(algorithm.context().clusters()[i].count());
-      centroid->set_feature(algorithm.centroids()[i],
+      centroid->set_score(best_cluster_costs[i]);
+      centroid->set_follows(best_cluster_counts[i]);
+      centroid->set_feature(best_centroid_data.data() + i * chunk_dim,
                             chunk_dim * meta_.unit_size());
     }
 
-    LOG_INFO("(%zu) Chunk Done. Clusters Count: %zu, Features: %zu, Cost: %f",
-             chunk, algorithm.centroids().count(), features_->count(), cost);
+    LOG_INFO("(%zu) Chunk Done. Clusters Count: %u, Features: %zu, Best Cost: %f (restarts: %u)",
+             chunk, cluster_count_, features_->count(), best_cost, effective_restarts);
 
     (*finished)++;
     {
