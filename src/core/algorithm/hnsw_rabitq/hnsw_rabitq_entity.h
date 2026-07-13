@@ -60,9 +60,9 @@ struct ResultRecord {
     return this->est_dist > other.est_dist;
   }
 };
-using TopkHeap = ailego::KeyValueHeap<node_id_t, ResultRecord>;
+using TopkHeap = ailego::KeyValueHeap<node_id_t, dist_t>;
 using CandidateHeap =
-    ailego::KeyValueHeap<node_id_t, ResultRecord, std::greater<ResultRecord>>;
+    ailego::KeyValueHeap<node_id_t, dist_t, std::greater<dist_t>>;
 constexpr node_id_t kInvalidNodeId = static_cast<node_id_t>(-1);
 constexpr key_t kInvalidKey = static_cast<key_t>(-1);
 class DistCalculator;
@@ -492,7 +492,7 @@ class HnswRabitqEntity {
 
   virtual int update_neighbors(
       level_t /*level*/, node_id_t /*id*/,
-      const std::vector<std::pair<node_id_t, ResultRecord>> & /*neighbors*/) {
+      const std::vector<std::pair<node_id_t, dist_t>> & /*neighbors*/) {
     LOG_ERROR("Update neighbors dense not implemented");
 
     return 0;

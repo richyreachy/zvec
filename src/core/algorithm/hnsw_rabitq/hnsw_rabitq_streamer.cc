@@ -848,7 +848,7 @@ int HnswRabitqStreamer::search_bf_impl(
           if (topk_heap.empty()) {
             topk_heap.limit(ctx->group_topk());
           }
-          topk_heap.emplace_back(id, dist);
+          topk_heap.emplace_back(id, dist.est_dist);
         }
       }
       ctx->topk_to_result(q);
@@ -871,7 +871,7 @@ int HnswRabitqStreamer::search_bf_impl(
         if (!ctx->filter().is_valid() || !ctx->filter()(entity_.get_key(id))) {
           EstimateRecord dist;
           query_alg_->get_full_est(id, dist, entity);
-          ctx->topk_heap().emplace(id, dist);
+          ctx->topk_heap().emplace(id, dist.est_dist);
         }
       }
       ctx->topk_to_result(q);
@@ -950,7 +950,7 @@ int HnswRabitqStreamer::search_bf_by_p_keys_impl(
             if (topk_heap.empty()) {
               topk_heap.limit(ctx->group_topk());
             }
-            topk_heap.emplace_back(id, dist);
+            topk_heap.emplace_back(id, dist.est_dist);
           }
         }
       }
@@ -974,7 +974,7 @@ int HnswRabitqStreamer::search_bf_by_p_keys_impl(
           if (id != kInvalidNodeId) {
             EstimateRecord dist;
             query_alg_->get_full_est(id, dist, entity);
-            ctx->topk_heap().emplace(id, dist);
+            ctx->topk_heap().emplace(id, dist.est_dist);
           }
         }
       }

@@ -53,7 +53,7 @@ int HnswRabitqAlgorithm::add_node(node_id_t id, level_t level,
   }
 
   level_t cur_level = cur_max_level;
-  ResultRecord dist = ctx->dist_calculator()(entry_point);
+  dist_t dist = ctx->dist_calculator()(entry_point);
   for (; cur_level > level; --cur_level) {
     select_entry_point(cur_level, &entry_point, &dist, ctx);
   }
@@ -83,7 +83,7 @@ int HnswRabitqAlgorithm::add_node(node_id_t id, level_t level,
 //! select_entry_point on hnsw level, ef = 1
 void HnswRabitqAlgorithm::select_entry_point(level_t level,
                                              node_id_t *entry_point,
-                                             ResultRecord *dist,
+                                             dist_t *dist,
                                              HnswRabitqContext *ctx) const {
   auto &entity = ctx->get_entity();
   HnswRabitqAddDistCalculator &dc = ctx->dist_calculator();
@@ -117,7 +117,7 @@ void HnswRabitqAlgorithm::select_entry_point(level_t level,
     dc.batch_dist(neighbor_vecs.data(), size, dists.data());
 
     for (uint32_t i = 0; i < size; ++i) {
-      ResultRecord cur_dist = dists[i];
+      dist_t cur_dist = dists[i];
 
       if (cur_dist < *dist) {
         *entry_point = neighbors[i];
@@ -155,8 +155,8 @@ void HnswRabitqAlgorithm::add_neighbors(node_id_t id, level_t level,
 }
 
 void HnswRabitqAlgorithm::search_neighbors(level_t level,
-                                           node_id_t *entry_point,
-                                           ResultRecord *dist, TopkHeap &topk,
+                                           node_id_t *entry_point, dist_t *dist,
+                                           TopkHeap &topk,
                                            HnswRabitqContext *ctx) const {
   const auto &entity = ctx->get_entity();
   HnswRabitqAddDistCalculator &dc = ctx->dist_calculator();
@@ -178,7 +178,7 @@ void HnswRabitqAlgorithm::search_neighbors(level_t level,
   while (!candidates.empty() && !ctx->reach_scan_limit()) {
     auto top = candidates.begin();
     node_id_t main_node = top->first;
-    ResultRecord main_dist = top->second;
+    dist_t main_dist = top->second;
 
     if (topk.full() && main_dist > topk[0].second) {
       break;
@@ -236,7 +236,7 @@ void HnswRabitqAlgorithm::search_neighbors(level_t level,
 
     for (uint32_t i = 0; i < size; ++i) {
       node_id_t node = neighbor_ids[i];
-      ResultRecord cur_dist = dists[i];
+      dist_t cur_dist = dists[i];
 
       if ((!topk.full()) || cur_dist < topk[0].second) {
         candidates.emplace(node, cur_dist);
@@ -271,10 +271,10 @@ void HnswRabitqAlgorithm::update_neighbors(HnswRabitqAddDistCalculator &dc,
   uint32_t cur_size = 0;
   for (size_t i = 0; i < topk_heap.size(); ++i) {
     node_id_t cur_node = topk_heap[i].first;
-    ResultRecord cur_node_dist = topk_heap[i].second;
+    dist_t cur_node_dist = topk_heap[i].second;
     bool good = true;
     for (uint32_t j = 0; j < cur_size; ++j) {
-      ResultRecord tmp_dist = dc.dist(cur_node, topk_heap[j].first);
+      dist_t tmp_dist = dc.dist(cur_node, topk_heap[j].first);
       if (tmp_dist <= cur_node_dist) {
         good = false;
         break;
@@ -320,7 +320,7 @@ void HnswRabitqAlgorithm::update_neighbors(HnswRabitqAddDistCalculator &dc,
 
 void HnswRabitqAlgorithm::reverse_update_neighbors(
     HnswRabitqAddDistCalculator &dc, node_id_t id, level_t level,
-    node_id_t link_id, ResultRecord dist, TopkHeap &update_heap) {
+    node_id_t link_id, dist_t dist, TopkHeap &update_heap) {
   const size_t max_neighbor_cnt = entity_.neighbor_cnt(level);
 
   uint32_t lock_idx = id & kLockMask;
@@ -338,7 +338,7 @@ void HnswRabitqAlgorithm::reverse_update_neighbors(
 
   for (size_t i = 0; i < size; ++i) {
     node_id_t node = neighbors[i];
-    ResultRecord cur_dist = dc.dist(id, node);
+    dist_t cur_dist = dc.dist(id, node);
     update_heap.emplace(node, cur_dist);
   }
 
@@ -348,10 +348,10 @@ void HnswRabitqAlgorithm::reverse_update_neighbors(
   size_t cur_size = 0;
   for (size_t i = 0; i < update_heap.size(); ++i) {
     node_id_t cur_node = update_heap[i].first;
-    ResultRecord cur_node_dist = update_heap[i].second;
+    dist_t cur_node_dist = update_heap[i].second;
     bool good = true;
     for (size_t j = 0; j < cur_size; ++j) {
-      ResultRecord tmp_dist = dc.dist(cur_node, update_heap[j].first);
+      dist_t tmp_dist = dc.dist(cur_node, update_heap[j].first);
       if (tmp_dist <= cur_node_dist) {
         good = false;
         break;

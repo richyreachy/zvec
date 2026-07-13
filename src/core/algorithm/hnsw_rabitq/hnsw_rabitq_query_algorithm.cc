@@ -124,16 +124,16 @@ void HnswRabitqQueryAlgorithm::search_neighbors(
   visit.clear();
   visit.set_visited(*entry_point);
   if (!filter(*entry_point)) {
-    topk.emplace(*entry_point, ResultRecord(*dist));
+    topk.emplace(*entry_point, dist->est_dist);
   }
 
-  candidates.emplace(*entry_point, ResultRecord(*dist));
+  candidates.emplace(*entry_point, dist->est_dist);
   while (!candidates.empty() && !ctx->reach_scan_limit()) {
     auto top = candidates.begin();
     node_id_t main_node = top->first;
     auto main_dist = top->second;
 
-    if (topk.full() && main_dist.est_dist > topk[0].second.est_dist) {
+    if (topk.full() && main_dist > topk[0].second) {
       break;
     }
 
@@ -171,7 +171,7 @@ void HnswRabitqQueryAlgorithm::search_neighbors(
       if (ex_bits_ > 0) {
         // Check preliminary score against current worst full estimate.
         bool flag_update_KNNs =
-            (!topk.full()) || candest.low_dist < topk[0].second.est_dist;
+            (!topk.full()) || candest.low_dist < topk[0].second;
 
         if (flag_update_KNNs) {
           // Compute the full estimate if promising.
@@ -181,18 +181,18 @@ void HnswRabitqQueryAlgorithm::search_neighbors(
         }
       } else {
         // ex_bits_ == 0: est_dist is already the best estimate
-        if (topk.full() && candest.est_dist >= topk[0].second.est_dist) {
+        if (topk.full() && candest.est_dist >= topk[0].second) {
           continue;
         }
       }
-      candidates.emplace(node, ResultRecord(candest));
+      candidates.emplace(node, candest.est_dist);
       // update entry_point for next level scan
       if (candest < *dist) {
         *entry_point = node;
         *dist = candest;
       }
       if (!filter(node)) {
-        topk.emplace(node, ResultRecord(candest));
+        topk.emplace(node, candest.est_dist);
       }
     }  // end for
   }  // while
@@ -291,13 +291,13 @@ void HnswRabitqQueryAlgorithm::expand_neighbors_by_group(
           if (topk_heap.empty()) {
             topk_heap.limit(ctx->group_topk());
           }
-          topk_heap.emplace_back(node, ResultRecord(candest));
+          topk_heap.emplace_back(node, candest.est_dist);
 
           if (group_topk_heaps.size() >= ctx->group_num()) {
             break;
           }
         }
-        candidates.emplace(node, ResultRecord(candest));
+        candidates.emplace(node, candest.est_dist);
       }  // end for
     }  // end while
   }  // end if

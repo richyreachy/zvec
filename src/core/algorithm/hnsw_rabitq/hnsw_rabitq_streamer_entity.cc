@@ -80,7 +80,7 @@ int HnswRabitqStreamerEntity::cleanup() {
 
 int HnswRabitqStreamerEntity::update_neighbors(
     level_t level, node_id_t id,
-    const std::vector<std::pair<node_id_t, ResultRecord>> &neighbors) {
+    const std::vector<std::pair<node_id_t, dist_t>> &neighbors) {
   std::vector<char> buffer(neighbor_size_);
   NeighborsHeader *hd = reinterpret_cast<NeighborsHeader *>(buffer.data());
   hd->neighbor_cnt = neighbors.size();
