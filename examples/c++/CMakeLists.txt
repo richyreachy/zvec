@@ -14,10 +14,8 @@ if(NOT DEFINED HOST_BUILD_DIR)
 endif()
 
 get_filename_component(ZVEC_ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
-# Include both src/include (public headers) and src (internal headers that
-# are transitively reachable from public headers, e.g.
-# turbo/quantizer/quantizer.h via index_factory.h).
-set(ZVEC_INCLUDE_DIR ${ZVEC_ROOT_DIR}/src/include ${ZVEC_ROOT_DIR}/src)
+# Public headers are self-contained under src/include.
+set(ZVEC_INCLUDE_DIR ${ZVEC_ROOT_DIR}/src/include)
 set(ZVEC_LIB_DIR ${ZVEC_ROOT_DIR}/${HOST_BUILD_DIR}/lib)
 
 # Add include and library search paths
