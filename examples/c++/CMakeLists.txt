@@ -14,7 +14,7 @@ if(NOT DEFINED HOST_BUILD_DIR)
 endif()
 
 get_filename_component(ZVEC_ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
-# Public headers are self-contained under src/include.
+
 set(ZVEC_INCLUDE_DIR ${ZVEC_ROOT_DIR}/src/include)
 set(ZVEC_LIB_DIR ${ZVEC_ROOT_DIR}/${HOST_BUILD_DIR}/lib)
 
