@@ -22,7 +22,6 @@
 #include <zvec/core/framework/index_logger.h>
 #if defined(__APPLE__) || defined(__MACH__)
 #include <fcntl.h>
-#include <sys/mman.h>
 #include <unistd.h>
 #endif
 
@@ -488,52 +487,27 @@ void LinuxAlignedFileReader::open(const std::string &fname) {
   }
 
 #if defined(__APPLE__) || defined(__MACH__)
-  // macOS has no O_DIRECT. A disk-based index that is served from the page
-  // cache degrades into an in-memory search, defeating DiskAnn's purpose, so
-  // the reader always bypasses the cache to emulate Linux O_DIRECT semantics
-  // (every read hits the device), via three steps:
-  //   1) F_NOCACHE  - reads through this fd are not retained in the UBC;
-  //   2) F_RDAHEAD=0 - disable read-ahead so random reads are not prefetched;
-  //   3) mmap + msync(MS_INVALIDATE) - F_NOCACHE only stops NEW pages from
-  //      being cached; XNU's cluster_read still copies from pages already
-  //      resident in the UBC (e.g. warmed while the index was built), so those
-  //      reads would be served from memory. Dropping the file's resident pages
-  //      once at open guarantees subsequent reads go to disk.
+  // macOS has no O_DIRECT. F_NOCACHE is its closest per-file equivalent: it
+  // asks the kernel to minimize caching for I/O through this descriptor. This
+  // is advisory rather than a guarantee that every read reaches the device.
+  // Disable read-ahead as well because DiskAnn performs random reads.
+  //
+  // Do not mmap the entire index and call msync(MS_INVALIDATE) here. That does
+  // not provide a reliable global cache eviction guarantee and makes open time
+  // and virtual-address usage scale with the size of the index.
   if (this->file_desc != -1) {
     if (::fcntl(this->file_desc, F_NOCACHE, 1) == -1) {
       LOG_WARN("fcntl(F_NOCACHE) failed for %s (errno=%d: %s); reads will use "
                "the page cache",
                fname.c_str(), errno, ::strerror(errno));
     } else {
-      LOG_INFO("DiskAnn macOS: F_NOCACHE enabled (page-cache bypass) for %s",
+      LOG_INFO("DiskAnn macOS: F_NOCACHE enabled for %s",
                fname.c_str());
     }
 
     if (::fcntl(this->file_desc, F_RDAHEAD, 0) == -1) {
       LOG_WARN("fcntl(F_RDAHEAD, 0) failed for %s (errno=%d: %s)", fname.c_str(),
                errno, ::strerror(errno));
-    }
-
-    off_t fsize = ::lseek(this->file_desc, 0, SEEK_END);
-    ::lseek(this->file_desc, 0, SEEK_SET);
-    if (fsize > 0) {
-      void *addr = ::mmap(nullptr, static_cast<size_t>(fsize), PROT_READ,
-                          MAP_SHARED, this->file_desc, 0);
-      if (addr != MAP_FAILED) {
-        if (::msync(addr, static_cast<size_t>(fsize), MS_INVALIDATE) == -1) {
-          LOG_WARN("msync(MS_INVALIDATE) failed for %s (errno=%d: %s); resident "
-                   "pages may still be served from cache",
-                   fname.c_str(), errno, ::strerror(errno));
-        } else {
-          LOG_INFO(
-              "DiskAnn macOS: invalidated resident page-cache for %s (%.2f GB)",
-              fname.c_str(), static_cast<double>(fsize) / 1073741824.0);
-        }
-        ::munmap(addr, static_cast<size_t>(fsize));
-      } else {
-        LOG_WARN("mmap for cache invalidation failed for %s (errno=%d: %s)",
-                 fname.c_str(), errno, ::strerror(errno));
-      }
     }
   }
 #endif
