@@ -438,6 +438,8 @@ struct DiskAnnIndexParam : public BaseIndexParam {
   int max_degree = kDefaultDiskAnnMaxDegree;
   int list_size = kDefaultDiskAnnListSize;
   int pq_chunk_num = kDefaultDiskAnnPqChunkNum;
+  int cache_node_num = 0;
+  std::string io_backend = "aio";
 
   // Constructors with delegation
   DiskAnnIndexParam() : BaseIndexParam(IndexType::kDiskAnn) {}

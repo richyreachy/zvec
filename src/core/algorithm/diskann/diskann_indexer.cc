@@ -35,7 +35,8 @@ DiskAnnIndexer::~DiskAnnIndexer() {
   DiskAnnUtil::free_aligned(coord_cache_buf_);
 }
 
-int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
+int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity,
+                         const std::string &io_backend) {
   entity_ = &entity;
 
   auto storage = entity.get_storage();
@@ -52,7 +53,7 @@ int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
 
   storage->cleanup();
 
-  int ret = setup_io_ctx(init_ctx_);
+  int ret = setup_io_ctx(init_ctx_, io_backend);
   if (ret != 0) {
     LOG_ERROR("setup io ctx error");
     return ret;

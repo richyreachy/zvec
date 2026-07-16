@@ -27,6 +27,7 @@ DiskAnnSearcher::~DiskAnnSearcher() {}
 int DiskAnnSearcher::init(const ailego::Params &search_params) {
   search_params.get(PARAM_DISKANN_SEARCHER_LIST_SIZE, &list_size_);
   search_params.get(PARAM_DISKANN_SEARCHER_CACHE_NODE_NUM, &cache_nodes_num_);
+  search_params.get(PARAM_DISKANN_SEARCHER_IO_BACKEND, &io_backend_);
   return 0;
 }
 
@@ -60,7 +61,7 @@ int DiskAnnSearcher::load(IndexStorage::Pointer storage,
 
   diskann_indexer_ = std::make_shared<DiskAnnIndexer>(meta_);
 
-  int res = diskann_indexer_->init(entity_);
+  int res = diskann_indexer_->init(entity_, io_backend_);
   if (res != 0) {
     return res;
   }
@@ -293,7 +294,8 @@ IndexSearcher::Context::Pointer DiskAnnSearcher::create_context() const {
   }
   if (ailego_unlikely(ctx->init(
           DiskAnnContext::kSearcherContext, search_ctx_entity->max_degree(),
-          search_ctx_entity->pq_chunk_num(), meta_.element_size())) != 0) {
+          search_ctx_entity->pq_chunk_num(), meta_.element_size(),
+          io_backend_)) != 0) {
     LOG_ERROR("Init DiskAnn Context failed");
     delete ctx;
 

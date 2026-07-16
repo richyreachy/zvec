@@ -33,7 +33,8 @@ class DiskAnnIndexer {
   ~DiskAnnIndexer();
 
  public:
-  int init(DiskAnnSearcherEntity &entity);
+  int init(DiskAnnSearcherEntity &entity,
+           const std::string &io_backend = "aio");
   int load_cache_list(const std::vector<diskann_id_t> &node_list);
 
   void cache_bfs_levels(uint64_t num_nodes_to_cache,
@@ -91,7 +92,7 @@ class DiskAnnIndexer {
 
   PQTable::Pointer pq_table_;
 
-  IOContext init_ctx_{0};
+  IOContext init_ctx_{};
 
   std::vector<diskann_id_t> neighbor_cache_buffer_;
   void *coord_cache_buf_{nullptr};

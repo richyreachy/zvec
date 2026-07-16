@@ -30,11 +30,36 @@ typedef struct io_event io_event_t;
 typedef struct iocb iocb_t;
 #endif
 
-int setup_io_ctx(IOContext &ctx) {
+int setup_io_ctx(IOContext &ctx, const std::string &backend) {
 #if (defined(__linux) || defined(__linux__))
-  int ret = io_setup(MAX_EVENTS, &ctx);
+  ctx.initialized = false;
+  ctx.aio_ctx = nullptr;
 
-  return ret;
+  if (backend == "pread") {
+    ctx.backend = IOBackend::kPRead;
+    ctx.initialized = true;
+    return 0;
+  }
+  if (backend == "io_uring") {
+    int ret = io_uring_queue_init(MAX_EVENTS, &ctx.uring, 0);
+    if (ret == 0) {
+      ctx.backend = IOBackend::kIOUring;
+      ctx.initialized = true;
+      return 0;
+    }
+    LOG_WARN("io_uring_queue_init failed; ret=%d, falling back to aio", ret);
+  }
+  // Default: aio
+  ctx.backend = IOBackend::kAIO;
+  int ret = io_setup(MAX_EVENTS, &ctx.aio_ctx);
+  if (ret != 0) {
+    LOG_WARN("io_setup failed; ret=%d, falling back to pread", ret);
+    ctx.backend = IOBackend::kPRead;
+    ctx.initialized = true;
+    return 0;
+  }
+  ctx.initialized = true;
+  return 0;
 #else
   return 0;
 #endif
@@ -42,9 +67,14 @@ int setup_io_ctx(IOContext &ctx) {
 
 int destroy_io_ctx(IOContext &ctx) {
 #if (defined(__linux) || defined(__linux__))
-  int ret = io_destroy(ctx);
-
-  return ret;
+  if (!ctx.initialized) return 0;
+  if (ctx.backend == IOBackend::kIOUring) {
+    io_uring_queue_exit(&ctx.uring);
+  } else if (ctx.backend == IOBackend::kAIO) {
+    io_destroy(ctx.aio_ctx);
+  }
+  ctx.initialized = false;
+  return 0;
 #else
   return 0;
 #endif
@@ -68,9 +98,60 @@ static int execute_io_pread(int fd, std::vector<AlignedRead> &read_reqs) {
   return 0;
 }
 
-int execute_io(IOContext ctx, int fd, std::vector<AlignedRead> &read_reqs,
-               uint64_t n_retries = 0) {
+static int execute_io_uring(struct io_uring &ring, int fd,
+                            std::vector<AlignedRead> &read_reqs) {
+  if (read_reqs.empty()) return 0;
+  uint64_t n_ops = read_reqs.size();
+
+  for (uint64_t j = 0; j < n_ops; j++) {
+    struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+    if (sqe == nullptr) {
+      io_uring_submit(&ring);
+      sqe = io_uring_get_sqe(&ring);
+      if (sqe == nullptr) {
+        LOG_WARN("io_uring SQ full; falling back to pread");
+        return execute_io_pread(fd, read_reqs);
+      }
+    }
+    io_uring_prep_read(sqe, fd, read_reqs[j].buf, (uint32_t)read_reqs[j].len,
+                       read_reqs[j].offset);
+    sqe->user_data = j;
+  }
+
+  int ret = io_uring_submit_and_wait(&ring, (unsigned)n_ops);
+  if (ret < 0) {
+    LOG_WARN("io_uring_submit_and_wait failed; ret=%d, falling back to pread",
+             ret);
+    return execute_io_pread(fd, read_reqs);
+  }
+
+  std::vector<struct io_uring_cqe *> cqes(n_ops);
+  unsigned reaped = io_uring_peek_batch_cqe(&ring, cqes.data(), (unsigned)n_ops);
+  bool all_ok = true;
+  for (unsigned i = 0; i < reaped; i++) {
+    uint64_t idx = cqes[i]->user_data;
+    if (cqes[i]->res < 0 || (uint64_t)cqes[i]->res != read_reqs[idx].len) {
+      LOG_WARN("io_uring read failed: req=%lu, res=%d, expected=%lu",
+               (unsigned long)idx, cqes[i]->res,
+               (unsigned long)read_reqs[idx].len);
+      all_ok = false;
+    }
+  }
+  io_uring_cq_advance(&ring, reaped);
+  if (!all_ok) return execute_io_pread(fd, read_reqs);
+  return 0;
+}
+
+int execute_io(IOContext &ctx, int fd,
+               std::vector<AlignedRead> &read_reqs, uint64_t n_retries = 0) {
 #if (defined(__linux) || defined(__linux__))
+  if (!ctx.initialized || ctx.backend == IOBackend::kPRead) {
+    return execute_io_pread(fd, read_reqs);
+  }
+  if (ctx.backend == IOBackend::kIOUring) {
+    return execute_io_uring(ctx.uring, fd, read_reqs);
+  }
+  // kAIO — libaio path
   uint64_t iters = DiskAnnUtil::div_round_up(read_reqs.size(), MAX_EVENTS);
 
   for (uint64_t iter = 0; iter < iters; iter++) {
@@ -93,7 +174,7 @@ int execute_io(IOContext ctx, int fd, std::vector<AlignedRead> &read_reqs,
     size_t n_tries = 0;
     // Phase 1: io_submit with retry.
     while (true) {
-      int ret = io_submit(ctx, (int64_t)n_ops, cbs.data());
+      int ret = io_submit(ctx.aio_ctx, (int64_t)n_ops, cbs.data());
       if (ret == (int)n_ops) {
         break;
       }
@@ -111,8 +192,8 @@ int execute_io(IOContext ctx, int fd, std::vector<AlignedRead> &read_reqs,
     // Phase 2: io_getevents with retry (never re-submits).
     n_tries = 0;
     while (true) {
-      int ret = io_getevents(ctx, (int64_t)n_ops, (int64_t)n_ops, evts.data(),
-                             nullptr);
+      int ret = io_getevents(ctx.aio_ctx, (int64_t)n_ops, (int64_t)n_ops,
+                             evts.data(), nullptr);
       if (ret == (int)n_ops) {
         break;
       }
@@ -186,9 +267,9 @@ void LinuxAlignedFileReader::register_thread() {
     return;
   }
 
-  IOContext ctx = nullptr;
+  IOContext ctx{};
 
-  int ret = io_setup(MAX_EVENTS, &ctx);
+  int ret = setup_io_ctx(ctx);
   if (ret != 0) {
     lk.unlock();
     if (ret == -EAGAIN) {
@@ -200,7 +281,7 @@ void LinuxAlignedFileReader::register_thread() {
       ;
     }
   } else {
-    LOG_INFO("allocating ctx: %lu", (uint64_t)ctx);
+    LOG_INFO("allocating ctx: %lu", (uint64_t)ctx.aio_ctx);
 
     ctx_map[thread_id] = ctx;
   }
@@ -212,7 +293,7 @@ void LinuxAlignedFileReader::register_thread() {
 void LinuxAlignedFileReader::deregister_thread() {
 #if (defined(__linux) || defined(__linux__))
   auto thread_id = std::this_thread::get_id();
-  IOContext ctx;
+  IOContext ctx{};
 
   {
     std::lock_guard<std::mutex> lk(ctx_mut);
@@ -226,7 +307,7 @@ void LinuxAlignedFileReader::deregister_thread() {
   }
 
   // io_destroy is a syscall; keep it outside the lock to avoid blocking others
-  io_destroy(ctx);
+  destroy_io_ctx(ctx);
   LOG_INFO("returned ctx from thread");
 #endif
 }
@@ -236,7 +317,7 @@ void LinuxAlignedFileReader::deregister_all_threads() {
   std::unique_lock<std::mutex> lk(ctx_mut);
   for (auto x = ctx_map.begin(); x != ctx_map.end(); x++) {
     IOContext ctx = x->second;
-    io_destroy(ctx);
+    destroy_io_ctx(ctx);
   }
   ctx_map.clear();
 #endif
@@ -314,6 +395,51 @@ int LinuxAlignedFileReader::submit(PendingBatch &batch,
   }
 
   uint32_t n_ops = (uint32_t)read_reqs.size();
+
+  // --- PRead backend ---
+  if (!ctx.initialized || ctx.backend == IOBackend::kPRead) {
+    int ret = execute_io_pread(this->file_desc, read_reqs);
+    if (ret != 0) return ret;
+    batch.used_pread = true;
+    batch.n_submitted = n_ops;
+    return 0;
+  }
+
+  // --- IO Uring backend ---
+  if (ctx.backend == IOBackend::kIOUring) {
+    for (uint32_t j = 0; j < n_ops; j++) {
+      struct io_uring_sqe *sqe = io_uring_get_sqe(&ctx.uring);
+      if (sqe == nullptr) {
+        io_uring_submit(&ctx.uring);
+        sqe = io_uring_get_sqe(&ctx.uring);
+        if (sqe == nullptr) {
+          LOG_WARN("submit: io_uring SQ full, falling back to pread");
+          int ret = execute_io_pread(this->file_desc, read_reqs);
+          if (ret != 0) return ret;
+          batch.used_pread = true;
+          batch.n_submitted = n_ops;
+          return 0;
+        }
+      }
+      io_uring_prep_read(sqe, this->file_desc, read_reqs[j].buf,
+                         (uint32_t)read_reqs[j].len, read_reqs[j].offset);
+      sqe->user_data = (uint64_t)j;
+    }
+    int ret = io_uring_submit(&ctx.uring);
+    if (ret < 0 || ret != (int)n_ops) {
+      LOG_WARN("submit: io_uring_submit returned %d (expected %u), falling back to pread",
+               ret, n_ops);
+      int pread_ret = execute_io_pread(this->file_desc, read_reqs);
+      if (pread_ret != 0) return pread_ret;
+      batch.used_pread = true;
+      batch.n_submitted = n_ops;
+      return 0;
+    }
+    batch.n_submitted = n_ops;
+    return 0;
+  }
+
+  // --- AIO backend (libaio) ---
   batch.cbs.resize(n_ops);
   batch.cb_ptrs.resize(n_ops);
 
@@ -324,7 +450,7 @@ int LinuxAlignedFileReader::submit(PendingBatch &batch,
     batch.cb_ptrs[j] = &batch.cbs[j];
   }
 
-  int ret = io_submit(ctx, (int64_t)n_ops, batch.cb_ptrs.data());
+  int ret = io_submit(ctx.aio_ctx, (int64_t)n_ops, batch.cb_ptrs.data());
   if (ret == (int)n_ops) {
     batch.n_submitted = n_ops;
     return 0;
@@ -362,8 +488,34 @@ int LinuxAlignedFileReader::get_completed(PendingBatch &batch, IOContext &ctx,
   int min_req = std::min((int)n_remaining, min_completed);
   if (min_req < 1) min_req = 1;
 
+  // --- IO Uring backend ---
+  if (ctx.backend == IOBackend::kIOUring) {
+    struct io_uring_cqe *first;
+    int ret = io_uring_wait_cqe(&ctx.uring, &first);
+    if (ret < 0) {
+      LOG_ERROR("get_completed: io_uring_wait_cqe failed, ret=%d", ret);
+      return IndexError_Runtime;
+    }
+    int max_batch = std::min((int)n_remaining, 64);
+    struct io_uring_cqe *cqes[64];
+    unsigned reaped =
+        io_uring_peek_batch_cqe(&ctx.uring, cqes, (unsigned)max_batch);
+    for (unsigned i = 0; i < reaped; i++) {
+      uint32_t idx = (uint32_t)cqes[i]->user_data;
+      if (cqes[i]->res < 0) {
+        LOG_WARN("get_completed: io_uring read %u failed: res=%d", idx,
+                 cqes[i]->res);
+      }
+      completed_indices.push_back(idx);
+    }
+    io_uring_cq_advance(&ctx.uring, reaped);
+    batch.n_reaped += (uint32_t)reaped;
+    return (int)reaped;
+  }
+
+  // --- AIO backend (libaio) ---
   std::vector<io_event_t> evts(n_remaining);
-  int ret = io_getevents(ctx, (int64_t)min_req, (int64_t)n_remaining,
+  int ret = io_getevents(ctx.aio_ctx, (int64_t)min_req, (int64_t)n_remaining,
                          evts.data(), nullptr);
   if (ret < 0) {
     LOG_ERROR("get_completed: io_getevents failed, ret=%d", ret);

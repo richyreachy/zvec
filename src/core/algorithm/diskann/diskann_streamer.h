@@ -159,6 +159,7 @@ class DiskAnnStreamer : public IndexStreamer {
 
   uint32_t list_size_{200};
   uint32_t cache_nodes_num_{0};
+  std::string io_backend_{"aio"};
 
   bool warm_up_{false};
   uint32_t beam_size_{2};

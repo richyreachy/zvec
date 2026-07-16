@@ -19,6 +19,8 @@
 
 #if (defined(__linux) || defined(__linux__))
 #include <libaio.h>
+#include <liburing.h>
+#undef BLOCK_SIZE
 #endif
 
 #include <unistd.h>
@@ -31,12 +33,23 @@ namespace zvec {
 namespace core {
 
 #if (defined(__linux) || defined(__linux__))
-typedef io_context_t IOContext;
+enum class IOBackend : uint8_t {
+  kPRead = 0,
+  kAIO = 1,
+  kIOUring = 2,
+};
+
+struct IOContext {
+  IOBackend backend{IOBackend::kAIO};
+  io_context_t aio_ctx{nullptr};
+  struct io_uring uring{};
+  bool initialized{false};
+};
 #else
 typedef uint32_t IOContext;
 #endif
 
-int setup_io_ctx(IOContext &ctx);
+int setup_io_ctx(IOContext &ctx, const std::string &backend = "aio");
 int destroy_io_ctx(IOContext &ctx);
 
 struct AlignedRead {
@@ -99,7 +112,7 @@ class LinuxAlignedFileReader : public AlignedFileReader {
  private:
   int file_desc;
 
-  IOContext bad_ctx = (IOContext)-1;
+  IOContext bad_ctx{};
 
  public:
   LinuxAlignedFileReader();

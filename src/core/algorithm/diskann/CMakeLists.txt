@@ -23,6 +23,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64
     list(APPEND CORE_KNN_DISKANN_LIBS aio)
 endif()
 
+# liburing is installed locally (not via system package manager)
+set(LIBURING_INCLUDE_DIR "/home/xingrui/.local/usr/include")
+set(LIBURING_LIB_PATH "/home/xingrui/.local/usr/lib/x86_64-linux-gnu/liburing.a")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND EXISTS "${LIBURING_LIB_PATH}")
+    list(APPEND CORE_KNN_DISKANN_LIBS "${LIBURING_LIB_PATH}")
+endif()
+
 cc_library(
     NAME core_knn_diskann
     SHARED STRICT
@@ -42,6 +49,11 @@ foreach(_dep zvec_ailego core_framework core_knn_cluster)
         add_dependencies(core_knn_diskann ${_dep})
     endif()
 endforeach()
+
+# Link liburing (static) and add its include path
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_include_directories(core_knn_diskann PRIVATE ${LIBURING_INCLUDE_DIR})
+endif()
 
 # Allow the plugin to have unresolved symbols that will be satisfied at
 # dlopen(RTLD_NOW | RTLD_GLOBAL) time by the hosting binary.

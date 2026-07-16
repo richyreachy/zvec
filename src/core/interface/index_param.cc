@@ -214,12 +214,36 @@ bool DiskAnnIndexParam::DeserializeFromJsonObject(
     return false;
   }
 
+  DESERIALIZE_VALUE_FIELD(json_obj, cache_node_num);
+
+  {
+    ailego::JsonValue tmp;
+    if (json_obj.has("io_backend")) {
+      json_obj.get("io_backend", &tmp);
+      if (tmp.is_string()) {
+        std::string s = tmp.as_stl_string();
+        if (s == "pread" || s == "aio" || s == "io_uring") {
+          io_backend = s;
+        } else {
+          LOG_ERROR("Invalid io_backend value: %s", s.c_str());
+          return false;
+        }
+      }
+    }
+  }
+
   return true;
 }
 
 ailego::JsonObject DiskAnnIndexParam::SerializeToJsonObject(
     bool omit_empty_value) const {
   auto json_obj = BaseIndexParam::SerializeToJsonObject(omit_empty_value);
+  if (!omit_empty_value || cache_node_num != 0) {
+    json_obj.set("cache_node_num", ailego::JsonValue(cache_node_num));
+  }
+  if (!omit_empty_value || io_backend != "aio") {
+    json_obj.set("io_backend", ailego::JsonValue(io_backend.c_str()));
+  }
   return json_obj;
 }
 
