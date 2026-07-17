@@ -57,11 +57,13 @@ int setup_io_ctx(IOContext &ctx) {
 #if (defined(__linux) || defined(__linux__))
   std::call_once(g_io_backend_log_once, log_diskann_io_backend);
   if (ailego::IOBackend::Instance().is_pread()) {
+    // No async backend available — leave ctx null so callers fall back to
+    // synchronous pread().
     return 0;
   }
-  int ret = LibAioLoader::Instance().io_setup(MAX_EVENTS, &ctx);
 
   ctx = new IoBackend();
+  ailego::IOBackendType selected = ailego::IOBackend::Instance().available();
 
   // Priority 1: io_uring (raw kernel syscalls — zero dependency).
   if (selected == ailego::IOBackendType::kIoUring &&
@@ -71,8 +73,9 @@ int setup_io_ctx(IOContext &ctx) {
   }
 
   // Priority 2: libaio (dlopen — soft dependency).
-  if (selected != ailego::IOBackendType::kSyncPread &&
-      LibAioLoader::Instance().load()) {
+  if (selected != ailego::IOBackendType::kPread &&
+      LibAioLoader::Instance().load() &&
+      LibAioLoader::Instance().is_available()) {
     int ret = LibAioLoader::Instance().io_setup(MAX_EVENTS, &ctx->aio_ctx);
     if (ret == 0) {
       ctx->backend = IoBackend::LIBAIO;
@@ -92,10 +95,9 @@ int setup_io_ctx(IOContext &ctx) {
 
 int destroy_io_ctx(IOContext &ctx) {
 #if (defined(__linux) || defined(__linux__))
-  if (ailego::IOBackend::Instance().is_pread()) {
+  if (ctx == nullptr) {
     return 0;
   }
-  int ret = LibAioLoader::Instance().io_destroy(ctx);
 
   if (ctx->backend == IoBackend::IO_URING) {
     ctx->ring.teardown();
@@ -383,26 +385,16 @@ void LinuxAlignedFileReader::register_thread() {
   }
 
   IOContext ctx = nullptr;
-
-  std::call_once(g_io_backend_log_once, log_diskann_io_backend);
-  if (ailego::IOBackend::Instance().is_pread()) {
+  int ret = setup_io_ctx(ctx);
+  if (ret != 0) {
+    LOG_ERROR("setup_io_ctx failed; returned: %d", ret);
     lk.unlock();
     return;
   }
-  int ret = LibAioLoader::Instance().io_setup(MAX_EVENTS, &ctx);
-  if (ret != 0) {
-    if (ret == -EAGAIN) {
-      LOG_ERROR(
-          "io_setup failed with EAGAIN: Consider increasing "
-          "/proc/sys/fs/aio-max-nr");
-    } else {
-      LOG_ERROR("io_setup failed; returned: %d, %s", ret, ::strerror(-ret));
-    }
-  } else {
+  if (ctx != nullptr) {
     LOG_INFO("allocating ctx: %lu", (uint64_t)ctx);
-
-    ctx_map[thread_id] = ctx;
   }
+  ctx_map[thread_id] = ctx;
   lk.unlock();
 #endif
 }
@@ -423,11 +415,8 @@ void LinuxAlignedFileReader::deregister_thread() {
     ctx_map.erase(it);
   }
 
-  // io_destroy is a syscall; keep it outside the lock to avoid blocking others
-  if (ailego::IOBackend::Instance().available() !=
-      ailego::IOBackendType::kPread) {
-    LibAioLoader::Instance().io_destroy(ctx);
-  }
+  // Teardown is a syscall; keep it outside the lock to avoid blocking others.
+  destroy_io_ctx(ctx);
   LOG_INFO("returned ctx from thread");
 #endif
 }
@@ -435,13 +424,8 @@ void LinuxAlignedFileReader::deregister_thread() {
 void LinuxAlignedFileReader::deregister_all_threads() {
 #if (defined(__linux) || defined(__linux__))
   std::unique_lock<std::mutex> lk(ctx_mut);
-  bool aio_available = ailego::IOBackend::Instance().available() !=
-                       ailego::IOBackendType::kPread;
   for (auto x = ctx_map.begin(); x != ctx_map.end(); x++) {
-    IOContext ctx = x->second;
-    if (aio_available) {
-      LibAioLoader::Instance().io_destroy(ctx);
-    }
+    destroy_io_ctx(x->second);
   }
   ctx_map.clear();
 #endif

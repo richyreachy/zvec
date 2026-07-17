@@ -12,15 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Abstract I/O backend selector.
+// Abstract I/O backend selector — internal header.
 //
-// Wraps the low-level loaders (LibAioLoader for libaio) and provides a uniform
-// way to initialize, query, and report the active I/O backend.  The actual I/O
-// operations are still performed by the underlying loaders; this class is
-// responsible only for backend initialization and reporting.
+// Wraps the low-level backends (io_uring via raw syscalls, LibAioLoader for
+// libaio) and provides a uniform way to initialize, query, and report the
+// active I/O backend.  The actual I/O operations are still performed by the
+// underlying backends; this class is responsible only for backend
+// initialization and reporting.
 //
 // When no async backend is available, the caller should fall back to
 // synchronous pread().
+//
+// This header pulls in libaio_loader and the io_uring kernel ABI; the
+// dependency-free enum and IOBackendTypeName() live in the public header
+// zvec/ailego/io/io_backend.h, which this header includes.
 //
 // Usage:
 //   auto& backend = ailego::IOBackend::Instance();
@@ -32,24 +37,25 @@
 #include <ailego/io/libaio_loader.h>
 #include <zvec/ailego/io/io_backend.h>
 
+#if defined(__linux) || defined(__linux__)
+#include <unistd.h>                 // ::syscall(), ::close() — POSIX only
+#include <cstring>                  // std::memset
+#include <ailego/io/iouring_def.h>  // io_uring_params, __NR_io_uring_setup
+#endif
+
 namespace zvec {
 namespace ailego {
 
-// Returns a human-readable name for the given backend type.
-inline const char *IOBackendTypeName(IOBackendType type) {
-  switch (type) {
-    case IOBackendType::kLibAio:
-      return "libaio";
-    case IOBackendType::kPread:
-      return "pread";
-  }
-  return "unknown";
-}
+// IOBackendTypeName() is defined in the public header
+// zvec/ailego/io/io_backend.h.
 
 // Returns a human-readable description for the given backend type.
 // When the backend is kPread, includes installation guidance for libaio.
 inline const char *IOBackendDescription(IOBackendType type) {
   switch (type) {
+    case IOBackendType::kIoUring:
+      return "io_uring async I/O backend (raw kernel syscalls, zero "
+             "dependency).";
     case IOBackendType::kLibAio:
       return "libaio async I/O backend loaded at runtime via dlopen().";
     case IOBackendType::kPread:
@@ -63,8 +69,8 @@ inline const char *IOBackendDescription(IOBackendType type) {
 
 // Singleton that loads and queries an I/O backend on demand.
 //
-// available() (no arg) tries the best backend with priority (libaio > pread)
-// and returns the loaded backend type.
+// available() (no arg) tries the best backend with priority
+// (io_uring > libaio > pread) and returns the loaded backend type.
 // available(IOBackendType) tries a specific backend.
 // Use type() / name() to query the loaded backend without triggering a load.
 class IOBackend {
@@ -74,14 +80,18 @@ class IOBackend {
     return instance;
   }
 
-  // Try to load the best available backend (libaio > pread).
+  // Try to load the best available backend (io_uring > libaio > pread).
   // Returns the loaded backend type.
   // Idempotent — if already loaded, returns immediately.
   IOBackendType available() {
     if (type_ != IOBackendType::kPread) {
       return type_;
     }
-    return available(IOBackendType::kLibAio);
+    IOBackendType t = available(IOBackendType::kIoUring);
+    if (t == IOBackendType::kPread) {
+      t = available(IOBackendType::kLibAio);
+    }
+    return t;
   }
 
   // Try to load the requested backend.  Returns the loaded backend type
@@ -92,6 +102,18 @@ class IOBackend {
       return type_;
     }
 #if defined(__linux) || defined(__linux__)
+    if (requested == IOBackendType::kIoUring) {
+      // Probe io_uring availability with a minimal ring setup using only
+      // raw syscalls — no dependency on liburing.
+      struct io_uring_params params;
+      std::memset(&params, 0, sizeof(params));
+      int fd = static_cast<int>(::syscall(__NR_io_uring_setup, 1, &params));
+      if (fd >= 0) {
+        ::close(fd);
+        type_ = IOBackendType::kIoUring;
+        return type_;
+      }
+    }
     if (requested == IOBackendType::kLibAio) {
       if (LibAioLoader::Instance().load() &&
           LibAioLoader::Instance().is_available()) {
@@ -110,6 +132,10 @@ class IOBackend {
 
   bool is_libaio() {
     return available() == IOBackendType::kLibAio;
+  }
+
+  bool is_io_uring() {
+    return available() == IOBackendType::kIoUring;
   }
 
   // Returns the loaded backend type.
