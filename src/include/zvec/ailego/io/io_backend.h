@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// I/O backend abstraction — public, dependency-free header.
+// I/O backend type enum.
 //
-// This is the single io_backend.h in the project.  It defines the
-// IOBackendType enum, the IOBackendTypeName() helper, and the convenience
-// helpers current_io_backend_type() / current_io_backend_description() so that
-// public headers can reference IOBackendType without pulling in the internal
-// IOBackend singleton, libaio_loader, or the io_uring kernel ABI headers.
-//
-// The IOBackend singleton (which probes io_uring / libaio at runtime) lives in
-// the internal header ailego/io/io_backend_def.h.
+// This is the public, dependency-free part of the I/O backend abstraction.
+// It defines the IOBackendType enum and the convenience helpers
+// current_io_backend_type() / current_io_backend_description() so that
+// public headers can reference IOBackendType without pulling in the
+// internal IOBackend singleton or libaio_loader.
 
 #pragma once
 

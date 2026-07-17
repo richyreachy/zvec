@@ -22,15 +22,6 @@
 //
 // When no async backend is available, the caller should fall back to
 // synchronous pread().
-//
-// This header pulls in libaio_loader and the io_uring kernel ABI; the
-// dependency-free enum and IOBackendTypeName() live in the public header
-// zvec/ailego/io/io_backend.h, which this header includes.
-//
-// Usage:
-//   auto& backend = ailego::IOBackend::Instance();
-//   if (!backend.is_pread()) { ... }
-//   LOG_INFO("I/O backend: %s", backend.name());
 
 #pragma once
 
@@ -46,8 +37,18 @@
 namespace zvec {
 namespace ailego {
 
-// IOBackendTypeName() is defined in the public header
-// zvec/ailego/io/io_backend.h.
+// Returns a human-readable name for the given backend type.
+inline const char *IOBackendTypeName(IOBackendType type) {
+  switch (type) {
+    case IOBackendType::kIoUring:
+      return "io_uring";
+    case IOBackendType::kLibAio:
+      return "libaio";
+    case IOBackendType::kPread:
+      return "pread";
+  }
+  return "unknown";
+}
 
 // Returns a human-readable description for the given backend type.
 // When the backend is kPread, includes installation guidance for libaio.
