@@ -41,20 +41,6 @@ enum class IOBackendType {
   kIoUring = 2,  // io_uring via raw kernel syscalls (zero dependency)
 };
 
-// Returns a human-readable name for the given backend type
-// ("pread", "libaio", "io_uring", or "unknown").
-inline const char *IOBackendTypeName(IOBackendType type) {
-  switch (type) {
-    case IOBackendType::kPread:
-      return "pread";
-    case IOBackendType::kLibAio:
-      return "libaio";
-    case IOBackendType::kIoUring:
-      return "io_uring";
-  }
-  return "unknown";
-}
-
 // Returns the currently active I/O backend type.
 // Triggers backend initialization on first call (io_uring > libaio > pread).
 IOBackendType current_io_backend_type();
