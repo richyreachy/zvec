@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "diskann_streamer.h"
-#include <ailego/io/io_backend.h>
 #include "diskann_context.h"
 #include "diskann_index_provider.h"
 #include "diskann_indexer.h"
