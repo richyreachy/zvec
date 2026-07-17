@@ -15,7 +15,6 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <ailego/io/io_backend_def.h>
 #include <zvec/core/interface/index.h>
 #include "algorithm/diskann/diskann_params.h"
 #include "holder_builder.h"
