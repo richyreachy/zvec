@@ -121,7 +121,7 @@ struct io_uring_sqe {
     struct {
       uint16_t buf_index;  // index into fixed buffers, if used
       uint16_t personality;
-    };
+    } buf;
     uint64_t __pad2[3];
   };
 };
@@ -188,8 +188,8 @@ static inline void io_uring_prep_read(struct io_uring_sqe *sqe, int fd,
   sqe->len = nbytes;
   sqe->rw_flags = 0;
   sqe->user_data = 0;
-  sqe->buf_index = 0;
-  sqe->personality = 0;
+  sqe->buf.buf_index = 0;
+  sqe->buf.personality = 0;
 }
 
 // ---------------------------------------------------------------------------

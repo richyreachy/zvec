@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// I/O backend type enum.
+// I/O backend abstraction — public, dependency-free header.
 //
-// This is the public, dependency-free part of the I/O backend abstraction.
-// It defines the IOBackendType enum and the convenience helpers
-// current_io_backend_type() / current_io_backend_description() so that
-// public headers can reference IOBackendType without pulling in the
-// internal IOBackend singleton or libaio_loader.
+// This is the single io_backend.h in the project.  It defines the
+// IOBackendType enum, the IOBackendTypeName() helper, and the convenience
+// helpers current_io_backend_type() / current_io_backend_description() so that
+// public headers can reference IOBackendType without pulling in the internal
+// IOBackend singleton, libaio_loader, or the io_uring kernel ABI headers.
+//
+// The IOBackend singleton (which probes io_uring / libaio at runtime) lives in
+// the internal header ailego/io/io_backend_def.h.
 
 #pragma once
 
@@ -29,13 +32,31 @@ namespace zvec {
 namespace ailego {
 
 // Supported I/O backend types.
+//
+// Numeric values are part of the C ABI (see zvec_io_backend_type_t in c_api.h):
+//   kPread = 0, kLibAio = 1, kIoUring = 2.
 enum class IOBackendType {
-  kPread,   // Synchronous pread() — no async I/O
-  kLibAio,  // libaio loaded at runtime via dlopen()
+  kPread = 0,    // Synchronous pread() — no async I/O
+  kLibAio = 1,   // libaio loaded at runtime via dlopen()
+  kIoUring = 2,  // io_uring via raw kernel syscalls (zero dependency)
 };
 
+// Returns a human-readable name for the given backend type
+// ("pread", "libaio", "io_uring", or "unknown").
+inline const char *IOBackendTypeName(IOBackendType type) {
+  switch (type) {
+    case IOBackendType::kPread:
+      return "pread";
+    case IOBackendType::kLibAio:
+      return "libaio";
+    case IOBackendType::kIoUring:
+      return "io_uring";
+  }
+  return "unknown";
+}
+
 // Returns the currently active I/O backend type.
-// Triggers backend initialization on first call (libaio > pread).
+// Triggers backend initialization on first call (io_uring > libaio > pread).
 IOBackendType current_io_backend_type();
 
 // Returns a human-readable description of the currently active I/O backend.

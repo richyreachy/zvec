@@ -15,7 +15,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <ailego/io/io_backend.h>
+#include <ailego/io/io_backend_def.h>
 #include <zvec/core/interface/index.h>
 #include "algorithm/diskann/diskann_params.h"
 #include "holder_builder.h"
@@ -275,7 +275,7 @@ int DiskAnnIndex::Merge(const std::vector<Index::Pointer> &indexes,
 ailego::IOBackendType DiskAnnIndex::io_backend_type() const {
   auto &backend = ailego::IOBackend::Instance();
   ailego::IOBackendType type = backend.type();
-  if (type == ailego::IOBackendType::kSyncPread) {
+  if (type == ailego::IOBackendType::kPread) {
     LOG_WARN(
         "Only synchronous pread() is available. Install libaio "
         "(e.g. 'apt-get install libaio1', or 'libaio1t64' on Ubuntu 24.04+) "
