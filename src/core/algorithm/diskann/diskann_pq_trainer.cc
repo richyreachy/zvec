@@ -208,6 +208,8 @@ int DiskAnnPqTrainer::train_pq(IndexThreads::Pointer threads,
   params.set(MULTI_CHUNK_CLUSTER_COUNT, num_centers);
   params.set(MULTI_CHUNK_CLUSTER_CHUNK_COUNT, pq_chunk_num);
   params.set(MULTI_CHUNK_CLUSTER_MAX_ITERATIONS, max_iterations);
+  params.set(MULTI_CHUNK_CLUSTER_MARKOV_CHAIN_LENGTH, 200u);
+  params.set(MULTI_CHUNK_CLUSTER_NUM_RESTARTS, 4u);
 
   ret = chunk_cluster_.init(meta, params);
   if (ret != 0) {
@@ -274,9 +276,7 @@ int DiskAnnPqTrainer::train_quantized_data(
 
   LOG_INFO("Training data with %zu samples loaded.", train_size);
 
-  // bool use_zero_mean = (meta.metric_name() != "InnerProduct" ? true :
-  // false);
-  bool use_zero_mean = false;
+  bool use_zero_mean = true;
 
   ret = train_pq(threads, meta, train_data, train_size, PQTable::kPQCentroidNum,
                  pq_chunk_num, PQTable::kMeanIterNum, use_zero_mean,
@@ -400,9 +400,6 @@ int DiskAnnPqTrainer::generate_quantized_data(
     IndexThreads::Pointer threads, IndexHolder::Pointer holder,
     const IndexMeta &meta, std::vector<uint8_t> &pq_centroid,
     std::vector<uint8_t> &block_compressed_data, size_t pq_chunk_num) {
-  // bool use_zero_mean = (meta.metric_name() != "InnerProduct" ? true :
-  // false);
-
   int ret = generate_pq(threads, meta, holder, pq_chunk_num, pq_centroid,
                         block_compressed_data);
   if (ret != 0) {

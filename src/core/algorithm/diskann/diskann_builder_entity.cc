@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "diskann_builder_entity.h"
+#include <algorithm>
 #include <iostream>
 #include "diskann_algorithm.h"
 #include "diskann_util.h"
@@ -197,7 +198,7 @@ int DiskAnnBuilderEntity::dump_pq_meta_segment(
   crc = ailego::Crc32c::Hash(pq_full_pivot_data_.data(),
                              pq_meta_.full_pivot_data_size, crc);
 
-  // write centroid num
+  // write centroid
   size_t size_centroid =
       dumper->write(pq_centroid_.data(), pq_meta_.centroid_data_size);
   if (size_centroid != pq_meta_.centroid_data_size) {

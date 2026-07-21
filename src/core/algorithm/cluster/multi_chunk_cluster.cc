@@ -65,6 +65,8 @@ int MultiChunkClusterAlgorithm::update_params(const ailego::Params &params) {
   params.get(MULTI_CHUNK_CLUSTER_EPSILON, &epsilon_);
   params.get(MULTI_CHUNK_CLUSTER_MAX_ITERATIONS, &max_iterations_);
   params.get(MULTI_CHUNK_CLUSTER_MARKOV_CHAIN_LENGTH, &markov_chain_length_);
+  params.get(MULTI_CHUNK_CLUSTER_NUM_RESTARTS, &num_restarts_);
+  params.get(MULTI_CHUNK_CLUSTER_ASSUMPTION_FREE, &assumption_free_);
 
   return 0;
 }

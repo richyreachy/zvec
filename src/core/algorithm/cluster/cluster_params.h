@@ -209,5 +209,9 @@ static const std::string MULTI_CHUNK_CLUSTER_MAX_ITERATIONS =
     "zvec.cluster.multi_chunk_cluster.max_iterations";
 static const std::string MULTI_CHUNK_CLUSTER_MARKOV_CHAIN_LENGTH =
     "zvec.cluster.multi_chunk_cluster.markov_chain_length";
+static const std::string MULTI_CHUNK_CLUSTER_NUM_RESTARTS =
+    "zvec.cluster.multi_chunk_cluster.num_restarts";
+static const std::string MULTI_CHUNK_CLUSTER_ASSUMPTION_FREE =
+    "zvec.cluster.multi_chunk_cluster.assumption_free";
 }  // namespace core
 }  // namespace zvec
