@@ -28,9 +28,27 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
     endif()
 endif()
 
+# Set per-file RABITQ_ARCH_FLAG for rabit_quantizer sources (AVX2/AVX512).
+# rabitqlib requires AVX2 or AVX-512 intrinsics; compile the rabit_quantizer
+# translation unit with the appropriate -march flag.
+if(RABITQ_SUPPORTED AND AUTO_DETECT_ARCH)
+    file(GLOB_RECURSE RABITQ_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/quantizer/rabit_quantizer/*.cc)
+    set_source_files_properties(
+        ${RABITQ_SRCS}
+        PROPERTIES
+        COMPILE_FLAGS "${RABITQ_ARCH_FLAG}"
+    )
+endif()
+
+# rabitqlib is an INTERFACE (header-only) library needed when RABITQ_SUPPORTED.
+set(TURBO_LIBS zvec_ailego)
+if(RABITQ_SUPPORTED)
+    list(APPEND TURBO_LIBS rabitqlib)
+endif()
+
 cc_library(
     NAME zvec_turbo STATIC STRICT ALWAYS_LINK PACKED
     SRCS ${ALL_SRCS}
-    LIBS zvec_ailego
-    INCS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/distance ${PROJECT_ROOT_DIR}/src/include
+    LIBS ${TURBO_LIBS}
+    INCS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/distance ${PROJECT_ROOT_DIR}/src/include ${PROJECT_ROOT_DIR}/src
 )
