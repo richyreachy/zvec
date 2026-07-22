@@ -116,6 +116,16 @@ struct DiskAnnPqMeta {
   void clear() {
     memset(this, 0, sizeof(DiskAnnPqMeta));
   }
+
+  //! Quantizer type stored in reserved[0..3].
+  //! 0 (default) = PQ, 1 = RaBitQ.
+  uint32_t quantizer_type() const {
+    return *reinterpret_cast<const uint32_t *>(reserved);
+  }
+
+  void set_quantizer_type(uint32_t type) {
+    *reinterpret_cast<uint32_t *>(reserved) = type;
+  }
 };
 
 static_assert(sizeof(DiskAnnMetaHeader) == 4096,

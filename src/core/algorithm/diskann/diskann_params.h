@@ -36,6 +36,8 @@ static const std::string PARAM_DISKANN_BUILDER_TRAIN_SAMPLE_RATIO(
     "zvec.diskann.builder.train_sample_ratio");
 static const std::string PARAM_DISKANN_BUILDER_MAX_PQ_CHUNK_NUM(
     "zvec.diskann.builder.max_pq_chunk_num");
+static const std::string PARAM_DISKANN_BUILDER_QUANTIZER(
+    "zvec.diskann.builder.quantizer");
 
 static const std::string PARAM_DISKANN_SEARCHER_LIST_SIZE(
     "zvec.diskann.searcher.list_size");

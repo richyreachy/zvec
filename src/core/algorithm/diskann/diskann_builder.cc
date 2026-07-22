@@ -25,6 +25,7 @@
 #include "algorithm/cluster/vector_mean.h"
 #include "diskann_context.h"
 #include "diskann_params.h"
+#include "pq_distance_estimator.h"
 
 namespace zvec {
 namespace core {
@@ -120,6 +121,19 @@ int DiskAnnBuilder::init(const IndexMeta &meta, const ailego::Params &params) {
 
   trainer_ =
       DiskAnnPqTrainer::UPointer(new DiskAnnPqTrainer(max_train_sample_count_));
+
+  // Create distance estimator based on quantizer type parameter.
+  params.get(PARAM_DISKANN_BUILDER_QUANTIZER, &quantizer_type_);
+  if (quantizer_type_ == "pq" || quantizer_type_.empty()) {
+    quantizer_type_ = "pq";
+    estimator_ = std::make_shared<PQDistanceEstimator>();
+  } else {
+    estimator_ = DiskAnnDistanceEstimator::create(quantizer_type_);
+    if (!estimator_) {
+      LOG_ERROR("Unsupported quantizer type: %s", quantizer_type_.c_str());
+      return IndexError_InvalidArgument;
+    }
+  }
 
   state_ = BUILD_STATE_INITED;
 
@@ -331,9 +345,50 @@ int DiskAnnBuilder::prune_internal(IndexThreads::Pointer threads) {
 }
 
 int DiskAnnBuilder::train_quantized_data(IndexThreads::Pointer threads) {
-  LOG_INFO("Starting Train: Chunk Num: %u", pq_chunk_num_);
+  LOG_INFO("Starting Train: quantizer=%s", quantizer_type_.c_str());
 
   ailego::ElapsedTime timer;
+
+  if (estimator_) {
+    // Use the DiskAnnDistanceEstimator (PQ or RaBitQ).
+    std::vector<uint8_t> serialized_quantizer;
+    std::vector<uint8_t> quantized_data;
+
+    int ret = estimator_->train_and_quantize(
+        threads, holder_, build_meta_, serialized_quantizer, quantized_data);
+    if (ret != 0) {
+      LOG_ERROR("Estimator train_and_quantize failed, ret=%d", ret);
+      return ret;
+    }
+
+    // Store serialized quantizer in entity's pq_full_pivot_data_.
+    auto &pivot_data = entity_.pq_full_pivot_data();
+    pivot_data = std::move(serialized_quantizer);
+
+    // Store quantized data in entity's block_compressed_data_.
+    auto &compressed = entity_.block_compressed_data();
+    compressed = std::move(quantized_data);
+
+    // Set pq_meta fields.
+    pq_chunk_num_ = static_cast<uint32_t>(estimator_->code_size());
+    (*entity_.mutable_pq_meta()).full_pivot_data_size =
+        entity_.pq_full_pivot_data().size();
+    (*entity_.mutable_pq_meta()).centroid_data_size = 0;
+    (*entity_.mutable_pq_meta()).chunk_num = pq_chunk_num_;
+    (*entity_.mutable_pq_meta())
+        .set_quantizer_type(quantizer_type_ == "rabitq" ? 1 : 0);
+
+    // Set dummy chunk offsets so dump format is consistent with PQ.
+    entity_.pq_chunk_offsets().assign(pq_chunk_num_ + 1, 0);
+
+    size_t pq_time = timer.milli_seconds();
+    LOG_INFO("Train Quantized Data Done, time: %zu ms", pq_time);
+    return 0;
+  }
+
+  // Fallback to legacy PQ trainer.
+  LOG_INFO("Starting Train: Chunk Num: %u", pq_chunk_num_);
+
   int ret = trainer_->train_quantized_data(
       threads, holder_, build_meta_, entity_.pq_full_pivot_data(),
       entity_.pq_centroid(), entity_.pq_chunk_offsets(), pq_chunk_num_);
@@ -350,11 +405,19 @@ int DiskAnnBuilder::train_quantized_data(IndexThreads::Pointer threads) {
   (*entity_.mutable_pq_meta()).centroid_data_size =
       entity_.pq_centroid().size();
   (*entity_.mutable_pq_meta()).chunk_num = pq_chunk_num_;
+  (*entity_.mutable_pq_meta()).set_quantizer_type(0);  // PQ
 
   return 0;
 }
 
 int DiskAnnBuilder::generate_quantized_data(IndexThreads::Pointer threads) {
+  // When using a DiskAnnDistanceEstimator, quantized data is already
+  // generated in train_quantized_data(). Skip the legacy PQ generation.
+  if (estimator_) {
+    LOG_INFO("Skipping PQ generate: data already produced by estimator");
+    return 0;
+  }
+
   LOG_INFO("Starting PQ Generate: Query Memory Limit: %lf, Chunk Num: %u",
            memory_limit_, pq_chunk_num_);
 

@@ -64,7 +64,7 @@ const DiskAnnEntity::Pointer DiskAnnSearcherEntity::clone() const {
       meta_header_, pq_meta_, meta_segment, pq_meta_segment, pq_data_segment,
       vector_segment, key_segment, key_mapping_segment, entrypoint_segment,
       num_threads_, list_size_, cache_nodes_num_, warm_up_, beam_size_, meta_,
-      pq_table_, key_buffer_, key_mapping_buffer_, entrypoints_);
+      pq_table_, estimator_, key_buffer_, key_mapping_buffer_, entrypoints_);
   if (ailego_unlikely(!entity)) {
     LOG_ERROR("DiskAnnSearcherEntity new failed");
   }
@@ -223,6 +223,28 @@ int DiskAnnSearcherEntity::load_pq_segment() {
   pq_table_ = std::make_shared<PQTable>(meta_, pq_meta_.chunk_num);
 
   pq_table_->init(full_pivot_data, centroid, chunk_offsets, pq_data);
+
+  // If the quantizer type is non-PQ (e.g. RaBitQ), create a
+  // DiskAnnDistanceEstimator and load it from the same data.
+  uint32_t qtype = pq_meta_.quantizer_type();
+  if (qtype != 0) {
+    std::string qtype_name = (qtype == 1) ? "rabitq" : "";
+    if (!qtype_name.empty()) {
+      estimator_ = DiskAnnDistanceEstimator::create(qtype_name);
+      if (estimator_) {
+        // The serialized quantizer is in full_pivot_data.
+        // The quantized data is in pq_data.
+        estimator_->load(
+            meta_, reinterpret_cast<const uint8_t *>(full_pivot_data.data()),
+            full_pivot_data.size(),
+            reinterpret_cast<const uint8_t *>(pq_data.data()), pq_data.size(),
+            meta_header_.doc_cnt);
+      } else {
+        LOG_ERROR("Failed to create distance estimator: %s",
+                  qtype_name.c_str());
+      }
+    }
+  }
 
   return 0;
 }

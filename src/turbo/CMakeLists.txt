@@ -13,6 +13,11 @@ endif()
 
 file(GLOB_RECURSE ALL_SRCS *.cc *.c *.h)
 
+# Exclude diskann/rabit_distance_estimator files when DiskAnn is not supported.
+if(NOT DISKANN_SUPPORTED)
+  list(FILTER ALL_SRCS EXCLUDE REGEX ".*/diskann/.*")
+endif()
+
 # Set per-file compile flags for AVX512-VNNI sources.
 # set_source_files_properties is directory-scoped, so it must be called in the
 # same directory that adds the sources to a target (i.e. here, not in a

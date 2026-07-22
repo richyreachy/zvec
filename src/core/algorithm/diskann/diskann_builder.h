@@ -17,6 +17,7 @@
 #include <zvec/core/framework/index_builder.h>
 #include "diskann_algorithm.h"
 #include "diskann_builder_entity.h"
+#include "diskann_distance_estimator.h"
 #include "diskann_pq_trainer.h"
 
 namespace zvec {
@@ -123,6 +124,9 @@ class DiskAnnBuilder : public IndexBuilder {
 
   DiskAnnAlgorithm::UPointer algo_;
   DiskAnnPqTrainer::UPointer trainer_;
+
+  std::string quantizer_type_{"pq"};
+  DiskAnnDistanceEstimator::Pointer estimator_;
 
   uint32_t check_interval_secs_{kDefaultLogIntervalSecs};
 };

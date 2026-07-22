@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <zvec/core/framework/index_framework.h>
 #include "diskann_context.h"
+#include "diskann_distance_estimator.h"
 #include "diskann_file_reader.h"
 #include "diskann_pq_table.h"
 #include "diskann_searcher_entity.h"
@@ -35,7 +36,6 @@ class DiskAnnIndexer {
  public:
   int init(DiskAnnSearcherEntity &entity);
   int load_cache_list(const std::vector<diskann_id_t> &node_list);
-
   void cache_bfs_levels(uint64_t num_nodes_to_cache,
                         std::vector<diskann_id_t> &node_list);
 
@@ -58,6 +58,15 @@ class DiskAnnIndexer {
   std::string make_vector_copy(const void *src) const {
     return std::string(static_cast<const char *>(src), meta_.element_size());
   }
+
+  //! Preprocess query for distance estimation.
+  //! Uses estimator if available, otherwise falls back to PQTable.
+  void preprocess_dist_table(DiskAnnContext *ctx);
+
+  //! Compute distances for a batch of candidate IDs.
+  //! Uses estimator if available, otherwise falls back to PQTable.
+  void compute_dists_batch(uint32_t id_num, const diskann_id_t *ids,
+                           DiskAnnContext *ctx, float *dists);
 
   std::vector<bool> read_nodes(
       const std::vector<diskann_id_t> &node_ids,
@@ -90,6 +99,7 @@ class DiskAnnIndexer {
   std::shared_ptr<LinuxAlignedFileReader> reader_{nullptr};
 
   PQTable::Pointer pq_table_;
+  DiskAnnDistanceEstimator::Pointer estimator_;
 
   IOContext init_ctx_{0};
 

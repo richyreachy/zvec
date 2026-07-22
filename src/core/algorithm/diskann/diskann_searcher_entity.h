@@ -15,6 +15,7 @@
 
 #include <zvec/ailego/parallel/thread_pool.h>
 #include <zvec/core/framework/index_holder.h>
+#include "diskann_distance_estimator.h"
 #include "diskann_entity.h"
 #include "diskann_file_reader.h"
 #include "diskann_pq_table.h"
@@ -46,6 +47,14 @@ class DiskAnnSearcherEntity : public DiskAnnEntity {
     return pq_table_;
   }
 
+  DiskAnnDistanceEstimator::Pointer get_estimator() {
+    return estimator_;
+  }
+
+  bool has_estimator() const {
+    return estimator_ != nullptr;
+  }
+
   IndexStorage::Pointer get_storage() {
     return storage_;
   }
@@ -75,6 +84,7 @@ class DiskAnnSearcherEntity : public DiskAnnEntity {
       const SegmentPointer &entrypoint_segment, uint32_t num_threads,
       uint32_t list_size, uint32_t cache_nodes_num, bool warm_up,
       uint32_t beam_size, const IndexMeta meta, PQTable::Pointer pq_table,
+      DiskAnnDistanceEstimator::Pointer estimator,
       const std::string &key_buffer, const std::string &key_mapping_buffer,
       const std::vector<diskann_id_t> &entrypoints)
       : DiskAnnEntity(meta_header, pq_meta),
@@ -92,6 +102,7 @@ class DiskAnnSearcherEntity : public DiskAnnEntity {
         beam_size_{beam_size},
         meta_{meta},
         pq_table_{pq_table},
+        estimator_{estimator},
         key_buffer_{key_buffer},
         key_mapping_buffer_{key_mapping_buffer},
         entrypoints_{entrypoints} {}
@@ -116,6 +127,7 @@ class DiskAnnSearcherEntity : public DiskAnnEntity {
   IndexMeta meta_;
 
   PQTable::Pointer pq_table_;
+  DiskAnnDistanceEstimator::Pointer estimator_;
   std::string key_buffer_;
   std::string key_mapping_buffer_;
   std::vector<diskann_id_t> entrypoints_;

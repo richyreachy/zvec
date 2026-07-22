@@ -42,6 +42,7 @@ int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
   auto vector_segment = entity.get_vector_segment();
 
   pq_table_ = entity.get_pq_table();
+  estimator_ = entity.get_estimator();
 
   index_segment_offset_ = vector_segment->data_offset();
 
@@ -93,6 +94,30 @@ int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
   use_medroids_data_as_centroids();
 
   return 0;
+}
+
+void DiskAnnIndexer::preprocess_dist_table(DiskAnnContext *ctx) {
+  if (estimator_) {
+    estimator_->preprocess_query(
+        ctx->query(), meta_.element_size(), ctx->pq_table_dist_buffer(),
+        PQTable::kPQCentroidNum * pq_chunk_num_ * sizeof(float));
+  } else {
+    pq_table_->preprocess_pq_dist_table(ctx->query_rotated(),
+                                        ctx->pq_table_dist_buffer());
+  }
+}
+
+void DiskAnnIndexer::compute_dists_batch(uint32_t id_num,
+                                         const diskann_id_t *ids,
+                                         DiskAnnContext *ctx, float *dists) {
+  if (estimator_) {
+    estimator_->compute_dists(id_num, ids, ctx->pq_table_dist_buffer(),
+                              ctx->pq_coord_buffer(), dists);
+  } else {
+    pq_table_->compute_dists(id_num, ids, pq_chunk_num_,
+                             ctx->pq_table_dist_buffer(),
+                             ctx->pq_coord_buffer(), dists);
+  }
 }
 
 int DiskAnnIndexer::use_medroids_data_as_centroids() {
@@ -759,8 +784,7 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
           ? 1
           : DiskAnnUtil::div_round_up(max_node_size_, DiskAnnUtil::kSectorSize);
 
-  pq_table_->preprocess_pq_dist_table(ctx->query_rotated(),
-                                      ctx->pq_table_dist_buffer());
+  preprocess_dist_table(ctx);
 
   ailego::ElapsedTime query_timer;
   ailego::ElapsedTime io_timer;
@@ -783,9 +807,7 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
   }
 
   float dist;
-  pq_table_->compute_dists(1, &best_medoid, pq_chunk_num_,
-                           ctx->pq_table_dist_buffer(), ctx->pq_coord_buffer(),
-                           &dist);
+  compute_dists_batch(1, &best_medoid, ctx, &dist);
   candidates.insert(Neighbor(best_medoid, dist));
   visit_filter.set_visited(best_medoid);
 
@@ -886,9 +908,7 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
       cpu_timer.reset();
 
       std::vector<float> distances(neighbor_num);
-      pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
-                               ctx->pq_table_dist_buffer(),
-                               ctx->pq_coord_buffer(), distances.data());
+      compute_dists_batch(neighbor_num, node_neighbors, ctx, distances.data());
 
       stats.dist_num += neighbor_num;
       stats.cpu_us += cpu_timer.micro_seconds();
@@ -926,9 +946,7 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
 
       cpu_timer.reset();
       std::vector<float> distances(neighbor_num);
-      pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
-                               ctx->pq_table_dist_buffer(),
-                               ctx->pq_coord_buffer(), distances.data());
+      compute_dists_batch(neighbor_num, node_neighbors, ctx, distances.data());
 
       stats.dist_num += neighbor_num;
       stats.cpu_us += cpu_timer.micro_seconds();
@@ -1122,9 +1140,8 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
         cpu_timer.reset();
 
         std::vector<float> distances(neighbor_num);
-        pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
-                                 ctx->pq_table_dist_buffer(),
-                                 ctx->pq_coord_buffer(), distances.data());
+        compute_dists_batch(neighbor_num, node_neighbors, ctx,
+                            distances.data());
 
         stats.dist_num += neighbor_num;
         stats.cpu_us += cpu_timer.micro_seconds();
@@ -1174,9 +1191,8 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
         std::vector<float> distances(neighbor_num);
         diskann_id_t *node_neighbors =
             reinterpret_cast<diskann_id_t *>(node_buf + 1);
-        pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
-                                 ctx->pq_table_dist_buffer(),
-                                 ctx->pq_coord_buffer(), distances.data());
+        compute_dists_batch(neighbor_num, node_neighbors, ctx,
+                            distances.data());
 
         stats.dist_num += neighbor_num;
         stats.cpu_us += cpu_timer.micro_seconds();
