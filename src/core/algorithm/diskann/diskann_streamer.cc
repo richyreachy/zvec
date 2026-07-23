@@ -162,6 +162,10 @@ int DiskAnnStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
 
     diskann_indexer_->knn_search(ctx);
 
+    if (ailego_unlikely(ctx->error())) {
+      return IndexError_Runtime;
+    }
+
     ctx->topk_to_result(i);
 
     query = static_cast<const char *>(query) + qmeta.element_size();
@@ -338,6 +342,7 @@ IndexSearcher::Context::Pointer DiskAnnStreamer::create_context() const {
   }
 
   ctx->set_list_size(list_size_);
+  ctx->set_magic(magic_);
 
   return Context::Pointer(ctx);
 }
