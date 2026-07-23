@@ -60,20 +60,21 @@ if(NOT RABITQ_SUPPORTED)
   list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/hnsw_rabitq/.*")
 endif()
 
-# Always exclude algorithm/diskann implementation files from zvec_core.
-# The DiskAnn algorithm is provided by the separate core_knn_diskann library
-# (STATIC+SHARED, real on Linux x86_64/ARM64 with libaio and macOS with kqueue,
-# stub on other platforms). The static variant is whole-archived into _zvec.so
-# for the Python wheel; the shared variant is used by C++ tools and tests.
-# Including the sources here would cause duplicate symbols.
-list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/diskann/.*")
+# Exclude algorithm/diskann implementation files from zvec_core when not
+# supported (matching the hnsw_rabitq pattern above). When DISKANN_SUPPORTED,
+# the diskann sources are packed into zvec_core directly, so libzvec_core.so
+# includes diskann symbols without needing a separate whole-archive step.
+# The standalone core_knn_diskann library (built by algorithm/diskann) is still
+# whole-archived into _zvec.so; since _zvec.so links zvec_core *normally*
+# (not --whole-archive), the linker skips zvec_core's diskann objects there
+# (symbols already resolved by core_knn_diskann_static) — no duplicates.
 if(NOT DISKANN_SUPPORTED)
+  list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/algorithm/diskann/.*")
   list(FILTER ALL_CORE_SRCS EXCLUDE REGEX ".*/interface/indexes/diskann_index\\.cc")
 endif()
 
 set(ZVEC_CORE_LIBS zvec_ailego zvec_turbo sparsehash magic_enum rabitqlib)
-# The DiskAnn runtime loader (LibAioLoader) uses dlopen/dlsym, so link libdl
-# on Linux. On macOS, kqueue is part of the system and does not require dlopen.
+# The DiskAnn runtime loader uses dlopen/dlsym, so link libdl on Linux.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   list(APPEND ZVEC_CORE_LIBS ${CMAKE_DL_LIBS})
 endif()

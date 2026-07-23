@@ -153,7 +153,8 @@ Status FieldSchema::validate() const {
             support_dense_vector_index.end()) {
           return Status::InvalidArgument(
               "schema validate failed: dense_vector's index_params only "
-              "support FLAT|HNSW|IVF index, but field[",
+              "support FLAT|HNSW|HNSW_RABITQ|IVF|DISKANN|VAMANA index, but "
+              "field[",
               name_, "]'s index_type is ",
               IndexTypeCodeBook::AsString(index_params_->type()));
         }
@@ -197,10 +198,16 @@ Status FieldSchema::validate() const {
       }
 
       if (index_params_->type() == IndexType::DISKANN) {
-        // DiskAnn is supported on Linux (x86_64/ARM64 with libaio) and macOS
-        // (with kqueue). On Linux, libaio is loaded eagerly via dlopen; if
-        // missing, DiskAnn falls back to synchronous pread() with degraded
-        // performance.
+        // The CMake variable
+        // DISKANN_SUPPORTED (defined in the top-level CMakeLists.txt) is the
+        // single source of truth for platform eligibility — it is also used by
+        // index_factory.cc to conditionally compile the DiskAnn index
+        // registration.  Using the same macro here ensures that schema
+        // validation and index registration agree on supported platforms.
+        //
+        // On Linux, libaio is loaded eagerly (via dlopen); if it is missing,
+        // DiskAnn falls back to synchronous pread() with degraded performance.
+        // On macOS, DiskAnn uses kqueue.
 #if !DISKANN_SUPPORTED
         return Status::NotSupported(
             "DiskAnn is not supported on this platform. It is available on "

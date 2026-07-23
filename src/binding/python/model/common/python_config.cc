@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "python_config.h"
-#include <ailego/io/io_backend.h>
 #include <pybind11/stl.h>
+#include <zvec/ailego/io/io_backend.h>
 
 namespace zvec {
 
@@ -220,24 +220,25 @@ void ZVecPyConfig::Initialize(pybind11::module_ &m) {
       "Read the currently registered default jieba dict directory.");
 
   // Returns the current I/O backend type for DiskAnn async disk reads.
-  // When only sync_pread is available, prints the install hint to stdout.
+  // Pure introspection \u2014 no side effects, no install hints.
   m.def(
       "io_backend_type",
-      []() -> std::string {
-        auto type = ailego::IOBackend::Instance().available();
-        std::string name = ailego::IOBackendTypeName(type);
-        if (type == ailego::IOBackendType::kSyncPread) {
-          py::print(
-              "No async I/O backend available. Install libaio (e.g. "
-              "'apt-get install libaio1', or 'libaio1t64' on Ubuntu 24.04+) "
-              "and retry. DiskAnn will fall back to synchronous pread() — "
-              "performance will be degraded.");
-        }
-        return name;
+      []() -> ailego::IOBackendType {
+        return ailego::current_io_backend_type();
       },
-      "Returns the current I/O backend type for DiskAnn async disk reads. "
-      "\"libaio\" if libaio is available, \"sync_pread\" otherwise. "
-      "When \"sync_pread\", prints the install hint to stdout.");
+      "Returns the current I/O backend type for DiskAnn async disk reads "
+      "as an IOBackendType enum (zvec.typing.IOBackendType). "
+      "IOBackendType.LIBAIO if libaio is available, "
+      "IOBackendType.PREAD otherwise.");
+
+  // Returns a human-readable description of the I/O backend, including
+  // installation guidance for libaio when only pread is available.
+  m.def(
+      "io_backend_description",
+      []() -> std::string { return ailego::current_io_backend_description(); },
+      "Returns a human-readable description of the current I/O backend. "
+      "When only pread is available, includes instructions for installing "
+      "libaio to enable async I/O.");
 }
 
 

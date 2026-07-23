@@ -24,31 +24,41 @@
 //
 // Usage:
 //   auto& backend = ailego::IOBackend::Instance();
-//   if (backend.available() != ailego::IOBackendType::kSyncPread) { ... }
+//   if (!backend.is_pread()) { ... }
 //   LOG_INFO("I/O backend: %s", backend.name());
 
 #pragma once
 
 #include <ailego/io/libaio_loader.h>
+#include <zvec/ailego/io/io_backend.h>
 
 namespace zvec {
 namespace ailego {
-
-// Supported I/O backend types.
-enum class IOBackendType {
-  kSyncPread,  // Synchronous pread() — no async I/O
-  kLibAio,     // libaio loaded at runtime via dlopen()
-};
 
 // Returns a human-readable name for the given backend type.
 inline const char *IOBackendTypeName(IOBackendType type) {
   switch (type) {
     case IOBackendType::kLibAio:
       return "libaio";
-    case IOBackendType::kSyncPread:
-      return "sync_pread";
+    case IOBackendType::kPread:
+      return "pread";
   }
   return "unknown";
+}
+
+// Returns a human-readable description for the given backend type.
+// When the backend is kPread, includes installation guidance for libaio.
+inline const char *IOBackendDescription(IOBackendType type) {
+  switch (type) {
+    case IOBackendType::kLibAio:
+      return "libaio async I/O backend loaded at runtime via dlopen().";
+    case IOBackendType::kPread:
+      return "No async I/O backend available. Install libaio (e.g. "
+             "'apt-get install libaio1', or 'libaio1t64' on Ubuntu 24.04+) "
+             "and retry. DiskAnn will fall back to synchronous pread() \u2014 "
+             "performance will be degraded.";
+  }
+  return "Unknown I/O backend.";
 }
 
 // Singleton that loads and queries an I/O backend on demand.
@@ -64,21 +74,21 @@ class IOBackend {
     return instance;
   }
 
-  // Try to load the best available backend (libaio > sync_pread).
+  // Try to load the best available backend (libaio > pread).
   // Returns the loaded backend type.
   // Idempotent — if already loaded, returns immediately.
   IOBackendType available() {
-    if (type_ != IOBackendType::kSyncPread) {
+    if (type_ != IOBackendType::kPread) {
       return type_;
     }
     return available(IOBackendType::kLibAio);
   }
 
   // Try to load the requested backend.  Returns the loaded backend type
-  // (may differ from requested if the load failed — falls back to kSyncPread).
+  // (may differ from requested if the load failed — falls back to kPread).
   // Idempotent — if the same backend is already loaded, returns immediately.
   IOBackendType available(IOBackendType requested) {
-    if (type_ == requested && type_ != IOBackendType::kSyncPread) {
+    if (type_ == requested && type_ != IOBackendType::kPread) {
       return type_;
     }
 #if defined(__linux) || defined(__linux__)
@@ -90,8 +100,16 @@ class IOBackend {
       }
     }
 #endif
-    type_ = IOBackendType::kSyncPread;
+    type_ = IOBackendType::kPread;
     return type_;
+  }
+
+  bool is_pread() {
+    return available() == IOBackendType::kPread;
+  }
+
+  bool is_libaio() {
+    return available() == IOBackendType::kLibAio;
   }
 
   // Returns the loaded backend type.
@@ -104,10 +122,15 @@ class IOBackend {
     return IOBackendTypeName(type_);
   }
 
+  // Human-readable description for the selected backend.
+  const char *description() const {
+    return IOBackendDescription(type_);
+  }
+
  private:
   IOBackend() = default;
 
-  IOBackendType type_{IOBackendType::kSyncPread};
+  IOBackendType type_{IOBackendType::kPread};
 };
 
 }  // namespace ailego

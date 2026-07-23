@@ -19,7 +19,7 @@
 #include <string>
 #include <variant>
 #include <vector>
-#include <ailego/io/io_backend.h>
+#include <zvec/ailego/io/io_backend.h>
 #include <zvec/core/framework/index_context.h>
 #include <zvec/core/framework/index_converter.h>
 #include <zvec/core/framework/index_factory.h>
@@ -206,7 +206,8 @@ class Index {
       const BaseIndexQueryParam::Pointer &search_param);
 
   //! Helper: set group_by on context from the query param (common for all
-  //! index types). Call this at the end of _prepare_for_search.
+  //! index types). Call this before set_topk() when topk depends on group
+  //! state.
   static void _set_group_by_on_context(
       const BaseIndexQueryParam::Pointer &search_param,
       core::IndexContext::Pointer &context);
@@ -377,7 +378,7 @@ class DiskAnnIndex : public Index {
   DiskAnnIndex() = default;
 
   // Returns the I/O backend type currently loaded for DiskAnn async disk reads.
-  // If only sync_pread is available, logs a hint to install libaio.
+  // If only pread is available, logs a hint to install libaio.
   ailego::IOBackendType io_backend_type() const;
 
  protected:
