@@ -44,7 +44,14 @@ class DiskAnnIndexer {
 
   int cached_beam_search_in_mem(DiskAnnContext *ctx);
 
+  int cached_in_mem_search(DiskAnnContext *ctx);
+  int cached_in_mem_search_by_group(DiskAnnContext *ctx);
+
   int knn_search(DiskAnnContext *ctx);
+
+  void set_in_mem_search(bool v) {
+    in_mem_search_ = v;
+  }
   int linear_search(DiskAnnContext *ctx);
   int keys_search(const std::vector<diskann_key_t> &keys, DiskAnnContext *ctx);
 
@@ -63,6 +70,11 @@ class DiskAnnIndexer {
       const std::vector<diskann_id_t> &node_ids,
       std::vector<void *> &coord_buffers,
       std::vector<std::pair<uint32_t, diskann_id_t *>> &nbr_buffers);
+
+  //! Read sector-aligned data from either mmap memory or file reader.
+  //! When mmap_base_ is available, reads directly from mmap'd memory;
+  //! otherwise falls back to LinuxAlignedFileReader.
+  int read_sectors(std::vector<AlignedRead> &read_reqs, IOContext &ctx);
 
  protected:
   int use_medroids_data_as_centroids();
@@ -89,6 +101,9 @@ class DiskAnnIndexer {
 
   std::shared_ptr<LinuxAlignedFileReader> reader_{nullptr};
 
+  IndexStorage::Segment::Pointer vector_segment_mmap_{};
+  const uint8_t *mmap_base_{nullptr};
+
   PQTable::Pointer pq_table_;
 
   IOContext init_ctx_{0};
@@ -101,6 +116,8 @@ class DiskAnnIndexer {
 
   uint32_t beam_width_{2};
   uint32_t io_limit_{std::numeric_limits<uint32_t>::max()};
+
+  bool in_mem_search_{false};
 
   uint64_t doc_cnt_{0};
 };

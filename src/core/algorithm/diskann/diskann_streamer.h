@@ -162,6 +162,7 @@ class DiskAnnStreamer : public IndexStreamer {
 
   bool warm_up_{false};
   uint32_t beam_size_{2};
+  bool in_mem_search_{false};
 
   DiskAnnIndexer::Pointer diskann_indexer_{nullptr};
   DiskAnnSearcherEntity entity_{};

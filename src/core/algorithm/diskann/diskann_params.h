@@ -41,6 +41,8 @@ static const std::string PARAM_DISKANN_SEARCHER_LIST_SIZE(
     "zvec.diskann.searcher.list_size");
 static const std::string PARAM_DISKANN_SEARCHER_CACHE_NODE_NUM(
     "zvec.diskann.searcher.cache_node_num");
+static const std::string PARAM_DISKANN_SEARCHER_IN_MEM_SEARCH(
+    "zvec.diskann.searcher.in_mem_search");
 
 static const std::string PARAM_DISKANN_REDUCER_INDEX_NAME(
     "zvec.diskann.reducer.index_name");
