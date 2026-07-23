@@ -130,6 +130,8 @@ class IOBackendType:
 
     - PREAD: Synchronous pread() — no async I/O.
     - LIBAIO: libaio loaded at runtime via dlopen().
+    - THREAD_POOL_PREAD: Blocking pread() executed by a shared worker pool,
+      with completion delivered through kqueue.
 
     Examples:
         >>> from zvec.typing import IOBackendType
@@ -142,13 +144,16 @@ class IOBackendType:
       PREAD
 
       LIBAIO
+
+      THREAD_POOL_PREAD
     """
 
     LIBAIO: typing.ClassVar[IOBackendType]  # value = <IOBackendType.LIBAIO: 1>
     PREAD: typing.ClassVar[IOBackendType]  # value = <IOBackendType.PREAD: 0>
+    THREAD_POOL_PREAD: typing.ClassVar[IOBackendType]  # value = <IOBackendType.THREAD_POOL_PREAD: 2>
     __members__: typing.ClassVar[
         dict[str, IOBackendType]
-    ]  # value = {'PREAD': <IOBackendType.PREAD: 0>, 'LIBAIO': <IOBackendType.LIBAIO: 1>}
+    ]  # value = {'PREAD': <IOBackendType.PREAD: 0>, 'LIBAIO': <IOBackendType.LIBAIO: 1>, 'THREAD_POOL_PREAD': <IOBackendType.THREAD_POOL_PREAD: 2>}
 
     def __eq__(self, other: typing.Any) -> bool: ...
     def __getstate__(self) -> int: ...

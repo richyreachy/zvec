@@ -19,7 +19,7 @@
 // operations are still performed by the underlying loaders; this class is
 // responsible only for backend initialization and reporting.
 //
-// When no async backend is available, the caller should fall back to
+// When no asynchronous backend is available, the caller should fall back to
 // synchronous pread().
 //
 // Usage:
@@ -40,6 +40,8 @@ inline const char *IOBackendTypeName(IOBackendType type) {
   switch (type) {
     case IOBackendType::kLibAio:
       return "libaio";
+    case IOBackendType::kThreadPoolPread:
+      return "thread_pool_pread";
     case IOBackendType::kPread:
       return "pread";
   }
@@ -52,6 +54,9 @@ inline const char *IOBackendDescription(IOBackendType type) {
   switch (type) {
     case IOBackendType::kLibAio:
       return "libaio async I/O backend loaded at runtime via dlopen().";
+    case IOBackendType::kThreadPoolPread:
+      return "Blocking pread() calls executed by a shared worker pool, with "
+             "completion delivered through kqueue.";
     case IOBackendType::kPread:
       return "No async I/O backend available. Install libaio (e.g. "
              "'apt-get install libaio1', or 'libaio1t64' on Ubuntu 24.04+) "
@@ -63,8 +68,8 @@ inline const char *IOBackendDescription(IOBackendType type) {
 
 // Singleton that loads and queries an I/O backend on demand.
 //
-// available() (no arg) tries the best backend with priority (libaio > pread)
-// and returns the loaded backend type.
+// available() (no arg) selects libaio on Linux when available, worker-pool
+// pread() on macOS, and synchronous pread() otherwise.
 // available(IOBackendType) tries a specific backend.
 // Use type() / name() to query the loaded backend without triggering a load.
 class IOBackend {
@@ -74,14 +79,18 @@ class IOBackend {
     return instance;
   }
 
-  // Try to load the best available backend (libaio > pread).
+  // Try to load the best available backend for the current platform.
   // Returns the loaded backend type.
   // Idempotent — if already loaded, returns immediately.
   IOBackendType available() {
     if (type_ != IOBackendType::kPread) {
       return type_;
     }
+#if defined(__APPLE__) && defined(__MACH__)
+    return available(IOBackendType::kThreadPoolPread);
+#else
     return available(IOBackendType::kLibAio);
+#endif
   }
 
   // Try to load the requested backend.  Returns the loaded backend type
@@ -91,6 +100,12 @@ class IOBackend {
     if (type_ == requested && type_ != IOBackendType::kPread) {
       return type_;
     }
+#if defined(__APPLE__) && defined(__MACH__)
+    if (requested == IOBackendType::kThreadPoolPread) {
+      type_ = IOBackendType::kThreadPoolPread;
+      return type_;
+    }
+#endif
 #if defined(__linux) || defined(__linux__)
     if (requested == IOBackendType::kLibAio) {
       if (LibAioLoader::Instance().load() &&
@@ -110,6 +125,10 @@ class IOBackend {
 
   bool is_libaio() {
     return available() == IOBackendType::kLibAio;
+  }
+
+  bool is_thread_pool_pread() {
+    return available() == IOBackendType::kThreadPoolPread;
   }
 
   // Returns the loaded backend type.

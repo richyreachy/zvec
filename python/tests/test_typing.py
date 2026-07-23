@@ -49,6 +49,7 @@ def test_enum_names(member, name):
         (DataType.FLOAT, 8),
         (IndexType.HNSW, 1),
         (IOBackendType.PREAD, 0),
+        (IOBackendType.THREAD_POOL_PREAD, 2),
         (MetricType.COSINE, 3),
         (QuantizeType.INT8, 2),
         (StatusCode.OK, 0),
@@ -112,7 +113,9 @@ def test_index_type_has_member(member):
     assert member in IndexType.__members__
 
 
-@pytest.mark.parametrize("member", ["PREAD", "LIBAIO"])
+@pytest.mark.parametrize(
+    "member", ["PREAD", "LIBAIO", "THREAD_POOL_PREAD"]
+)
 def test_io_backend_type_has_member(member):
     assert member in IOBackendType.__members__
 

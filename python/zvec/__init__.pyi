@@ -52,12 +52,13 @@ from .zvec import create_and_open, init, open
 def io_backend_type() -> IOBackendType:
     """Returns the current I/O backend type for DiskAnn async disk reads
     as an IOBackendType enum (zvec.typing.IOBackendType).
-    IOBackendType.LIBAIO if libaio is available, IOBackendType.PREAD otherwise."""
+    On Linux this is IOBackendType.LIBAIO when libaio is available; on macOS
+    this is IOBackendType.THREAD_POOL_PREAD."""
 
 def io_backend_description() -> str:
     """Returns a human-readable description of the current I/O backend.
-    When only pread is available, includes instructions for installing
-    libaio to enable async I/O."""
+    On Linux, when only pread is available, includes instructions for
+    installing libaio to enable async I/O."""
 
 def set_default_jieba_dict_dir(dir: str) -> None:
     """Register the process-wide default jieba dict directory."""
