@@ -160,10 +160,9 @@ int DiskAnnStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
   for (uint32_t i = 0; i < count; i++) {
     ctx->reset_query(query);
 
-    diskann_indexer_->knn_search(ctx);
-
-    if (ailego_unlikely(ctx->error())) {
-      return IndexError_Runtime;
+    int ret = diskann_indexer_->knn_search(ctx);
+    if (ailego_unlikely(ret != 0)) {
+      return ret;
     }
 
     ctx->topk_to_result(i);

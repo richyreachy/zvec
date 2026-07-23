@@ -30,16 +30,19 @@ namespace ailego {
 
 // Supported I/O backend types.
 enum class IOBackendType {
-  kPread,   // Synchronous pread() — no async I/O
-  kLibAio,  // libaio loaded at runtime via dlopen()
+  kPread = 0,           // Synchronous pread() — no async I/O
+  kLibAio = 1,          // libaio loaded at runtime via dlopen()
+  kThreadPoolPread = 2  // Worker-pool pread() with completion notification
 };
 
 // Returns the currently active I/O backend type.
-// Triggers backend initialization on first call (libaio > pread).
+// Triggers backend initialization on first call. Linux prefers libaio and
+// macOS uses worker-pool pread() with kqueue completion notification.
 IOBackendType current_io_backend_type();
 
 // Returns a human-readable description of the currently active I/O backend.
-// When only pread is available, includes installation guidance for libaio.
+// On Linux, when only pread is available, includes installation guidance for
+// libaio.
 std::string current_io_backend_description();
 
 }  // namespace ailego

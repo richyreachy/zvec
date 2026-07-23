@@ -130,6 +130,29 @@ void test_version_functions(void) {
   TEST_END();
 }
 
+void test_io_backend_functions(void) {
+  TEST_START();
+
+  TEST_ASSERT(strcmp(zvec_get_io_backend_type_name(ZVEC_IO_BACKEND_TYPE_PREAD),
+                     "pread") == 0);
+  TEST_ASSERT(strcmp(zvec_get_io_backend_type_name(ZVEC_IO_BACKEND_TYPE_LIBAIO),
+                     "libaio") == 0);
+  TEST_ASSERT(strcmp(zvec_get_io_backend_type_name(
+                         ZVEC_IO_BACKEND_TYPE_THREAD_POOL_PREAD),
+                     "thread_pool_pread") == 0);
+
+  zvec_io_backend_type_t type = zvec_get_io_backend_type();
+  TEST_ASSERT(type == ZVEC_IO_BACKEND_TYPE_PREAD ||
+              type == ZVEC_IO_BACKEND_TYPE_LIBAIO ||
+              type == ZVEC_IO_BACKEND_TYPE_THREAD_POOL_PREAD);
+#if defined(__APPLE__) && defined(__MACH__)
+  TEST_ASSERT(type == ZVEC_IO_BACKEND_TYPE_THREAD_POOL_PREAD);
+#endif
+  TEST_ASSERT(zvec_get_io_backend_description() != NULL);
+
+  TEST_END();
+}
+
 void test_error_handling_functions(void) {
   TEST_START();
 
@@ -6375,6 +6398,7 @@ int main(void) {
   printf("Cleanup completed.\n\n");
 
   test_version_functions();
+  test_io_backend_functions();
   test_error_handling_functions();
   test_zvec_config();
   test_zvec_initialize();

@@ -23,6 +23,7 @@
 #include <thread>
 #include <vector>
 #include <gtest/gtest.h>
+#include <zvec/ailego/io/io_backend.h>
 
 using namespace zvec::core;
 
@@ -87,6 +88,13 @@ AlignedBuffer make_aligned_buffer(size_t size) {
 }
 
 }  // namespace
+
+#if defined(__APPLE__) && defined(__MACH__)
+TEST(DiskAnnFileReaderTest, ReportsThreadPoolPreadBackend) {
+  EXPECT_EQ(zvec::ailego::IOBackendType::kThreadPoolPread,
+            zvec::ailego::current_io_backend_type());
+}
+#endif
 
 TEST(DiskAnnFileReaderTest, BatchAlignedReadsPreserveRequestOrder) {
   constexpr size_t kPageCount = 32;
