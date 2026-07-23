@@ -338,6 +338,108 @@ int LinuxAlignedFileReader::read(std::vector<AlignedRead> &read_reqs,
   return ret;
 }
 
+#if (defined(__linux) || defined(__linux__))
+int LinuxAlignedFileReader::submit(PendingBatch &batch,
+                                   std::vector<AlignedRead> &read_reqs,
+                                   IOContext &ctx) {
+  batch.n_submitted = 0;
+  batch.n_reaped = 0;
+  batch.used_pread = false;
+  batch.cbs.clear();
+  batch.cb_ptrs.clear();
+
+  if (this->file_desc == -1) {
+    LOG_ERROR("submit: invalid file descriptor");
+    return IndexError_Runtime;
+  }
+
+  if (read_reqs.empty()) {
+    return 0;
+  }
+
+  // If no async I/O backend is available, use synchronous pread.
+  if (ailego::IOBackend::Instance().is_pread()) {
+    int pread_ret = execute_io_pread(this->file_desc, read_reqs);
+    if (pread_ret != 0) {
+      return pread_ret;
+    }
+    batch.used_pread = true;
+    batch.n_submitted = (uint32_t)read_reqs.size();
+    return 0;
+  }
+
+  uint32_t n_ops = (uint32_t)read_reqs.size();
+  batch.cbs.resize(n_ops);
+  batch.cb_ptrs.resize(n_ops);
+
+  for (uint32_t j = 0; j < n_ops; j++) {
+    io_prep_pread(&batch.cbs[j], this->file_desc, read_reqs[j].buf,
+                  read_reqs[j].len, read_reqs[j].offset);
+    batch.cbs[j].data = (void *)(uintptr_t)j;
+    batch.cb_ptrs[j] = &batch.cbs[j];
+  }
+
+  int ret = LibAioLoader::Instance().io_submit(ctx, (int64_t)n_ops,
+                                               batch.cb_ptrs.data());
+  if (ret == (int)n_ops) {
+    batch.n_submitted = n_ops;
+    return 0;
+  }
+
+  LOG_WARN("submit: io_submit returned %d (expected %u), falling back to pread",
+           ret, n_ops);
+  int pread_ret = execute_io_pread(this->file_desc, read_reqs);
+  if (pread_ret != 0) {
+    return pread_ret;
+  }
+  batch.used_pread = true;
+  batch.n_submitted = n_ops;
+  return 0;
+}
+
+int LinuxAlignedFileReader::get_completed(
+    PendingBatch &batch, IOContext &ctx, int min_completed,
+    std::vector<uint32_t> &completed_indices) {
+  completed_indices.clear();
+
+  if (batch.n_reaped >= batch.n_submitted) {
+    return 0;
+  }
+
+  if (batch.used_pread) {
+    for (uint32_t i = batch.n_reaped; i < batch.n_submitted; i++) {
+      completed_indices.push_back(i);
+    }
+    batch.n_reaped = batch.n_submitted;
+    return (int)completed_indices.size();
+  }
+
+  uint32_t n_remaining = batch.n_submitted - batch.n_reaped;
+  int min_req = std::min((int)n_remaining, min_completed);
+  if (min_req < 1) min_req = 1;
+
+  std::vector<io_event_t> evts(n_remaining);
+  int ret = LibAioLoader::Instance().io_getevents(
+      ctx, (int64_t)min_req, (int64_t)n_remaining, evts.data(), nullptr);
+  if (ret < 0) {
+    LOG_ERROR("get_completed: io_getevents failed, ret=%d", ret);
+    return IndexError_Runtime;
+  }
+
+  for (int i = 0; i < ret; i++) {
+    uint32_t idx = (uint32_t)(uintptr_t)evts[i].data;
+    if ((int64_t)evts[i].res != (int64_t)batch.cbs[idx].u.c.nbytes) {
+      LOG_WARN("get_completed: read %u failed: res=%ld, expected=%ld", idx,
+               (long)evts[i].res, (long)batch.cbs[idx].u.c.nbytes);
+    }
+    completed_indices.push_back(idx);
+  }
+
+  batch.n_reaped += (uint32_t)ret;
+  return ret;
+}
+#endif
+
 
 }  // namespace core
 }  // namespace zvec
