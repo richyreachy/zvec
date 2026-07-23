@@ -98,8 +98,8 @@ class AlignedFileReader {
 
 // Reader implementation used on all supported platforms.
 // On Linux (x86_64 and ARM64) it uses libaio for asynchronous batch I/O.
-// On macOS (including ARM/Apple Silicon) it uses kqueue to monitor file
-// descriptor readiness and pread for actual data transfer.
+// On macOS (including ARM/Apple Silicon) a shared worker pool performs pread
+// operations and kqueue delivers completion notifications to the caller.
 class LinuxAlignedFileReader : public AlignedFileReader {
  private:
   int file_desc;

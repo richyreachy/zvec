@@ -13,13 +13,18 @@
 // limitations under the License.
 
 #include "diskann_file_reader.h"
+#include <atomic>
 #include <cassert>
 #include <cerrno>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <memory>
+#include <thread>
 #include <ailego/io/io_backend_def.h>
 #include <zvec/ailego/io/io_backend.h>
+#include <zvec/ailego/parallel/thread_pool.h>
 #include <zvec/core/framework/index_logger.h>
 #if defined(__APPLE__) || defined(__MACH__)
 #include <fcntl.h>
@@ -66,13 +71,18 @@ int setup_io_ctx(IOContext &ctx) {
   int ret = LibAioLoader::Instance().io_setup(MAX_EVENTS, &ctx);
   return ret;
 #elif defined(__APPLE__) || defined(__MACH__)
-  // Create a kqueue for this context. On macOS the kqueue is used to
-  // monitor file descriptor readiness for async-style I/O.
+  // Each context owns one kqueue used for worker-completion notifications.
   int kq = ::kqueue();
   if (kq == -1) {
-    LOG_ERROR("kqueue() failed in setup_io_ctx; errno=%d, %s", errno,
-              ::strerror(errno));
-    return IndexError_Runtime;
+    // kqueue is an optimization, not a correctness requirement. Keep the
+    // context valid in synchronous-fallback mode when descriptor allocation
+    // fails.
+    LOG_WARN(
+        "kqueue() failed in setup_io_ctx; errno=%d, %s. "
+        "Falling back to synchronous pread",
+        errno, ::strerror(errno));
+    ctx = -1;
+    return 0;
   }
   ctx = kq;
   return 0;
@@ -99,125 +109,148 @@ int destroy_io_ctx(IOContext &ctx) {
 #endif
 }
 
-static int execute_io_pread(int fd, std::vector<AlignedRead> &read_reqs) {
-  for (auto &req : read_reqs) {
-    ssize_t bytes_read = ::pread(fd, req.buf, req.len, req.offset);
-    if (bytes_read < 0) {
-      LOG_ERROR("pread failed; errno=%d, %s, offset=%lu, len=%lu", errno,
-                ::strerror(errno), (unsigned long)req.offset,
-                (unsigned long)req.len);
+static int execute_one_pread(int fd, const AlignedRead &req) {
+  auto *buf = static_cast<uint8_t *>(req.buf);
+  uint64_t offset = req.offset;
+  uint64_t remaining = req.len;
+
+  while (remaining > 0) {
+    ssize_t bytes_read =
+        ::pread(fd, buf, static_cast<size_t>(remaining), offset);
+    if (bytes_read > 0) {
+      buf += bytes_read;
+      offset += static_cast<uint64_t>(bytes_read);
+      remaining -= static_cast<uint64_t>(bytes_read);
+      continue;
+    }
+    if (bytes_read == 0) {
+      LOG_ERROR("pread returned 0 (EOF); offset=%llu, remaining=%llu",
+                (unsigned long long)offset, (unsigned long long)remaining);
       return IndexError_Runtime;
     }
-    if ((size_t)bytes_read != req.len) {
-      LOG_ERROR("pread short read; got=%zd, expected=%lu", bytes_read,
-                (unsigned long)req.len);
-      return IndexError_Runtime;
+    if (errno == EINTR) {
+      continue;
+    }
+
+    LOG_ERROR("pread failed; errno=%d, %s, offset=%llu, len=%llu", errno,
+              ::strerror(errno), (unsigned long long)offset,
+              (unsigned long long)remaining);
+    return IndexError_Runtime;
+  }
+
+  return 0;
+}
+
+static int execute_io_pread(int fd, std::vector<AlignedRead> &read_reqs) {
+  for (const auto &req : read_reqs) {
+    int ret = execute_one_pread(fd, req);
+    if (ret != 0) {
+      return ret;
     }
   }
   return 0;
 }
 
 #if defined(__APPLE__) || defined(__MACH__)
-// Execute batch I/O on macOS using kqueue to monitor file descriptor
-// readiness and pread for actual data transfer.
-//
-// On macOS, regular file descriptors are almost always "readable", so
-// kqueue's primary value here is providing the same async I/O interface
-// as Linux's libaio. For each read request we:
-//   1. Attempt a non-blocking pread (via O_NONBLOCK on the fd).
-//   2. If EAGAIN, wait on kqueue for EVFILT_READ readiness, then retry.
-//   3. Fall back to blocking pread if kqueue encounters an error.
-//
-// The kqueue fd is passed in as the IOContext. If no valid kqueue is
-// available, we fall back to plain blocking pread.
+namespace {
+
+struct MacIOBatch {
+  explicit MacIOBatch(size_t count) : remaining(count) {}
+
+  std::atomic<size_t> remaining;
+  std::atomic<int> result{0};
+};
+
+ailego::ThreadPool &mac_io_thread_pool() {
+  static ailego::ThreadPool pool(
+      std::max(1u, std::min(std::thread::hardware_concurrency(), 16u)), false);
+  return pool;
+}
+
+void trigger_kqueue_completion(int kq, uintptr_t ident) {
+  struct kevent trigger;
+  EV_SET(&trigger, ident, EVFILT_USER, 0, NOTE_TRIGGER, 0, nullptr);
+  if (::kevent(kq, &trigger, 1, nullptr, 0, nullptr) == -1) {
+    LOG_WARN("Failed to trigger kqueue completion; errno=%d, %s", errno,
+             ::strerror(errno));
+  }
+}
+
+}  // namespace
+
+// Execute batch I/O on macOS using a bounded worker pool for the blocking
+// pread calls. The calling thread submits all requests and waits for
+// EVFILT_USER completion notifications on its IOContext kqueue. This keeps
+// multiple reads in flight without pretending that regular-file readiness is
+// disk completion.
 static int execute_io_kqueue(int kq, int fd,
                              std::vector<AlignedRead> &read_reqs) {
-  // If no kqueue available, fall back to blocking pread.
+  if (read_reqs.empty()) {
+    return 0;
+  }
+
   if (kq < 0) {
     return execute_io_pread(fd, read_reqs);
   }
 
-  // Register the file descriptor with the kqueue for read events.
-  // EV_CLEAR gives edge-triggered semantics so we only get notified
-  // when new data becomes available.
-  struct kevent ke;
-  EV_SET(&ke, fd, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, nullptr);
+  auto batch = std::make_shared<MacIOBatch>(read_reqs.size());
+  uintptr_t ident = reinterpret_cast<uintptr_t>(batch.get());
 
-  for (auto &req : read_reqs) {
-    while (true) {
-      ssize_t bytes_read = ::pread(fd, req.buf, req.len, req.offset);
+  struct kevent registration;
+  EV_SET(&registration, ident, EVFILT_USER, EV_ADD | EV_CLEAR, 0, 0, nullptr);
+  if (::kevent(kq, &registration, 1, nullptr, 0, nullptr) == -1) {
+    LOG_WARN(
+        "Failed to register kqueue completion event; errno=%d, %s. "
+        "Falling back to synchronous pread",
+        errno, ::strerror(errno));
+    return execute_io_pread(fd, read_reqs);
+  }
 
-      if (bytes_read > 0) {
-        // Successfully read data; verify full read.
-        if ((size_t)bytes_read != req.len) {
-          // Partial read — retry for the remaining bytes.
-          // Update offset and buffer to read the rest.
-          char *buf_ptr = static_cast<char *>(req.buf) + bytes_read;
-          uint64_t new_offset = req.offset + bytes_read;
-          size_t remaining = req.len - bytes_read;
-          while (remaining > 0) {
-            ssize_t n = ::pread(fd, buf_ptr, remaining, new_offset);
-            if (n < 0) {
-              if (errno == EINTR) continue;
-              LOG_ERROR("pread retry failed; errno=%d, %s", errno,
-                        ::strerror(errno));
-              return IndexError_Runtime;
-            }
-            if (n == 0) break;
-            buf_ptr += n;
-            new_offset += n;
-            remaining -= n;
-          }
-          if (remaining > 0) {
-            LOG_ERROR("pread short read after retry; remaining=%zu", remaining);
-            return IndexError_Runtime;
-          }
-        }
-        break;  // Success, move to next request.
+  auto task_group = mac_io_thread_pool().make_group();
+  for (const auto &req : read_reqs) {
+    task_group->execute([batch, fd, ident, kq, req]() {
+      int ret = execute_one_pread(fd, req);
+      if (ret != 0) {
+        int expected = 0;
+        batch->result.compare_exchange_strong(expected, ret);
       }
 
-      if (bytes_read == 0) {
-        // EOF — should not happen for a valid index file.
-        LOG_ERROR("pread returned 0 (EOF); offset=%lu, len=%lu",
-                  (unsigned long)req.offset, (unsigned long)req.len);
-        return IndexError_Runtime;
+      if (batch->remaining.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        trigger_kqueue_completion(kq, ident);
       }
+    });
+  }
 
-      // bytes_read == -1, error
+  while (batch->remaining.load(std::memory_order_acquire) != 0) {
+    struct kevent completion;
+    struct timespec timeout{1, 0};
+    int event_count = ::kevent(kq, nullptr, 0, &completion, 1, &timeout);
+    if (event_count < 0) {
       if (errno == EINTR) {
-        continue;  // Retry on signal.
-      }
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        // Data not ready — wait on kqueue for readability.
-        struct kevent events[1];
-        struct timespec ts;
-        ts.tv_sec = 5;  // 5 second timeout as a safety net.
-        ts.tv_nsec = 0;
-        int n_ev = ::kevent(kq, &ke, 1, events, 1, &ts);
-        if (n_ev < 0) {
-          if (errno == EINTR) continue;
-          // kqueue error — fall back to blocking pread for this request.
-          LOG_WARN("kevent failed; errno=%d, %s, falling back to pread", errno,
-                   ::strerror(errno));
-          return execute_io_pread(fd, read_reqs);
-        }
-        if (n_ev == 0) {
-          // Timeout — fall back to blocking pread.
-          LOG_WARN("kqueue timeout, falling back to pread");
-          return execute_io_pread(fd, read_reqs);
-        }
-        // Event triggered — retry pread.
         continue;
       }
-
-      // Other error — fall back to blocking pread.
-      LOG_ERROR("pread failed; errno=%d, %s, falling back to pread", errno,
-                ::strerror(errno));
-      return execute_io_pread(fd, read_reqs);
+      LOG_WARN(
+          "Failed to wait for kqueue completion; errno=%d, %s. "
+          "Waiting for submitted worker tasks directly",
+          errno, ::strerror(errno));
+      break;
     }
   }
 
-  return 0;
+  // The counter reaches zero before the final task returns from its closure.
+  // Waiting on the group guarantees no worker still references this batch or
+  // its kqueue registration before the event is deleted.
+  task_group->wait_finish();
+
+  struct kevent deletion;
+  EV_SET(&deletion, ident, EVFILT_USER, EV_DELETE, 0, 0, nullptr);
+  if (::kevent(kq, &deletion, 1, nullptr, 0, nullptr) == -1 &&
+      errno != ENOENT) {
+    LOG_WARN("Failed to delete kqueue completion event; errno=%d, %s", errno,
+             ::strerror(errno));
+  }
+
+  return batch->result.load(std::memory_order_acquire);
 }
 #endif  // __APPLE__
 
@@ -380,8 +413,11 @@ void LinuxAlignedFileReader::register_thread() {
   IOContext ctx = -1;
   int kq = ::kqueue();
   if (kq == -1) {
-    LOG_ERROR("kqueue() failed in register_thread; errno=%d, %s", errno,
-              ::strerror(errno));
+    LOG_WARN(
+        "kqueue() failed in register_thread; errno=%d, %s. "
+        "Falling back to synchronous pread",
+        errno, ::strerror(errno));
+    ctx_map[thread_id] = ctx;
   } else {
     LOG_INFO("allocating kqueue ctx: %d", kq);
     ctx = kq;
@@ -494,17 +530,17 @@ void LinuxAlignedFileReader::open(const std::string &fname) {
   // and virtual-address usage scale with the size of the index.
   if (this->file_desc != -1) {
     if (::fcntl(this->file_desc, F_NOCACHE, 1) == -1) {
-      LOG_WARN("fcntl(F_NOCACHE) failed for %s (errno=%d: %s); reads will use "
-               "the page cache",
-               fname.c_str(), errno, ::strerror(errno));
+      LOG_WARN(
+          "fcntl(F_NOCACHE) failed for %s (errno=%d: %s); reads will use "
+          "the page cache",
+          fname.c_str(), errno, ::strerror(errno));
     } else {
-      LOG_INFO("DiskAnn macOS: F_NOCACHE enabled for %s",
-               fname.c_str());
+      LOG_INFO("DiskAnn macOS: F_NOCACHE enabled for %s", fname.c_str());
     }
 
     if (::fcntl(this->file_desc, F_RDAHEAD, 0) == -1) {
-      LOG_WARN("fcntl(F_RDAHEAD, 0) failed for %s (errno=%d: %s)", fname.c_str(),
-               errno, ::strerror(errno));
+      LOG_WARN("fcntl(F_RDAHEAD, 0) failed for %s (errno=%d: %s)",
+               fname.c_str(), errno, ::strerror(errno));
     }
   }
 #endif

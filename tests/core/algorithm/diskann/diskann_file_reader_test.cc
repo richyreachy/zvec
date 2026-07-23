@@ -15,10 +15,12 @@
 #include "diskann_file_reader.h"
 #include <fcntl.h>
 #include <unistd.h>
+#include <atomic>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <thread>
 #include <vector>
 #include <gtest/gtest.h>
 
@@ -94,8 +96,8 @@ TEST(DiskAnnFileReaderTest, BatchAlignedReadsPreserveRequestOrder) {
 
   std::vector<uint8_t> source(kPageSize * kPageCount);
   for (size_t page = 0; page < kPageCount; ++page) {
-    std::memset(source.data() + page * kPageSize,
-                static_cast<int>(page + 1), kPageSize);
+    std::memset(source.data() + page * kPageSize, static_cast<int>(page + 1),
+                kPageSize);
   }
   ASSERT_TRUE(file.write_all(source.data(), source.size()));
   file.close();
@@ -107,9 +109,8 @@ TEST(DiskAnnFileReaderTest, BatchAlignedReadsPreserveRequestOrder) {
   requests.reserve(kPageCount);
   for (size_t i = 0; i < kPageCount; ++i) {
     const size_t source_page = (i * 7) % kPageCount;
-    requests.emplace_back(
-        source_page * kPageSize, kPageSize,
-        static_cast<uint8_t *>(output.get()) + i * kPageSize);
+    requests.emplace_back(source_page * kPageSize, kPageSize,
+                          static_cast<uint8_t *>(output.get()) + i * kPageSize);
   }
 
   LinuxAlignedFileReader reader;
@@ -129,6 +130,79 @@ TEST(DiskAnnFileReaderTest, BatchAlignedReadsPreserveRequestOrder) {
   }
 
   EXPECT_EQ(destroy_io_ctx(ctx), 0);
+  reader.close();
+}
+
+TEST(DiskAnnFileReaderTest, ConcurrentContextsReadSameFile) {
+  constexpr size_t kPageCount = 16;
+  constexpr size_t kThreadCount = 4;
+
+  TemporaryFile file;
+  ASSERT_GE(file.fd(), 0);
+
+  std::vector<uint8_t> source(kPageSize * kPageCount);
+  for (size_t page = 0; page < kPageCount; ++page) {
+    std::memset(source.data() + page * kPageSize, static_cast<int>(page + 1),
+                kPageSize);
+  }
+  ASSERT_TRUE(file.write_all(source.data(), source.size()));
+  file.close();
+
+  LinuxAlignedFileReader reader;
+  reader.open(file.path());
+
+  std::atomic<bool> all_ok{true};
+  std::vector<std::thread> workers;
+  workers.reserve(kThreadCount);
+  for (size_t thread_index = 0; thread_index < kThreadCount; ++thread_index) {
+    workers.emplace_back([&reader, &all_ok, thread_index]() {
+      AlignedBuffer output = make_aligned_buffer(kPageSize * kPageCount);
+      if (output == nullptr) {
+        all_ok.store(false, std::memory_order_relaxed);
+        return;
+      }
+
+      std::vector<AlignedRead> requests;
+      requests.reserve(kPageCount);
+      for (size_t i = 0; i < kPageCount; ++i) {
+        size_t source_page = (i * 5 + thread_index) % kPageCount;
+        requests.emplace_back(
+            source_page * kPageSize, kPageSize,
+            static_cast<uint8_t *>(output.get()) + i * kPageSize);
+      }
+
+      IOContext ctx{};
+      if (setup_io_ctx(ctx) != 0) {
+        all_ok.store(false, std::memory_order_relaxed);
+        return;
+      }
+
+      bool thread_ok = reader.read(requests, ctx, false) == 0;
+      for (size_t i = 0; thread_ok && i < kPageCount; ++i) {
+        size_t source_page = (i * 5 + thread_index) % kPageCount;
+        const auto *page =
+            static_cast<const uint8_t *>(output.get()) + i * kPageSize;
+        for (size_t byte = 0; byte < kPageSize; ++byte) {
+          if (page[byte] != static_cast<uint8_t>(source_page + 1)) {
+            thread_ok = false;
+            break;
+          }
+        }
+      }
+      if (destroy_io_ctx(ctx) != 0) {
+        thread_ok = false;
+      }
+      if (!thread_ok) {
+        all_ok.store(false, std::memory_order_relaxed);
+      }
+    });
+  }
+
+  for (auto &worker : workers) {
+    worker.join();
+  }
+
+  EXPECT_TRUE(all_ok.load(std::memory_order_relaxed));
   reader.close();
 }
 
