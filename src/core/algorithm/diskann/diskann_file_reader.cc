@@ -223,7 +223,9 @@ static int execute_io_kqueue(int kq, int fd,
 
   while (batch->remaining.load(std::memory_order_acquire) != 0) {
     struct kevent completion;
-    struct timespec timeout{1, 0};
+    struct timespec timeout {
+      1, 0
+    };
     int event_count = ::kevent(kq, nullptr, 0, &completion, 1, &timeout);
     if (event_count < 0) {
       if (errno == EINTR) {
