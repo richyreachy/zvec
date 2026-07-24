@@ -113,9 +113,7 @@ def test_index_type_has_member(member):
     assert member in IndexType.__members__
 
 
-@pytest.mark.parametrize(
-    "member", ["PREAD", "LIBAIO", "THREAD_POOL_PREAD"]
-)
+@pytest.mark.parametrize("member", ["PREAD", "LIBAIO", "THREAD_POOL_PREAD"])
 def test_io_backend_type_has_member(member):
     assert member in IOBackendType.__members__
 

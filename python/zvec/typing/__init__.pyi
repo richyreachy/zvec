@@ -150,7 +150,9 @@ class IOBackendType:
 
     LIBAIO: typing.ClassVar[IOBackendType]  # value = <IOBackendType.LIBAIO: 1>
     PREAD: typing.ClassVar[IOBackendType]  # value = <IOBackendType.PREAD: 0>
-    THREAD_POOL_PREAD: typing.ClassVar[IOBackendType]  # value = <IOBackendType.THREAD_POOL_PREAD: 2>
+    THREAD_POOL_PREAD: typing.ClassVar[
+        IOBackendType
+    ]  # value = <IOBackendType.THREAD_POOL_PREAD: 2>
     __members__: typing.ClassVar[
         dict[str, IOBackendType]
     ]  # value = {'PREAD': <IOBackendType.PREAD: 0>, 'LIBAIO': <IOBackendType.LIBAIO: 1>, 'THREAD_POOL_PREAD': <IOBackendType.THREAD_POOL_PREAD: 2>}
