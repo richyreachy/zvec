@@ -15,6 +15,9 @@
 #include "diskann_file_reader.h"
 #include <fcntl.h>
 #include <unistd.h>
+#if defined(__APPLE__) && defined(__MACH__)
+#include <TargetConditionals.h>
+#endif
 #include <atomic>
 #include <cerrno>
 #include <cstdlib>
@@ -90,10 +93,17 @@ AlignedBuffer make_aligned_buffer(size_t size) {
 }  // namespace
 
 #if defined(__APPLE__) && defined(__MACH__)
+#if TARGET_OS_OSX
 TEST(DiskAnnFileReaderTest, ReportsThreadPoolPreadBackend) {
   EXPECT_EQ(zvec::ailego::IOBackendType::kThreadPoolPread,
             zvec::ailego::current_io_backend_type());
 }
+#else
+TEST(DiskAnnFileReaderTest, ReportsPreadBackendOnNonMacApplePlatform) {
+  EXPECT_EQ(zvec::ailego::IOBackendType::kPread,
+            zvec::ailego::current_io_backend_type());
+}
+#endif
 #endif
 
 TEST(DiskAnnFileReaderTest, BatchAlignedReadsPreserveRequestOrder) {

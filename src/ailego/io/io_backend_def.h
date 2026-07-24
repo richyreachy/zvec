@@ -29,6 +29,10 @@
 
 #pragma once
 
+#if defined(__APPLE__) && defined(__MACH__)
+#include <TargetConditionals.h>
+#endif
+
 #include <ailego/io/libaio_loader.h>
 #include <zvec/ailego/io/io_backend.h>
 
@@ -87,10 +91,11 @@ class IOBackend {
       return type_;
     }
 #if defined(__APPLE__) && defined(__MACH__)
+#if TARGET_OS_OSX
     return available(IOBackendType::kThreadPoolPread);
-#else
-    return available(IOBackendType::kLibAio);
 #endif
+#endif
+    return available(IOBackendType::kLibAio);
   }
 
   // Try to load the requested backend.  Returns the loaded backend type
@@ -101,10 +106,12 @@ class IOBackend {
       return type_;
     }
 #if defined(__APPLE__) && defined(__MACH__)
+#if TARGET_OS_OSX
     if (requested == IOBackendType::kThreadPoolPread) {
       type_ = IOBackendType::kThreadPoolPread;
       return type_;
     }
+#endif
 #endif
 #if defined(__linux) || defined(__linux__)
     if (requested == IOBackendType::kLibAio) {
