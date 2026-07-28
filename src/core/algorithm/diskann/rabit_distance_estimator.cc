@@ -14,7 +14,7 @@
 
 // This translation unit pulls in the RaBitQ distance estimator header,
 // which contains a static factory registration.  Without a .cc file, the
-// header-only registration would never be compiled into the turbo library.
+// header-only registration would never be compiled into the library.
 
 #include "rabit_distance_estimator.h"
 

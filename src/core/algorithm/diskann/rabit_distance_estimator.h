@@ -18,11 +18,11 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <turbo/quantizer/quantizer.h>
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_holder.h>
 #include <zvec/core/framework/index_meta.h>
-#include "core/algorithm/diskann/diskann_distance_estimator.h"
-#include "quantizer/quantizer.h"
+#include "diskann_distance_estimator.h"
 
 namespace zvec {
 namespace turbo {
@@ -32,6 +32,16 @@ namespace turbo {
 //! Uses the turbo RabitQuantizer for training, quantization, and distance
 //! estimation.  This allows DiskAnn to use RaBitQ's random-bit quantization
 //! instead of PQ for approximate distance computation during graph traversal.
+//!
+//! This file lives in core/algorithm/diskann (rather than turbo/diskann) so
+//! that the static factory registration is compiled into core_knn_diskann --
+//! the library that owns the DiskAnnDistanceEstimator registry and its only
+//! callers.  Keeping it in turbo made libzvec_turbo.a (which is
+//! --whole-archive linked into every test) depend on a core diskann symbol
+//! (DiskAnnDistanceEstimator::register_factory), breaking the link of tests
+//! that do not themselves link core_knn_diskann.  The turbo Quantizer is used
+//! solely through virtual dispatch and std::shared_ptr, so this translation
+//! unit introduces no link-time dependency on turbo symbols.
 //!
 //! The serialized quantizer format is:
 //!   [uint32_t magic=0x52544A51][uint32_t dp_len][uint32_t qp_len]
@@ -183,7 +193,8 @@ class RabitDistanceEstimator : public core::DiskAnnDistanceEstimator {
     }
 
     quantizer_ = quantizer;
-    quantized_data_ = quantized_data;
+    quantized_data_storage_.assign(quantized_data,
+                                   quantized_data + doc_cnt * dp_len_);
     doc_cnt_ = doc_cnt;
 
     // Allocate query buffer.
@@ -222,7 +233,7 @@ class RabitDistanceEstimator : public core::DiskAnnDistanceEstimator {
     for (uint32_t i = 0; i < id_num; ++i) {
       core::diskann_id_t id = ids[i];
       if (id < doc_cnt_) {
-        const void *dp = quantized_data_ + id * dp_len_;
+        const void *dp = quantized_data_storage_.data() + id * dp_len_;
         dists[i] = quantizer_->calc_distance_dp_query(dp, qp);
       } else {
         dists[i] = std::numeric_limits<float>::max();
@@ -253,7 +264,7 @@ class RabitDistanceEstimator : public core::DiskAnnDistanceEstimator {
   size_t doc_cnt_{0};
 
   std::shared_ptr<Quantizer> quantizer_;
-  const uint8_t *quantized_data_{nullptr};
+  std::vector<uint8_t> quantized_data_storage_;
   std::vector<uint8_t> query_buf_;
 };
 

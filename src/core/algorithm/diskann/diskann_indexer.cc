@@ -1034,8 +1034,7 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
                              : DiskAnnUtil::div_round_up(
                                    max_node_size_, DiskAnnUtil::kSectorSize);
 
-    pq_table_->preprocess_pq_dist_table(ctx->query_rotated(),
-                                        ctx->pq_table_dist_buffer());
+    preprocess_dist_table(ctx);
 
     uint32_t num_ios = 0;
 

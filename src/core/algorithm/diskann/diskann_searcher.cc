@@ -29,6 +29,7 @@ int DiskAnnSearcher::init(const ailego::Params &search_params) {
 
   search_params.get(PARAM_DISKANN_SEARCHER_LIST_SIZE, &list_size_);
   search_params.get(PARAM_DISKANN_SEARCHER_CACHE_NODE_NUM, &cache_nodes_num_);
+  search_params.get(PARAM_DISKANN_SEARCHER_BEAM_WIDTH, &beam_size_);
   return 0;
 }
 
@@ -66,6 +67,7 @@ int DiskAnnSearcher::load(IndexStorage::Pointer storage,
   if (res != 0) {
     return res;
   }
+  diskann_indexer_->set_beam_width(beam_size_);
 
   if (cache_nodes_num_ != 0) {
     std::vector<diskann_id_t> node_list;

@@ -73,6 +73,10 @@ class DiskAnnIndexer {
       std::vector<void *> &coord_buffers,
       std::vector<std::pair<uint32_t, diskann_id_t *>> &nbr_buffers);
 
+  void set_beam_width(uint32_t bw) {
+    beam_width_ = bw;
+  }
+
  protected:
   int use_medroids_data_as_centroids();
 
