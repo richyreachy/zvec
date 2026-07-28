@@ -302,6 +302,109 @@ TEST(RabitQuantizer, SerializeDeserialize) {
   EXPECT_NEAR(dist1, dist2, 1e-3f);
 }
 
+TEST(RabitQuantizer, EstimatedVsFullDistance) {
+  constexpr size_t kCount = 200;
+  auto raw_vecs = generate_vectors(kCount, kDim, 321);
+
+  // total_bits=7 -> ex_bits=6, so the full estimate uses the ex-bits path
+  // while calc_coarse_distance_dp_query uses the coarse 1-bit path.
+  auto quantizer =
+      create_trained_quantizer(kDim, kNumClusters, kCount, raw_vecs);
+  ASSERT_TRUE(quantizer);
+
+  size_t dp_len = quantizer->quantized_datapoint_vector_length();
+  size_t q_len = quantizer->quantized_query_vector_length();
+
+  size_t query_idx = 0;
+  std::vector<uint8_t> q_buf(q_len);
+  quantizer->quantize_query(raw_vecs[query_idx].data(), q_buf.data());
+
+  float err_est = 0.0f;
+  float err_full = 0.0f;
+  std::vector<std::vector<uint8_t>> dp_bufs(kCount);
+  std::vector<float> est_dists(kCount);
+  for (size_t i = 0; i < kCount; ++i) {
+    dp_bufs[i].resize(dp_len);
+    quantizer->quantize_data(raw_vecs[i].data(), dp_bufs[i].data());
+
+    float d_est = quantizer->calc_coarse_distance_dp_query(dp_bufs[i].data(),
+                                                           q_buf.data());
+    float d_full =
+        quantizer->calc_distance_dp_query(dp_bufs[i].data(), q_buf.data());
+
+    EXPECT_TRUE(std::isfinite(d_est));
+    EXPECT_TRUE(std::isfinite(d_full));
+
+    est_dists[i] = d_est;
+    float true_dist =
+        reference_l2_sqr(raw_vecs[i].data(), raw_vecs[query_idx].data(), kDim);
+    err_est += std::fabs(d_est - true_dist);
+    err_full += std::fabs(d_full - true_dist);
+  }
+
+  // The ex-bits full estimate must be clearly more accurate on average than
+  // the coarse 1-bit estimate.
+  EXPECT_LT(err_full, err_est)
+      << "full estimate should beat 1-bit: err_full=" << err_full
+      << " err_est=" << err_est;
+
+  // Coarse batch distance should match coarse single distance
+  {
+    std::vector<const void *> dp_list(kCount);
+    for (size_t i = 0; i < kCount; ++i) {
+      dp_list[i] = dp_bufs[i].data();
+    }
+    std::vector<float> batch_dists(kCount);
+    quantizer->calc_coarse_distance_dp_query_batch(
+        dp_list.data(), static_cast<int>(kCount), q_buf.data(),
+        batch_dists.data());
+
+    for (size_t i = 0; i < kCount; ++i) {
+      EXPECT_NEAR(est_dists[i], batch_dists[i], 1e-3f)
+          << "Coarse batch/single mismatch at i=" << i;
+    }
+  }
+}
+
+TEST(RabitQuantizer, EstimatedDistanceWithOneBit) {
+  constexpr size_t kCount = 200;
+  auto raw_vecs = generate_vectors(kCount, kDim, 654);
+
+  // Train with total_bits=1 (no ex data stored).
+  IndexMeta meta;
+  meta.set_meta(IndexMeta::DataType::DT_FP32, static_cast<uint32_t>(kDim));
+  meta.set_metric("SquaredEuclidean", 0, Params());
+
+  auto quantizer = IndexFactory::CreateQuantizer("RabitQuantizer");
+  ASSERT_TRUE(quantizer);
+
+  Params params;
+  params.set(kParamNumClusters, static_cast<uint32_t>(kNumClusters));
+  params.set(kParamTotalBits, static_cast<uint32_t>(1));
+  ASSERT_EQ(0u, quantizer->init(meta, params));
+
+  auto holder =
+      std::make_shared<MultiPassIndexHolder<IndexMeta::DataType::DT_FP32>>(
+          static_cast<uint32_t>(kDim));
+  for (size_t i = 0; i < kCount; ++i) {
+    NumericalVector<float> vec(kDim);
+    std::memcpy(vec.data(), raw_vecs[i].data(), kDim * sizeof(float));
+    holder->emplace(static_cast<uint64_t>(i + 1), vec);
+  }
+  ASSERT_EQ(0u, quantizer->train(holder));
+
+  std::vector<uint8_t> dp_buf(quantizer->quantized_datapoint_vector_length());
+  std::vector<uint8_t> q_buf(quantizer->quantized_query_vector_length());
+  quantizer->quantize_data(raw_vecs[0].data(), dp_buf.data());
+  quantizer->quantize_query(raw_vecs[1].data(), q_buf.data());
+
+  // With ex_bits == 0 both entry points take the 1-bit path and must agree.
+  float d_est =
+      quantizer->calc_coarse_distance_dp_query(dp_buf.data(), q_buf.data());
+  float d_full = quantizer->calc_distance_dp_query(dp_buf.data(), q_buf.data());
+  EXPECT_EQ(d_est, d_full);
+}
+
 TEST(RabitQuantizer, UnquantizedDistance) {
   auto raw_vecs = generate_vectors(200, kDim, 77);
 

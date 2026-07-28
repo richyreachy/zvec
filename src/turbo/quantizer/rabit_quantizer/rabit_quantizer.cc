@@ -555,8 +555,48 @@ void RabitQuantizer::quantize_query(const void *input, void *output) const {
 // calc_distance_dp_query
 // ---------------------------------------------------------------------------
 
+// Compute the additive term contributed by the query-to-centroid distance.
+static inline float query_centroid_g_add(const QueryLayout &ql,
+                                         uint32_t cluster_id,
+                                         rabitqlib::MetricType metric_type) {
+  if (metric_type == rabitqlib::METRIC_L2) {
+    float norm = ql.q_to_centroids[cluster_id];
+    return norm * norm;
+  }
+  // IP
+  return -ql.q_to_centroids[cluster_id];
+}
+
+float RabitQuantizer::calc_coarse_distance_dp_query(const void *dp,
+                                                    const void *query) const {
+  // Coarse 1-bit estimation: bin code x 4-bit quantized query.  Works
+  // regardless of ex_bits since bin_data is always stored.
+  uint32_t cluster_id = dp_cluster_id(dp);
+  const char *bin_data = dp_bin_data(dp);
+
+  QueryLayout ql(query, impl_->padded_dim, impl_->query_bin_count,
+                 impl_->q_to_centroids_size);
+
+  float g_add = query_centroid_g_add(ql, cluster_id, impl_->metric_type);
+
+  rabitqlib::ConstBinDataMap<float> cur_bin(bin_data, impl_->padded_dim);
+
+  float ip_x0_qr =
+      ::warmup_ip_x0_q<rabitqlib::SplitSingleQuery<float>::kNumBits>(
+          cur_bin.bin_code(), ql.query_bin, *ql.delta, *ql.vl,
+          impl_->padded_dim, rabitqlib::SplitSingleQuery<float>::kNumBits);
+
+  return cur_bin.f_add() + g_add +
+         (cur_bin.f_rescale() * (ip_x0_qr + *ql.k1xsumq));
+}
+
 float RabitQuantizer::calc_distance_dp_query(const void *dp,
                                              const void *query) const {
+  if (impl_->ex_bits == 0) {
+    // No ex data stored; the 1-bit estimate is the best available.
+    return calc_coarse_distance_dp_query(dp, query);
+  }
+
   // Parse datapoint
   uint32_t cluster_id = dp_cluster_id(dp);
   const char *bin_data = dp_bin_data(dp);
@@ -566,48 +606,22 @@ float RabitQuantizer::calc_distance_dp_query(const void *dp,
   QueryLayout ql(query, impl_->padded_dim, impl_->query_bin_count,
                  impl_->q_to_centroids_size);
 
-  // Compute g_add from q_to_centroids
-  float g_add;
-  if (impl_->metric_type == rabitqlib::METRIC_L2) {
-    float norm = ql.q_to_centroids[cluster_id];
-    g_add = norm * norm;
-  } else {
-    // IP
-    float ip = ql.q_to_centroids[cluster_id];
-    g_add = -ip;
-  }
+  float g_add = query_centroid_g_add(ql, cluster_id, impl_->metric_type);
 
-  float est_dist;
+  // Full estimation using ex-bits against the fp32 rotated query
+  rabitqlib::ConstBinDataMap<float> cur_bin(bin_data, impl_->padded_dim);
+  rabitqlib::ConstExDataMap<float> cur_ex(ex_data, impl_->padded_dim,
+                                          impl_->ex_bits);
 
-  if (impl_->ex_bits > 0) {
-    // Full estimation using ex-bits
-    rabitqlib::ConstBinDataMap<float> cur_bin(bin_data, impl_->padded_dim);
-    rabitqlib::ConstExDataMap<float> cur_ex(ex_data, impl_->padded_dim,
-                                            impl_->ex_bits);
+  float ip_x0_qr = rabitqlib::mask_ip_x0_q(ql.rotated_query, cur_bin.bin_code(),
+                                           impl_->padded_dim);
 
-    float ip_x0_qr = rabitqlib::mask_ip_x0_q(
-        ql.rotated_query, cur_bin.bin_code(), impl_->padded_dim);
-
-    est_dist = cur_ex.f_add_ex() + g_add +
-               (cur_ex.f_rescale_ex() *
-                (static_cast<float>(1 << impl_->ex_bits) * ip_x0_qr +
-                 impl_->ip_func(ql.rotated_query, cur_ex.ex_code(),
-                                impl_->padded_dim) +
-                 *ql.kbxsumq));
-  } else {
-    // 1-bit estimation only
-    rabitqlib::ConstBinDataMap<float> cur_bin(bin_data, impl_->padded_dim);
-
-    float ip_x0_qr =
-        ::warmup_ip_x0_q<rabitqlib::SplitSingleQuery<float>::kNumBits>(
-            cur_bin.bin_code(), ql.query_bin, *ql.delta, *ql.vl,
-            impl_->padded_dim, rabitqlib::SplitSingleQuery<float>::kNumBits);
-
-    est_dist = cur_bin.f_add() + g_add +
-               (cur_bin.f_rescale() * (ip_x0_qr + *ql.k1xsumq));
-  }
-
-  return est_dist;
+  return cur_ex.f_add_ex() + g_add +
+         (cur_ex.f_rescale_ex() *
+          (static_cast<float>(1 << impl_->ex_bits) * ip_x0_qr +
+           impl_->ip_func(ql.rotated_query, cur_ex.ex_code(),
+                          impl_->padded_dim) +
+           *ql.kbxsumq));
 }
 
 void RabitQuantizer::calc_distance_dp_query_batch(const void *const *dp_list,
@@ -615,6 +629,14 @@ void RabitQuantizer::calc_distance_dp_query_batch(const void *const *dp_list,
                                                   float *dist_list) const {
   for (int i = 0; i < dp_num; ++i) {
     dist_list[i] = calc_distance_dp_query(dp_list[i], query);
+  }
+}
+
+void RabitQuantizer::calc_coarse_distance_dp_query_batch(
+    const void *const *dp_list, int dp_num, const void *query,
+    float *dist_list) const {
+  for (int i = 0; i < dp_num; ++i) {
+    dist_list[i] = calc_coarse_distance_dp_query(dp_list[i], query);
   }
 }
 
@@ -854,9 +876,18 @@ float RabitQuantizer::calc_distance_dp_query(const void *, const void *) const {
   return 0.0f;
 }
 
+float RabitQuantizer::calc_coarse_distance_dp_query(const void *,
+                                                    const void *) const {
+  return 0.0f;
+}
+
 void RabitQuantizer::calc_distance_dp_query_batch(const void *const *, int,
                                                   const void *, float *) const {
 }
+
+void RabitQuantizer::calc_coarse_distance_dp_query_batch(const void *const *,
+                                                         int, const void *,
+                                                         float *) const {}
 
 float RabitQuantizer::calc_distance_dp_query_unquantized(const void *,
                                                          const void *) const {

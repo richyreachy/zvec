@@ -89,9 +89,19 @@ class RabitQuantizer : public Quantizer {
   float calc_distance_dp_query(const void *dp,
                                const void *query) const override;
 
+  //! Fast 1-bit distance estimate (sign code x 4-bit quantized query via
+  //! warmup_ip_x0_q).  Always available regardless of total_bits; lower
+  //! precision than calc_distance_dp_query, suitable as a first-stage filter.
+  float calc_coarse_distance_dp_query(const void *dp,
+                                      const void *query) const override;
+
   void calc_distance_dp_query_batch(const void *const *dp_list, int dp_num,
                                     const void *query,
                                     float *dist_list) const override;
+
+  void calc_coarse_distance_dp_query_batch(const void *const *dp_list,
+                                           int dp_num, const void *query,
+                                           float *dist_list) const override;
 
   float calc_distance_dp_query_unquantized(const void *dp,
                                            const void *query) const override;

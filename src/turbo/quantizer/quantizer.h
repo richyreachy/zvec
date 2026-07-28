@@ -96,10 +96,26 @@ class Quantizer {
   virtual float calc_distance_dp_query(const void *dp,
                                        const void *query) const = 0;
 
+  //! Coarse (cheap) distance estimate for first-stage filtering; defaults
+  //! to the full-precision calc_distance_dp_query
+  virtual float calc_coarse_distance_dp_query(const void *dp,
+                                              const void *query) const {
+    return calc_distance_dp_query(dp, query);
+  }
+
   //! Batched distance between quantized datapoints and a quantized query
   virtual void calc_distance_dp_query_batch(const void *const *dp_list,
                                             int dp_num, const void *query,
                                             float *dist_list) const = 0;
+
+  //! Batched coarse distance estimate; defaults to the full-precision
+  //! calc_distance_dp_query_batch
+  virtual void calc_coarse_distance_dp_query_batch(const void *const *dp_list,
+                                                   int dp_num,
+                                                   const void *query,
+                                                   float *dist_list) const {
+    calc_distance_dp_query_batch(dp_list, dp_num, query, dist_list);
+  }
 
   //! Distance between a quantized datapoint and an unquantized query
   virtual float calc_distance_dp_query_unquantized(const void *dp,
