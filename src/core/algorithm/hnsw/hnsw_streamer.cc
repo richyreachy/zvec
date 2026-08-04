@@ -593,7 +593,8 @@ int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
   ctx->clear();
   ctx->update_dist_caculator_quantizer(add_quantizer_);
   ctx->update_dist_caculator_metric(metric_);
-  ctx->reset_query(query);
+  // The add vector is a quantized datapoint: bind the dp-dp distance path.
+  ctx->reset_add_query(query);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
 
   if (metric_->support_train()) {
@@ -674,7 +675,8 @@ int HnswStreamer::add_impl(uint64_t pkey, const void *query,
   ctx->clear();
   ctx->update_dist_caculator_quantizer(add_quantizer_);
   ctx->update_dist_caculator_metric(metric_);
-  ctx->reset_query(query);
+  // The add vector is a quantized datapoint: bind the dp-dp distance path.
+  ctx->reset_add_query(query);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
 
   if (metric_->support_train()) {

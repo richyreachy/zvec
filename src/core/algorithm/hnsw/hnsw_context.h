@@ -270,6 +270,23 @@ class HnswContext : public IndexContext {
     dc_.clear_compare_cnt();
   }
 
+  //! Reset query for the add path: `query` is the quantized datapoint
+  //! being inserted, so distances are computed as dp-dp instead of
+  //! dp-query.
+  inline void reset_add_query(const void *query) {
+    if (auto query_preprocess_func = index_metric_->get_query_preprocess_func();
+        query_preprocess_func != nullptr) {
+      size_t dim = dc_.dimension();
+      preprocess_buffer_.resize(dim);
+      memcpy(preprocess_buffer_.data(), query, dim);
+      query_preprocess_func(preprocess_buffer_.data(), dim);
+      query = preprocess_buffer_.data();
+    }
+
+    dc_.reset_add_query(query);
+    dc_.clear_compare_cnt();
+  }
+
   inline HnswDistCalculator &dist_calculator() {
     return dc_;
   }
@@ -484,7 +501,7 @@ class HnswContext : public IndexContext {
 
   //! Swap the turbo quantizer used by the dist calculator (e.g. when
   //! switching between add/search metrics). Caller must then invoke
-  //! reset_query before using the calculator.
+  //! reset_query/reset_add_query before using the calculator.
   inline void update_dist_caculator_quantizer(
       zvec::turbo::Quantizer::Pointer quantizer) {
     dc_.update_quantizer(std::move(quantizer));

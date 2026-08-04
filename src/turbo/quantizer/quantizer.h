@@ -119,6 +119,23 @@ class Quantizer {
   //! Distance between two quantized datapoints
   virtual float calc_distance_dp_dp(const void *dp1, const void *dp2) const = 0;
 
+  //! Batched distance between quantized datapoints and one quantized
+  //! datapoint. Default falls back to the scalar dp-dp path.
+  virtual void calc_distance_dp_dp_batch(const void *const *dp_list, int dp_num,
+                                         const void *dp2,
+                                         float *dist_list) const {
+    for (int i = 0; i < dp_num; ++i) {
+      dist_list[i] = calc_distance_dp_dp(dp_list[i], dp2);
+    }
+  }
+
+  //! Whether the turbo distance kernels (dp-dp / dp-query) are available
+  //! for the current metric/dtype combination. When false, callers should
+  //! fall back to IndexMetric distances.
+  virtual bool distance_available() const {
+    return false;
+  }
+
   //! Quantize a query vector for search
   virtual int quantize(const void * /*query*/, const IndexQueryMeta & /*qmeta*/,
                        std::string * /*out*/,

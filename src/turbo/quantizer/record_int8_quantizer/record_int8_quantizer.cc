@@ -219,6 +219,13 @@ float RecordInt8Quantizer::calc_distance_dp_dp(const void *dp1,
   return calc_distance_dp_query(dp1, dp2);
 }
 
+void RecordInt8Quantizer::calc_distance_dp_dp_batch(const void *const *dp_list,
+                                                    int dp_num, const void *dp2,
+                                                    float *dist_list) const {
+  // Symmetric quantizer: dp-dp distance equals dp-query distance.
+  calc_distance_dp_query_batch(dp_list, dp_num, dp2, dist_list);
+}
+
 INDEX_FACTORY_REGISTER_QUANTIZER(RecordInt8Quantizer);
 
 }  // namespace turbo

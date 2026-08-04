@@ -88,6 +88,14 @@ class RecordInt4Quantizer : public Quantizer {
 
   float calc_distance_dp_dp(const void *dp1, const void *dp2) const override;
 
+  void calc_distance_dp_dp_batch(const void *const *dp_list, int dp_num,
+                                 const void *dp2,
+                                 float *dist_list) const override;
+
+  bool distance_available() const override {
+    return static_cast<bool>(dp_query_func_);
+  }
+
   int quantize(const void *query, const IndexQueryMeta &qmeta, std::string *out,
                IndexQueryMeta *ometa) const;
 

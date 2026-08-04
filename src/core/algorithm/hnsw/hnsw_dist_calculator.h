@@ -22,11 +22,18 @@ namespace zvec {
 namespace core {
 
 //! Dist calculator used by HNSW. Prefers the turbo Quantizer's
-//! DistanceImpl when it is available for the current metric/dtype;
-//! otherwise falls back to IndexMetric's distance / batch_distance
-//! handles. This keeps HNSW functional for metric/dtype combos that
-//! turbo does not yet implement (e.g. MipsSquaredEuclidean, Cosine
-//! with cached norm, non-FP32 converter pipelines).
+//! distance kernels when they are available for the current
+//! metric/dtype; otherwise falls back to IndexMetric's distance /
+//! batch_distance handles. This keeps HNSW functional for metric/dtype
+//! combos that turbo does not yet implement (e.g. MipsSquaredEuclidean,
+//! Cosine with cached norm, non-FP32 converter pipelines).
+//!
+//! Two query modes are supported:
+//!  - search (`reset_query`): the query is a quantized query vector,
+//!    distances go through `calc_distance_dp_query[_batch]`.
+//!  - add (`reset_add_query`): the "query" is the quantized datapoint
+//!    being inserted, distances go through `calc_distance_dp_dp[_batch]`.
+//! Node-vs-node pairwise distances always use `calc_distance_dp_dp`.
 class HnswDistCalculator {
  public:
   typedef std::shared_ptr<HnswDistCalculator> Pointer;
@@ -82,7 +89,7 @@ class HnswDistCalculator {
     entity_ = entity;
     quantizer_ = std::move(quantizer);
     metric_ = std::move(metric);
-    dist_impl_ = zvec::turbo::DistanceImpl{};
+    use_turbo_ = false;
     if (metric_) {
       distance_ = metric_->distance();
       batch_distance_ = metric_->batch_distance();
@@ -101,7 +108,7 @@ class HnswDistCalculator {
     metric_ = std::move(metric);
     dim_ = dim;
     qmeta_.set_meta(qmeta_data_type, dim);
-    dist_impl_ = zvec::turbo::DistanceImpl{};
+    use_turbo_ = false;
     if (metric_) {
       distance_ = metric_->distance();
       batch_distance_ = metric_->batch_distance();
@@ -112,10 +119,11 @@ class HnswDistCalculator {
   }
 
   //! Replace the quantizer used by this calculator. Invalidates the
-  //! cached DistanceImpl; caller should follow up with reset_query.
+  //! bound turbo path; caller should follow up with reset_query or
+  //! reset_add_query.
   inline void update_quantizer(zvec::turbo::Quantizer::Pointer quantizer) {
     quantizer_ = std::move(quantizer);
-    dist_impl_ = zvec::turbo::DistanceImpl{};
+    use_turbo_ = false;
   }
 
   //! Replace the IndexMetric fallback.
@@ -130,23 +138,31 @@ class HnswDistCalculator {
     }
   }
 
-  //! Reset query vector data. Quantizes the query via the turbo
-  //! quantizer and caches a DistanceImpl for subsequent `dist(...)`
-  //! calls. Falls back to IndexMetric's raw query when turbo does not
-  //! support this metric/dtype combination.
+  //! Reset query vector data for search. The query is expected to be
+  //! already in the quantized query layout; subsequent `dist(...)` calls
+  //! go through the quantizer's `calc_distance_dp_query[_batch]`. Falls
+  //! back to IndexMetric's raw query when turbo does not support this
+  //! metric/dtype combination.
   inline void reset_query(const void *query) {
     error_ = false;
     query_ = query;
-    if (quantizer_) {
-      dist_impl_ = quantizer_->distance(query, qmeta_);
-    } else {
-      dist_impl_ = zvec::turbo::DistanceImpl{};
-    }
+    query_is_dp_ = false;
+    use_turbo_ = quantizer_ && quantizer_->distance_available();
   }
 
-  //! Returns distance between two already-quantized vectors (pairwise).
-  //! Uses the scalar DistanceFunc bound by the last reset_query when
-  //! available; otherwise falls back to IndexMetric.
+  //! Reset query data for add. `dp` is the quantized datapoint being
+  //! inserted into the graph; subsequent `dist(...)` calls go through
+  //! the quantizer's `calc_distance_dp_dp[_batch]`.
+  inline void reset_add_query(const void *dp) {
+    error_ = false;
+    query_ = dp;
+    query_is_dp_ = true;
+    use_turbo_ = quantizer_ && quantizer_->distance_available();
+  }
+
+  //! Returns distance between two already-quantized datapoints
+  //! (node-vs-node pairwise). Always uses `calc_distance_dp_dp` when the
+  //! turbo path is available; otherwise falls back to IndexMetric.
   inline dist_t dist(const void *vec_lhs, const void *vec_rhs) {
     if (ailego_unlikely(vec_lhs == nullptr || vec_rhs == nullptr)) {
       LOG_ERROR("Nullptr of dense vector");
@@ -154,20 +170,15 @@ class HnswDistCalculator {
       return 0.0f;
     }
 
-    float score = 0.0f;
-    const auto &func = dist_impl_.func();
-    if (func) {
-      // dist_impl_ holds the RAW dim expected by the turbo distance
-      // function. The metric-side dim_ is the inflated storage dim and
-      // would point past the data into the per-record extras.
-      func(vec_lhs, vec_rhs, dist_impl_.dim(), &score);
-      return score;
+    if (use_turbo_) {
+      return quantizer_->calc_distance_dp_dp(vec_lhs, vec_rhs);
     }
     if (ailego_unlikely(!distance_)) {
       LOG_ERROR("No distance handle available");
       error_ = true;
       return 0.0f;
     }
+    float score = 0.0f;
     distance_(vec_lhs, vec_rhs, dim_, &score);
     return score;
   }
@@ -180,8 +191,9 @@ class HnswDistCalculator {
       error_ = true;
       return 0.0f;
     }
-    if (dist_impl_.valid()) {
-      return dist_impl_(vec);
+    if (use_turbo_ && query_ != nullptr) {
+      return query_is_dp_ ? quantizer_->calc_distance_dp_dp(vec, query_)
+                          : quantizer_->calc_distance_dp_query(vec, query_);
     }
     if (ailego_unlikely(!distance_ || query_ == nullptr)) {
       LOG_ERROR("No distance handle or query available");
@@ -209,8 +221,9 @@ class HnswDistCalculator {
       error_ = true;
       return 0.0f;
     }
-    if (dist_impl_.valid()) {
-      return dist_impl_(feat);
+    if (use_turbo_ && query_ != nullptr) {
+      return query_is_dp_ ? quantizer_->calc_distance_dp_dp(feat, query_)
+                          : quantizer_->calc_distance_dp_query(feat, query_);
     }
     if (ailego_unlikely(!distance_ || query_ == nullptr)) {
       LOG_ERROR("No distance handle or query available");
@@ -266,17 +279,13 @@ class HnswDistCalculator {
 
   void batch_dist(const void **vecs, size_t num, dist_t *distances) {
     compare_cnt_++;
-    if (dist_impl_.batch_valid()) {
-      dist_impl_.batch(vecs, num, distances);
-      return;
-    }
-    // When the turbo quantizer provides a scalar DistanceImpl but no batch
-    // function (e.g. FP16 cosine), use the scalar path instead of falling
-    // back to the metric's batch_distance_ which uses the inflated storage
-    // dim_ and would process per-vector extras (norm bytes) as data.
-    if (dist_impl_.valid()) {
-      for (size_t i = 0; i < num; ++i) {
-        distances[i] = dist_impl_(vecs[i]);
+    if (use_turbo_ && query_ != nullptr) {
+      if (query_is_dp_) {
+        quantizer_->calc_distance_dp_dp_batch(vecs, static_cast<int>(num),
+                                              query_, distances);
+      } else {
+        quantizer_->calc_distance_dp_query_batch(vecs, static_cast<int>(num),
+                                                 query_, distances);
       }
       return;
     }
@@ -307,16 +316,9 @@ class HnswDistCalculator {
       error_ = true;
       return 0.0f;
     }
-    if (dist_impl_.batch_valid()) {
-      dist_t score = 0;
-      const void *feats[1] = {feat};
-      dist_impl_.batch(feats, 1, &score);
-      return score;
-    }
-    // Use the turbo quantizer's scalar DistanceImpl when available (correct
-    // raw dim) instead of the metric's batch_distance_ (inflated storage dim).
-    if (dist_impl_.valid()) {
-      return dist_impl_(feat);
+    if (use_turbo_ && query_ != nullptr) {
+      return query_is_dp_ ? quantizer_->calc_distance_dp_dp(feat, query_)
+                          : quantizer_->calc_distance_dp_query(feat, query_);
     }
     if (batch_distance_ && query_ != nullptr) {
       dist_t score = 0;
@@ -364,7 +366,6 @@ class HnswDistCalculator {
 
   zvec::turbo::Quantizer::Pointer quantizer_{};
   IndexMetric::Pointer metric_{};
-  zvec::turbo::DistanceImpl dist_impl_{};
   IndexQueryMeta qmeta_{};
 
   IndexMetric::MatrixDistance distance_{nullptr};
@@ -372,6 +373,12 @@ class HnswDistCalculator {
 
   const void *query_;
   uint32_t dim_;
+
+  //! Whether the turbo quantizer distance kernels are usable.
+  bool use_turbo_{false};
+  //! Whether query_ is a quantized datapoint (add path, dp-dp distance)
+  //! rather than a quantized query (search path, dp-query distance).
+  bool query_is_dp_{false};
 
   uint32_t compare_cnt_;  // record distance compute times
   bool error_{false};
