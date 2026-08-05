@@ -63,9 +63,24 @@ int DiskAnnStreamer::open(IndexStorage::Pointer storage) {
     return ret;
   }
 
+  // Construct the quantizer from the persisted blob here; the entity only
+  // owns the bytes and the indexer receives the ready-to-use quantizer.
+  // The implementation is resolved from the blob header, so any supported
+  // quantize type (PQ today, others later) plugs in transparently.
+  std::string quantizer_blob;
+  ret = entity_.read_pq_quantizer_blob(&quantizer_blob);
+  if (ret != 0) {
+    LOG_ERROR("Read quantizer blob failed, ret=%d", ret);
+    return ret;
+  }
+  auto quantizer = DiskAnnUtil::create_quantizer_from_blob(quantizer_blob);
+  if (!quantizer) {
+    return IndexError_NoExist;
+  }
+
   diskann_indexer_ = std::make_shared<DiskAnnIndexer>(meta_);
 
-  int res = diskann_indexer_->init(entity_);
+  int res = diskann_indexer_->init(entity_, std::move(quantizer));
   if (res != 0) {
     return res;
   }

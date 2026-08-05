@@ -14,10 +14,10 @@
 #pragma once
 
 #include <cstdint>
+#include <turbo/quantizer/quantizer.h>
 #include <zvec/core/framework/index_framework.h>
 #include "diskann_context.h"
 #include "diskann_file_reader.h"
-#include "diskann_pq_table.h"
 #include "diskann_searcher_entity.h"
 #include "diskann_util.h"
 
@@ -33,7 +33,10 @@ class DiskAnnIndexer {
   ~DiskAnnIndexer();
 
  public:
-  int init(DiskAnnSearcherEntity &entity);
+  //! Initialize with the loaded entity and the quantizer constructed by
+  //! the searcher/streamer (see DiskAnnSearcherEntity::read_pq_quantizer_blob).
+  //! Any turbo::Quantizer works here; PQ is just the current default.
+  int init(DiskAnnSearcherEntity &entity, turbo::Quantizer::Pointer quantizer);
   int load_cache_list(const std::vector<diskann_id_t> &node_list);
 
   void cache_bfs_levels(uint64_t num_nodes_to_cache,
@@ -76,7 +79,7 @@ class DiskAnnIndexer {
   uint32_t max_degree_{0};
   uint32_t node_per_sector_{0};
   uint32_t max_node_size_{0};
-  uint64_t pq_chunk_num_{0};
+  uint64_t quant_code_size_{0};
   uint64_t disk_bytes_per_point_{0};
   uint64_t aligned_dim_{0};
   uint64_t index_segment_offset_{0};
@@ -89,7 +92,8 @@ class DiskAnnIndexer {
 
   std::shared_ptr<LinuxAlignedFileReader> reader_{nullptr};
 
-  PQTable::Pointer pq_table_;
+  turbo::Quantizer::Pointer quantizer_;
+  const uint8_t *quant_codes_{nullptr};
 
   IOContext init_ctx_{0};
 

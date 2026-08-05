@@ -13,11 +13,12 @@
 // limitations under the License.
 #pragma once
 
+#include <turbo/quantizer/quantizer.h>
 #include <zvec/ailego/parallel/thread_pool.h>
 #include <zvec/core/framework/index_builder.h>
+#include <zvec/core/framework/index_factory.h>
 #include "diskann_algorithm.h"
 #include "diskann_builder_entity.h"
-#include "diskann_pq_trainer.h"
 
 namespace zvec {
 namespace core {
@@ -37,7 +38,7 @@ class DiskAnnBuilder : public IndexBuilder {
   int train(IndexThreads::Pointer threads,
             IndexHolder::Pointer holder) override;
 
-  //! Train the data with trainer
+  //! Train the data
   int train(const IndexTrainer::Pointer &trainer) override;
 
   //! Build the index
@@ -96,8 +97,8 @@ class DiskAnnBuilder : public IndexBuilder {
   uint32_t max_pq_chunk_num_{kDefaultPqChunkNum};
   uint32_t pq_chunk_num_{kDefaultPqChunkNum};
   uint32_t build_thread_count_{0};
-  uint32_t max_train_sample_count_{PQTable::kMaxTrainSampleCount};
-  double train_sample_ratio_{PQTable::kTrainSampleRatio};
+  uint32_t max_train_sample_count_{200000};
+  double train_sample_ratio_{1.0};
   std::string universal_label_{""};
   std::string codebook_prefix_{""};
   std::string index_path_prefix_{"./diskann"};
@@ -121,7 +122,7 @@ class DiskAnnBuilder : public IndexBuilder {
   IndexHolder::Pointer holder_;
 
   DiskAnnAlgorithm::UPointer algo_;
-  DiskAnnPqTrainer::UPointer trainer_;
+  turbo::Quantizer::Pointer quantizer_;
 
   uint32_t check_interval_secs_{kDefaultLogIntervalSecs};
 };

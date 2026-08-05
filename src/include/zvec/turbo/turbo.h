@@ -65,10 +65,40 @@ using RotateFunc = void (*)(const float *in, float *out, size_t in_dim,
 using UnrotateFunc = void (*)(const float *in, float *out, size_t in_dim,
                               size_t out_dim, void *ctx);
 
+// PQ kernel function pointer types.
+//
+// ADC: LUT look-up distance between a PQ code and a query (via LUT).
+//   pq_code:           [num_chunk] uint8_t
+//   lut:               [num_chunk * 256] float
+// Uses void* to match DistanceFunc signature for direct assignment.
+using PqAdcDistanceFunc = void (*)(const void *pq_code, const void *lut,
+                                   size_t num_chunk, float *out);
+
+// SDC kernel: centroid-to-centroid distance between two PQ codes.
+//   a, b:              [num_chunk] uint8_t
+//   dist_table:        [num_chunk * 256 * 256] float
+// Uses void* for consistency with DistanceFunc / PqAdcDistanceFunc.
+using PqSdcKernelFunc = void (*)(const void *a, const void *b,
+                                 const void *dist_table, size_t num_chunk,
+                                 float *out);
+
+// Batch ADC: compute distances for multiple PQ codes against a shared LUT.
+// Signature matches BatchDistanceFunc for direct assignment (no lambda).
+using PqBatchAdcFunc = void (*)(const void **candidates, const void *lut,
+                                size_t num, size_t num_chunk, float *out);
+
 // ISA-dispatched rotate/unrotate kernels.
 struct RotatorKernels {
   RotateFunc rotate = nullptr;
   UnrotateFunc unrotate = nullptr;
+};
+
+// data_type selects the code packing layout:
+//   kInt8: one uint8 per sub-quantizer (256 centroids, stride=256)
+struct PqKernels {
+  PqAdcDistanceFunc adc_distance = nullptr;
+  PqSdcKernelFunc sdc_distance = nullptr;
+  PqBatchAdcFunc batch_adc_distance = nullptr;
 };
 
 enum class MetricType {
@@ -88,7 +118,10 @@ enum class DataType {
 };
 
 enum class QuantizeType {
-  kDefault,
+  //! Deprecated: no dispatch row serves kDefault anymore; request the
+  //! explicit quantize type (kFp32, kFp16, kRecord, ...) instead. The
+  //! enumerator is kept (value 0) for serialized-header compatibility.
+  kDefault [[deprecated("request an explicit QuantizeType instead")]],
   kUniform,
   kRecord,
   kFp16,
@@ -129,6 +162,21 @@ ZVEC_TURBO_API QueryPreprocessFunc get_query_preprocess_func(
     MetricType metric_type, DataType data_type, QuantizeType quantize_type,
     CpuArchType cpu_arch_type = CpuArchType::kAuto);
 
+// All kernels of a single dispatched kernel family. `preprocess` is non-null
+// when the batch kernel requires the query to be preprocessed first (e.g.
+// the AVX512-VNNI int8 kernels expect a +128 uint8-shifted query).
+struct DistanceKernels {
+  DistanceFunc dist{};
+  BatchDistanceFunc batch{};
+  QueryPreprocessFunc preprocess = nullptr;
+};
+
+// Aggregate lookup: resolves dist/batch/preprocess in one pass so callers
+// cannot pair functions from different kernel families.
+DistanceKernels get_distance_kernels(
+    MetricType metric_type, DataType data_type, QuantizeType quantize_type,
+    CpuArchType cpu_arch_type = CpuArchType::kAuto);
+
 // Returns the SIMD kernel for the uniform quantizer on the current CPU for
 // the given output data_type, or nullptr if no SIMD implementation is
 // available (callers must keep a scalar fallback). This is a
@@ -141,5 +189,11 @@ get_uniform_quantize_func(DataType data_type);
 // Returns rotator kernels dispatched for the current CPU.
 RotatorKernels get_rotator_kernels(
     RotateType rotate_type, CpuArchType cpu_arch_type = CpuArchType::kAuto);
+
+// Returns all PQ kernels dispatched for the given data_type, quantize_type
+// and CPU arch.
+PqKernels get_pq_kernels(DataType data_type,
+                         QuantizeType quantize_type = QuantizeType::kPQ,
+                         CpuArchType cpu_arch_type = CpuArchType::kAuto);
 
 }  // namespace zvec::turbo

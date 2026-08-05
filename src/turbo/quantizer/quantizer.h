@@ -47,7 +47,6 @@ class Quantizer {
  public:
   typedef std::shared_ptr<Quantizer> Pointer;
 
-  Quantizer() {}
   virtual ~Quantizer() {}
 
   //! Initialize quantizer with index metadata and parameters
@@ -78,6 +77,12 @@ class Quantizer {
   //! Train the quantizer with data from an IndexHolder
   virtual int train(IndexHolder::Pointer /*holder*/) {
     return 0;
+  }
+
+  //! Train the quantizer with data from an IndexHolder using multiple threads.
+  //! Default implementation ignores thread_count and delegates to train().
+  virtual int train(IndexHolder::Pointer holder, int /*thread_count*/) {
+    return train(holder);
   }
 
   //! Byte length of a quantized datapoint vector
@@ -131,6 +136,11 @@ class Quantizer {
     return DistanceImpl{};
   }
 
+  virtual DistanceImpl sym_distance(const void *query,
+                                    const IndexQueryMeta &qmeta) const {
+    return distance(query, qmeta);
+  }
+
   //! Serialize quantizer parameters
   virtual int serialize(std::string * /*out*/) const {
     return 0;
@@ -148,6 +158,9 @@ class Quantizer {
   }
 
  protected:
+  //! Subclasses must declare which QuantizeType they implement.
+  explicit Quantizer(QuantizeType type) : type_(type) {}
+
   //! Map a metric name (e.g. "SquaredEuclidean", "Cosine",
   //! "InnerProduct", "MipsSquaredEuclidean") to its MetricType.
   static MetricType metric_from_name(const std::string &name) {
@@ -166,7 +179,23 @@ class Quantizer {
     return MetricType::kUnknown;
   }
 
-  QuantizeType type_{QuantizeType::kDefault};
+  //! Reverse mapping: MetricType → metric name string.
+  static std::string metric_to_name(MetricType m) {
+    switch (m) {
+      case MetricType::kSquaredEuclidean:
+        return "SquaredEuclidean";
+      case MetricType::kCosine:
+        return "Cosine";
+      case MetricType::kInnerProduct:
+        return "InnerProduct";
+      case MetricType::kMipsSquaredEuclidean:
+        return "MipsSquaredEuclidean";
+      default:
+        return "Unknown";
+    }
+  }
+
+  QuantizeType type_;
   uint32_t extra_meta_size_{0};
 };
 

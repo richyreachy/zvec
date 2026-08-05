@@ -15,7 +15,6 @@
 #include "diskann_context.h"
 #include <chrono>
 #include "diskann_params.h"
-#include "diskann_pq_table.h"
 #include "diskann_util.h"
 
 namespace zvec {
@@ -24,9 +23,9 @@ namespace core {
 DiskAnnContext::DiskAnnContext(const IndexMeta &meta,
                                const IndexMetric::Pointer &measure,
                                const DiskAnnEntity::Pointer &entity)
-    : dc_(entity.get(), measure, meta.dimension()), entity_{entity} {}
+    : dc_(entity.get(), meta, measure), entity_{entity} {}
 
-int DiskAnnContext::init(ContextType type, uint32_t graph_degree,
+int DiskAnnContext::init(ContextType type, uint32_t /*graph_degree*/,
                          uint32_t pq_chunk_num, uint32_t element_size) {
   type_ = type;
   element_size_ = element_size;
@@ -54,12 +53,6 @@ int DiskAnnContext::init(ContextType type, uint32_t graph_degree,
         return ret;
       }
 
-      DiskAnnUtil::alloc_aligned(
-          (void **)&pq_table_dist_buffer_,
-          PQTable::kPQCentroidNum * pq_chunk_num_ * sizeof(float), 256);
-      DiskAnnUtil::alloc_aligned((void **)&pq_coord_buffer_,
-                                 graph_degree * pq_chunk_num_ * sizeof(uint8_t),
-                                 256);
       DiskAnnUtil::alloc_aligned((void **)&coord_buffer_, element_size_, 256);
       DiskAnnUtil::alloc_aligned(
           (void **)&sector_buffer_,
@@ -84,8 +77,6 @@ int DiskAnnContext::init(ContextType type, uint32_t graph_degree,
 DiskAnnContext::~DiskAnnContext() {
   free(query_);
   free(query_rotated_);
-  free(pq_table_dist_buffer_);
-  free(pq_coord_buffer_);
   free(coord_buffer_);
   free(sector_buffer_);
 
@@ -132,7 +123,7 @@ int DiskAnnContext::update_context(ContextType type, const IndexMeta &meta,
   }
 
   entity_ = entity;
-  dc_.update(measure, meta.dimension());
+  dc_.update(meta, measure);
   magic_ = magic_num;
 
   return 0;

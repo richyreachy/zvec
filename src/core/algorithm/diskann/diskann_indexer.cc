@@ -19,6 +19,7 @@
 #include <set>
 #include <tuple>
 #include <unordered_set>
+#include <vector>
 
 namespace zvec {
 namespace core {
@@ -35,13 +36,19 @@ DiskAnnIndexer::~DiskAnnIndexer() {
   DiskAnnUtil::free_aligned(coord_cache_buf_);
 }
 
-int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
+int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity,
+                         turbo::Quantizer::Pointer quantizer) {
   entity_ = &entity;
 
   auto storage = entity.get_storage();
   auto vector_segment = entity.get_vector_segment();
 
-  pq_table_ = entity.get_pq_table();
+  if (!quantizer) {
+    LOG_ERROR("Quantizer is required by DiskAnnIndexer");
+    return IndexError_InvalidArgument;
+  }
+  quantizer_ = std::move(quantizer);
+  quant_codes_ = entity.pq_codes();
 
   index_segment_offset_ = vector_segment->data_offset();
 
@@ -64,7 +71,7 @@ int DiskAnnIndexer::init(DiskAnnSearcherEntity &entity) {
   node_per_sector_ = entity.node_per_sector();
   aligned_dim_ = meta_.dimension();
 
-  pq_chunk_num_ = entity.pq_chunk_num();
+  quant_code_size_ = entity.pq_chunk_num();
 
   medoid_ = entity.medoid();
 
@@ -759,8 +766,8 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
           ? 1
           : DiskAnnUtil::div_round_up(max_node_size_, DiskAnnUtil::kSectorSize);
 
-  pq_table_->preprocess_pq_dist_table(ctx->query_rotated(),
-                                      ctx->pq_table_dist_buffer());
+  dc.bind_quantizer(quantizer_.get(), quant_codes_, quant_code_size_);
+  dc.quantize_query(ctx->query_rotated());
 
   ailego::ElapsedTime query_timer;
   ailego::ElapsedTime io_timer;
@@ -783,9 +790,7 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
   }
 
   float dist;
-  pq_table_->compute_dists(1, &best_medoid, pq_chunk_num_,
-                           ctx->pq_table_dist_buffer(), ctx->pq_coord_buffer(),
-                           &dist);
+  dc.quantized_dist(&best_medoid, 1, &dist);
   candidates.insert(Neighbor(best_medoid, dist));
   visit_filter.set_visited(best_medoid);
 
@@ -886,9 +891,7 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
       cpu_timer.reset();
 
       std::vector<float> distances(neighbor_num);
-      pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
-                               ctx->pq_table_dist_buffer(),
-                               ctx->pq_coord_buffer(), distances.data());
+      dc.quantized_dist(node_neighbors, neighbor_num, distances.data());
 
       stats.dist_num += neighbor_num;
       stats.cpu_us += cpu_timer.micro_seconds();
@@ -926,9 +929,7 @@ int DiskAnnIndexer::cached_beam_search(DiskAnnContext *ctx) {
 
       cpu_timer.reset();
       std::vector<float> distances(neighbor_num);
-      pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
-                               ctx->pq_table_dist_buffer(),
-                               ctx->pq_coord_buffer(), distances.data());
+      dc.quantized_dist(node_neighbors, neighbor_num, distances.data());
 
       stats.dist_num += neighbor_num;
       stats.cpu_us += cpu_timer.micro_seconds();
@@ -1016,8 +1017,8 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
                              : DiskAnnUtil::div_round_up(
                                    max_node_size_, DiskAnnUtil::kSectorSize);
 
-    pq_table_->preprocess_pq_dist_table(ctx->query_rotated(),
-                                        ctx->pq_table_dist_buffer());
+    dc.bind_quantizer(quantizer_.get(), quant_codes_, quant_code_size_);
+    dc.quantize_query(ctx->query_rotated());
 
     uint32_t num_ios = 0;
 
@@ -1122,9 +1123,7 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
         cpu_timer.reset();
 
         std::vector<float> distances(neighbor_num);
-        pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
-                                 ctx->pq_table_dist_buffer(),
-                                 ctx->pq_coord_buffer(), distances.data());
+        dc.quantized_dist(node_neighbors, neighbor_num, distances.data());
 
         stats.dist_num += neighbor_num;
         stats.cpu_us += cpu_timer.micro_seconds();
@@ -1174,9 +1173,7 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
         std::vector<float> distances(neighbor_num);
         diskann_id_t *node_neighbors =
             reinterpret_cast<diskann_id_t *>(node_buf + 1);
-        pq_table_->compute_dists(neighbor_num, node_neighbors, pq_chunk_num_,
-                                 ctx->pq_table_dist_buffer(),
-                                 ctx->pq_coord_buffer(), distances.data());
+        dc.quantized_dist(node_neighbors, neighbor_num, distances.data());
 
         stats.dist_num += neighbor_num;
         stats.cpu_us += cpu_timer.micro_seconds();
