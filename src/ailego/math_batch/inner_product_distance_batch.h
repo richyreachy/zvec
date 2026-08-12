@@ -137,6 +137,15 @@ struct MinusInnerProductDistanceBatch {
   }
 };
 
+//! One-to-many minus inner product over a contiguous packed block of
+//! vectors (stride between vectors == dim). Faster than the pointer-batch
+//! path when features are stored contiguously, since the linear sweep is
+//! covered by hardware prefetch.
+struct MinusInnerProductContiguousBatchFp32 {
+  static void Compute(const float *block, const float *query, size_t num,
+                      size_t dim, float *results);
+};
+
 template <>
 struct InnerProductDistanceBatchImpl<ailego::Float16, 1> {
   using ValueType = ailego::Float16;

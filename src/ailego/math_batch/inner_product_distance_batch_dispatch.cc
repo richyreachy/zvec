@@ -65,6 +65,11 @@ void compute_one_to_many_inner_product_avx512f_fp32_8(
     std::array<const float *, 8> &prefetch_ptrs, size_t dimensionality,
     float *results);
 
+void compute_contiguous_inner_product_avx512f_fp32(const float *block,
+                                                   const float *query,
+                                                   size_t num, size_t dim,
+                                                   float *results);
+
 void compute_one_to_many_inner_product_avx512f_fp16_1(
     const ailego::Float16 *query, const ailego::Float16 **ptrs,
     std::array<const ailego::Float16 *, 1> &prefetch_ptrs,
@@ -274,6 +279,28 @@ void InnerProductDistanceBatchImpl<int8_t, 12>::compute_one_to_many(
 #endif
   return compute_one_to_many_inner_product_fallback(query, ptrs, prefetch_ptrs,
                                                     dim, sums);
+}
+
+void MinusInnerProductContiguousBatchFp32::Compute(const float *block,
+                                                   const float *query,
+                                                   size_t num, size_t dim,
+                                                   float *results) {
+#if defined(__AVX512F__)
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
+    compute_contiguous_inner_product_avx512f_fp32(block, query, num, dim,
+                                                  results);
+    for (size_t i = 0; i < num; ++i) {
+      results[i] = -results[i];
+    }
+    return;
+  }
+#endif
+  for (size_t i = 0; i < num; ++i) {
+    const float *vec = block + i * dim;
+    std::array<const float *, 1> prefetch_ptrs{nullptr};
+    MinusInnerProductDistanceBatchImpl<float, 1>::compute_one_to_many(
+        query, &vec, prefetch_ptrs, dim, &results[i]);
+  }
 }
 
 }  // namespace zvec::ailego::DistanceBatch

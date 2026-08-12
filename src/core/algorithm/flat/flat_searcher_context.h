@@ -589,9 +589,14 @@ int FlatSearcherContext<BATCH_SIZE>::search_row_nofilter(
   size_t feature_index = 0;
   auto matrix = owner_->distance_matrix();
   const auto &batch_distance = owner_->row_batch_distance();
+  const auto &contiguous_distance = owner_->row_contiguous_batch_distance();
+  const bool use_contiguous =
+      contiguous_distance && feature_size_ == qmeta.dimension() * sizeof(float);
 
   auto enqueue_block = [&](const void *block, size_t count) {
-    if (batch_distance) {
+    if (use_contiguous) {
+      contiguous_distance(block, query, count, qmeta.dimension(), scores_);
+    } else if (batch_distance) {
       std::array<const void *, BATCH_SIZE> feature_ptrs{};
       const char *feature = static_cast<const char *>(block);
       for (size_t i = 0; i < count; ++i) {

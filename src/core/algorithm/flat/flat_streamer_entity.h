@@ -156,6 +156,11 @@ class FlatStreamerEntity {
   inline void row_major_distance(const void *query, const void *feature,
                                  size_t fnum, float *out) const {
     const uint8_t *cur_feature = reinterpret_cast<const uint8_t *>(feature);
+    if (fnum > 1 && row_contiguous_batch_distance_) {
+      row_contiguous_batch_distance_(cur_feature, query, fnum,
+                                     index_meta_.dimension(), out);
+      return;
+    }
     if (fnum > 1 && row_batch_distance_) {
       std::array<const void *, 32> feature_ptrs{};
       ailego_assert(fnum <= feature_ptrs.size());
@@ -401,6 +406,7 @@ class FlatStreamerEntity {
   IndexStorage::Pointer storage_{};
   IndexMetric::MatrixDistance row_distance_{}, column_distance_{};
   IndexMetric::MatrixBatchDistance row_batch_distance_{};
+  IndexMetric::MatrixContiguousBatchDistance row_contiguous_batch_distance_{};
   mutable std::vector<IndexStorage::Segment::Pointer> segments_{};
   IndexStreamer::Stats &stats_;
   mutable std::shared_ptr<ailego::SharedMutex> key_info_map_lock_{};

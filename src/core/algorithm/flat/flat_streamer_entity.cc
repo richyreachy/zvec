@@ -77,6 +77,10 @@ int FlatStreamerEntity::open(IndexStorage::Pointer storage,
   }
   row_distance_ = metric->distance();
   row_batch_distance_ = metric->batch_distance();
+  row_contiguous_batch_distance_ = nullptr;
+  if (index_meta_.element_size() == index_meta_.dimension() * sizeof(float)) {
+    row_contiguous_batch_distance_ = metric->contiguous_batch_distance();
+  }
   column_distance_ =
       metric->distance_matrix(meta_.header.block_vector_count, 1);
 
