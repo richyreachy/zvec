@@ -623,6 +623,24 @@ class SquaredEuclideanMetric : public IndexMetric {
     }
   }
 
+  //! Retrieve distance function for a contiguous block of vectors
+  MatrixContiguousBatchDistance contiguous_batch_distance(void) const override {
+    switch (data_type_) {
+      case IndexMeta::DataType::DT_FP32:
+        return reinterpret_cast<
+            IndexMetric::MatrixContiguousBatchDistanceHandle>(
+            ailego::DistanceBatch::SquaredEuclideanContiguousBatch<
+                float>::Compute);
+      case IndexMeta::DataType::DT_FP16:
+        return reinterpret_cast<
+            IndexMetric::MatrixContiguousBatchDistanceHandle>(
+            ailego::DistanceBatch::SquaredEuclideanContiguousBatch<
+                ailego::Float16>::Compute);
+      default:
+        return nullptr;
+    }
+  }
+
   //! Retrieve params of Metric
   const ailego::Params &params(void) const override {
     return params_;
@@ -745,6 +763,23 @@ class EuclideanMetric : public IndexMetric {
             ailego::BaseDistance<ailego::EuclideanDistanceMatrix, uint8_t, 12,
                                  2>::ComputeBatch);
 
+      default:
+        return nullptr;
+    }
+  }
+
+  //! Retrieve distance function for a contiguous block of vectors
+  MatrixContiguousBatchDistance contiguous_batch_distance(void) const override {
+    switch (data_type_) {
+      case IndexMeta::DataType::DT_FP32:
+        return reinterpret_cast<
+            IndexMetric::MatrixContiguousBatchDistanceHandle>(
+            ailego::DistanceBatch::EuclideanContiguousBatch<float>::Compute);
+      case IndexMeta::DataType::DT_FP16:
+        return reinterpret_cast<
+            IndexMetric::MatrixContiguousBatchDistanceHandle>(
+            ailego::DistanceBatch::EuclideanContiguousBatch<
+                ailego::Float16>::Compute);
       default:
         return nullptr;
     }

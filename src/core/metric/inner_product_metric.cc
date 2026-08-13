@@ -375,11 +375,20 @@ class InnerProductMetric : public IndexMetric {
 
   //! Retrieve distance function for a contiguous block of vectors
   MatrixContiguousBatchDistance contiguous_batch_distance(void) const override {
-    if (data_type_ == IndexMeta::DataType::DT_FP32) {
-      return reinterpret_cast<IndexMetric::MatrixContiguousBatchDistanceHandle>(
-          ailego::DistanceBatch::MinusInnerProductContiguousBatchFp32::Compute);
+    switch (data_type_) {
+      case IndexMeta::DataType::DT_FP32:
+        return reinterpret_cast<
+            IndexMetric::MatrixContiguousBatchDistanceHandle>(
+            ailego::DistanceBatch::MinusInnerProductContiguousBatch<
+                float>::Compute);
+      case IndexMeta::DataType::DT_FP16:
+        return reinterpret_cast<
+            IndexMetric::MatrixContiguousBatchDistanceHandle>(
+            ailego::DistanceBatch::MinusInnerProductContiguousBatch<
+                ailego::Float16>::Compute);
+      default:
+        return nullptr;
     }
-    return nullptr;
   }
 
   //! Normalize result

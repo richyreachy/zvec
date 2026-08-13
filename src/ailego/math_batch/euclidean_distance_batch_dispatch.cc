@@ -17,6 +17,7 @@
 #include <zvec/ailego/internal/platform.h>
 #include <zvec/ailego/math_batch/utils.h>
 #include <zvec/ailego/utility/type_helper.h>
+#include "contiguous_distance_batch.h"
 #include "euclidean_distance_batch.h"
 
 namespace zvec::ailego::DistanceBatch {
@@ -53,6 +54,11 @@ void compute_one_to_many_squared_euclidean_avx512f_fp32_12(
     const float *query, const float **ptrs,
     std::array<const float *, 12> &prefetch_ptrs, size_t dimensionality,
     float *results);
+
+void compute_contiguous_squared_euclidean_avx512f_fp32(const float *block,
+                                                       const float *query,
+                                                       size_t num, size_t dim,
+                                                       float *results);
 #endif  //__AVX512F__
 
 #if defined(__AVX2__)
@@ -187,5 +193,19 @@ void SquaredEuclideanDistanceBatchImpl<ailego::Float16, 12>::
 //   prefetch_ptrs,
 //                                                     dim, sums);
 // }
+
+void SquaredEuclideanContiguousBatchImpl<float>::compute(const float *block,
+                                                         const float *query,
+                                                         size_t num, size_t dim,
+                                                         float *results) {
+#if defined(__AVX512F__)
+  if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
+    return compute_contiguous_squared_euclidean_avx512f_fp32(block, query, num,
+                                                             dim, results);
+  }
+#endif
+  compute_contiguous_fallback<SquaredEuclideanDistanceBatchImpl>(
+      block, query, num, dim, results);
+}
 
 }  // namespace zvec::ailego::DistanceBatch

@@ -28,3 +28,72 @@ inline __m128 sum_top_bottom_avx(__m256 v) {
 }
 
 #endif
+
+#if defined(__AVX512F__)
+
+#include <ailego/math/matrix_utility.i>
+
+namespace zvec::ailego::DistanceBatch {
+
+//! Accumulation steps for the contiguous fp32 sweep below. Each step folds
+//! one 16-lane strip of the query/vector pair into the accumulator.
+struct InnerProductStepFp32Avx512 {
+  static inline __m512 Accumulate(__m512 acc, __m512 q, __m512 v) {
+    return _mm512_fmadd_ps(q, v, acc);
+  }
+};
+
+struct SquaredEuclideanStepFp32Avx512 {
+  static inline __m512 Accumulate(__m512 acc, __m512 q, __m512 v) {
+    const __m512 diff = _mm512_sub_ps(q, v);
+    return _mm512_fmadd_ps(diff, diff, acc);
+  }
+};
+
+// Sequential sweep over a packed block of vectors (stride between vectors ==
+// dim), with a fixed lookahead prefetch to keep memory-level parallelism
+// across short chained blocks. The metric is factored out as StepOp so every
+// fp32 metric shares the same loop structure.
+template <typename StepOp>
+static inline void compute_contiguous_fp32_avx512f(const float *block,
+                                                   const float *query,
+                                                   size_t num, size_t dim,
+                                                   float *results) {
+  // Lookahead distance chosen so prefetches issued while computing vector i
+  // have retired from DRAM by the time vector i+PF is consumed.
+  constexpr size_t PF = 6;
+  const float *vec = block;
+  for (size_t i = 0; i < num; ++i, vec += dim) {
+    __m512 acc0 = _mm512_setzero_ps();
+    __m512 acc1 = _mm512_setzero_ps();
+    const float *ahead = (i + PF < num) ? vec + PF * dim : nullptr;
+    size_t d = 0;
+    for (; d + 32 <= dim; d += 32) {
+      acc0 = StepOp::Accumulate(acc0, _mm512_loadu_ps(query + d),
+                                _mm512_loadu_ps(vec + d));
+      acc1 = StepOp::Accumulate(acc1, _mm512_loadu_ps(query + d + 16),
+                                _mm512_loadu_ps(vec + d + 16));
+      if (ahead) {
+        _mm_prefetch(reinterpret_cast<const char *>(ahead + d), _MM_HINT_T0);
+        _mm_prefetch(reinterpret_cast<const char *>(ahead + d + 16),
+                     _MM_HINT_T0);
+      }
+    }
+    if (d + 16 <= dim) {
+      acc0 = StepOp::Accumulate(acc0, _mm512_loadu_ps(query + d),
+                                _mm512_loadu_ps(vec + d));
+      d += 16;
+    }
+    if (d < dim) {
+      const auto remaining = static_cast<unsigned>(dim - d);
+      const __mmask16 mask = static_cast<__mmask16>((1u << remaining) - 1u);
+      acc1 = StepOp::Accumulate(acc1, _mm512_maskz_loadu_ps(mask, query + d),
+                                _mm512_maskz_loadu_ps(mask, vec + d));
+    }
+    results[i] = HorizontalAdd_FP32_V512(_mm512_add_ps(acc0, acc1));
+  }
+}
+
+}  // namespace zvec::ailego::DistanceBatch
+
+#endif

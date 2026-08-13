@@ -90,6 +90,16 @@ void compute_one_to_many_squared_euclidean_avx512f_fp32_12(
       query, ptrs, prefetch_ptrs, dim, sums);
 }
 
+// Sequential sweep over a packed block of vectors; the shared skeleton in
+// distance_batch_math.h provides the loop and the lookahead prefetching.
+void compute_contiguous_squared_euclidean_avx512f_fp32(const float *block,
+                                                       const float *query,
+                                                       size_t num, size_t dim,
+                                                       float *results) {
+  compute_contiguous_fp32_avx512f<SquaredEuclideanStepFp32Avx512>(
+      block, query, num, dim, results);
+}
+
 #endif
 
 }  // namespace zvec::ailego::DistanceBatch

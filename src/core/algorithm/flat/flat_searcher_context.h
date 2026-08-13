@@ -591,7 +591,8 @@ int FlatSearcherContext<BATCH_SIZE>::search_row_nofilter(
   const auto &batch_distance = owner_->row_batch_distance();
   const auto &contiguous_distance = owner_->row_contiguous_batch_distance();
   const bool use_contiguous =
-      contiguous_distance && feature_size_ == qmeta.dimension() * sizeof(float);
+      contiguous_distance &&
+      feature_size_ == qmeta.dimension() * qmeta.unit_size();
 
   auto enqueue_block = [&](const void *block, size_t count) {
     if (use_contiguous) {

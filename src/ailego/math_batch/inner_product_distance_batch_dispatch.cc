@@ -18,6 +18,7 @@
 #include <zvec/ailego/internal/platform.h>
 #include <zvec/ailego/math_batch/utils.h>
 #include <zvec/ailego/utility/type_helper.h>
+#include "contiguous_distance_batch.h"
 #include "inner_product_distance_batch.h"
 
 namespace zvec::ailego::DistanceBatch {
@@ -281,26 +282,18 @@ void InnerProductDistanceBatchImpl<int8_t, 12>::compute_one_to_many(
                                                     dim, sums);
 }
 
-void MinusInnerProductContiguousBatchFp32::Compute(const float *block,
-                                                   const float *query,
-                                                   size_t num, size_t dim,
-                                                   float *results) {
+void InnerProductContiguousBatchImpl<float>::compute(const float *block,
+                                                     const float *query,
+                                                     size_t num, size_t dim,
+                                                     float *results) {
 #if defined(__AVX512F__)
   if (zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    compute_contiguous_inner_product_avx512f_fp32(block, query, num, dim,
-                                                  results);
-    for (size_t i = 0; i < num; ++i) {
-      results[i] = -results[i];
-    }
-    return;
+    return compute_contiguous_inner_product_avx512f_fp32(block, query, num, dim,
+                                                         results);
   }
 #endif
-  for (size_t i = 0; i < num; ++i) {
-    const float *vec = block + i * dim;
-    std::array<const float *, 1> prefetch_ptrs{nullptr};
-    MinusInnerProductDistanceBatchImpl<float, 1>::compute_one_to_many(
-        query, &vec, prefetch_ptrs, dim, &results[i]);
-  }
+  compute_contiguous_fallback<InnerProductDistanceBatchImpl>(block, query, num,
+                                                             dim, results);
 }
 
 }  // namespace zvec::ailego::DistanceBatch

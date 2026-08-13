@@ -16,6 +16,7 @@
 
 #include <zvec/ailego/math_batch/utils.h>
 #include "ailego/math/distance_matrix.h"
+#include "contiguous_distance_batch.h"
 #include "cosine_distance_batch.h"
 #include "euclidean_distance_batch.h"
 #include "inner_product_distance_batch.h"
