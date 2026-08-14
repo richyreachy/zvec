@@ -90,14 +90,50 @@ void compute_one_to_many_squared_euclidean_avx512f_fp32_12(
       query, ptrs, prefetch_ptrs, dim, sums);
 }
 
-// Sequential sweep over a packed block of vectors; the shared skeleton in
-// distance_batch_math.h provides the loop and the lookahead prefetching.
+// Sequential sweep over a packed block of vectors (stride between vectors ==
+// dim), with a fixed lookahead prefetch to keep memory-level parallelism
+// across short chained blocks.
 void compute_contiguous_squared_euclidean_avx512f_fp32(const float *block,
                                                        const float *query,
                                                        size_t num, size_t dim,
                                                        float *results) {
-  compute_contiguous_fp32_avx512f<SquaredEuclideanStepFp32Avx512>(
-      block, query, num, dim, results);
+  // Lookahead distance chosen so prefetches issued while computing vector i
+  // have retired from DRAM by the time vector i+PF is consumed.
+  constexpr size_t PF = 6;
+  const float *vec = block;
+  for (size_t i = 0; i < num; ++i, vec += dim) {
+    __m512 acc0 = _mm512_setzero_ps();
+    __m512 acc1 = _mm512_setzero_ps();
+    const float *ahead = (i + PF < num) ? vec + PF * dim : nullptr;
+    size_t d = 0;
+    for (; d + 32 <= dim; d += 32) {
+      const __m512 diff0 =
+          _mm512_sub_ps(_mm512_loadu_ps(query + d), _mm512_loadu_ps(vec + d));
+      acc0 = _mm512_fmadd_ps(diff0, diff0, acc0);
+      const __m512 diff1 = _mm512_sub_ps(_mm512_loadu_ps(query + d + 16),
+                                         _mm512_loadu_ps(vec + d + 16));
+      acc1 = _mm512_fmadd_ps(diff1, diff1, acc1);
+      if (ahead) {
+        _mm_prefetch(reinterpret_cast<const char *>(ahead + d), _MM_HINT_T0);
+        _mm_prefetch(reinterpret_cast<const char *>(ahead + d + 16),
+                     _MM_HINT_T0);
+      }
+    }
+    if (d + 16 <= dim) {
+      const __m512 diff =
+          _mm512_sub_ps(_mm512_loadu_ps(query + d), _mm512_loadu_ps(vec + d));
+      acc0 = _mm512_fmadd_ps(diff, diff, acc0);
+      d += 16;
+    }
+    if (d < dim) {
+      const auto remaining = static_cast<unsigned>(dim - d);
+      const __mmask16 mask = static_cast<__mmask16>((1u << remaining) - 1u);
+      const __m512 diff = _mm512_sub_ps(_mm512_maskz_loadu_ps(mask, query + d),
+                                        _mm512_maskz_loadu_ps(mask, vec + d));
+      acc1 = _mm512_fmadd_ps(diff, diff, acc1);
+    }
+    results[i] = HorizontalAdd_FP32_V512(_mm512_add_ps(acc0, acc1));
+  }
 }
 
 #endif
