@@ -40,4 +40,15 @@ void inner_product_fp32_batch_distance(const void *const *vectors,
   }
 }
 
+
+void inner_product_fp32_contiguous_batch_distance(const void *block,
+                                                  const void *query, size_t n,
+                                                  size_t dim,
+                                                  float *distances) {
+  const float *vec = reinterpret_cast<const float *>(block);
+  for (size_t i = 0; i < n; ++i, vec += dim) {
+    inner_product_fp32_distance(vec, query, dim, &distances[i]);
+  }
+}
+
 }  // namespace zvec::turbo::scalar
