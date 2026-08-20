@@ -76,6 +76,12 @@ int FlatStreamerEntity::open(IndexStorage::Pointer storage,
     return ret;
   }
   row_distance_ = metric->distance();
+  row_batch_distance_ = metric->batch_distance();
+  row_contiguous_batch_distance_ = nullptr;
+  if (index_meta_.element_size() ==
+      index_meta_.dimension() * index_meta_.unit_size()) {
+    row_contiguous_batch_distance_ = metric->contiguous_batch_distance();
+  }
   column_distance_ =
       metric->distance_matrix(meta_.header.block_vector_count, 1);
 
@@ -240,6 +246,13 @@ int FlatStreamerEntity::search(const void *query, const IndexFilter &filter,
       return IndexError_ReadData;
     }
 
+    if (this->is_valid_block(hd->next)) {
+      IndexStorage::MemoryBlock next_header_block;
+      if (this->get_block_header(hd->next, next_header_block) == 0) {
+        ailego_prefetch(next_header_block.data());
+      }
+    }
+
     if (hd->vector_count > 0) {
       *scan_count += hd->vector_count;
       IndexStorage::MemoryBlock deletion_map_block;
@@ -264,14 +277,20 @@ void FlatStreamerEntity::search_block(const void *query,
                                       const BlockLocation &bl,
                                       const BlockHeader *hd, float norm_val,
                                       IndexDocumentHeap *heap) const {
-  std::vector<float> distances(block_vector_count());
+  std::array<float, 32> distances_storage;
+  std::vector<float> distances_overflow;
+  float *distances = distances_storage.data();
+  if (block_vector_count() > distances_storage.size()) {
+    distances_overflow.resize(block_vector_count());
+    distances = distances_overflow.data();
+  }
   IndexStorage::MemoryBlock vecs_block;
   this->get_block_vectors(bl, vecs_block);
   const char *vecs = reinterpret_cast<const char *>(vecs_block.data());
   IndexStorage::MemoryBlock keys_block;
   this->get_block_keys(bl, keys_block);
   const uint64_t *keys = reinterpret_cast<const uint64_t *>(keys_block.data());
-  row_major_distance(query, vecs, hd->vector_count, distances.data());
+  row_major_distance(query, vecs, hd->vector_count, distances);
   for (size_t k = 0; k < hd->vector_count; ++k) {
     if (keys[k] != kInvalidKey) {
       heap->emplace(keys[k], distances[k] * norm_val);
@@ -284,7 +303,13 @@ void FlatStreamerEntity::search_block(
     const void *query, const BlockLocation &bl, const BlockHeader *hd,
     float norm_val, const IndexFilter &filter, const DeletionMap *deletion_map,
     IndexDocumentHeap *heap, IndexContext::Stats *context_stats) const {
-  std::vector<float> distances(block_vector_count());
+  std::array<float, 32> distances_storage;
+  std::vector<float> distances_overflow;
+  float *distances = distances_storage.data();
+  if (block_vector_count() > distances_storage.size()) {
+    distances_overflow.resize(block_vector_count());
+    distances = distances_overflow.data();
+  }
 
   IndexStorage::MemoryBlock vecs_block;
   this->get_block_vectors(bl, vecs_block);
@@ -306,11 +331,31 @@ void FlatStreamerEntity::search_block(
     (*context_stats->mutable_filtered_count()) += hd->vector_count;
     return;
   }
-  for (size_t k = 0; k < hd->vector_count; ++k) {
-    if (keeps.test(k)) {
-      auto cur_vec = vecs + index_meta_.element_size() * k;
-      row_major_distance(query, cur_vec, 1, distances.data() + k);
-      ++(*context_stats->mutable_dist_calced_count());
+  if (row_batch_distance_ && hd->vector_count <= 32) {
+    std::array<const void *, 32> kept_ptrs{};
+    std::array<uint32_t, 32> kept_slots{};
+    size_t kept_count = 0;
+    for (size_t k = 0; k < hd->vector_count; ++k) {
+      if (keeps.test(k)) {
+        kept_ptrs[kept_count] = vecs + index_meta_.element_size() * k;
+        kept_slots[kept_count] = static_cast<uint32_t>(k);
+        ++kept_count;
+      }
+    }
+    std::array<float, 32> kept_scores{};
+    row_batch_distance_(kept_ptrs.data(), query, kept_count,
+                        index_meta_.dimension(), kept_scores.data());
+    for (size_t i = 0; i < kept_count; ++i) {
+      distances[kept_slots[i]] = kept_scores[i];
+    }
+    (*context_stats->mutable_dist_calced_count()) += kept_count;
+  } else {
+    for (size_t k = 0; k < hd->vector_count; ++k) {
+      if (keeps.test(k)) {
+        auto cur_vec = vecs + index_meta_.element_size() * k;
+        row_major_distance(query, cur_vec, 1, distances + k);
+        ++(*context_stats->mutable_dist_calced_count());
+      }
     }
   }
   for (size_t k = 0; k < hd->vector_count; ++k) {

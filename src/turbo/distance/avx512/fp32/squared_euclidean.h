@@ -23,5 +23,12 @@ void squared_euclidean_fp32_distance_avx512(const void *a, const void *b,
 void squared_euclidean_fp32_batch_distance_avx512(const void *const *vectors,
                                                   const void *query, size_t n,
                                                   size_t dim, float *distances);
+// One-to-many squared euclidean over a contiguous packed block of vectors
+// (stride between vectors == dim).
+void squared_euclidean_fp32_contiguous_batch_distance_avx512(const void *block,
+                                                             const void *query,
+                                                             size_t n,
+                                                             size_t dim,
+                                                             float *distances);
 
 }  // namespace zvec::turbo::avx512

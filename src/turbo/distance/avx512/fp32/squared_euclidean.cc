@@ -91,31 +91,86 @@ void squared_euclidean_batch_impl(
 }
 
 // Dispatch batched squared euclidean over all `n` vectors with prefetching.
-void squared_euclidean_batch(const void *const *vectors, const void *query,
-                             size_t n, size_t dim, float *distances) {
-  static constexpr size_t batch_size = 2;
-  static constexpr size_t prefetch_step = 2;
-  const float *typed_query = static_cast<const float *>(query);
+// Chunk twelve records per block (independent accumulators saturate FMA
+// ports and memory-level parallelism on flat scans), then an eight-wide
+// tail block, then singles.
+template <size_t BatchSize, size_t PrefetchStep>
+size_t squared_euclidean_batch_chunked(const void *const *vectors,
+                                       const float *query, size_t n, size_t dim,
+                                       float *distances) {
   size_t i = 0;
-  for (; i + batch_size <= n; i += batch_size) {
-    std::array<const float *, batch_size> prefetch_ptrs;
-    for (size_t j = 0; j < batch_size; ++j) {
-      if (i + j + batch_size * prefetch_step < n) {
+  for (; i + BatchSize <= n; i += BatchSize) {
+    std::array<const float *, BatchSize> prefetch_ptrs;
+    for (size_t j = 0; j < BatchSize; ++j) {
+      if (i + j + BatchSize * PrefetchStep < n) {
         prefetch_ptrs[j] = static_cast<const float *>(
-            vectors[i + j + batch_size * prefetch_step]);
+            vectors[i + j + BatchSize * PrefetchStep]);
       } else {
         prefetch_ptrs[j] = nullptr;
       }
     }
-    squared_euclidean_batch_impl<batch_size>(
-        typed_query, reinterpret_cast<const float *const *>(&vectors[i]),
+    squared_euclidean_batch_impl<BatchSize>(
+        query, reinterpret_cast<const float *const *>(&vectors[i]),
         prefetch_ptrs, dim, distances + i);
   }
+  return i;
+}
+
+void squared_euclidean_batch(const void *const *vectors, const void *query,
+                             size_t n, size_t dim, float *distances) {
+  const float *typed_query = static_cast<const float *>(query);
+  size_t i = squared_euclidean_batch_chunked<12, 2>(vectors, typed_query, n,
+                                                    dim, distances);
+  i += squared_euclidean_batch_chunked<8, 2>(&vectors[i], typed_query, n - i,
+                                             dim, distances + i);
   for (; i < n; i++) {
     std::array<const float *, 1> prefetch_ptrs{nullptr};
     squared_euclidean_batch_impl<1>(
         typed_query, reinterpret_cast<const float *const *>(&vectors[i]),
         prefetch_ptrs, dim, distances + i);
+  }
+}
+
+// Sequential sweep over a packed block of vectors (stride between vectors ==
+// dim), with a fixed lookahead prefetch to keep memory-level parallelism
+// across the linear scan.
+void squared_euclidean_contiguous(const float *block, const float *query,
+                                  size_t n, size_t dim, float *distances) {
+  // Lookahead distance chosen so prefetches issued while computing vector i
+  // have retired from DRAM by the time vector i+PF is consumed. The lookahead
+  // is unconditional: flat scans call this kernel on consecutive chunks of
+  // one packed segment, so prefetching past this chunk warms the next one,
+  // and PREFETCH never faults even on unmapped addresses at the segment end.
+  constexpr size_t PF = 6;
+  const float *vec = block;
+  for (size_t i = 0; i < n; ++i, vec += dim) {
+    __m512 acc0 = _mm512_setzero_ps();
+    __m512 acc1 = _mm512_setzero_ps();
+    const float *ahead = vec + PF * dim;
+    size_t d = 0;
+    for (; d + 32 <= dim; d += 32) {
+      const __m512 diff0 =
+          _mm512_sub_ps(_mm512_loadu_ps(query + d), _mm512_loadu_ps(vec + d));
+      acc0 = _mm512_fmadd_ps(diff0, diff0, acc0);
+      const __m512 diff1 = _mm512_sub_ps(_mm512_loadu_ps(query + d + 16),
+                                         _mm512_loadu_ps(vec + d + 16));
+      acc1 = _mm512_fmadd_ps(diff1, diff1, acc1);
+      ailego_prefetch(ahead + d);
+      ailego_prefetch(ahead + d + 16);
+    }
+    if (d + 16 <= dim) {
+      const __m512 diff =
+          _mm512_sub_ps(_mm512_loadu_ps(query + d), _mm512_loadu_ps(vec + d));
+      acc0 = _mm512_fmadd_ps(diff, diff, acc0);
+      d += 16;
+    }
+    if (d < dim) {
+      const __mmask16 mask = static_cast<__mmask16>((1u << (dim - d)) - 1);
+      const __m512 diff = _mm512_sub_ps(_mm512_maskz_loadu_ps(mask, query + d),
+                                        _mm512_maskz_loadu_ps(mask, vec + d));
+      acc1 = _mm512_fmadd_ps(diff, diff, acc1);
+    }
+    distances[i] = _mm512_reduce_add_ps(_mm512_add_ps(acc0, acc1));
   }
 }
 
@@ -143,6 +198,24 @@ void squared_euclidean_fp32_batch_distance_avx512(const void *const *vectors,
   squared_euclidean_batch(vectors, query, n, dim, distances);
 #else
   (void)vectors;
+  (void)query;
+  (void)n;
+  (void)dim;
+  (void)distances;
+#endif
+}
+
+void squared_euclidean_fp32_contiguous_batch_distance_avx512(const void *block,
+                                                             const void *query,
+                                                             size_t n,
+                                                             size_t dim,
+                                                             float *distances) {
+#if defined(__AVX512F__)
+  squared_euclidean_contiguous(static_cast<const float *>(block),
+                               static_cast<const float *>(query), n, dim,
+                               distances);
+#else
+  (void)block;
   (void)query;
   (void)n;
   (void)dim;

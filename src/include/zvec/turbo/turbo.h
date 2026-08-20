@@ -47,6 +47,12 @@ using DistanceFunc =
     std::function<void(const void *m, const void *q, size_t dim, float *out)>;
 using BatchDistanceFunc = std::function<void(
     const void **m, const void *q, size_t num, size_t dim, float *out)>;
+// One-to-many distance over a contiguous packed block of vectors (stride
+// between vectors == dim). Faster than BatchDistanceFunc when records are
+// stored contiguously, since the linear sweep is covered by hardware
+// prefetch.
+using ContiguousBatchDistanceFunc = std::function<void(
+    const void *m, const void *q, size_t num, size_t dim, float *out)>;
 using QueryPreprocessFunc =
     zvec::ailego::DistanceBatch::DistanceBatchQueryPreprocessFunc;
 
@@ -161,6 +167,10 @@ ZVEC_TURBO_API BatchDistanceFunc get_batch_distance_func(
     MetricType metric_type, DataType data_type, QuantizeType quantize_type,
     CpuArchType cpu_arch_type = CpuArchType::kAuto);
 
+ZVEC_TURBO_API ContiguousBatchDistanceFunc get_contiguous_batch_distance_func(
+    MetricType metric_type, DataType data_type, QuantizeType quantize_type,
+    CpuArchType cpu_arch_type = CpuArchType::kAuto);
+
 ZVEC_TURBO_API QueryPreprocessFunc get_query_preprocess_func(
     MetricType metric_type, DataType data_type, QuantizeType quantize_type,
     CpuArchType cpu_arch_type = CpuArchType::kAuto);
@@ -168,9 +178,12 @@ ZVEC_TURBO_API QueryPreprocessFunc get_query_preprocess_func(
 // All kernels of a single dispatched kernel family. `preprocess` is non-null
 // when the batch kernel requires the query to be preprocessed first (e.g.
 // the AVX512-VNNI int8 kernels expect a +128 uint8-shifted query).
+// `contiguous_batch` is non-null only for kernel families whose records can
+// be scanned as one packed block (stride == dim).
 struct DistanceKernels {
   DistanceFunc dist{};
   BatchDistanceFunc batch{};
+  ContiguousBatchDistanceFunc contiguous_batch{};
   QueryPreprocessFunc preprocess = nullptr;
 };
 

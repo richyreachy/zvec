@@ -102,6 +102,8 @@ namespace {
 using RawDistanceFn = void (*)(const void *, const void *, size_t, float *);
 using RawBatchDistanceFn = void (*)(const void *const *, const void *, size_t,
                                     size_t, float *);
+using RawContiguousBatchDistanceFn = void (*)(const void *, const void *,
+                                              size_t, size_t, float *);
 
 //! One row = one kernel family: all functions that must be used together
 //! for a given (metric, data type) combination on a given ISA.
@@ -113,6 +115,8 @@ struct KernelSet {
   RawDistanceFn dist;
   RawBatchDistanceFn batch;
   QueryPreprocessFunc preprocess;  //!< non-null: batch needs preprocessing
+  //! non-null: records can also be scanned as one packed block (stride == dim)
+  RawContiguousBatchDistanceFn contiguous_batch = nullptr;
 };
 
 bool CpuSupportsKernel(const KernelSet &kernel) {
@@ -240,43 +244,55 @@ constexpr KernelSet kKernelTable[] = {
      avx2::inner_product_fp16_batch_distance_avx2, nullptr},
     {QuantizeType::kFp16, DataType::kFp16, CpuArchType::kScalar,
      MetricType::kSquaredEuclidean, scalar::squared_euclidean_fp16_distance,
-     scalar::squared_euclidean_fp16_batch_distance, nullptr},
+     scalar::squared_euclidean_fp16_batch_distance, nullptr,
+     scalar::squared_euclidean_fp16_contiguous_batch_distance},
     {QuantizeType::kFp16, DataType::kFp16, CpuArchType::kScalar,
      MetricType::kCosine, scalar::cosine_fp16_distance,
-     scalar::cosine_fp16_batch_distance, nullptr},
+     scalar::cosine_fp16_batch_distance, nullptr,
+     scalar::cosine_fp16_contiguous_batch_distance},
     {QuantizeType::kFp16, DataType::kFp16, CpuArchType::kScalar,
      MetricType::kInnerProduct, scalar::inner_product_fp16_distance,
-     scalar::inner_product_fp16_batch_distance, nullptr},
+     scalar::inner_product_fp16_batch_distance, nullptr,
+     scalar::inner_product_fp16_contiguous_batch_distance},
 
     // --- fp32 (AVX512, AVX2, scalar) ---
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kAVX512,
      MetricType::kSquaredEuclidean,
      avx512::squared_euclidean_fp32_distance_avx512,
-     avx512::squared_euclidean_fp32_batch_distance_avx512, nullptr},
+     avx512::squared_euclidean_fp32_batch_distance_avx512, nullptr,
+     avx512::squared_euclidean_fp32_contiguous_batch_distance_avx512},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kAVX512,
      MetricType::kCosine, avx512::cosine_fp32_distance_avx512,
-     avx512::cosine_fp32_batch_distance_avx512, nullptr},
+     avx512::cosine_fp32_batch_distance_avx512, nullptr,
+     avx512::cosine_fp32_contiguous_batch_distance_avx512},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kAVX512,
      MetricType::kInnerProduct, avx512::inner_product_fp32_distance_avx512,
-     avx512::inner_product_fp32_batch_distance_avx512, nullptr},
+     avx512::inner_product_fp32_batch_distance_avx512, nullptr,
+     avx512::inner_product_fp32_contiguous_batch_distance_avx512},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kAVX2,
      MetricType::kSquaredEuclidean, avx2::squared_euclidean_fp32_distance_avx2,
-     avx2::squared_euclidean_fp32_batch_distance_avx2, nullptr},
+     avx2::squared_euclidean_fp32_batch_distance_avx2, nullptr,
+     avx2::squared_euclidean_fp32_contiguous_batch_distance_avx2},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kAVX2,
      MetricType::kCosine, avx2::cosine_fp32_distance_avx2,
-     avx2::cosine_fp32_batch_distance_avx2, nullptr},
+     avx2::cosine_fp32_batch_distance_avx2, nullptr,
+     avx2::cosine_fp32_contiguous_batch_distance_avx2},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kAVX2,
      MetricType::kInnerProduct, avx2::inner_product_fp32_distance_avx2,
-     avx2::inner_product_fp32_batch_distance_avx2, nullptr},
+     avx2::inner_product_fp32_batch_distance_avx2, nullptr,
+     avx2::inner_product_fp32_contiguous_batch_distance_avx2},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kScalar,
      MetricType::kSquaredEuclidean, scalar::squared_euclidean_fp32_distance,
-     scalar::squared_euclidean_fp32_batch_distance, nullptr},
+     scalar::squared_euclidean_fp32_batch_distance, nullptr,
+     scalar::squared_euclidean_fp32_contiguous_batch_distance},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kScalar,
      MetricType::kCosine, scalar::cosine_fp32_distance,
-     scalar::cosine_fp32_batch_distance, nullptr},
+     scalar::cosine_fp32_batch_distance, nullptr,
+     scalar::cosine_fp32_contiguous_batch_distance},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kScalar,
      MetricType::kInnerProduct, scalar::inner_product_fp32_distance,
-     scalar::inner_product_fp32_batch_distance, nullptr},
+     scalar::inner_product_fp32_batch_distance, nullptr,
+     scalar::inner_product_fp32_contiguous_batch_distance},
 };
 
 // Returns the first (highest-priority) matching kernel row, or nullptr.
@@ -316,6 +332,9 @@ DistanceKernels get_distance_kernels(MetricType metric_type, DataType data_type,
   if (k->batch) {
     kernels.batch = k->batch;
   }
+  if (k->contiguous_batch) {
+    kernels.contiguous_batch = k->contiguous_batch;
+  }
   kernels.preprocess = k->preprocess;
   return kernels;
 }
@@ -335,6 +354,14 @@ BatchDistanceFunc get_batch_distance_func(MetricType metric_type,
   return get_distance_kernels(metric_type, data_type, quantize_type,
                               cpu_arch_type)
       .batch;
+}
+
+ContiguousBatchDistanceFunc get_contiguous_batch_distance_func(
+    MetricType metric_type, DataType data_type, QuantizeType quantize_type,
+    CpuArchType cpu_arch_type) {
+  return get_distance_kernels(metric_type, data_type, quantize_type,
+                              cpu_arch_type)
+      .contiguous_batch;
 }
 
 QueryPreprocessFunc get_query_preprocess_func(MetricType metric_type,

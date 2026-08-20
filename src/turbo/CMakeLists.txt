@@ -19,12 +19,21 @@ file(GLOB_RECURSE ALL_SRCS *.cc *.c *.h)
 # subdirectory).
 if(NOT ANDROID AND AUTO_DETECT_ARCH)
     if (HOST_ARCH MATCHES "^(x86|x64)$")
+        # Keep hot SIMD loop bodies 64-byte aligned: distance kernels are
+        # bandwidth-bound streaming loops whose throughput regresses by ~10%
+        # when the loop entry straddles a cache line.
+        if(NOT MSVC)
+            set(TURBO_ALIGN_FLAGS " -falign-functions=64 -falign-loops=64")
+        else()
+            set(TURBO_ALIGN_FLAGS "")
+        endif()
+
         # SSE
         file(GLOB_RECURSE SSE_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/distance/sse/*.cc)
         set_source_files_properties(
             ${SSE_SRCS}
             PROPERTIES
-            COMPILE_FLAGS "${TURBO_MARCH_FLAG_SSE}"
+            COMPILE_FLAGS "${TURBO_MARCH_FLAG_SSE}${TURBO_ALIGN_FLAGS}"
         )
 
         # AVX2
@@ -32,7 +41,7 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
         set_source_files_properties(
             ${AVX2_SRCS}
             PROPERTIES
-            COMPILE_FLAGS "${TURBO_MARCH_FLAG_AVX2}"
+            COMPILE_FLAGS "${TURBO_MARCH_FLAG_AVX2}${TURBO_ALIGN_FLAGS}"
         )
 
         # AVX512 (avx512_vnni and avx512/fht both use AVX512 march)
@@ -40,7 +49,7 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
         set_source_files_properties(
             ${AVX512_SRCS}
             PROPERTIES
-            COMPILE_FLAGS "${TURBO_MARCH_FLAG_AVX512}"
+            COMPILE_FLAGS "${TURBO_MARCH_FLAG_AVX512}${TURBO_ALIGN_FLAGS}"
         )
     endif()
 endif()

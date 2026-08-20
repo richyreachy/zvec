@@ -11,11 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include <cmath>
 #include <ailego/math/euclidean_distance_matrix.h>
 #include <ailego/math_batch/distance_batch.h>
 #include <zvec/core/framework/index_error.h>
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_metric.h>
+#include <zvec/turbo/turbo.h>
 
 namespace zvec {
 namespace core {
@@ -604,9 +606,9 @@ class SquaredEuclideanMetric : public IndexMetric {
                                  ailego::Float16, 12, 2>::ComputeBatch);
 
       case IndexMeta::DataType::DT_FP32:
-        return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
-            ailego::BaseDistance<ailego::SquaredEuclideanDistanceMatrix, float,
-                                 12, 2>::ComputeBatch);
+        return turbo::get_batch_distance_func(
+            turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
+            turbo::QuantizeType::kFp32);
 
       case IndexMeta::DataType::DT_INT8:
         return reinterpret_cast<IndexMetric::MatrixBatchDistanceHandle>(
@@ -618,6 +620,22 @@ class SquaredEuclideanMetric : public IndexMetric {
             ailego::BaseDistance<ailego::SquaredEuclideanDistanceMatrix,
                                  uint8_t, 12, 2>::ComputeBatch);
 
+      default:
+        return nullptr;
+    }
+  }
+
+  //! Retrieve distance function for a contiguous block of vectors
+  MatrixContiguousBatchDistance contiguous_batch_distance(void) const override {
+    switch (data_type_) {
+      case IndexMeta::DataType::DT_FP32:
+        return turbo::get_contiguous_batch_distance_func(
+            turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
+            turbo::QuantizeType::kFp32);
+      case IndexMeta::DataType::DT_FP16:
+        return turbo::get_contiguous_batch_distance_func(
+            turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp16,
+            turbo::QuantizeType::kFp16);
       default:
         return nullptr;
     }
@@ -748,6 +766,35 @@ class EuclideanMetric : public IndexMetric {
       default:
         return nullptr;
     }
+  }
+
+  //! Retrieve distance function for a contiguous block of vectors
+  MatrixContiguousBatchDistance contiguous_batch_distance(void) const override {
+    turbo::ContiguousBatchDistanceFunc base;
+    switch (data_type_) {
+      case IndexMeta::DataType::DT_FP32:
+        base = turbo::get_contiguous_batch_distance_func(
+            turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
+            turbo::QuantizeType::kFp32);
+        break;
+      case IndexMeta::DataType::DT_FP16:
+        base = turbo::get_contiguous_batch_distance_func(
+            turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp16,
+            turbo::QuantizeType::kFp16);
+        break;
+      default:
+        return nullptr;
+    }
+    if (!base) {
+      return nullptr;
+    }
+    return [base](const void *m, const void *q, size_t num, size_t dim,
+                  float *out) {
+      base(m, q, num, dim, out);
+      for (size_t i = 0; i < num; ++i) {
+        out[i] = std::sqrt(out[i]);
+      }
+    };
   }
 
   //! Retrieve params of Metric

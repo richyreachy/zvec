@@ -32,4 +32,14 @@ void cosine_fp32_batch_distance_avx2(const void *const *vectors,
   }
 }
 
+void cosine_fp32_contiguous_batch_distance_avx2(const void *block,
+                                                const void *query, size_t n,
+                                                size_t dim, float *distances) {
+  inner_product_fp32_contiguous_batch_distance_avx2(block, query, n, dim,
+                                                    distances);
+  for (size_t i = 0; i < n; ++i) {
+    distances[i] += 1.0f;
+  }
+}
+
 }  // namespace zvec::turbo::avx2

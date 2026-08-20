@@ -23,5 +23,10 @@ void cosine_fp32_distance_avx512(const void *a, const void *b, size_t dim,
 void cosine_fp32_batch_distance_avx512(const void *const *vectors,
                                        const void *query, size_t n, size_t dim,
                                        float *distances);
+// One-to-many cosine distance over a contiguous packed block of vectors
+// (stride between vectors == dim).
+void cosine_fp32_contiguous_batch_distance_avx512(const void *block,
+                                                  const void *query, size_t n,
+                                                  size_t dim, float *distances);
 
 }  // namespace zvec::turbo::avx512
