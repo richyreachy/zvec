@@ -47,6 +47,10 @@ using DistanceFunc =
     std::function<void(const void *m, const void *q, size_t dim, float *out)>;
 using BatchDistanceFunc = std::function<void(
     const void **m, const void *q, size_t num, size_t dim, float *out)>;
+// One-to-many distances over a contiguous packed block of vectors (stride
+// between vectors == dim).
+using ContiguousBatchDistanceFunc = std::function<void(
+    const void *m, const void *q, size_t num, size_t dim, float *out)>;
 using QueryPreprocessFunc =
     zvec::ailego::DistanceBatch::DistanceBatchQueryPreprocessFunc;
 
@@ -161,6 +165,10 @@ ZVEC_TURBO_API BatchDistanceFunc get_batch_distance_func(
     MetricType metric_type, DataType data_type, QuantizeType quantize_type,
     CpuArchType cpu_arch_type = CpuArchType::kAuto);
 
+ZVEC_TURBO_API ContiguousBatchDistanceFunc get_contiguous_batch_distance_func(
+    MetricType metric_type, DataType data_type, QuantizeType quantize_type,
+    CpuArchType cpu_arch_type = CpuArchType::kAuto);
+
 ZVEC_TURBO_API QueryPreprocessFunc get_query_preprocess_func(
     MetricType metric_type, DataType data_type, QuantizeType quantize_type,
     CpuArchType cpu_arch_type = CpuArchType::kAuto);
@@ -171,6 +179,7 @@ ZVEC_TURBO_API QueryPreprocessFunc get_query_preprocess_func(
 struct DistanceKernels {
   DistanceFunc dist{};
   BatchDistanceFunc batch{};
+  ContiguousBatchDistanceFunc contiguous_batch{};
   QueryPreprocessFunc preprocess = nullptr;
 };
 

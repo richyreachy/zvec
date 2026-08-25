@@ -120,6 +120,9 @@ int FlatSearcher<BATCH_SIZE>::load(IndexStorage::Pointer cntr,
         LOG_ERROR("Lack of distance functions to support row index.");
         return IndexError_Unsupported;
       }
+      if (meta_.element_size() == meta_.dimension() * meta_.unit_size()) {
+        row_contiguous_batch_distance_ = measure_->contiguous_batch_distance();
+      }
     }
   }
 

@@ -146,4 +146,55 @@ void inner_product_fp32_batch_distance_avx512(const void *const *vectors,
 #endif
 }
 
+// Sequential sweep over a packed block of vectors (stride between vectors ==
+// dim), with a fixed lookahead prefetch to keep memory-level parallelism
+// across short chained blocks.
+void inner_product_fp32_contiguous_batch_distance_avx512(const void *block,
+                                                         const void *query,
+                                                         size_t num, size_t dim,
+                                                         float *distances) {
+#if defined(__AVX512F__)
+  // Lookahead distance chosen so prefetches issued while computing vector i
+  // have retired from DRAM by the time vector i+PF is consumed.
+  constexpr size_t PF = 6;
+  const float *typed_query = static_cast<const float *>(query);
+  const float *vec = static_cast<const float *>(block);
+  for (size_t i = 0; i < num; ++i, vec += dim) {
+    __m512 acc0 = _mm512_setzero_ps();
+    __m512 acc1 = _mm512_setzero_ps();
+    const float *ahead = (i + PF < num) ? vec + PF * dim : nullptr;
+    size_t d = 0;
+    for (; d + 32 <= dim; d += 32) {
+      acc0 = _mm512_fmadd_ps(_mm512_loadu_ps(typed_query + d),
+                             _mm512_loadu_ps(vec + d), acc0);
+      acc1 = _mm512_fmadd_ps(_mm512_loadu_ps(typed_query + d + 16),
+                             _mm512_loadu_ps(vec + d + 16), acc1);
+      if (ahead) {
+        _mm_prefetch(reinterpret_cast<const char *>(ahead + d), _MM_HINT_T0);
+        _mm_prefetch(reinterpret_cast<const char *>(ahead + d + 16),
+                     _MM_HINT_T0);
+      }
+    }
+    if (d + 16 <= dim) {
+      acc0 = _mm512_fmadd_ps(_mm512_loadu_ps(typed_query + d),
+                             _mm512_loadu_ps(vec + d), acc0);
+      d += 16;
+    }
+    if (d < dim) {
+      const auto remaining = static_cast<unsigned>(dim - d);
+      const __mmask16 mask = static_cast<__mmask16>((1u << remaining) - 1u);
+      acc1 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, typed_query + d),
+                             _mm512_maskz_loadu_ps(mask, vec + d), acc1);
+    }
+    distances[i] = -_mm512_reduce_add_ps(_mm512_add_ps(acc0, acc1));
+  }
+#else
+  (void)block;
+  (void)query;
+  (void)num;
+  (void)dim;
+  (void)distances;
+#endif
+}
+
 }  // namespace zvec::turbo::avx512
