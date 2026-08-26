@@ -261,7 +261,8 @@ constexpr KernelSet kKernelTable[] = {
      avx512::squared_euclidean_fp32_contiguous_batch_distance_avx512},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kAVX512,
      MetricType::kCosine, avx512::cosine_fp32_distance_avx512,
-     avx512::cosine_fp32_batch_distance_avx512, nullptr},
+     avx512::cosine_fp32_batch_distance_avx512, nullptr,
+     avx512::cosine_fp32_contiguous_batch_distance_avx512},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kAVX512,
      MetricType::kInnerProduct, avx512::inner_product_fp32_distance_avx512,
      avx512::inner_product_fp32_batch_distance_avx512, nullptr,
@@ -342,6 +343,7 @@ DistanceKernels get_distance_kernels(MetricType metric_type, DataType data_type,
   kernels.preprocess = k->preprocess;
   if (k->contiguous_batch) {
     kernels.contiguous_batch = k->contiguous_batch;
+    kernels.contiguous_batch_native = true;
   } else if (k->dist && !k->preprocess) {
     // Per-vector sweep fallback. Rows whose kernels expect a preprocessed
     // query are excluded: a contiguous sweep over the raw query would be

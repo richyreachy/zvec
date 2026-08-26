@@ -102,6 +102,27 @@ class Quantizer {
                                             int dp_num, const void *query,
                                             float *dist_list) const = 0;
 
+  //! Batched distance between a packed block of quantized datapoints (fixed
+  //! stride between consecutive codes) and a quantized query. The default
+  //! chunks the block into pointer lists and reuses the pointer-batch entry;
+  //! quantizers with a dedicated contiguous sweep kernel may override it.
+  virtual void calc_distance_dp_query_contiguous_batch(const void *block,
+                                                       size_t stride,
+                                                       int dp_num,
+                                                       const void *query,
+                                                       float *dist_list) const {
+    constexpr int kChunk = 32;
+    const void *dp_list[kChunk];
+    const char *base = static_cast<const char *>(block);
+    for (int i = 0; i < dp_num; i += kChunk) {
+      int num = dp_num - i < kChunk ? dp_num - i : kChunk;
+      for (int j = 0; j < num; ++j) {
+        dp_list[j] = base + static_cast<size_t>(i + j) * stride;
+      }
+      calc_distance_dp_query_batch(dp_list, num, query, dist_list + i);
+    }
+  }
+
   //! Distance between a quantized datapoint and an unquantized query
   virtual float calc_distance_dp_query_unquantized(const void *dp,
                                                    const void *query) const = 0;

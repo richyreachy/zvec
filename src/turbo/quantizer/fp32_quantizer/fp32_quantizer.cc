@@ -48,6 +48,9 @@ int Fp32Quantizer::init(const IndexMeta &meta,
   }
   dp_query_func_ = std::move(kernels.dist);
   dp_query_batch_func_ = std::move(kernels.batch);
+  if (kernels.contiguous_batch_native) {
+    dp_query_contiguous_batch_func_ = std::move(kernels.contiguous_batch);
+  }
 
   return 0;
 }
@@ -68,15 +71,18 @@ int Fp32Quantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
   out->resize(byte_size);
 
   if (meta_.metric_name() == "Cosine") {
-    // L2-normalize the vector in-place and store the norm at the end so the
-    // original vector can be reconstructed during dequantize.
+    // L2-normalize the vector in-place. Query codes are never dequantized, so
+    // instead of the norm the tail slot is zeroed: this lets the contiguous
+    // sweep kernel treat codes as packed (dim + 1)-float rows and still get
+    // the exact 768-dim inner product (the row's norm tail multiplies the
+    // query's zero tail).
     float *buf = reinterpret_cast<float *>(&(*out)[0]);
     std::memcpy(buf, query, raw_dim * sizeof(float));
     float norm = 0.0f;
     ailego::Normalizer<float>::L2(buf, raw_dim, &norm);
-    std::memcpy(
-        reinterpret_cast<uint8_t *>(&(*out)[0]) + raw_dim * sizeof(float),
-        &norm, extra_meta_size_);
+    std::memset(
+        reinterpret_cast<uint8_t *>(&(*out)[0]) + raw_dim * sizeof(float), 0,
+        extra_meta_size_);
   } else {
     std::memcpy(&(*out)[0], query, byte_size);
   }
@@ -163,6 +169,22 @@ void Fp32Quantizer::calc_distance_dp_query_batch(const void *const *dp_list,
   for (int i = 0; i < dp_num; ++i) {
     dist_list[i] = calc_distance_dp_query(dp_list[i], query);
   }
+}
+
+void Fp32Quantizer::calc_distance_dp_query_contiguous_batch(
+    const void *block, size_t stride, int dp_num, const void *query,
+    float *dist_list) const {
+  // The dedicated sweep kernel assumes stride == dim * sizeof(float); the
+  // (dim + norm-tail) code layout satisfies it when swept as padded rows of
+  // quantized_length()/4 floats (query tails are zeroed at quantize time).
+  if (dp_query_contiguous_batch_func_ && stride == quantized_length() &&
+      stride % sizeof(float) == 0) {
+    dp_query_contiguous_batch_func_(block, query, static_cast<size_t>(dp_num),
+                                    stride / sizeof(float), dist_list);
+    return;
+  }
+  Quantizer::calc_distance_dp_query_contiguous_batch(block, stride, dp_num,
+                                                     query, dist_list);
 }
 
 float Fp32Quantizer::calc_distance_dp_query_unquantized(

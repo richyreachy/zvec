@@ -254,12 +254,8 @@ class FlatSearcherContext : public IndexSearcher::Context {
   //! Compute the quantizer distances of contiguous row features
   inline void quantized_batch_distance(const void *features, size_t num,
                                        const void *query, float *out) const {
-    const void *dp_list[BATCH_SIZE];
-    for (size_t i = 0; i != num; ++i) {
-      dp_list[i] = static_cast<const char *>(features) + i * feature_size_;
-    }
-    quantizer_->calc_distance_dp_query_batch(dp_list, static_cast<int>(num),
-                                             query, out);
+    quantizer_->calc_distance_dp_query_contiguous_batch(
+        features, feature_size_, static_cast<int>(num), query, out);
   }
 
   //! Enqueue a chunk of contiguous row features into the heap (no filter)

@@ -181,6 +181,9 @@ struct DistanceKernels {
   BatchDistanceFunc batch{};
   ContiguousBatchDistanceFunc contiguous_batch{};
   QueryPreprocessFunc preprocess = nullptr;
+  //! True when contiguous_batch is a dedicated SIMD sweep kernel rather than
+  //! the per-vector fallback synthesized from `dist`.
+  bool contiguous_batch_native = false;
 };
 
 // Aggregate lookup: resolves dist/batch/preprocess in one pass so callers
