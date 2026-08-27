@@ -218,6 +218,10 @@ class FlatStreamerEntity {
     return batch_distance_;
   }
 
+  const std::shared_ptr<zvec::turbo::Quantizer> &quantizer(void) const {
+    return quantizer_;
+  }
+
   int get_vector_by_position(uint32_t id,
                              IndexStorage::MemoryBlock &block) const;
 

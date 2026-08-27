@@ -43,15 +43,21 @@ int FlatContiguousStreamerEntity::evaluate_distances(
       return;
     }
     distances.resize(vector_ptrs.size());
-    const auto &batch_distance_func = batch_distance();
-    if (batch_distance_func) {
-      batch_distance_func(vector_ptrs.data(), query, vector_ptrs.size(),
-                          meta().dimension(), distances.data());
+    if (quantizer()) {
+      quantizer()->calc_distance_dp_query_batch(
+          vector_ptrs.data(), static_cast<int>(vector_ptrs.size()), query,
+          distances.data());
     } else {
-      const auto &distance_func = distance();
-      for (size_t i = 0; i < vector_ptrs.size(); ++i) {
-        distance_func(query, vector_ptrs[i], meta().dimension(),
-                      distances.data() + i);
+      const auto &batch_distance_func = batch_distance();
+      if (batch_distance_func) {
+        batch_distance_func(vector_ptrs.data(), query, vector_ptrs.size(),
+                            meta().dimension(), distances.data());
+      } else {
+        const auto &distance_func = distance();
+        for (size_t i = 0; i < vector_ptrs.size(); ++i) {
+          distance_func(query, vector_ptrs[i], meta().dimension(),
+                        distances.data() + i);
+        }
       }
     }
     if (context_stats) {
