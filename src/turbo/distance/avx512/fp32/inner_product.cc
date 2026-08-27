@@ -146,4 +146,71 @@ void inner_product_fp32_batch_distance_avx512(const void *const *vectors,
 #endif
 }
 
+// Sequential sweep over a packed block of vectors (stride between vectors ==
+// dim). Two rows are processed per iteration so each query load is shared and
+// two independent demand-load streams stay in flight (same memory-level
+// parallelism as the pointer-batch kernel), plus a fixed row-lookahead
+// prefetch.
+void inner_product_fp32_contiguous_batch_distance_avx512(const void *block,
+                                                         const void *query,
+                                                         size_t num, size_t dim,
+                                                         float *distances) {
+#if defined(__AVX512F__)
+  // Lookahead distance chosen so prefetches issued while computing rows
+  // i/i+1 have retired from DRAM by the time row i+PF is consumed.
+  constexpr size_t PF = 4;
+  const float *typed_query = static_cast<const float *>(query);
+  const float *vec = static_cast<const float *>(block);
+  size_t i = 0;
+  for (; i + 2 <= num; i += 2, vec += 2 * dim) {
+    __m512 acc0 = _mm512_setzero_ps();
+    __m512 acc1 = _mm512_setzero_ps();
+    const float *v0 = vec;
+    const float *v1 = vec + dim;
+    const float *ahead = (i + PF < num) ? vec + PF * dim : nullptr;
+    size_t d = 0;
+    for (; d + 16 <= dim; d += 16) {
+      const __m512 q = _mm512_loadu_ps(typed_query + d);
+      acc0 = _mm512_fmadd_ps(q, _mm512_loadu_ps(v0 + d), acc0);
+      acc1 = _mm512_fmadd_ps(q, _mm512_loadu_ps(v1 + d), acc1);
+      if (ahead) {
+        _mm_prefetch(reinterpret_cast<const char *>(ahead + d), _MM_HINT_T0);
+        _mm_prefetch(reinterpret_cast<const char *>(ahead + dim + d),
+                     _MM_HINT_T0);
+      }
+    }
+    if (d < dim) {
+      const auto remaining = static_cast<unsigned>(dim - d);
+      const __mmask16 mask = static_cast<__mmask16>((1u << remaining) - 1u);
+      const __m512 q = _mm512_maskz_loadu_ps(mask, typed_query + d);
+      acc0 = _mm512_fmadd_ps(q, _mm512_maskz_loadu_ps(mask, v0 + d), acc0);
+      acc1 = _mm512_fmadd_ps(q, _mm512_maskz_loadu_ps(mask, v1 + d), acc1);
+    }
+    distances[i] = -_mm512_reduce_add_ps(acc0);
+    distances[i + 1] = -_mm512_reduce_add_ps(acc1);
+  }
+  if (i < num) {
+    __m512 acc = _mm512_setzero_ps();
+    size_t d = 0;
+    for (; d + 16 <= dim; d += 16) {
+      acc = _mm512_fmadd_ps(_mm512_loadu_ps(typed_query + d),
+                            _mm512_loadu_ps(vec + d), acc);
+    }
+    if (d < dim) {
+      const auto remaining = static_cast<unsigned>(dim - d);
+      const __mmask16 mask = static_cast<__mmask16>((1u << remaining) - 1u);
+      acc = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, typed_query + d),
+                            _mm512_maskz_loadu_ps(mask, vec + d), acc);
+    }
+    distances[i] = -_mm512_reduce_add_ps(acc);
+  }
+#else
+  (void)block;
+  (void)query;
+  (void)num;
+  (void)dim;
+  (void)distances;
+#endif
+}
+
 }  // namespace zvec::turbo::avx512

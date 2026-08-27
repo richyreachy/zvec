@@ -60,6 +60,7 @@ class FlatSearcher : public IndexSearcher {
     measure_ = nullptr;
     features_segment_ = nullptr;
     keys_ = nullptr;
+    row_contiguous_batch_distance_ = nullptr;
     key_id_mapping_.clear();
     return 0;
   }
@@ -159,6 +160,12 @@ class FlatSearcher : public IndexSearcher {
     return distance_matrix_;
   }
 
+  //! Retrieve the row-major contiguous batch distance function
+  const IndexMetric::MatrixContiguousBatchDistance &
+  row_contiguous_batch_distance(void) const {
+    return row_contiguous_batch_distance_;
+  }
+
   //! Retrieve the turbo quantizer
   const std::shared_ptr<zvec::turbo::Quantizer> &quantizer(void) const {
     return quantizer_;
@@ -189,6 +196,7 @@ class FlatSearcher : public IndexSearcher {
   mutable std::vector<uint32_t> mapping_{};
   mutable std::mutex mapping_mutex_{};
   FlatDistanceMatrix<BATCH_SIZE> distance_matrix_{};
+  IndexMetric::MatrixContiguousBatchDistance row_contiguous_batch_distance_{};
   std::shared_ptr<zvec::turbo::Quantizer> quantizer_{};
   IndexSearcher::Stats stats_{};
 };

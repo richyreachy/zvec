@@ -55,6 +55,16 @@ struct IndexMetric : public IndexModule {
   using MatrixBatchDistance = std::function<void(
       const void **m, const void *q, size_t num, size_t dim, float *out)>;
 
+  //! Contiguous Batch Distance Function (num vectors packed in one block,
+  //! stride between vectors == dim)
+  typedef void (*MatrixContiguousBatchDistanceHandle)(const void *m,
+                                                      const void *q, size_t num,
+                                                      size_t dim, float *out);
+
+  //! Contiguous Batch Distance Function Object
+  using MatrixContiguousBatchDistance = std::function<void(
+      const void *m, const void *q, size_t num, size_t dim, float *out)>;
+
   //! Destructor
   ~IndexMetric(void) override {}
 
@@ -83,6 +93,11 @@ struct IndexMetric : public IndexModule {
 
   //! Retrieve distance function for query
   virtual MatrixBatchDistance batch_distance(void) const {
+    return nullptr;
+  }
+
+  //! Retrieve distance function for a contiguous block of vectors
+  virtual MatrixContiguousBatchDistance contiguous_batch_distance(void) const {
     return nullptr;
   }
 

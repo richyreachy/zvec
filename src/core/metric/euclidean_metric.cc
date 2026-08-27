@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include <cmath>
 #include <cstdint>
 #include <ailego/math/euclidean_distance_matrix.h>
 #include <ailego/math_batch/distance_batch.h>
@@ -647,6 +648,22 @@ class SquaredEuclideanMetric : public IndexMetric {
     }
   }
 
+  //! Retrieve distance function for a contiguous block of vectors
+  MatrixContiguousBatchDistance contiguous_batch_distance(void) const override {
+    switch (data_type_) {
+      case IndexMeta::DataType::DT_FP32:
+        return turbo::get_contiguous_batch_distance_func(
+            turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
+            turbo::QuantizeType::kFp32);
+      case IndexMeta::DataType::DT_FP16:
+        return turbo::get_contiguous_batch_distance_func(
+            turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp16,
+            turbo::QuantizeType::kFp16);
+      default:
+        return nullptr;
+    }
+  }
+
   //! Retrieve params of Metric
   const ailego::Params &params(void) const override {
     return params_;
@@ -772,6 +789,35 @@ class EuclideanMetric : public IndexMetric {
       default:
         return nullptr;
     }
+  }
+
+  //! Retrieve distance function for a contiguous block of vectors
+  MatrixContiguousBatchDistance contiguous_batch_distance(void) const override {
+    turbo::ContiguousBatchDistanceFunc fn;
+    switch (data_type_) {
+      case IndexMeta::DataType::DT_FP32:
+        fn = turbo::get_contiguous_batch_distance_func(
+            turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp32,
+            turbo::QuantizeType::kFp32);
+        break;
+      case IndexMeta::DataType::DT_FP16:
+        fn = turbo::get_contiguous_batch_distance_func(
+            turbo::MetricType::kSquaredEuclidean, turbo::DataType::kFp16,
+            turbo::QuantizeType::kFp16);
+        break;
+      default:
+        return nullptr;
+    }
+    if (!fn) {
+      return nullptr;
+    }
+    return
+        [fn](const void *m, const void *q, size_t num, size_t dim, float *out) {
+          fn(m, q, num, dim, out);
+          for (size_t i = 0; i < num; ++i) {
+            out[i] = std::sqrt(out[i]);
+          }
+        };
   }
 
   //! Retrieve params of Metric

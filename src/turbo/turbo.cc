@@ -114,6 +114,8 @@ namespace {
 using RawDistanceFn = void (*)(const void *, const void *, size_t, float *);
 using RawBatchDistanceFn = void (*)(const void *const *, const void *, size_t,
                                     size_t, float *);
+using RawContiguousBatchDistanceFn = void (*)(const void *, const void *,
+                                              size_t, size_t, float *);
 
 using CpuFeatureMask = uint32_t;
 constexpr CpuFeatureMask kCpuFeatureNone = 0;
@@ -146,6 +148,9 @@ struct KernelSet {
   RawBatchDistanceFn batch;
   QueryPreprocessFunc preprocess;  //!< non-null: batch needs preprocessing
   CpuFeatureMask required_cpu_features{kCpuFeatureNone};
+  //! Optional dedicated contiguous-block sweep kernel; rows without one get
+  //! a per-vector fallback synthesized in get_distance_kernels.
+  RawContiguousBatchDistanceFn contiguous_batch = nullptr;
 };
 
 // Dispatch registry, SIMD rows before their scalar
@@ -293,13 +298,17 @@ constexpr KernelSet kKernelTable[] = {
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kAVX512,
      MetricType::kSquaredEuclidean,
      avx512::squared_euclidean_fp32_distance_avx512,
-     avx512::squared_euclidean_fp32_batch_distance_avx512, nullptr},
+     avx512::squared_euclidean_fp32_batch_distance_avx512, nullptr,
+     kCpuFeatureNone,
+     avx512::squared_euclidean_fp32_contiguous_batch_distance_avx512},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kAVX512,
      MetricType::kCosine, avx512::cosine_fp32_distance_avx512,
-     avx512::cosine_fp32_batch_distance_avx512, nullptr},
+     avx512::cosine_fp32_batch_distance_avx512, nullptr, kCpuFeatureNone,
+     avx512::cosine_fp32_contiguous_batch_distance_avx512},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kAVX512,
      MetricType::kInnerProduct, avx512::inner_product_fp32_distance_avx512,
-     avx512::inner_product_fp32_batch_distance_avx512, nullptr},
+     avx512::inner_product_fp32_batch_distance_avx512, nullptr, kCpuFeatureNone,
+     avx512::inner_product_fp32_contiguous_batch_distance_avx512},
     {QuantizeType::kFp32, DataType::kFp32, CpuArchType::kAVX2,
      MetricType::kSquaredEuclidean, avx2::squared_euclidean_fp32_distance_avx2,
      avx2::squared_euclidean_fp32_batch_distance_avx2, nullptr},
@@ -364,6 +373,22 @@ const ConvertKernel *FindConvertKernel(DataType target_data_type) {
   return nullptr;
 }
 
+//! Byte size of one dimension unit for densely packed data types; 0 means
+//! the layout is not a plain array of units (e.g. nibble-packed int4), so
+//! no generic contiguous fallback can be synthesized.
+size_t DataTypeUnitSize(DataType data_type) {
+  switch (data_type) {
+    case DataType::kFp32:
+      return sizeof(float);
+    case DataType::kFp16:
+      return 2;
+    case DataType::kInt8:
+      return 1;
+    default:
+      return 0;
+  }
+}
+
 }  // namespace
 
 DistanceKernels get_distance_kernels(MetricType metric_type, DataType data_type,
@@ -382,6 +407,27 @@ DistanceKernels get_distance_kernels(MetricType metric_type, DataType data_type,
     kernels.batch = k->batch;
   }
   kernels.preprocess = k->preprocess;
+  if (k->contiguous_batch) {
+    kernels.contiguous_batch = k->contiguous_batch;
+    kernels.contiguous_batch_native = true;
+  } else if (k->dist && !k->preprocess) {
+    // Per-vector sweep fallback. Rows whose kernels expect a preprocessed
+    // query are excluded: a contiguous sweep over the raw query would be
+    // wrong there.
+    const size_t unit_size = DataTypeUnitSize(k->dtype);
+    if (unit_size != 0) {
+      const RawDistanceFn dist = k->dist;
+      kernels.contiguous_batch = [dist, unit_size](const void *m, const void *q,
+                                                   size_t num, size_t dim,
+                                                   float *out) {
+        const char *vec = static_cast<const char *>(m);
+        const size_t stride = dim * unit_size;
+        for (size_t i = 0; i < num; ++i, vec += stride) {
+          dist(vec, q, dim, &out[i]);
+        }
+      };
+    }
+  }
   return kernels;
 }
 
@@ -400,6 +446,14 @@ BatchDistanceFunc get_batch_distance_func(MetricType metric_type,
   return get_distance_kernels(metric_type, data_type, quantize_type,
                               cpu_arch_type)
       .batch;
+}
+
+ContiguousBatchDistanceFunc get_contiguous_batch_distance_func(
+    MetricType metric_type, DataType data_type, QuantizeType quantize_type,
+    CpuArchType cpu_arch_type) {
+  return get_distance_kernels(metric_type, data_type, quantize_type,
+                              cpu_arch_type)
+      .contiguous_batch;
 }
 
 QueryPreprocessFunc get_query_preprocess_func(MetricType metric_type,

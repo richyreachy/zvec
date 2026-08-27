@@ -200,6 +200,7 @@ class FlatSearcherContext : public IndexSearcher::Context {
         (owner->read_block_size() + block_size - 1) / block_size * block_size;
     features_segment_ = owner->clone_features_segment();
     quantizer_ = owner->quantizer();
+    contiguous_distance_ = owner->row_contiguous_batch_distance();
     owner_ = owner;
   }
 
@@ -253,12 +254,8 @@ class FlatSearcherContext : public IndexSearcher::Context {
   //! Compute the quantizer distances of contiguous row features
   inline void quantized_batch_distance(const void *features, size_t num,
                                        const void *query, float *out) const {
-    const void *dp_list[BATCH_SIZE];
-    for (size_t i = 0; i != num; ++i) {
-      dp_list[i] = static_cast<const char *>(features) + i * feature_size_;
-    }
-    quantizer_->calc_distance_dp_query_batch(dp_list, static_cast<int>(num),
-                                             query, out);
+    quantizer_->calc_distance_dp_query_contiguous_batch(
+        features, feature_size_, static_cast<int>(num), query, out);
   }
 
   //! Enqueue a chunk of contiguous row features into the heap (no filter)
@@ -272,6 +269,18 @@ class FlatSearcherContext : public IndexSearcher::Context {
         this->quantized_batch_distance(
             static_cast<const char *>(data) + i * feature_size_, num, query,
             scores_);
+        for (size_t j = 0; j != num; ++j) {
+          heap->emplace(0, scores_[j], (*feature_index)++);
+        }
+      }
+    } else if (contiguous_distance_ &&
+               feature_size_ == qmeta.dimension() * qmeta.unit_size()) {
+      size_t count = size / feature_size_;
+      for (size_t i = 0; i < count; i += BATCH_SIZE) {
+        size_t num = std::min<size_t>(count - i, BATCH_SIZE);
+        contiguous_distance_(
+            static_cast<const char *>(data) + i * feature_size_, query, num,
+            qmeta.dimension(), scores_);
         for (size_t j = 0; j != num; ++j) {
           heap->emplace(0, scores_[j], (*feature_index)++);
         }
@@ -462,6 +471,7 @@ class FlatSearcherContext : public IndexSearcher::Context {
   uint32_t actual_read_size_{0};
   IndexStorage::Segment::Pointer features_segment_{};
   std::shared_ptr<zvec::turbo::Quantizer> quantizer_{};
+  IndexMetric::MatrixContiguousBatchDistance contiguous_distance_{};
   std::vector<IndexDocumentHeap> result_heaps_{1};
   std::string batch_queries_{};
   float scores_[BATCH_SIZE * BATCH_SIZE];

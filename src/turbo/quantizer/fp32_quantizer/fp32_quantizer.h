@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <cstring>
 #include <zvec/core/framework/index_holder.h>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_reformer.h>
@@ -72,6 +73,13 @@ class Fp32Quantizer : public Quantizer {
 
   void quantize_query(const void *input, void *output) const override {
     quantize_one(input, output);
+    // Query codes are never dequantized; zero the norm tail so contiguous
+    // sweeps over padded rows stay exact (see quantize()).
+    if (extra_meta_size_ != 0) {
+      std::memset(static_cast<uint8_t *>(output) +
+                      static_cast<size_t>(original_dim_) * sizeof(float),
+                  0, extra_meta_size_);
+    }
   }
 
   float calc_distance_dp_query(const void *dp,
@@ -80,6 +88,10 @@ class Fp32Quantizer : public Quantizer {
   void calc_distance_dp_query_batch(const void *const *dp_list, int dp_num,
                                     const void *query,
                                     float *dist_list) const override;
+
+  void calc_distance_dp_query_contiguous_batch(const void *block, size_t stride,
+                                               int dp_num, const void *query,
+                                               float *dist_list) const override;
 
   float calc_distance_dp_query_unquantized(const void *dp,
                                            const void *query) const override;
@@ -118,6 +130,9 @@ class Fp32Quantizer : public Quantizer {
   //! Cached distance dispatch (bound in init()).
   DistanceFunc dp_query_func_{};
   BatchDistanceFunc dp_query_batch_func_{};
+  //! Dedicated contiguous sweep kernel; null when only the synthesized
+  //! per-vector fallback is available (pointer-batch stays faster then).
+  ContiguousBatchDistanceFunc dp_query_contiguous_batch_func_{};
 };
 
 

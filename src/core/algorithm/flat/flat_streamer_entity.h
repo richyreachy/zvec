@@ -195,6 +195,11 @@ class FlatStreamerEntity {
       }
       return;
     }
+    if (fnum > 1 && row_contiguous_batch_distance_) {
+      row_contiguous_batch_distance_(cur_feature, query, fnum,
+                                     index_meta_.dimension(), out);
+      return;
+    }
     for (size_t f = 0; f < fnum; ++f) {
       row_distance_(query, cur_feature, index_meta_.dimension(), out + f);
       cur_feature += index_meta_.element_size();
@@ -454,6 +459,7 @@ class FlatStreamerEntity {
   IndexMeta index_meta_{};
   IndexStorage::Pointer storage_{};
   IndexMetric::MatrixDistance row_distance_{}, column_distance_{};
+  IndexMetric::MatrixContiguousBatchDistance row_contiguous_batch_distance_{};
   IndexMetric::MatrixBatchDistance batch_distance_{};
   std::shared_ptr<zvec::turbo::Quantizer> quantizer_{};
   mutable std::vector<IndexStorage::Segment::Pointer> segments_{};
