@@ -92,6 +92,10 @@ class HnswStreamer : public IndexStreamer {
   //! Initialize Streamer
   int init(const IndexMeta &imeta, const ailego::Params &params) override;
 
+  //! Initialize Streamer with a turbo quantizer for distance computation
+  int init(const IndexMeta &imeta, const ailego::Params &params,
+           const std::shared_ptr<zvec::turbo::Quantizer> &quantizer) override;
+
   //! Cleanup Streamer
   int cleanup(void) override;
 
@@ -248,6 +252,7 @@ class HnswStreamer : public IndexStreamer {
 
   IndexMetric::MatrixBatchDistance add_batch_distance_{};
   IndexMetric::MatrixBatchDistance search_batch_distance_{};
+  std::shared_ptr<zvec::turbo::Quantizer> quantizer_{};
 
   Stats stats_{};
   std::mutex mutex_{};

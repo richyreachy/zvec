@@ -25,8 +25,10 @@
 #include <future>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <set>
 #include <gtest/gtest.h>
+#include <turbo/quantizer/quantizer.h>
 #include <zvec/ailego/container/vector.h>
 #include "tests/test_util.h"
 
@@ -4510,6 +4512,89 @@ TEST_F(HnswStreamerTest, TestCompareFromOriginalVsBaseline) {
   EXPECT_GT(recallB, 0.90f);
   EXPECT_GT(topk1RecallA, 0.90f);
   EXPECT_GT(topk1RecallB, 0.90f);
+}
+
+TEST_F(HnswStreamerTest, TestTurboInt8QuantizerDistance) {
+  constexpr size_t kTurboDim = 35;
+  constexpr size_t kCount = 128;
+  constexpr size_t kTopk = 10;
+
+  IndexMeta raw_meta(IndexMeta::DataType::DT_FP32, kTurboDim);
+  raw_meta.set_metric("SquaredEuclidean", 0, ailego::Params());
+  auto quantizer = IndexFactory::CreateQuantizer("Int8Quantizer");
+  ASSERT_NE(nullptr, quantizer);
+  ASSERT_EQ(0, quantizer->init(raw_meta, ailego::Params()));
+
+  IndexMeta quantized_meta = quantizer->meta();
+  quantized_meta.set_quantizer("Int8Quantizer", 0, ailego::Params());
+
+  ailego::Params params;
+  params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 16U);
+  params.set(PARAM_HNSW_STREAMER_SCALING_FACTOR, 16U);
+  params.set(PARAM_HNSW_STREAMER_EFCONSTRUCTION, 100U);
+  params.set(PARAM_HNSW_STREAMER_EF, 100U);
+  params.set(PARAM_HNSW_STREAMER_BRUTE_FORCE_THRESHOLD, 0U);
+
+  auto streamer = IndexFactory::CreateStreamer("HnswStreamer");
+  ASSERT_NE(nullptr, streamer);
+  ASSERT_EQ(0, streamer->init(quantized_meta, params, quantizer));
+
+  auto storage = IndexFactory::CreateStorage("MMapFileStorage");
+  ASSERT_NE(nullptr, storage);
+  ASSERT_EQ(0, storage->init(ailego::Params()));
+  ASSERT_EQ(0, storage->open(dir_ + "turbo_int8.index", true));
+  ASSERT_EQ(0, streamer->open(storage));
+
+  std::mt19937 gen(2026);
+  std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+  std::vector<std::vector<float>> data(kCount, std::vector<float>(kTurboDim));
+  std::vector<std::string> codes(kCount);
+  IndexQueryMeta raw_qmeta(IndexMeta::DataType::DT_FP32, kTurboDim);
+  IndexQueryMeta quantized_qmeta;
+  auto add_ctx = streamer->create_context();
+  ASSERT_NE(nullptr, add_ctx);
+  for (size_t i = 0; i < kCount; ++i) {
+    for (float &value : data[i]) {
+      value = dist(gen);
+    }
+    ASSERT_EQ(0, quantizer->quantize(data[i].data(), raw_qmeta, &codes[i],
+                                     &quantized_qmeta));
+    ASSERT_EQ(0,
+              streamer->add_impl(i, codes[i].data(), quantized_qmeta, add_ctx));
+  }
+
+  const size_t query_index = 37;
+  auto linear_ctx = streamer->create_context();
+  ASSERT_NE(nullptr, linear_ctx);
+  linear_ctx->set_topk(kTopk);
+  ASSERT_EQ(0, streamer->search_bf_impl(codes[query_index].data(),
+                                        quantized_qmeta, linear_ctx));
+
+  std::vector<std::pair<float, size_t>> expected(kCount);
+  for (size_t i = 0; i < kCount; ++i) {
+    expected[i] = {quantizer->calc_distance_dp_query(codes[i].data(),
+                                                     codes[query_index].data()),
+                   i};
+  }
+  std::partial_sort(expected.begin(), expected.begin() + kTopk, expected.end());
+
+  const auto &linear_result = linear_ctx->result();
+  ASSERT_EQ(kTopk, linear_result.size());
+  for (size_t i = 0; i < kTopk; ++i) {
+    EXPECT_EQ(expected[i].second, linear_result[i].key());
+    EXPECT_NEAR(expected[i].first, linear_result[i].score(),
+                1e-5f + std::abs(expected[i].first) * 1e-4f);
+  }
+
+  auto ann_ctx = streamer->create_context();
+  ASSERT_NE(nullptr, ann_ctx);
+  ann_ctx->set_topk(1);
+  ASSERT_EQ(0, streamer->search_impl(codes[query_index].data(), quantized_qmeta,
+                                     ann_ctx));
+  ASSERT_EQ(1U, ann_ctx->result().size());
+  EXPECT_EQ(query_index, ann_ctx->result()[0].key());
+  ASSERT_EQ(0, streamer->close());
+  ASSERT_EQ(0, storage->close());
 }
 
 }  // namespace core

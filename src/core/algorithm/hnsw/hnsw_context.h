@@ -284,8 +284,9 @@ class HnswContext : public IndexContext {
   //! distance computation
   inline void reset_query(const void *query, const IndexMeta &meta) {
     dc_.set_dim(meta.dimension());
-    if (auto query_preprocess_func = index_metric_->get_query_preprocess_func();
-        query_preprocess_func != nullptr) {
+    auto query_preprocess_func =
+        index_metric_ ? index_metric_->get_query_preprocess_func() : nullptr;
+    if (query_preprocess_func != nullptr) {
       size_t dim = meta.dimension();
       preprocess_buffer_.resize(dim);
       memcpy(preprocess_buffer_.data(), query, dim);

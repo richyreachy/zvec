@@ -14,14 +14,145 @@
 
 #include <memory>
 #include <string>
+#include <turbo/quantizer/quantizer.h>
+#include <zvec/core/framework/index_helper.h>
+#include <zvec/core/framework/index_storage.h>
 #include <zvec/core/interface/index.h>
 #include "algorithm/hnsw/hnsw_context.h"
 #include "algorithm/hnsw/hnsw_params.h"
 #include "algorithm/hnsw/hnsw_streamer.h"
 #include "algorithm/hnsw/hnsw_streamer_entity.h"
 #include "algorithm/hnsw_sparse/hnsw_sparse_params.h"
+#include "utility/utility_params.h"
 
 namespace zvec::core_interface {
+
+namespace {
+
+int ReadPersistedHnswIndexMeta(const std::string &file_path,
+                               const StorageOptions &storage_options,
+                               core::IndexMeta *out) {
+  const char *storage_name = nullptr;
+  switch (storage_options.type) {
+    case StorageOptions::StorageType::kMMAP:
+      storage_name = "MMapFileStorage";
+      break;
+    case StorageOptions::StorageType::kBufferPool:
+      storage_name = "BufferStorage";
+      break;
+    default:
+      return core::IndexError_Unsupported;
+  }
+
+  auto storage = core::IndexFactory::CreateStorage(storage_name);
+  if (!storage) {
+    return core::IndexError_Runtime;
+  }
+  ailego::Params storage_params;
+  storage_params.set(core::MMAPFILE_STORAGE_COPY_ON_WRITE,
+                     storage_options.copy_on_write);
+  storage_params.set(core::MMAPFILE_STORAGE_FORCE_FLUSH,
+                     storage_options.copy_on_write);
+  if (storage->init(storage_params) != 0 ||
+      storage->open(file_path, false) != 0) {
+    return core::IndexError_Runtime;
+  }
+  int ret = core::IndexHelper::DeserializeFromStorage(storage.get(), out);
+  storage->close();
+  return ret;
+}
+
+}  // namespace
+
+int HNSWIndex::open(const std::string &file_path,
+                    StorageOptions storage_options) {
+  if (turbo_quantizer_ != nullptr && !storage_options.create_new) {
+    core::IndexMeta persisted_meta;
+    if (ReadPersistedHnswIndexMeta(file_path, storage_options,
+                                   &persisted_meta) == 0 &&
+        persisted_meta.quantizer_name().empty()) {
+      LOG_INFO(
+          "Persisted HNSW index %s uses the legacy INT8 layout, falling back "
+          "to the converter pipeline",
+          file_path.c_str());
+      int ret = FallbackToLegacyInt8Pipeline();
+      if (ret != 0) {
+        return ret;
+      }
+    }
+  }
+  return Index::open(file_path, storage_options);
+}
+
+int HNSWIndex::FallbackToLegacyInt8Pipeline(void) {
+  turbo_quantizer_.reset();
+  streamer_.reset();
+  converter_.reset();
+  reformer_.reset();
+  metric_.reset();
+
+  proxima_index_meta_.clear();
+  proxima_index_meta_.set_meta(param_.data_type, param_.dimension);
+  proxima_index_meta_.set_meta_type(is_sparse_
+                                        ? core::IndexMeta::MetaType::MT_SPARSE
+                                        : core::IndexMeta::MetaType::MT_DENSE);
+  input_vector_meta_.set_meta(proxima_index_meta_.data_type(),
+                              proxima_index_meta_.dimension());
+  input_vector_meta_.set_meta_type(proxima_index_meta_.meta_type());
+  streamer_vector_meta_ = input_vector_meta_;
+
+  if (ParseMetricName(param_) != 0) {
+    LOG_ERROR("Failed to parse metric name");
+    return core::IndexError_Runtime;
+  }
+  const auto quantizer_param = param_.quantizer_param
+                                   ? param_.quantizer_param
+                                   : std::make_shared<QuantizerParam>();
+  if (Index::CreateAndInitConverterReformer(*quantizer_param, param_) != 0) {
+    LOG_ERROR("Failed to create and init legacy converter");
+    return core::IndexError_Runtime;
+  }
+  if (CreateAndInitMetric(param_) != 0) {
+    LOG_ERROR("Failed to create and init metric");
+    return core::IndexError_Runtime;
+  }
+  if (CreateAndInitStreamer(param_) != 0) {
+    LOG_ERROR("Failed to create and init streamer");
+    return core::IndexError_Runtime;
+  }
+  return core::IndexError_Success;
+}
+
+int HNSWIndex::CreateAndInitConverterReformer(
+    const QuantizerParam &quantizer_param, const BaseIndexParam &index_param) {
+  const auto &hnsw_param = dynamic_cast<const HNSWIndexParam &>(index_param);
+  if (quantizer_param.type == QuantizerType::kInt8 &&
+      !quantizer_param.enable_rotate && !hnsw_param.is_sparse &&
+      !hnsw_param.use_external_vector &&
+      hnsw_param.data_type == DataType::DT_FP32 &&
+      (hnsw_param.metric_type == MetricType::kCosine ||
+       hnsw_param.metric_type == MetricType::kL2sq)) {
+    turbo_quantizer_ = core::IndexFactory::CreateQuantizer("Int8Quantizer");
+    if (!turbo_quantizer_) {
+      LOG_ERROR("Failed to create turbo Int8Quantizer");
+      return core::IndexError_Runtime;
+    }
+    if (turbo_quantizer_->init(proxima_index_meta_, ailego::Params{}) != 0) {
+      LOG_ERROR("Failed to init turbo Int8Quantizer");
+      turbo_quantizer_.reset();
+      return core::IndexError_Runtime;
+    }
+
+    proxima_index_meta_ = turbo_quantizer_->meta();
+    proxima_index_meta_.set_quantizer("Int8Quantizer", 0, ailego::Params{});
+    streamer_vector_meta_.set_meta(proxima_index_meta_.data_type(),
+                                   proxima_index_meta_.dimension());
+    streamer_vector_meta_.set_extra_meta_size(
+        proxima_index_meta_.extra_meta_size());
+    return core::IndexError_Success;
+  }
+  return Index::CreateAndInitConverterReformer(quantizer_param, index_param);
+}
 
 std::string HNSWIndex::storage_mode() const {
   if (!streamer_) {
@@ -134,8 +265,11 @@ int HNSWIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
     LOG_ERROR("Failed to create streamer");
     return core::IndexError_Runtime;
   }
-  if (ailego_unlikely(
-          streamer_->init(proxima_index_meta_, proxima_index_params_) != 0)) {
+  int ret = turbo_quantizer_ != nullptr && !is_sparse_
+                ? streamer_->init(proxima_index_meta_, proxima_index_params_,
+                                  turbo_quantizer_)
+                : streamer_->init(proxima_index_meta_, proxima_index_params_);
+  if (ailego_unlikely(ret != 0)) {
     LOG_ERROR("Failed to init streamer");
     return core::IndexError_Runtime;
   }

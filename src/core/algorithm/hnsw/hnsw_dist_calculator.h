@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <algorithm>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_provider.h>
 #include "hnsw_entity.h"
@@ -37,8 +38,9 @@ class HnswDistCalculator {
   HnswDistCalculator(const HnswEntity *entity,
                      const IndexMetric::Pointer &metric, uint32_t dim)
       : entity_(entity),
-        distance_(metric->distance()),
-        batch_distance_(metric->batch_distance()),
+        distance_(metric ? metric->distance() : IndexMetric::MatrixDistance{}),
+        batch_distance_(metric ? metric->batch_distance()
+                               : IndexMetric::MatrixBatchDistance{}),
         query_(nullptr),
         dim_(dim),
         compare_cnt_(0) {}
@@ -48,8 +50,9 @@ class HnswDistCalculator {
                      const IndexMetric::Pointer &metric, uint32_t dim,
                      const void *query)
       : entity_(entity),
-        distance_(metric->distance()),
-        batch_distance_(metric->batch_distance()),
+        distance_(metric ? metric->distance() : IndexMetric::MatrixDistance{}),
+        batch_distance_(metric ? metric->batch_distance()
+                               : IndexMetric::MatrixBatchDistance{}),
         query_(query),
         dim_(dim),
         compare_cnt_(0) {}
@@ -58,23 +61,26 @@ class HnswDistCalculator {
   HnswDistCalculator(const HnswEntity *entity,
                      const IndexMetric::Pointer &metric)
       : entity_(entity),
-        distance_(metric->distance()),
-        batch_distance_(metric->batch_distance()),
+        distance_(metric ? metric->distance() : IndexMetric::MatrixDistance{}),
+        batch_distance_(metric ? metric->batch_distance()
+                               : IndexMetric::MatrixBatchDistance{}),
         query_(nullptr),
         dim_(0),
         compare_cnt_(0) {}
 
   void update(const HnswEntity *entity, const IndexMetric::Pointer &metric) {
     entity_ = entity;
-    distance_ = metric->distance();
-    batch_distance_ = metric->batch_distance();
+    distance_ = metric ? metric->distance() : IndexMetric::MatrixDistance{};
+    batch_distance_ =
+        metric ? metric->batch_distance() : IndexMetric::MatrixBatchDistance{};
   }
 
   void update(const HnswEntity *entity, const IndexMetric::Pointer &metric,
               uint32_t dim) {
     entity_ = entity;
-    distance_ = metric->distance();
-    batch_distance_ = metric->batch_distance();
+    distance_ = metric ? metric->distance() : IndexMetric::MatrixDistance{};
+    batch_distance_ =
+        metric ? metric->batch_distance() : IndexMetric::MatrixBatchDistance{};
     dim_ = dim;
   }
 
@@ -106,6 +112,11 @@ class HnswDistCalculator {
 
     float score{0.0f};
 
+    if (ailego_unlikely(!distance_)) {
+      LOG_ERROR("Distance function is not initialized");
+      error_ = true;
+      return 0.0f;
+    }
     distance_(vec_lhs, vec_rhs, dim_, &score);
 
     return score;
@@ -184,6 +195,12 @@ class HnswDistCalculator {
   void batch_dist(const void **vecs, size_t num, dist_t *distances) {
     compare_cnt_++;
 
+    if (ailego_unlikely(!batch_distance_)) {
+      LOG_ERROR("Batch distance function is not initialized");
+      error_ = true;
+      std::fill(distances, distances + num, 0.0f);
+      return;
+    }
     batch_distance_(vecs, query_, num, dim_, distances);
   }
 
@@ -204,6 +221,11 @@ class HnswDistCalculator {
       return 0.0f;
     }
     dist_t score = 0;
+    if (ailego_unlikely(!batch_distance_)) {
+      LOG_ERROR("Batch distance function is not initialized");
+      error_ = true;
+      return 0.0f;
+    }
     batch_distance_(&feat, query_, 1, dim_, &score);
 
     return score;
