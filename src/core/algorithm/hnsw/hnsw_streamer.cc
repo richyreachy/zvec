@@ -16,6 +16,7 @@
 #include <ailego/internal/cpu_features.h>
 #include <ailego/pattern/defer.h>
 #include <ailego/utility/memory_helper.h>
+#include <turbo/quantizer/quantizer.h>
 #include "utility/sparse_utility.h"
 #include "hnsw_algorithm.h"
 #include "hnsw_context.h"
@@ -177,6 +178,21 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
   return 0;
 }
 
+int HnswStreamer::init(
+    const IndexMeta &imeta, const ailego::Params &params,
+    const std::shared_ptr<zvec::turbo::Quantizer> &quantizer) {
+  if (!quantizer) {
+    return this->init(imeta, params);
+  }
+
+  quantizer_ = quantizer;
+  int ret = this->init(imeta, params);
+  if (ret != 0) {
+    quantizer_.reset();
+  }
+  return ret;
+}
+
 int HnswStreamer::cleanup(void) {
   if (state_ == STATE_OPENED) {
     this->close();
@@ -186,6 +202,11 @@ int HnswStreamer::cleanup(void) {
 
   meta_.clear();
   metric_.reset();
+  quantizer_.reset();
+  add_distance_ = {};
+  add_batch_distance_ = {};
+  search_distance_ = {};
+  search_batch_distance_ = {};
   stats_.clear();
   provider_.reset();
   provider_meta_.clear();
@@ -295,7 +316,8 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
     if (index_meta.dimension() != meta_.dimension() ||
         index_meta.element_size() != meta_.element_size() ||
         index_meta.metric_name() != meta_.metric_name() ||
-        index_meta.data_type() != meta_.data_type()) {
+        index_meta.data_type() != meta_.data_type() ||
+        index_meta.quantizer_name() != meta_.quantizer_name()) {
       LOG_ERROR("IndexMeta mismatch from the previous in index");
       return IndexError_Mismatch;
     }
@@ -317,58 +339,80 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
     }
   }
 
-  metric_ = IndexFactory::CreateMetric(meta_.metric_name());
-  if (!metric_) {
-    LOG_ERROR("Failed to create metric %s", meta_.metric_name().c_str());
-    return IndexError_NoExist;
-  }
-  ret = metric_->init(meta_, meta_.metric_params());
-  if (ret != 0) {
-    LOG_ERROR("Failed to init metric, ret=%d", ret);
-    return ret;
-  }
-
-  if (!metric_->distance()) {
-    LOG_ERROR("Invalid metric distance");
-    return IndexError_InvalidArgument;
-  }
-
-  if (!metric_->batch_distance()) {
-    LOG_ERROR("Invalid metric batch distance");
-    return IndexError_InvalidArgument;
-  }
-
-  add_distance_ = metric_->distance();
-  add_batch_distance_ = metric_->batch_distance();
-  const size_t stored_vector_size = meta_.element_size();
-  const size_t stored_extra_values_size =
-      metric_->extra_values_size_per_vector();
   auto valid_vector_layout = [](size_t vector_size, size_t extra_values_size) {
     return extra_values_size == 0 || extra_values_size < vector_size;
   };
-  if (!valid_vector_layout(stored_vector_size, stored_extra_values_size)) {
-    LOG_ERROR("Invalid HNSW vector layout, vector_size=%zu extra_size=%zu",
-              stored_vector_size, stored_extra_values_size);
-    return IndexError_InvalidArgument;
-  }
 
-  search_distance_ = add_distance_;
-  search_batch_distance_ = add_batch_distance_;
+  if (quantizer_) {
+    auto quantizer = quantizer_;
+    add_distance_ = [quantizer](const void *lhs, const void *rhs, size_t,
+                                float *out) {
+      *out = quantizer->calc_distance_dp_dp(lhs, rhs);
+    };
+    add_batch_distance_ = [quantizer](const void **vectors, const void *query,
+                                      size_t count, size_t, float *out,
+                                      const void **) {
+      for (size_t i = 0; i < count; ++i) {
+        out[i] = quantizer->calc_distance_dp_dp(vectors[i], query);
+      }
+    };
+    search_distance_ = [quantizer](const void *vector, const void *query,
+                                   size_t, float *out) {
+      *out = quantizer->calc_distance_dp_query(vector, query);
+    };
+    search_batch_distance_ = [quantizer](const void **vectors,
+                                         const void *query, size_t count,
+                                         size_t, float *out, const void **) {
+      quantizer->calc_distance_dp_query_batch(vectors, static_cast<int>(count),
+                                              query, out);
+    };
+  } else {
+    metric_ = IndexFactory::CreateMetric(meta_.metric_name());
+    if (!metric_) {
+      LOG_ERROR("Failed to create metric %s", meta_.metric_name().c_str());
+      return IndexError_NoExist;
+    }
+    ret = metric_->init(meta_, meta_.metric_params());
+    if (ret != 0) {
+      LOG_ERROR("Failed to init metric, ret=%d", ret);
+      return ret;
+    }
 
-  const auto query_metric = metric_->query_metric();
-  if (query_metric && query_metric->distance() &&
-      query_metric->batch_distance()) {
-    const size_t query_extra_values_size =
-        query_metric->extra_values_size_per_vector();
-    if (query_extra_values_size != stored_extra_values_size) {
-      LOG_ERROR(
-          "HNSW query metric layout mismatch, stored_extra_size=%zu "
-          "query_extra_size=%zu",
-          stored_extra_values_size, query_extra_values_size);
+    if (!metric_->distance() || !metric_->batch_distance()) {
+      LOG_ERROR("Invalid metric distance");
       return IndexError_InvalidArgument;
     }
-    search_distance_ = query_metric->distance();
-    search_batch_distance_ = query_metric->batch_distance();
+
+    add_distance_ = metric_->distance();
+    add_batch_distance_ = metric_->batch_distance();
+
+    const size_t stored_vector_size = meta_.element_size();
+    const size_t stored_extra_values_size =
+        metric_->extra_values_size_per_vector();
+    if (!valid_vector_layout(stored_vector_size, stored_extra_values_size)) {
+      LOG_ERROR("Invalid HNSW vector layout, vector_size=%zu extra_size=%zu",
+                stored_vector_size, stored_extra_values_size);
+      return IndexError_InvalidArgument;
+    }
+
+    search_distance_ = add_distance_;
+    search_batch_distance_ = add_batch_distance_;
+
+    const auto query_metric = metric_->query_metric();
+    if (query_metric && query_metric->distance() &&
+        query_metric->batch_distance()) {
+      const size_t query_extra_values_size =
+          query_metric->extra_values_size_per_vector();
+      if (query_extra_values_size != stored_extra_values_size) {
+        LOG_ERROR(
+            "HNSW query metric layout mismatch, stored_extra_size=%zu "
+            "query_extra_size=%zu",
+            stored_extra_values_size, query_extra_values_size);
+        return IndexError_InvalidArgument;
+      }
+      search_distance_ = query_metric->distance();
+      search_batch_distance_ = query_metric->batch_distance();
+    }
   }
 
   //! Create a dedicated build metric when the provider meta differs from
@@ -405,18 +449,22 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
       add_distance_ = provider_metric_->distance();
       add_batch_distance_ = provider_metric_->batch_distance();
     }
+    // The quantizer path leaves metric_ empty, so there is no metric layout
+    // to validate against in that case
     const IndexMetric *add_metric =
         provider_metric_ ? provider_metric_.get() : metric_.get();
-    const size_t provider_vector_size = provider_meta_.element_size();
-    const size_t provider_extra_values_size =
-        add_metric->extra_values_size_per_vector();
-    if (!valid_vector_layout(provider_vector_size,
-                             provider_extra_values_size)) {
-      LOG_ERROR(
-          "Invalid HNSW provider vector layout, vector_size=%zu "
-          "extra_size=%zu",
-          provider_vector_size, provider_extra_values_size);
-      return IndexError_InvalidArgument;
+    if (add_metric) {
+      const size_t provider_vector_size = provider_meta_.element_size();
+      const size_t provider_extra_values_size =
+          add_metric->extra_values_size_per_vector();
+      if (!valid_vector_layout(provider_vector_size,
+                               provider_extra_values_size)) {
+        LOG_ERROR(
+            "Invalid HNSW provider vector layout, vector_size=%zu "
+            "extra_size=%zu",
+            provider_vector_size, provider_extra_values_size);
+        return IndexError_InvalidArgument;
+      }
     }
   }
 
@@ -465,7 +513,9 @@ int HnswStreamer::close(void) {
   LOG_INFO("HnswStreamer close");
 
   stats_.clear();
-  meta_.set_metric(metric_->name(), 0, metric_->params());
+  if (metric_) {
+    meta_.set_metric(metric_->name(), 0, metric_->params());
+  }
   entity_->set_index_meta(meta_);
   int ret = entity_->close();
   if (ret != 0) {
@@ -479,7 +529,9 @@ int HnswStreamer::close(void) {
 int HnswStreamer::flush(uint64_t checkpoint) {
   LOG_INFO("HnswStreamer flush checkpoint=%zu", (size_t)checkpoint);
 
-  meta_.set_metric(metric_->name(), 0, metric_->params());
+  if (metric_) {
+    meta_.set_metric(metric_->name(), 0, metric_->params());
+  }
   entity_->set_index_meta(meta_);
   return entity_->flush(checkpoint);
 }
@@ -575,14 +627,18 @@ void HnswStreamer::bind_add_dist_space(HnswContext *ctx) const {
       provider_metric_ ? provider_metric_.get() : metric_.get();
   const size_t vector_size =
       provider_ ? provider_meta_.element_size() : meta_.element_size();
+  // The quantizer path has no metric, and quantizers keep no extra values
+  const size_t extra_values_size =
+      add_metric ? add_metric->extra_values_size_per_vector() : 0;
   ctx->bind_dist_space(add_distance_, add_batch_distance_, provider_,
-                       vector_size, add_metric->extra_values_size_per_vector());
+                       vector_size, extra_values_size);
 }
 
 void HnswStreamer::bind_search_dist_space(HnswContext *ctx) const {
+  const size_t extra_values_size =
+      metric_ ? metric_->extra_values_size_per_vector() : 0;
   ctx->bind_dist_space(search_distance_, search_batch_distance_, nullptr,
-                       meta_.element_size(),
-                       metric_->extra_values_size_per_vector());
+                       meta_.element_size(), extra_values_size);
 }
 
 //! Add a vector with id into index
@@ -646,7 +702,7 @@ int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
     ctx->reset_query(query, meta_);
   }
 
-  if (metric_->support_train()) {
+  if (metric_ && metric_->support_train()) {
     const std::lock_guard<std::mutex> lk(mutex_);
     ret = metric_->train(query, meta_.dimension());
     if (ailego_unlikely(ret != 0)) {
@@ -740,7 +796,7 @@ int HnswStreamer::add_impl(uint64_t pkey, const void *query,
     ctx->reset_query(query, meta_);
   }
 
-  if (metric_->support_train()) {
+  if (metric_ && metric_->support_train()) {
     const std::lock_guard<std::mutex> lk(mutex_);
     ret = metric_->train(query, meta_.dimension());
     if (ailego_unlikely(ret != 0)) {
