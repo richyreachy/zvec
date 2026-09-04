@@ -339,6 +339,10 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
     }
   }
 
+  auto valid_vector_layout = [](size_t vector_size, size_t extra_values_size) {
+    return extra_values_size == 0 || extra_values_size < vector_size;
+  };
+
   if (quantizer_) {
     auto quantizer = quantizer_;
     add_distance_ = [quantizer](const void *lhs, const void *rhs, size_t,
@@ -346,7 +350,8 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
       *out = quantizer->calc_distance_dp_dp(lhs, rhs);
     };
     add_batch_distance_ = [quantizer](const void **vectors, const void *query,
-                                      size_t count, size_t, float *out) {
+                                      size_t count, size_t, float *out,
+                                      const void **) {
       for (size_t i = 0; i < count; ++i) {
         out[i] = quantizer->calc_distance_dp_dp(vectors[i], query);
       }
@@ -357,7 +362,7 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
     };
     search_batch_distance_ = [quantizer](const void **vectors,
                                          const void *query, size_t count,
-                                         size_t, float *out) {
+                                         size_t, float *out, const void **) {
       quantizer->calc_distance_dp_query_batch(vectors, static_cast<int>(count),
                                               query, out);
     };
@@ -380,19 +385,40 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
 
     add_distance_ = metric_->distance();
     add_batch_distance_ = metric_->batch_distance();
+
+    const size_t stored_vector_size = meta_.element_size();
+    const size_t stored_extra_values_size =
+        metric_->extra_values_size_per_vector();
+    if (!valid_vector_layout(stored_vector_size, stored_extra_values_size)) {
+      LOG_ERROR("Invalid HNSW vector layout, vector_size=%zu extra_size=%zu",
+                stored_vector_size, stored_extra_values_size);
+      return IndexError_InvalidArgument;
+    }
+
     search_distance_ = add_distance_;
     search_batch_distance_ = add_batch_distance_;
 
-    if (metric_->query_metric() && metric_->query_metric()->distance() &&
-        metric_->query_metric()->batch_distance()) {
-      search_distance_ = metric_->query_metric()->distance();
-      search_batch_distance_ = metric_->query_metric()->batch_distance();
+    const auto query_metric = metric_->query_metric();
+    if (query_metric && query_metric->distance() &&
+        query_metric->batch_distance()) {
+      const size_t query_extra_values_size =
+          query_metric->extra_values_size_per_vector();
+      if (query_extra_values_size != stored_extra_values_size) {
+        LOG_ERROR(
+            "HNSW query metric layout mismatch, stored_extra_size=%zu "
+            "query_extra_size=%zu",
+            stored_extra_values_size, query_extra_values_size);
+        return IndexError_InvalidArgument;
+      }
+      search_distance_ = query_metric->distance();
+      search_batch_distance_ = query_metric->batch_distance();
     }
   }
 
   //! Create a dedicated build metric when the provider meta differs from
   //! the index meta in layout or metric, so build distances run in the
   //! original vector space
+  provider_metric_.reset();
   if (provider_) {
     const bool layout_differs =
         provider_meta_.data_type() != meta_.data_type() ||
@@ -422,6 +448,23 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
       }
       add_distance_ = provider_metric_->distance();
       add_batch_distance_ = provider_metric_->batch_distance();
+    }
+    // The quantizer path leaves metric_ empty, so there is no metric layout
+    // to validate against in that case
+    const IndexMetric *add_metric =
+        provider_metric_ ? provider_metric_.get() : metric_.get();
+    if (add_metric) {
+      const size_t provider_vector_size = provider_meta_.element_size();
+      const size_t provider_extra_values_size =
+          add_metric->extra_values_size_per_vector();
+      if (!valid_vector_layout(provider_vector_size,
+                               provider_extra_values_size)) {
+        LOG_ERROR(
+            "Invalid HNSW provider vector layout, vector_size=%zu "
+            "extra_size=%zu",
+            provider_vector_size, provider_extra_values_size);
+        return IndexError_InvalidArgument;
+      }
     }
   }
 
@@ -579,6 +622,25 @@ int HnswStreamer::update_context(HnswContext *ctx) const {
                              entity, magic_);
 }
 
+void HnswStreamer::bind_add_dist_space(HnswContext *ctx) const {
+  const IndexMetric *add_metric =
+      provider_metric_ ? provider_metric_.get() : metric_.get();
+  const size_t vector_size =
+      provider_ ? provider_meta_.element_size() : meta_.element_size();
+  // The quantizer path has no metric, and quantizers keep no extra values
+  const size_t extra_values_size =
+      add_metric ? add_metric->extra_values_size_per_vector() : 0;
+  ctx->bind_dist_space(add_distance_, add_batch_distance_, provider_,
+                       vector_size, extra_values_size);
+}
+
+void HnswStreamer::bind_search_dist_space(HnswContext *ctx) const {
+  const size_t extra_values_size =
+      metric_ ? metric_->extra_values_size_per_vector() : 0;
+  ctx->bind_dist_space(search_distance_, search_batch_distance_, nullptr,
+                       meta_.element_size(), extra_values_size);
+}
+
 //! Add a vector with id into index
 int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
                                    const IndexQueryMeta &qmeta,
@@ -621,7 +683,7 @@ int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
   AILEGO_DEFER([&]() { shared_mutex_.unlock_shared(); });
 
   ctx->clear();
-  ctx->bind_dist_space(add_distance_, add_batch_distance_, provider_);
+  bind_add_dist_space(ctx);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
 
   //! use the original vector from provider as the build query, fetched
@@ -716,7 +778,7 @@ int HnswStreamer::add_impl(uint64_t pkey, const void *query,
   AILEGO_DEFER([&]() { shared_mutex_.unlock_shared(); });
 
   ctx->clear();
-  ctx->bind_dist_space(add_distance_, add_batch_distance_, provider_);
+  bind_add_dist_space(ctx);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
 
   //! use the original vector from provider as the build query
@@ -803,7 +865,7 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
 
   ctx->clear();
   //! search always uses the vectors stored in the entity
-  ctx->bind_dist_space(search_distance_, search_batch_distance_, nullptr);
+  bind_search_dist_space(ctx);
   ctx->resize_results(count);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
   for (size_t q = 0; q < count; ++q) {
@@ -874,7 +936,7 @@ int HnswStreamer::search_bf_impl(
 
   ctx->clear();
   //! search always uses the vectors stored in the entity
-  ctx->bind_dist_space(search_distance_, search_batch_distance_, nullptr);
+  bind_search_dist_space(ctx);
   ctx->resize_results(count);
 
   if (ctx->group_by_search()) {
@@ -897,7 +959,7 @@ int HnswStreamer::search_bf_impl(
         }
 
         if (!ctx->filter().is_valid() || !ctx->filter()(entity_->get_key(id))) {
-          dist_t dist = ctx->dist_calculator().batch_dist(id);
+          dist_t dist = ctx->batch_dist(id);
 
           std::string group_id = group_by(id);
 
@@ -924,7 +986,7 @@ int HnswStreamer::search_bf_impl(
         }
 
         if (!filter.is_valid() || !filter(entity_->get_key(id))) {
-          dist_t dist = ctx->dist_calculator().batch_dist(id);
+          dist_t dist = ctx->batch_dist(id);
           topk.emplace(id, dist);
         }
       }
@@ -969,7 +1031,7 @@ int HnswStreamer::search_bf_by_p_keys_impl(
 
   ctx->clear();
   //! search always uses the vectors stored in the entity
-  ctx->bind_dist_space(search_distance_, search_batch_distance_, nullptr);
+  bind_search_dist_space(ctx);
   ctx->resize_results(count);
 
   if (ctx->group_by_search()) {
@@ -991,7 +1053,7 @@ int HnswStreamer::search_bf_by_p_keys_impl(
         if (!ctx->filter().is_valid() || !ctx->filter()(pk)) {
           node_id_t id = entity_->get_id(pk);
           if (id != kInvalidNodeId) {
-            dist_t dist = ctx->dist_calculator().batch_dist(id);
+            dist_t dist = ctx->batch_dist(id);
             std::string group_id = group_by(id);
 
             auto &topk_heap = ctx->group_topk_heaps()[group_id];
@@ -1017,7 +1079,7 @@ int HnswStreamer::search_bf_by_p_keys_impl(
         if (!filter.is_valid() || !filter(pk)) {
           node_id_t id = entity_->get_id(pk);
           if (id != kInvalidNodeId) {
-            dist_t dist = ctx->dist_calculator().batch_dist(id);
+            dist_t dist = ctx->batch_dist(id);
             topk.emplace(id, dist);
           }
         }
