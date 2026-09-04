@@ -228,7 +228,7 @@ class ZVEC_CORE_API Index {
   core::IndexStreamer::Pointer streamer_{};
   core::IndexReformer::Pointer reformer_{};
   core::IndexConverter::Pointer converter_{};  // for build()
-  core::IndexMetric::Pointer metric_{};        // to do normalization
+  core::IndexMetric::Pointer metric_{};        // legacy distance/score path
   // Quantizes records and queries and computes distances through turbo SIMD
   // kernels. When set, converter_/reformer_/metric_ stay null.
   std::shared_ptr<turbo::Quantizer> turbo_quantizer_{};
@@ -301,7 +301,7 @@ class ZVEC_CORE_API HNSWIndex : public Index {
  public:
   HNSWIndex() = default;
 
-  //! Open the index, falling back to the legacy INT8 converter pipeline when
+  //! Open the index, falling back to the legacy converter/metric pipeline when
   //! the persisted HNSW layout predates the turbo quantizer attachment.
   int open(const std::string &file_path,
            StorageOptions storage_options) override;
@@ -333,7 +333,7 @@ class ZVEC_CORE_API HNSWIndex : public Index {
       const BaseIndexQueryParam::Pointer &search_param) override;
 
  private:
-  int FallbackToLegacyInt8Pipeline(void);
+  int FallbackToLegacyPipeline(void);
 
   HNSWIndexParam param_{};
 };

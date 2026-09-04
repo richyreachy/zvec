@@ -852,7 +852,20 @@ int Index::_dense_search(const VectorData &vector_data,
     result->doc_list_ = std::move(context->result());
   }
 
-  if (metric_ != nullptr && metric_->support_normalize()) {
+  if (turbo_quantizer_ != nullptr &&
+      turbo_quantizer_->support_score_normalization()) {
+    if (has_group_by) {
+      for (auto &group : result->group_doc_list_) {
+        for (auto &doc : *group.mutable_docs()) {
+          turbo_quantizer_->normalize_score(doc.mutable_score());
+        }
+      }
+    } else {
+      for (auto &doc : result->doc_list_) {
+        turbo_quantizer_->normalize_score(doc.mutable_score());
+      }
+    }
+  } else if (metric_ != nullptr && metric_->support_normalize()) {
     if (has_group_by) {
       for (auto &group : result->group_doc_list_) {
         for (auto &doc : *group.mutable_docs()) {

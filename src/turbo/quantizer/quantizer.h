@@ -142,6 +142,17 @@ class Quantizer {
     return DistanceImpl{};
   }
 
+  //! Convert an internal distance to the caller-facing score space.
+  virtual void normalize_score(float * /*score*/) const {}
+
+  //! Convert a caller-facing score threshold to internal distance space.
+  virtual void denormalize_score(float * /*score*/) const {}
+
+  //! Whether score-space conversion is required for this quantizer.
+  virtual bool support_score_normalization() const {
+    return false;
+  }
+
   //! Serialize quantizer parameters
   virtual int serialize(std::string * /*out*/) const {
     return 0;

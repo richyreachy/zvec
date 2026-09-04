@@ -62,6 +62,36 @@ int ReadPersistedHnswIndexMeta(const std::string &file_path,
   return ret;
 }
 
+const char *ResolveTurboQuantizerName(const QuantizerParam &quantizer_param,
+                                      const HNSWIndexParam &hnsw_param) {
+  // Turbo quantizers currently consume FP32 inputs and own dense, in-index
+  // vector storage. Keep the legacy pipeline for layouts outside that
+  // contract, including sparse and external-vector HNSW.
+  if (hnsw_param.is_sparse || hnsw_param.use_external_vector ||
+      hnsw_param.data_type != DataType::DT_FP32 ||
+      hnsw_param.metric_type == MetricType::kMIPSL2sq) {
+    return nullptr;
+  }
+
+  // Rotation is still implemented by the legacy integer converters.
+  if (quantizer_param.enable_rotate) {
+    return nullptr;
+  }
+
+  switch (quantizer_param.type) {
+    case QuantizerType::kNone:
+      return "Fp32Quantizer";
+    case QuantizerType::kFP16:
+      return "Fp16Quantizer";
+    case QuantizerType::kInt8:
+      return "Int8Quantizer";
+    case QuantizerType::kInt4:
+      return "Int4Quantizer";
+    default:
+      return nullptr;
+  }
+}
+
 }  // namespace
 
 int HNSWIndex::open(const std::string &file_path,
@@ -72,10 +102,10 @@ int HNSWIndex::open(const std::string &file_path,
                                    &persisted_meta) == 0 &&
         persisted_meta.quantizer_name().empty()) {
       LOG_INFO(
-          "Persisted HNSW index %s uses the legacy INT8 layout, falling back "
-          "to the converter pipeline",
+          "Persisted HNSW index %s uses a legacy layout, falling back to the "
+          "converter/metric pipeline",
           file_path.c_str());
-      int ret = FallbackToLegacyInt8Pipeline();
+      int ret = FallbackToLegacyPipeline();
       if (ret != 0) {
         return ret;
       }
@@ -84,7 +114,7 @@ int HNSWIndex::open(const std::string &file_path,
   return Index::open(file_path, storage_options);
 }
 
-int HNSWIndex::FallbackToLegacyInt8Pipeline(void) {
+int HNSWIndex::FallbackToLegacyPipeline(void) {
   turbo_quantizer_.reset();
   streamer_.reset();
   converter_.reset();
@@ -126,29 +156,27 @@ int HNSWIndex::FallbackToLegacyInt8Pipeline(void) {
 int HNSWIndex::CreateAndInitConverterReformer(
     const QuantizerParam &quantizer_param, const BaseIndexParam &index_param) {
   const auto &hnsw_param = dynamic_cast<const HNSWIndexParam &>(index_param);
-  if (quantizer_param.type == QuantizerType::kInt8 &&
-      !quantizer_param.enable_rotate && !hnsw_param.is_sparse &&
-      !hnsw_param.use_external_vector &&
-      hnsw_param.data_type == DataType::DT_FP32 &&
-      (hnsw_param.metric_type == MetricType::kCosine ||
-       hnsw_param.metric_type == MetricType::kL2sq)) {
-    turbo_quantizer_ = core::IndexFactory::CreateQuantizer("Int8Quantizer");
+  const char *quantizer_name =
+      ResolveTurboQuantizerName(quantizer_param, hnsw_param);
+  if (quantizer_name != nullptr) {
+    turbo_quantizer_ = core::IndexFactory::CreateQuantizer(quantizer_name);
     if (!turbo_quantizer_) {
-      LOG_ERROR("Failed to create turbo Int8Quantizer");
+      LOG_ERROR("Failed to create turbo quantizer %s", quantizer_name);
       return core::IndexError_Runtime;
     }
     if (turbo_quantizer_->init(proxima_index_meta_, ailego::Params{}) != 0) {
-      LOG_ERROR("Failed to init turbo Int8Quantizer");
+      LOG_ERROR("Failed to init turbo quantizer %s", quantizer_name);
       turbo_quantizer_.reset();
       return core::IndexError_Runtime;
     }
 
     proxima_index_meta_ = turbo_quantizer_->meta();
-    proxima_index_meta_.set_quantizer("Int8Quantizer", 0, ailego::Params{});
-    streamer_vector_meta_.set_meta(proxima_index_meta_.data_type(),
-                                   proxima_index_meta_.dimension());
-    streamer_vector_meta_.set_extra_meta_size(
+    proxima_index_meta_.set_quantizer(quantizer_name, 0, ailego::Params{});
+    streamer_vector_meta_.set_meta(
+        proxima_index_meta_.data_type(), proxima_index_meta_.dimension(),
+        static_cast<uint32_t>(turbo_quantizer_->type()),
         proxima_index_meta_.extra_meta_size());
+    streamer_vector_meta_.set_meta_type(proxima_index_meta_.meta_type());
     return core::IndexError_Success;
   }
   return Index::CreateAndInitConverterReformer(quantizer_param, index_param);
@@ -307,7 +335,12 @@ int HNSWIndex::_prepare_for_search(
     context->reset_filter();
   }
   if (hnsw_search_param->radius > 0.0f) {
-    context->set_threshold(hnsw_search_param->radius);
+    float threshold = hnsw_search_param->radius;
+    if (turbo_quantizer_ != nullptr &&
+        turbo_quantizer_->support_score_normalization()) {
+      turbo_quantizer_->denormalize_score(&threshold);
+    }
+    context->set_threshold(threshold);
   }
   ailego::Params params;
   const int real_search_ef =
