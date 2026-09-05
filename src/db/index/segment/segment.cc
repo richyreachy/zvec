@@ -1263,77 +1263,82 @@ Doc::Ptr SegmentImpl::Fetch(
   if (!include_vector) {
     return doc;
   }
-  for (const auto &field : collection_schema_->vector_fields()) {
-    int block_idx = find_persist_block_id(BlockType::VECTOR_INDEX,
-                                          segment_doc_id, field->name());
-    if (block_idx != -1) {
-      const auto &block_offsets =
-          get_persist_block_offsets(BlockType::VECTOR_INDEX, field->name());
-      auto block_offset = block_offsets[block_idx];
-      auto block_doc_id = segment_doc_id - block_offset;
-
-      auto column_name = field->name();
-      auto iter = vector_indexers_.find(column_name);
-      if (iter != vector_indexers_.end()) {
-        const auto &vector_indexers = iter->second;
-        if (block_idx >= (int)vector_indexers.size()) {
-          LOG_ERROR("block_idx[%d] out of range[%lu]", block_idx,
-                    vector_indexers.size());
-          continue;
-        }
-        auto vector_indexer = vector_indexers[block_idx];
-        auto fetch_result = vector_indexer->Fetch(block_doc_id);
-        if (!fetch_result) {
-          LOG_ERROR(
-              "vector indexer fetch failed, block_doc_id: %d, block_idx: %d, "
-              "segment_doc_id: %d",
-              block_doc_id, block_idx, segment_doc_id);
-          return nullptr;
-        }
-        const auto &vector_buffer = fetch_result.value();
-        auto status =
-            ConvertVectorDataBufferToDocField(field, vector_buffer, doc.get());
-        if (!status.ok()) {
-          LOG_ERROR("convert vector data buffer to doc field failed %s",
-                    status.message().c_str());
-        }
-      }
-
-    } else {
-      if (segment_meta_->has_writing_forward_block()) {
-        const auto &p_block_offsets =
+  {
+    // seg_mtx_ above does not exclude dump-triggered flushes, so the vector
+    // block lookup and indexer maps must be read under the column lock.
+    std::shared_lock<std::shared_mutex> col_lock(seg_col_mtx_);
+    for (const auto &field : collection_schema_->vector_fields()) {
+      int block_idx = find_persist_block_id(BlockType::VECTOR_INDEX,
+                                            segment_doc_id, field->name());
+      if (block_idx != -1) {
+        const auto &block_offsets =
             get_persist_block_offsets(BlockType::VECTOR_INDEX, field->name());
-        const auto &p_block_metas =
-            get_persist_block_metas(BlockType::VECTOR_INDEX, field->name());
-        auto mem_block_offset =
-            p_block_offsets.empty()
-                ? 0
-                : p_block_offsets.back() + p_block_metas.back().doc_count_;
-        int block_doc_id = segment_doc_id - mem_block_offset;
+        auto block_offset = block_offsets[block_idx];
+        auto block_doc_id = segment_doc_id - block_offset;
+
         auto column_name = field->name();
-        auto iter = memory_vector_indexers_.find(column_name);
-        if (iter != memory_vector_indexers_.end()) {
-          auto vector_indexer = iter->second;
-          auto fetch_result = vector_indexer->Fetch(block_doc_id);
-          if (!fetch_result.has_value()) {
-            LOG_ERROR(
-                "vector indexer fetch failed, column: %s, doc_count: %lu, "
-                "mem_block_offset: %d, block_doc_id: %d",
-                field->name().c_str(), vector_indexer->doc_count(),
-                mem_block_offset, block_doc_id);
+        auto iter = vector_indexers_.find(column_name);
+        if (iter != vector_indexers_.end()) {
+          const auto &vector_indexers = iter->second;
+          if (block_idx >= (int)vector_indexers.size()) {
+            LOG_ERROR("block_idx[%d] out of range[%lu]", block_idx,
+                      vector_indexers.size());
             continue;
           }
+          auto vector_indexer = vector_indexers[block_idx];
+          auto fetch_result = vector_indexer->Fetch(block_doc_id);
+          if (!fetch_result) {
+            LOG_ERROR(
+                "vector indexer fetch failed, block_doc_id: %d, block_idx: %d, "
+                "segment_doc_id: %d",
+                block_doc_id, block_idx, segment_doc_id);
+            return nullptr;
+          }
           const auto &vector_buffer = fetch_result.value();
-          auto status = ConvertVectorDataBufferToDocField(field, vector_buffer,
-                                                          doc.get());
+          auto status =
+              ConvertVectorDataBufferToDocField(field, vector_buffer, doc.get());
           if (!status.ok()) {
             LOG_ERROR("convert vector data buffer to doc field failed %s",
                       status.message().c_str());
           }
         }
+
       } else {
-        LOG_ERROR("Can't find vector block for g_doc_id: %zu",
-                  (size_t)g_doc_id);
+        if (segment_meta_->has_writing_forward_block()) {
+          const auto &p_block_offsets =
+              get_persist_block_offsets(BlockType::VECTOR_INDEX, field->name());
+          const auto &p_block_metas =
+              get_persist_block_metas(BlockType::VECTOR_INDEX, field->name());
+          auto mem_block_offset =
+              p_block_offsets.empty()
+                  ? 0
+                  : p_block_offsets.back() + p_block_metas.back().doc_count_;
+          int block_doc_id = segment_doc_id - mem_block_offset;
+          auto column_name = field->name();
+          auto iter = memory_vector_indexers_.find(column_name);
+          if (iter != memory_vector_indexers_.end()) {
+            auto vector_indexer = iter->second;
+            auto fetch_result = vector_indexer->Fetch(block_doc_id);
+            if (!fetch_result.has_value()) {
+              LOG_ERROR(
+                  "vector indexer fetch failed, column: %s, doc_count: %lu, "
+                  "mem_block_offset: %d, block_doc_id: %d",
+                  field->name().c_str(), vector_indexer->doc_count(),
+                  mem_block_offset, block_doc_id);
+              continue;
+            }
+            const auto &vector_buffer = fetch_result.value();
+            auto status = ConvertVectorDataBufferToDocField(field, vector_buffer,
+                                                            doc.get());
+            if (!status.ok()) {
+              LOG_ERROR("convert vector data buffer to doc field failed %s",
+                        status.message().c_str());
+            }
+          }
+        } else {
+          LOG_ERROR("Can't find vector block for g_doc_id: %zu",
+                    (size_t)g_doc_id);
+        }
       }
     }
   }
@@ -1343,6 +1348,9 @@ Doc::Ptr SegmentImpl::Fetch(
 
 CombinedVectorColumnIndexer::Ptr SegmentImpl::get_combined_vector_indexer(
     const std::string &field_name) const {
+  // The indexer maps and block metas are mutated by flush()/init under the
+  // column lock; reading them unlocked races with a concurrent block dump.
+  std::shared_lock<std::shared_mutex> lock(seg_col_mtx_);
   std::vector<VectorColumnIndexer::Ptr> indexers;
   auto iter = vector_indexers_.find(field_name);
   if (iter != vector_indexers_.end()) {
@@ -1367,6 +1375,7 @@ CombinedVectorColumnIndexer::Ptr SegmentImpl::get_combined_vector_indexer(
 
 CombinedVectorColumnIndexer::Ptr SegmentImpl::get_quant_combined_vector_indexer(
     const std::string &field_name) const {
+  std::shared_lock<std::shared_mutex> lock(seg_col_mtx_);
   std::vector<VectorColumnIndexer::Ptr> indexers;
   auto iter = quant_vector_indexers_.find(field_name);
   if (iter != quant_vector_indexers_.end()) {
@@ -2141,6 +2150,12 @@ Status SegmentImpl::flush() {
   }
 
   if (memory_store_) {
+    // The memory-to-persist block swap mutates state that readers (fetch,
+    // query) traverse under seg_col_mtx_, so it must hold the column lock;
+    // readers then observe either the old memory block or the fully migrated
+    // persisted block, never a half-migrated mix.
+    std::unique_lock<std::shared_mutex> col_lock(seg_col_mtx_);
+
     // update segment meta with memory components
     s = finish_memory_components();
     CHECK_RETURN_STATUS(s);
@@ -2616,77 +2631,87 @@ ExecBatchPtr SegmentImpl::fetch(const std::vector<std::string> &columns,
     return nullptr;
   }
 
-  std::shared_lock<std::shared_mutex> lock(seg_col_mtx_);
+  {
+    std::shared_lock<std::shared_mutex> lock(seg_col_mtx_);
 
-  const auto &block_offsets = get_persist_block_offsets(BlockType::SCALAR);
-  const auto &block_metas = get_persist_block_metas(BlockType::SCALAR);
+    const auto &block_offsets = get_persist_block_offsets(BlockType::SCALAR);
+    const auto &block_metas = get_persist_block_metas(BlockType::SCALAR);
 
-  bool is_in_single_persist_store = false;
-  for (auto &block : block_metas) {
-    std::vector<bool> is_column_in_block;
-    is_column_in_block.reserve(columns.size());
-    for (const auto &column : columns) {
-      is_column_in_block.push_back(block.contain_column(column));
+    bool is_in_single_persist_store = false;
+    for (auto &block : block_metas) {
+      std::vector<bool> is_column_in_block;
+      is_column_in_block.reserve(columns.size());
+      for (const auto &column : columns) {
+        is_column_in_block.push_back(block.contain_column(column));
+      }
+
+      // Count how many columns are in this block
+      int count =
+          std::count(is_column_in_block.begin(), is_column_in_block.end(), true);
+
+      if (count == 0) {
+        // None of the query columns are in this block; continue to the next block
+        continue;
+      } else if (count == static_cast<int>(columns.size())) {
+        // All query columns are present in this block; stop searching
+        is_in_single_persist_store = true;
+        break;
+      } else {
+        // Some but not all query columns are in this block (spanning multiple
+        // blocks); stop searching
+        break;
+      }
     }
 
-    // Count how many columns are in this block
-    int count =
-        std::count(is_column_in_block.begin(), is_column_in_block.end(), true);
+    if (is_in_single_persist_store) {
+      int offset_idx = -1;
+      int block_index = find_persist_block_id(BlockType::SCALAR, segment_doc_id,
+                                              columns[0], &offset_idx);
+      if (block_index != -1 && offset_idx > -1 &&
+          offset_idx < static_cast<int>(block_offsets.size())) {
+        int block_row = segment_doc_id - block_offsets[offset_idx];
+        return persist_stores_[block_index]->fetch(columns, block_row);
+      }
 
-    if (count == 0) {
-      // None of the query columns are in this block; continue to the next block
-      continue;
-    } else if (count == static_cast<int>(columns.size())) {
-      // All query columns are present in this block; stop searching
-      is_in_single_persist_store = true;
-      break;
-    } else {
-      // Some but not all query columns are in this block (spanning multiple
-      // blocks); stop searching
-      break;
+      // Check memory store
+      if (segment_meta_->has_writing_forward_block()) {
+        int mem_offset =
+            block_offsets.empty()
+                ? 0
+                : block_offsets.back() + block_metas.back().doc_count_;
+        const auto &mem_block = segment_meta_->writing_forward_block().value();
+
+        if (mem_offset <= segment_doc_id &&
+            segment_doc_id <
+                mem_offset + static_cast<int>(mem_block.doc_count_)) {
+          int block_row = segment_doc_id - mem_offset;
+          return memory_store_->fetch(columns, block_row);
+        }
+      }
+
+      LOG_ERROR("Segment doc ID %d not found in persist segment",
+                segment_doc_id);
+      return nullptr;
     }
   }
 
-  if (is_in_single_persist_store) {
-    int offset_idx = -1;
-    int block_index = find_persist_block_id(BlockType::SCALAR, segment_doc_id,
-                                            columns[0], &offset_idx);
-    if (block_index != -1 && offset_idx > -1 &&
-        offset_idx < static_cast<int>(block_offsets.size())) {
-      int block_row = segment_doc_id - block_offsets[offset_idx];
-      return persist_stores_[block_index]->fetch(columns, block_row);
+  // Columns span multiple persisted blocks; fall back to the multi-row fetch.
+  // The column lock above must be released first: that path takes the lock
+  // itself, and a nested shared acquisition can deadlock against a flush
+  // waiting for the unique lock.
+  auto table = fetch(columns, std::vector<int>{segment_doc_id});
+  if (table) {
+    std::vector<arrow::Datum> datums;
+    for (const auto &col : table->columns()) {
+      datums.emplace_back(col->chunk(0)->GetScalar(0).ValueOrDie());
     }
 
-    // Check memory store
-    if (segment_meta_->has_writing_forward_block()) {
-      int mem_offset =
-          block_offsets.empty()
-              ? 0
-              : block_offsets.back() + block_metas.back().doc_count_;
-      const auto &mem_block = segment_meta_->writing_forward_block().value();
+    arrow::Result<arrow::compute::ExecBatch> exec_batch_result =
+        arrow::compute::ExecBatch::Make(datums, table->num_rows());
 
-      if (mem_offset <= segment_doc_id &&
-          segment_doc_id <
-              mem_offset + static_cast<int>(mem_block.doc_count_)) {
-        int block_row = segment_doc_id - mem_offset;
-        return memory_store_->fetch(columns, block_row);
-      }
-    }
-  } else {
-    auto table = fetch(columns, std::vector<int>{segment_doc_id});
-    if (table) {
-      std::vector<arrow::Datum> datums;
-      for (const auto &col : table->columns()) {
-        datums.emplace_back(col->chunk(0)->GetScalar(0).ValueOrDie());
-      }
-
-      arrow::Result<arrow::compute::ExecBatch> exec_batch_result =
-          arrow::compute::ExecBatch::Make(datums, table->num_rows());
-
-      if (exec_batch_result.ok()) {
-        arrow::compute::ExecBatch exec_batch = exec_batch_result.ValueOrDie();
-        return std::make_shared<arrow::compute::ExecBatch>(exec_batch);
-      }
+    if (exec_batch_result.ok()) {
+      arrow::compute::ExecBatch exec_batch = exec_batch_result.ValueOrDie();
+      return std::make_shared<arrow::compute::ExecBatch>(exec_batch);
     }
   }
 
@@ -4061,6 +4086,7 @@ VectorColumnIndexer::Ptr SegmentImpl::create_vector_indexer(
 }
 
 Status SegmentImpl::init_memory_components() {
+  std::unique_lock<std::shared_mutex> col_lock(seg_col_mtx_);
   // Roll back any partially-created components on failure so a failed init
   // leaves memory_store_ null (the caller's `if (!memory_store_)` retry guard
   // depends on it) and never gets flushed on close.
