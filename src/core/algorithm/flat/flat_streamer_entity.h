@@ -15,6 +15,7 @@
 #pragma once
 
 #include <atomic>
+#include <deque>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -260,6 +261,11 @@ class FlatStreamerEntity {
 
   //! Retrive storage segment by index
   const IndexStorage::Segment::Pointer get_segment(size_t index) const {
+    // Concurrent add() may append to segments_ (vector realloc) while a
+    // search reads elements, and two searches may race the lazy fill below.
+    // deque keeps element addresses stable across push_back, and the mutex
+    // serializes the fill itself.
+    std::lock_guard<std::mutex> lock(segments_mutex_);
     for (size_t i = segments_.size(); i <= index; ++i) {
       auto segment_id =
           ailego::StringHelper::Concat(FLAT_SEGMENT_FEATURES_SEG_ID, i);
@@ -268,7 +274,7 @@ class FlatStreamerEntity {
         LOG_ERROR("Failed to get segment %s", segment_id.c_str());
         return IndexStorage::Segment::Pointer();
       }
-      segments_.emplace_back(std::move(segment));
+      segments_.push_back(std::move(segment));
     }
     return segments_[index];
   }
@@ -307,7 +313,7 @@ class FlatStreamerEntity {
   int update_head_block(const BlockLocation &block) {
     ailego_assert_with(segments_.size() != 0, "Invalid Segments");
 
-    auto &hd_segment = segments_[0];
+    auto hd_segment = get_segment(0);
     if (hd_segment->write(0, &block, sizeof(block)) != sizeof(block)) {
       LOG_ERROR("Failed to write head block location");
       return IndexError_WriteData;
@@ -356,7 +362,7 @@ class FlatStreamerEntity {
   //! Get header block of an linear list
   int get_head_block(IndexStorage::MemoryBlock &header_block) const {
     ailego_assert_with(segments_.size() != 0, "Invalid Segments");
-    auto &hd_segment = segments_[0];
+    auto hd_segment = get_segment(0);
     if (hd_segment->read(0, header_block, sizeof(BlockLocation)) !=
         sizeof(BlockLocation)) {
       LOG_ERROR("Failed to read head block location");
@@ -428,11 +434,14 @@ class FlatStreamerEntity {
 
   //! Members
   std::mutex mutex_{};
+  mutable std::mutex segments_mutex_{};
   IndexMeta index_meta_{};
   IndexStorage::Pointer storage_{};
   IndexMetric::MatrixDistance row_distance_{}, column_distance_{};
   IndexMetric::MatrixBatchDistance batch_distance_{};
-  mutable std::vector<IndexStorage::Segment::Pointer> segments_{};
+  // deque: element addresses stay stable while the writer appends segments,
+  // so shared_ptr copies taken by concurrent searches remain valid.
+  mutable std::deque<IndexStorage::Segment::Pointer> segments_{};
   IndexStreamer::Stats &stats_;
   mutable std::shared_ptr<ailego::SharedMutex> key_info_map_lock_{};
   std::unordered_map<uint64_t, VectorLocation> key_info_map_{};
