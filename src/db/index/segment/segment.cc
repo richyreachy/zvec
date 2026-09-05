@@ -1295,8 +1295,8 @@ Doc::Ptr SegmentImpl::Fetch(
             return nullptr;
           }
           const auto &vector_buffer = fetch_result.value();
-          auto status =
-              ConvertVectorDataBufferToDocField(field, vector_buffer, doc.get());
+          auto status = ConvertVectorDataBufferToDocField(field, vector_buffer,
+                                                          doc.get());
           if (!status.ok()) {
             LOG_ERROR("convert vector data buffer to doc field failed %s",
                       status.message().c_str());
@@ -1328,8 +1328,8 @@ Doc::Ptr SegmentImpl::Fetch(
               continue;
             }
             const auto &vector_buffer = fetch_result.value();
-            auto status = ConvertVectorDataBufferToDocField(field, vector_buffer,
-                                                            doc.get());
+            auto status = ConvertVectorDataBufferToDocField(
+                field, vector_buffer, doc.get());
             if (!status.ok()) {
               LOG_ERROR("convert vector data buffer to doc field failed %s",
                         status.message().c_str());
@@ -2646,11 +2646,12 @@ ExecBatchPtr SegmentImpl::fetch(const std::vector<std::string> &columns,
       }
 
       // Count how many columns are in this block
-      int count =
-          std::count(is_column_in_block.begin(), is_column_in_block.end(), true);
+      int count = std::count(is_column_in_block.begin(),
+                             is_column_in_block.end(), true);
 
       if (count == 0) {
-        // None of the query columns are in this block; continue to the next block
+        // None of the query columns are in this block; continue to the next
+        // block
         continue;
       } else if (count == static_cast<int>(columns.size())) {
         // All query columns are present in this block; stop searching
