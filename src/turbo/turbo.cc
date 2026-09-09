@@ -13,7 +13,12 @@
 // limitations under the License.
 
 #include <cassert>
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
+#include <string>
 #include <ailego/internal/cpu_features.h>
+#include <zvec/ailego/logger/logger.h>
 #include <zvec/turbo/turbo.h>
 #include "avx2/fp16/cosine.h"
 #include "avx2/fp16/inner_product.h"
@@ -661,6 +666,72 @@ RotatorKernels get_rotator_kernels(RotateType rotate_type,
 
   assert(false && "unsupported RotateType");
   return {scalar::fht_rotate, scalar::fht_unrotate};
+}
+
+
+const char *CpuArchTypeName(CpuArchType arch) {
+  switch (arch) {
+    case CpuArchType::kAuto:
+      return "auto";
+    case CpuArchType::kScalar:
+      return "scalar";
+    case CpuArchType::kSSE2:
+      return "sse2";
+    case CpuArchType::kAVX:
+      return "avx";
+    case CpuArchType::kAVX2:
+      return "avx2";
+    case CpuArchType::kAVX512:
+      return "avx512";
+    case CpuArchType::kAVX512VNNI:
+      return "avx512_vnni";
+    case CpuArchType::kAVX512FP16:
+      return "avx512_fp16";
+    case CpuArchType::kNEON:
+      return "neon";
+    case CpuArchType::kSVE:
+      return "sve";
+    case CpuArchType::kSVE2:
+      return "sve2";
+  }
+  return "unknown";
+}
+
+CpuArchType ResolveCpuArchFromEnv() {
+  const char *raw = std::getenv("ZVEC_TURBO_ARCH");
+  if (raw == nullptr || *raw == '\0') {
+    return CpuArchType::kAuto;
+  }
+  std::string value(raw);
+  for (char &c : value) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
+  if (value == "auto") {
+    return CpuArchType::kAuto;
+  }
+  if (value == "scalar") {
+    return CpuArchType::kScalar;
+  }
+  if (value == "sse2") {
+    return CpuArchType::kSSE2;
+  }
+  if (value == "avx2") {
+    return CpuArchType::kAVX2;
+  }
+  if (value == "avx512") {
+    return CpuArchType::kAVX512;
+  }
+  if (value == "vnni" || value == "avx512_vnni") {
+    return CpuArchType::kAVX512VNNI;
+  }
+  if (value == "fp16" || value == "avx512_fp16") {
+    return CpuArchType::kAVX512FP16;
+  }
+  if (value == "neon") {
+    return CpuArchType::kNEON;
+  }
+  LOG_WARN("Unknown ZVEC_TURBO_ARCH value [%s], falling back to auto", raw);
+  return CpuArchType::kAuto;
 }
 
 }  // namespace zvec::turbo

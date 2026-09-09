@@ -524,9 +524,11 @@ int build_sparse_by_streamer(IndexStreamer::Pointer &streamer,
   return 0;
 }
 
-int do_build_by_streamer(IndexStreamer::Pointer &streamer,
-                         uint32_t thread_count, RetrievalMode retrieval_mode,
-                         const IndexStorage::Pointer &storage = nullptr) {
+int do_build_by_streamer(
+    IndexStreamer::Pointer &streamer, uint32_t thread_count,
+    RetrievalMode retrieval_mode,
+    const IndexStorage::Pointer &storage = nullptr,
+    const std::shared_ptr<zvec::turbo::Quantizer> &quantizer = nullptr) {
   int ret;
   ailego::ThreadPool pool(thread_count, false);
   thread_count = static_cast<uint32_t>(pool.count());
@@ -607,6 +609,16 @@ int do_build_by_streamer(IndexStreamer::Pointer &streamer,
             return;
           }
           ret = add_to_streamer(key, ovec.data(), ometa, ctx);
+        } else if (quantizer) {
+          ret = quantizer->quantize(holder->get_vector_by_index(id), qmeta,
+                                    &ovec, &ometa);
+          if (ret != 0) {
+            LOG_ERROR("Failed to quantize vector for %s",
+                      IndexError::What(ret));
+            errcode = ret;
+            return;
+          }
+          ret = add_to_streamer(key, ovec.data(), ometa, ctx);
         } else {
           ret =
               add_to_streamer(key, holder->get_vector_by_index(id), qmeta, ctx);
@@ -663,9 +675,10 @@ int do_build_by_streamer(IndexStreamer::Pointer &streamer,
   return 0;
 }
 
-int build_by_streamer(IndexStreamer::Pointer &streamer,
-                      YAML::Node &config_common,
-                      const IndexConverter::Pointer &converter) {
+int build_by_streamer(
+    IndexStreamer::Pointer &streamer, YAML::Node &config_common,
+    const IndexConverter::Pointer &converter,
+    const std::shared_ptr<zvec::turbo::Quantizer> &quantizer = nullptr) {
   if (!config_common["IndexPath"]) {
     LOG_ERROR("Miss params IndexPath for Streamer");
     return IndexError_InvalidArgument;
@@ -720,7 +733,8 @@ int build_by_streamer(IndexStreamer::Pointer &streamer,
 
   LOG_DEBUG("thread count: %zu, retrieval mode: %s", thread_count,
             retrieval_mode == 1 ? "Dense" : "Sparse");
-  do_build_by_streamer(streamer, thread_count, retrieval_mode, storage);
+  do_build_by_streamer(streamer, thread_count, retrieval_mode, storage,
+                       quantizer);
 
   return 0;
 }
@@ -1228,14 +1242,10 @@ int do_build(YAML::Node &config_root, YAML::Node &config_common) {
   std::shared_ptr<zvec::turbo::Quantizer> build_quantizer;
   IndexHolder::Pointer cv_build_holder;
   if (!quantizer_name.empty()) {
-    // Quantizer path: only supported with IndexBuilder classes.  The
-    // streamer path feeds raw vectors from the global holder and relies on
-    // reformer info in the meta, which a quantizer does not provide.
-    if (!builder) {
-      LOG_ERROR("QuantizerName is not supported with streamer class %s",
-                builder_class.c_str());
-      return -1;
-    }
+    // Quantizer path: supported by IndexBuilder classes and by streamer
+    // classes whose init accepts a quantizer (e.g. HnswStreamer).  The
+    // streamer build feeds raw vectors from the global holder and quantizes
+    // them per add inside do_build_by_streamer.
     cv_build_holder = quantize_holder(quantizer_name, quantizer_params,
                                       build_holder, meta, &build_quantizer);
     if (!cv_build_holder) {
@@ -1283,6 +1293,13 @@ int do_build(YAML::Node &config_root, YAML::Node &config_common) {
       }
     } else {
       ret = builder->init(meta, params);
+    }
+  } else if (build_quantizer) {
+    ret = streamer->init(meta, params, build_quantizer);
+    if (ret == IndexError_NotImplemented) {
+      LOG_ERROR("Streamer class %s does not support QuantizerName",
+                builder_class.c_str());
+      return -1;
     }
   } else {
     ret = streamer->init(meta, params);
@@ -1470,7 +1487,8 @@ int do_build(YAML::Node &config_root, YAML::Node &config_common) {
       retrieval_mode = "dense";
     }
 
-    ret = build_by_streamer(streamer, config_common, build_converter);
+    ret = build_by_streamer(streamer, config_common, build_converter,
+                            build_quantizer);
   }
   size_t build_time = timer.milli_seconds();
   if (ret < 0) {

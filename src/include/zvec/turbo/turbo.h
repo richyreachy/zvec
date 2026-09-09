@@ -248,4 +248,14 @@ ZVEC_TURBO_API CodebookKernels get_pq_kernels(
     DataType data_type, QuantizeType quantize_type = QuantizeType::kPQ,
     CpuArchType cpu_arch_type = CpuArchType::kAuto);
 
+// Resolves a CpuArchType override from the ZVEC_TURBO_ARCH environment
+// variable (values: auto, scalar, sse2, avx2, avx512, vnni/avx512_vnni,
+// fp16/avx512_fp16, neon; case-insensitive).  Unset, empty or unknown values
+// fall back to kAuto with a warning.  Used to pin a kernel tier for A/B
+// benchmarking and debugging; production paths leave it unset.
+ZVEC_TURBO_API CpuArchType ResolveCpuArchFromEnv();
+
+// Returns the canonical lowercase name of a CpuArchType (e.g. "avx512_vnni").
+ZVEC_TURBO_API const char *CpuArchTypeName(CpuArchType arch);
+
 }  // namespace zvec::turbo

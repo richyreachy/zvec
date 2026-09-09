@@ -36,12 +36,19 @@ int Fp16Quantizer::init(const IndexMeta &meta,
     meta_.set_extra_meta_size(extra_meta_size_);
   }
 
-  // Cache the distance dispatch for the new Quantizer interface.
+  // Cache the distance dispatch for the new Quantizer interface.  The arch
+  // comes from ZVEC_TURBO_ARCH so a kernel tier can be pinned for A/B
+  // benchmarking; unset keeps the runtime auto-dispatch.
+  CpuArchType arch = ResolveCpuArchFromEnv();
+  if (arch != CpuArchType::kAuto) {
+    LOG_INFO("Turbo FP16 quantizer arch override: %s", CpuArchTypeName(arch));
+  }
   auto kernels =
       get_distance_kernels(metric_from_name(metric_name), DataType::kFp16,
-                           QuantizeType::kFp16, CpuArchType::kAuto);
+                           QuantizeType::kFp16, arch);
   if (!kernels.dist || !kernels.batch) {
-    LOG_ERROR("Unsupported metric %s for FP16 quantizer", metric_name.c_str());
+    LOG_ERROR("Unsupported metric %s for FP16 quantizer on arch %s",
+              metric_name.c_str(), CpuArchTypeName(arch));
     return kErrUnsupported;
   }
   dp_query_func_ = std::move(kernels.dist);

@@ -48,12 +48,19 @@ int Int8Quantizer::init(const IndexMeta &meta,
   // Distance kernels take the full encoded size in bytes.
   dist_dim_ = static_cast<size_t>(original_dim_) + extra_meta_size_;
 
-  // Cache the distance dispatch for the new Quantizer interface.
+  // Cache the distance dispatch for the new Quantizer interface.  The arch
+  // comes from ZVEC_TURBO_ARCH so a kernel tier can be pinned for A/B
+  // benchmarking; unset keeps the runtime auto-dispatch.
+  CpuArchType arch = ResolveCpuArchFromEnv();
+  if (arch != CpuArchType::kAuto) {
+    LOG_INFO("Turbo INT8 quantizer arch override: %s", CpuArchTypeName(arch));
+  }
   auto kernels =
       get_distance_kernels(metric_from_name(metric_name), DataType::kInt8,
-                           QuantizeType::kRecord, CpuArchType::kAuto);
+                           QuantizeType::kRecord, arch);
   if (!kernels.dist || !kernels.batch) {
-    LOG_ERROR("Unsupported metric %s for INT8 quantizer", metric_name.c_str());
+    LOG_ERROR("Unsupported metric %s for INT8 quantizer on arch %s",
+              metric_name.c_str(), CpuArchTypeName(arch));
     return kErrUnsupported;
   }
   dp_query_func_ = std::move(kernels.dist);
