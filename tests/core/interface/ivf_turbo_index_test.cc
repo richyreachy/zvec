@@ -414,7 +414,8 @@ TEST(IVFTurboCompatibility, ReopensLegacyInt8AndMergesWithTurbo) {
   ASSERT_EQ(
       0, target->open(target_path, {StorageOptions::StorageType::kMMAP, true}));
   IndexFilter filter;
-  filter.set([](uint64_t key) { return key == removed_key; });
+  filter.set(
+      [removed_key = removed_key](uint64_t key) { return key == removed_key; });
   ASSERT_EQ(0, target->merge({legacy, turbo}, filter));
   EXPECT_EQ(count * 2 - 1, target->get_doc_count());
   SearchResult merged_result;
