@@ -275,6 +275,19 @@ int IVFCentroidIndex::search(const void *query, const IndexQueryMeta &qmeta,
     std::string buffer;
     IndexQueryMeta ometa;
     ret = reformer_->transform(query, qmeta, count, &buffer, &ometa);
+    if (ret == IndexError_Unsupported || ret == IndexError_NotImplemented) {
+      // Cosine reformers normalize one query at a time. Preserve the batch
+      // query layout when a centroid transform has no batch implementation.
+      buffer.clear();
+      const auto *input = static_cast<const char *>(query);
+      for (size_t i = 0; i < count; ++i) {
+        std::string transformed;
+        ret = reformer_->transform(input + i * qmeta.element_size(), qmeta,
+                                   &transformed, &ometa);
+        if (ret != 0) break;
+        buffer.append(transformed);
+      }
+    }
     if (ret != 0) {
       LOG_ERROR("Failed to transform querys by reformer");
       return ret;

@@ -28,6 +28,9 @@ class IVFSearcher : public IndexSearcher {
   //! Initialize Searcher
   int init(const ailego::Params &parameters) override;
 
+  int init(const ailego::Params &parameters,
+           const turbo::Quantizer::Pointer &quantizer) override;
+
   //! Cleanup Searcher
   int cleanup(void) override;
 
@@ -73,6 +76,14 @@ class IVFSearcher : public IndexSearcher {
     return params_;
   }
 
+  const turbo::Quantizer::Pointer &quantizer() const {
+    return quantizer_;
+  }
+
+  const IndexMeta &posting_meta() const {
+    return entity_ ? entity_->meta() : meta_;
+  }
+
  protected:
   int update_context(IVFSearcherContext *ctx) const {
     auto entity = entity_->clone();
@@ -102,6 +113,7 @@ class IVFSearcher : public IndexSearcher {
   ailego::Params params_{};
   IVFCentroidIndex::Pointer centroid_index_{};
   IVFEntity::Pointer entity_{};
+  turbo::Quantizer::Pointer quantizer_{};
   uint32_t bruteforce_threshold_{kDefaultBfThreshold};
   uint32_t magic_{0};
   Stats stats_{};
