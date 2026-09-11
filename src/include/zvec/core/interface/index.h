@@ -176,9 +176,10 @@ class ZVEC_CORE_API Index {
                      const BaseIndexQueryParam::Pointer &search_param,
                      SearchResult *result,
                      core::IndexContext::Pointer &context);
-  int _dense_search(const VectorData &query,
-                    const BaseIndexQueryParam::Pointer &search_param,
-                    SearchResult *result, core::IndexContext::Pointer &context);
+  virtual int _dense_search(const VectorData &query,
+                            const BaseIndexQueryParam::Pointer &search_param,
+                            SearchResult *result,
+                            core::IndexContext::Pointer &context);
   int _prepare_dense_query(const VectorData &query, std::string *query_storage,
                            const void **prepared_query,
                            core::IndexQueryMeta *prepared_meta);
@@ -279,7 +280,14 @@ class ZVEC_CORE_API IVFIndex : public Index {
   IVFIndex() = default;
 
  protected:
+  int CreateAndInitConverterReformer(
+      const QuantizerParam &param, const BaseIndexParam &index_param) override;
   int CreateAndInitStreamer(const BaseIndexParam &param) override;
+
+  int _dense_search(const VectorData &query,
+                    const BaseIndexQueryParam::Pointer &search_param,
+                    SearchResult *result,
+                    core::IndexContext::Pointer &context) override;
 
   int _prepare_for_search(const VectorData &query,
                           const BaseIndexQueryParam::Pointer &search_param,
@@ -299,6 +307,10 @@ class ZVEC_CORE_API IVFIndex : public Index {
   int GenerateHolder();
 
  private:
+  int LoadStreamer();
+  int RestoreLegacyPipeline();
+
+  std::shared_ptr<zvec::turbo::Quantizer> ivf_quantizer_{};
   IVFIndexParam param_{};
   std::mutex mutex_{};
   std::vector<std::pair<uint64_t, std::string>> doc_cache_;

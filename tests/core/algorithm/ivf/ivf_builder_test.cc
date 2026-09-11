@@ -16,6 +16,7 @@
 #include <iostream>
 #include <vector>
 #include <gtest/gtest.h>
+#include <turbo/quantizer/quantizer.h>
 #include <zvec/ailego/container/vector.h>
 
 using namespace zvec::core;
@@ -526,3 +527,44 @@ TEST_F(IVFBuilderTest, TestIndexThreads) {
   auto &stats2 = builder2->stats();
   ASSERT_EQ(doc_cnt, stats2.built_count());
 }
+
+namespace zvec {
+namespace core {
+namespace {
+
+TEST(IVFTurboConfiguration, RejectsColumnOrderAndLegacyPostingQuantization) {
+  constexpr uint32_t kDimension = 18;
+  IndexMeta meta;
+  meta.set_meta(IndexMeta::DataType::DT_FP32, kDimension);
+  meta.set_metric("SquaredEuclidean", 0, ailego::Params());
+  meta.set_quantizer("Int8Quantizer", 0, ailego::Params());
+  auto quantizer = IndexFactory::CreateQuantizer("Int8Quantizer");
+  ASSERT_NE(nullptr, quantizer);
+  ASSERT_EQ(0, quantizer->init(meta, ailego::Params()));
+  ailego::Params params;
+  params.set(PARAM_IVF_BUILDER_CENTROID_COUNT, "4");
+
+  {
+    IVFBuilder builder;
+    auto column_meta = meta;
+    column_meta.set_major_order(IndexMeta::MO_COLUMN);
+    EXPECT_NE(0, builder.init(column_meta, params, quantizer));
+  }
+  {
+    IVFBuilder builder;
+    auto conflicting_params = params;
+    conflicting_params.set(PARAM_IVF_BUILDER_QUANTIZER_CLASS,
+                           "Int8QuantizerConverter");
+    EXPECT_NE(0, builder.init(meta, conflicting_params, quantizer));
+  }
+  {
+    IVFBuilder builder;
+    auto conflicting_params = params;
+    conflicting_params.set(PARAM_IVF_BUILDER_QUANTIZE_BY_CENTROID, true);
+    EXPECT_NE(0, builder.init(meta, conflicting_params, quantizer));
+  }
+}
+
+}  // namespace
+}  // namespace core
+}  // namespace zvec
