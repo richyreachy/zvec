@@ -14,12 +14,50 @@
 
 #include <memory>
 #include <string>
+#include <turbo/quantizer/quantizer.h>
 #include <zvec/core/interface/index.h>
 #include "algorithm/cluster/cluster_params.h"
 #include "algorithm/ivf/ivf_params.h"
+#include "algorithm/ivf/ivf_streamer.h"
 #include "holder_builder.h"
 
 namespace zvec::core_interface {
+
+int IVFIndex::CreateAndInitConverterReformer(
+    const QuantizerParam &param, const BaseIndexParam &index_param) {
+  // Clustering and centroid selection use the input vectors. Only the
+  // inverted lists are encoded, after their centroid assignments are known.
+  if (index_param.is_sparse || param.enable_rotate ||
+      index_param.data_type != DataType::DT_FP32 ||
+      (index_param.metric_type != MetricType::kL2sq &&
+       index_param.metric_type != MetricType::kInnerProduct &&
+       index_param.metric_type != MetricType::kCosine)) {
+    return Index::CreateAndInitConverterReformer(param, index_param);
+  }
+  const char *name = nullptr;
+  switch (param.type) {
+    case QuantizerType::kNone:
+      name = "Fp32Quantizer";
+      break;
+    case QuantizerType::kFP16:
+      name = "Fp16Quantizer";
+      break;
+    case QuantizerType::kInt8:
+      name = "Int8Quantizer";
+      break;
+    case QuantizerType::kInt4:
+      name = "Int4Quantizer";
+      break;
+    default:
+      return Index::CreateAndInitConverterReformer(param, index_param);
+  }
+  proxima_index_meta_.set_quantizer(name, 0, ailego::Params{});
+  ivf_quantizer_ = core::IndexFactory::CreateQuantizer(name);
+  if (!ivf_quantizer_) {
+    return core::IndexError_NoExist;
+  }
+  return ivf_quantizer_->init(proxima_index_meta_, ailego::Params{});
+}
 
 int IVFIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
   if (is_sparse_) {
@@ -59,15 +97,73 @@ int IVFIndex::CreateAndInitStreamer(const BaseIndexParam &param) {
   } else {
     real_meta = proxima_index_meta_;
   }
-  if (ailego_unlikely(builder_->init(real_meta, proxima_index_params_) != 0)) {
+  if (ailego_unlikely(builder_->init(real_meta, proxima_index_params_,
+                                     ivf_quantizer_) != 0)) {
     LOG_ERROR("Failed to init builder");
     return core::IndexError_Runtime;
   }
-  if (ailego_unlikely(streamer_->init(real_meta, proxima_index_params_) != 0)) {
+  if (ailego_unlikely(streamer_->init(real_meta, proxima_index_params_,
+                                      ivf_quantizer_) != 0)) {
     LOG_ERROR("Failed to init streamer");
     return core::IndexError_Runtime;
   }
   return 0;
+}
+
+int IVFIndex::RestoreLegacyPipeline() {
+  ivf_quantizer_.reset();
+  converter_.reset();
+  reformer_.reset();
+  proxima_index_meta_ = IndexMeta{};
+  proxima_index_meta_.set_meta(param_.data_type, param_.dimension);
+  int ret = ParseMetricName(param_);
+  if (ret != 0) return ret;
+  const auto quantizer_param =
+      param_.quantizer_param ? *param_.quantizer_param : QuantizerParam{};
+  ret = Index::CreateAndInitConverterReformer(quantizer_param, param_);
+  if (ret != 0) return ret;
+  ret = CreateAndInitMetric(param_);
+  if (ret != 0) return ret;
+  return CreateAndInitStreamer(param_);
+}
+
+int IVFIndex::LoadStreamer() {
+  IndexMeta persisted_meta;
+  int ret = core::IndexHelper::DeserializeFromStorage(storage_.get(),
+                                                      &persisted_meta);
+  if (ret != 0) return ret;
+  if (persisted_meta.quantizer_name().empty()) {
+    if (ivf_quantizer_) {
+      ret = RestoreLegacyPipeline();
+      if (ret != 0) return ret;
+    }
+  } else {
+    // Persisted descriptors decide the posting format, including when a
+    // caller reopens an index with the default quantizer configuration.
+    if (persisted_meta.data_type() != input_vector_meta_.data_type() ||
+        persisted_meta.dimension() != input_vector_meta_.dimension() ||
+        persisted_meta.metric_name() !=
+            get_metric_name(param_.metric_type, false)) {
+      return core::IndexError_Mismatch;
+    }
+    converter_.reset();
+    reformer_.reset();
+    proxima_index_meta_ = persisted_meta;
+    ret = CreateAndInitMetric(param_);
+    if (ret != 0) return ret;
+  }
+  // close() cleans up the streamer; reinitialize it before each load so
+  // reopening the same public Index instance follows the same lifecycle.
+  ret = streamer_->init(proxima_index_meta_, proxima_index_params_);
+  if (ret != 0) return ret;
+  ret = streamer_->open(storage_);
+  if (ret != 0) return ret;
+  auto ivf_streamer = std::dynamic_pointer_cast<core::IVFStreamer>(streamer_);
+  ivf_quantizer_ = ivf_streamer->quantizer();
+  if (reformer_) {
+    ret = reformer_->load(storage_);
+  }
+  return ret;
 }
 
 int IVFIndex::open(const std::string &file_path,
@@ -125,15 +221,8 @@ int IVFIndex::open(const std::string &file_path,
                 core::IndexError::What(ret));
       return core::IndexError_Runtime;
     }
-    if (streamer_ == nullptr || streamer_->open(storage_) != 0) {
-      LOG_ERROR("Failed to open streamer, path: %s", file_path_.c_str());
-      return core::IndexError_Runtime;
-    }
-    // Load reformer data from storage (e.g., rotation matrix for INT8+rotate)
-    if (reformer_ != nullptr && reformer_->load(storage_) != 0) {
-      LOG_ERROR("Failed to load reformer, path: %s", file_path_.c_str());
-      return core::IndexError_Runtime;
-    }
+    ret = LoadStreamer();
+    if (ret != 0) return ret;
     is_trained_ = true;
   }
   is_open_ = true;
@@ -170,34 +259,35 @@ int IVFIndex::add(const VectorData &vector, uint32_t doc_id) {
 }
 
 int IVFIndex::train() {
-  GenerateHolder();
-  builder_->train(holder_);
-  builder_->build(holder_);
+  if (!is_open_ || is_read_only_) return core::IndexError_NoReady;
+  if (is_trained_) return 0;
+  int ret = GenerateHolder();
+  if (ret != 0) return ret;
+  ret = builder_->train(holder_);
+  if (ret != 0) return ret;
+  ret = builder_->build(holder_);
+  if (ret != 0) return ret;
   auto dumper = core::IndexFactory::CreateDumper("FileDumper");
-
-  dumper->create(file_path_);
-  builder_->dump(dumper);
+  if (!dumper) return core::IndexError_NoExist;
+  ret = dumper->create(file_path_);
+  if (ret != 0) return ret;
+  ret = builder_->dump(dumper);
+  if (ret != 0) return ret;
   // Dump converter state (e.g., rotator for INT8+rotate) to dumper
   if (converter_ && converter_->dump(dumper) != 0) {
     LOG_ERROR("Failed to dump converter, path: %s", file_path_.c_str());
     return core::IndexError_Runtime;
   }
-  dumper->close();
-  int ret = storage_->open(file_path_, false);
+  ret = dumper->close();
+  if (ret != 0) return ret;
+  ret = storage_->open(file_path_, false);
   if (ret != 0) {
     LOG_ERROR("Failed to open storage, path: %s, err: %s", file_path_.c_str(),
               core::IndexError::What(ret));
     return core::IndexError_Runtime;
   }
-  if (streamer_ == nullptr || streamer_->open(storage_) != 0) {
-    LOG_ERROR("Failed to open streamer, path: %s", file_path_.c_str());
-    return core::IndexError_Runtime;
-  }
-  // Load reformer data from storage (e.g., rotation matrix)
-  if (reformer_ != nullptr && reformer_->load(storage_) != 0) {
-    LOG_ERROR("Failed to load reformer, path: %s", file_path_.c_str());
-    return core::IndexError_Runtime;
-  }
+  ret = LoadStreamer();
+  if (ret != 0) return ret;
   is_trained_ = true;
   return 0;
 }
@@ -205,14 +295,46 @@ int IVFIndex::train() {
 int IVFIndex::_dense_fetch(const uint32_t doc_id,
                            VectorDataBuffer *vector_data_buffer) {
   if (is_trained_) {
+    if (ivf_quantizer_) {
+      auto provider = streamer_->create_provider();
+      if (!provider) return core::IndexError_NoReady;
+      const void *vector = provider->get_vector(doc_id);
+      if (!vector) return core::IndexError_NoExist;
+      DenseVectorBuffer buffer;
+      buffer.data.assign(static_cast<const char *>(vector),
+                         input_vector_meta_.element_size());
+      vector_data_buffer->vector_buffer = std::move(buffer);
+      return 0;
+    }
     return Index::_dense_fetch(doc_id, vector_data_buffer);
   } else {
+    if (doc_id >= doc_cache_.size() || doc_cache_[doc_id].first == kInvalidKey)
+      return core::IndexError_NoExist;
     DenseVectorBuffer dense_vector_buffer;
     std::string &out_vector_buffer = dense_vector_buffer.data;
     out_vector_buffer = doc_cache_[doc_id].second;
     vector_data_buffer->vector_buffer = std::move(dense_vector_buffer);
     return 0;
   }
+}
+
+int IVFIndex::_dense_search(const VectorData &query,
+                            const BaseIndexQueryParam::Pointer &search_param,
+                            SearchResult *result,
+                            core::IndexContext::Pointer &context) {
+  int ret = Index::_dense_search(query, search_param, result, context);
+  if (ret != 0 || !ivf_quantizer_ || !context->fetch_vector()) return ret;
+  auto provider = streamer_->create_provider();
+  if (!provider) return core::IndexError_NoReady;
+  result->reverted_vector_list_.clear();
+  result->reverted_vector_list_.reserve(result->doc_list_.size());
+  for (const auto &doc : result->doc_list_) {
+    const void *vector = provider->get_vector(doc.key());
+    if (!vector) return core::IndexError_ReadData;
+    result->reverted_vector_list_.emplace_back(
+        static_cast<const char *>(vector), input_vector_meta_.element_size());
+  }
+  return 0;
 }
 
 int IVFIndex::_prepare_for_search(
@@ -252,31 +374,29 @@ int IVFIndex::merge(const std::vector<Index::Pointer> &indexes,
   if (pre_ret != 0) {
     return pre_ret;
   }
+  is_trained_ = false;
   auto dumper = core::IndexFactory::CreateDumper("FileDumper");
 
-  dumper->create(file_path_);
-  builder_->dump(dumper);
+  if (!dumper) return core::IndexError_NoExist;
+  int ret = dumper->create(file_path_);
+  if (ret != 0) return ret;
+  ret = builder_->dump(dumper);
+  if (ret != 0) return ret;
   // Dump converter state (e.g., rotator for INT8+rotate) to dumper
   if (converter_ && converter_->dump(dumper) != 0) {
     LOG_ERROR("Failed to dump converter, path: %s", file_path_.c_str());
     return core::IndexError_Runtime;
   }
-  dumper->close();
-  int ret = storage_->open(file_path_, false);
+  ret = dumper->close();
+  if (ret != 0) return ret;
+  ret = storage_->open(file_path_, false);
   if (ret != 0) {
     LOG_ERROR("Failed to open storage, path: %s, err: %s", file_path_.c_str(),
               core::IndexError::What(ret));
     return core::IndexError_Runtime;
   }
-  if (streamer_ == nullptr || streamer_->open(storage_) != 0) {
-    LOG_ERROR("Failed to open streamer, path: %s", file_path_.c_str());
-    return core::IndexError_Runtime;
-  }
-  // Load reformer data from storage (e.g., rotation matrix)
-  if (reformer_ != nullptr && reformer_->load(storage_) != 0) {
-    LOG_ERROR("Failed to load reformer, path: %s", file_path_.c_str());
-    return core::IndexError_Runtime;
-  }
+  ret = LoadStreamer();
+  if (ret != 0) return ret;
   is_trained_ = true;
   return 0;
 }
