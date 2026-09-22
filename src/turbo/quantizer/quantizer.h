@@ -110,6 +110,11 @@ class Quantizer {
   //! Whether the quantizer requires training before use
   virtual bool require_train() const = 0;
 
+  //! Whether graph construction must use an original-vector provider.
+  virtual bool requires_original_vectors() const {
+    return false;
+  }
+
   //! Train the quantizer with data from an IndexHolder
   virtual int train(IndexHolder::Pointer /*holder*/) {
     return 0;
@@ -126,6 +131,14 @@ class Quantizer {
 
   //! Byte length of a quantized query vector
   virtual size_t quantized_query_vector_length() const = 0;
+
+  //! Query layout, which may differ from the stored datapoint layout.
+  virtual IndexQueryMeta quantized_query_meta() const {
+    IndexQueryMeta result;
+    result.set_meta(meta().data_type(), meta().dimension(),
+                    static_cast<uint32_t>(type()), meta().extra_meta_size());
+    return result;
+  }
 
   //! Quantize a datapoint vector
   virtual void quantize_data(const void *input, void *output) const = 0;
@@ -189,6 +202,14 @@ class Quantizer {
                        std::string * /*out*/,
                        IndexQueryMeta * /*ometa*/) const {
     return 0;
+  }
+
+  //! Encode a stored record. Asymmetric quantizers override this separately
+  //! from quantize(), which prepares a search query.
+  virtual int quantize_datapoint(const void *data, const IndexQueryMeta &meta,
+                                 std::string *out,
+                                 IndexQueryMeta *ometa) const {
+    return quantize(data, meta, out, ometa);
   }
 
   //! Dequantize a result vector back to original format

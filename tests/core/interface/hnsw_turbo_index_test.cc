@@ -365,7 +365,11 @@ void CheckExternalTurboAddSearchReopen(MetricType metric,
 
 void CheckOriginalProviderUsesTurbo(MetricType metric, QuantizerType quantizer,
                                     const char *quantizer_name,
-                                    const std::string &path) {
+                                    const std::string &path,
+                                    int rabitq_bits = 7,
+                                    StorageOptions::StorageType storage_type =
+                                        StorageOptions::StorageType::kMMAP,
+                                    bool contiguous = false) {
   zvec::test_util::RemoveTestFiles(path);
   auto vectors = RandomVectors(kGraphVectorCount);
   if (metric == MetricType::kCosine) {
@@ -391,12 +395,16 @@ void CheckOriginalProviderUsesTurbo(MetricType metric, QuantizerType quantizer,
   provider_meta.set_metric(MetricName(metric), 0, zvec::ailego::Params{});
 
   auto param = MakeParam(metric, quantizer);
+  if (quantizer == QuantizerType::kRabitq)
+    param->quantizer_param =
+        std::make_shared<RabitqQuantizerParam>(rabitq_bits);
   param->provider = provider;
   param->provider_meta = provider_meta;
+  param->use_contiguous_memory = contiguous;
   auto index = IndexFactory::CreateAndInitIndex(*param);
   ASSERT_NE(nullptr, index);
   ASSERT_EQ(quantizer_name, index->index_searcher()->meta().quantizer_name());
-  ASSERT_EQ(0, index->open(path, {StorageOptions::StorageType::kMMAP, true}));
+  ASSERT_EQ(0, index->open(path, {storage_type, true}));
   auto streamer = std::dynamic_pointer_cast<zvec::core::HnswStreamer>(
       index->index_searcher());
   ASSERT_NE(nullptr, streamer);
@@ -420,10 +428,10 @@ void CheckOriginalProviderUsesTurbo(MetricType metric, QuantizerType quantizer,
 
   ASSERT_EQ(0, index->close());
 
+  if (quantizer == QuantizerType::kRabitq) param->provider.reset();
   auto reopened = IndexFactory::CreateAndInitIndex(*param);
   ASSERT_NE(nullptr, reopened);
-  ASSERT_EQ(0,
-            reopened->open(path, {StorageOptions::StorageType::kMMAP, false}));
+  ASSERT_EQ(0, reopened->open(path, {storage_type, false}));
   EXPECT_EQ(quantizer_name,
             reopened->index_searcher()->meta().quantizer_name());
   CheckGraphSearchEnabled(reopened.get());
@@ -1044,3 +1052,74 @@ INSTANTIATE_TEST_SUITE_P(AddApis, HnswExternalCoreCompatibilityTest,
 }  // namespace
 }  // namespace core
 }  // namespace zvec
+
+TEST(HnswTurboRabitq, BuildsFromOriginalAndReopensWithoutProvider) {
+  for (auto metric :
+       {MetricType::kL2sq, MetricType::kCosine, MetricType::kInnerProduct}) {
+    for (int bits : {1, 4, 7, 8}) {
+      SCOPED_TRACE(static_cast<int>(metric));
+      SCOPED_TRACE(bits);
+      CheckOriginalProviderUsesTurbo(metric, QuantizerType::kRabitq,
+                                     "RabitqQuantizer",
+                                     "hnsw_turbo_rabitq.index", bits);
+    }
+  }
+}
+
+TEST(HnswTurboRabitq,
+     RequiresOriginalVectorsForInsertAndRejectsUnsupportedLayouts) {
+  const std::string path = "hnsw_turbo_rabitq_missing_provider.index";
+  zvec::test_util::RemoveTestFiles(path);
+  auto param = MakeParam(MetricType::kL2sq, QuantizerType::kRabitq);
+  auto index = IndexFactory::CreateAndInitIndex(*param);
+  ASSERT_NE(nullptr, index);
+  ASSERT_EQ(0, index->open(path, {StorageOptions::StorageType::kMMAP, true}));
+  auto vectors = RandomVectors(1);
+  VectorData vector;
+  vector.vector = DenseVector{vectors[0].data()};
+  EXPECT_NE(0, index->add(vector, 0));
+  ASSERT_EQ(0, index->close());
+  zvec::test_util::RemoveTestFiles(path);
+  param->use_external_vector = true;
+  EXPECT_EQ(nullptr, IndexFactory::CreateAndInitIndex(*param));
+  param->use_external_vector = false;
+  param->quantizer_param = std::make_shared<RabitqQuantizerParam>(9);
+  EXPECT_EQ(nullptr, IndexFactory::CreateAndInitIndex(*param));
+}
+
+TEST(HnswTurboRabitq, BufferPoolAndContiguousStorage) {
+  ASSERT_EQ(0, zvec::ailego::MemoryLimitPool::get_instance().init(100 * 1024 * 1024));
+  CheckOriginalProviderUsesTurbo(MetricType::kL2sq, QuantizerType::kRabitq,
+                                 "RabitqQuantizer",
+                                 "hnsw_turbo_rabitq_buffer.index", 7,
+                                 StorageOptions::StorageType::kBufferPool);
+  CheckOriginalProviderUsesTurbo(MetricType::kL2sq, QuantizerType::kRabitq,
+                                 "RabitqQuantizer",
+                                 "hnsw_turbo_rabitq_contiguous.index", 7,
+                                 StorageOptions::StorageType::kMMAP, true);
+}
+
+TEST(HnswTurboRabitq, RejectsCorruptPersistedRotation) {
+  const std::string path = "hnsw_turbo_rabitq_corrupt.index";
+  zvec::test_util::RemoveTestFiles(path);
+  auto param = MakeParam(MetricType::kL2sq, QuantizerType::kRabitq);
+  auto index = IndexFactory::CreateAndInitIndex(*param);
+  ASSERT_NE(nullptr, index);
+  ASSERT_EQ(0, index->open(path, {StorageOptions::StorageType::kMMAP, true}));
+  ASSERT_EQ(0, index->close());
+  auto storage = zvec::core::IndexFactory::CreateStorage("MMapFileStorage");
+  ASSERT_EQ(0, storage->init(zvec::ailego::Params{}));
+  ASSERT_EQ(0, storage->open(path, false));
+  auto segment = storage->get("hnsw.quantizer");
+  ASSERT_NE(nullptr, segment);
+  const char bad_magic = 0;
+  ASSERT_EQ(1u, segment->write(0, &bad_magic, 1));
+  segment.reset();
+  ASSERT_EQ(0, storage->close());
+  auto reopened = IndexFactory::CreateAndInitIndex(*param);
+  ASSERT_NE(nullptr, reopened);
+  EXPECT_NE(0,
+            reopened->open(path, {StorageOptions::StorageType::kMMAP, false}));
+  reopened.reset();
+  zvec::test_util::RemoveTestFiles(path);
+}

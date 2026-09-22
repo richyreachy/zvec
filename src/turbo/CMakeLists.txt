@@ -166,8 +166,9 @@ cc_library(
 )
 
 # Eigen (header-only, shipped inside the RaBitQ third-party tree) backs the OPQ
-# rotator only. It must be a SYSTEM include: INCS above maps to a plain
-# target_include_directories, and STRICT turns Eigen's own warnings into errors.
+# rotator and the scalar RaBitQ encoder. It must be a SYSTEM include: INCS
+# above maps to a plain target_include_directories, and STRICT turns Eigen's
+# own warnings into errors.
 # Only the headers are consumed -- rabitqlib/rabitqlib_runtime is NOT linked.
 set(TURBO_EIGEN_INC
     ${PROJECT_ROOT_DIR}/thirdparty/RaBitQ-Library/RaBitQ-Library-0.1/include)
