@@ -15,6 +15,7 @@
 #include <cstring>
 #include <iostream>
 #include <limits>
+#include <core/quantizer/distance_quantizer.h>
 #include <core/quantizer/quantizer_params.h>
 #include <turbo/quantizer/common/pq_quantizer/packed_code_quantizer.h>
 #include "metric/metric_params.h"
@@ -626,6 +627,25 @@ int IVFEntity::load_header(const IndexStorage::Pointer &container) {
 
   int ret = reformer_.init(meta_);
   ivf_check_error_code(ret);
+
+  //! Route plain fp32/fp16 postings through the Turbo batch distance kernels
+  //! when the stored layout matches the distance quantizer contract: dense
+  //! row-major rows with no legacy reformer (e.g. int8/int4 scales, OPQ
+  //! rotation). Legacy column-major and reformed indexes keep the metric
+  //! calculator below.
+  if (meta_.major_order() == IndexMeta::MajorOrder::MO_ROW &&
+      meta_.reformer_name().empty()) {
+    auto distance_quantizer = CreateDistanceQuantizer(meta_);
+    if (distance_quantizer) {
+      quantizer_ = std::move(distance_quantizer);
+      calculator_ = std::make_shared<IVFDistanceCalculator>(
+          meta_, nullptr, header_.block_vector_count);
+      if (!calculator_) {
+        return IndexError_NoMemory;
+      }
+      return 0;
+    }
+  }
 
   //! Create the distance calculator
   auto metric = IndexFactory::CreateMetric(meta_.metric_name());
