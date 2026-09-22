@@ -375,7 +375,7 @@ class IVFEntity {
     if (packed_quantizer_) {
       packed_quantizer_->calc_distance_packed_block(features, count,
                                                     packed_query_.data(), out);
-    } else if (quantizer_) {
+    } else if (quantizer_ || distance_quantizer_) {
       calculator_->query_features_distance(query_distance_, features, count,
                                            out);
     } else {
@@ -398,6 +398,9 @@ class IVFEntity {
   mutable IVFReformerWrapper reformer_{};
   IVFDistanceCalculator::Pointer calculator_{};
   turbo::Quantizer::Pointer quantizer_{};
+  // Legacy rows are already encoded. This helper only supplies distance
+  // kernels; it must not change query transformation or provider decoding.
+  turbo::Quantizer::Pointer distance_quantizer_{};
   // Each context owns its entity clone and therefore its query buffer/LUT.
   turbo::DistanceImpl query_distance_{};
   turbo::PackedCodeQuantizer *packed_quantizer_{nullptr};

@@ -617,6 +617,7 @@ int IVFEntity::load_header(const IndexStorage::Pointer &container) {
     return IndexError_InvalidFormat;
   }
 
+  distance_quantizer_.reset();
   if (!meta_.quantizer_name().empty()) {
     return load_quantizer(container);
   }
@@ -637,7 +638,7 @@ int IVFEntity::load_header(const IndexStorage::Pointer &container) {
       meta_.reformer_name().empty()) {
     auto distance_quantizer = CreateDistanceQuantizer(meta_);
     if (distance_quantizer) {
-      quantizer_ = std::move(distance_quantizer);
+      distance_quantizer_ = std::move(distance_quantizer);
       calculator_ = std::make_shared<IVFDistanceCalculator>(
           meta_, nullptr, header_.block_vector_count);
       if (!calculator_) {
@@ -742,6 +743,12 @@ int IVFEntity::load_quantizer(const IndexStorage::Pointer &container) {
 }
 
 int IVFEntity::bind_query(const void *query, const IndexQueryMeta &qmeta) {
+  if (distance_quantizer_) {
+    // The legacy pipeline has already converted the query to the posting
+    // layout.
+    query_distance_ = distance_quantizer_->distance(query, qmeta);
+    return query_distance_.valid() ? 0 : IndexError_Unsupported;
+  }
   if (!quantizer_) {
     return 0;
   }
@@ -876,7 +883,8 @@ int IVFEntity::search(size_t inverted_list_id, const void *query,
                       const IndexFilter &filter, uint32_t *scan_count,
                       IndexDocumentHeap *heap,
                       IndexContext::Stats *context_stats) const {
-  if (quantizer_ && !query_distance_.valid() && packed_query_.empty()) {
+  if ((quantizer_ || distance_quantizer_) && !query_distance_.valid() &&
+      packed_query_.empty()) {
     return IndexError_InvalidArgument;
   }
   ailego_assert_with(inverted_list_id < header_.inverted_list_count,
@@ -997,7 +1005,8 @@ int IVFEntity::search(size_t inverted_list_id, const void *query,
 int IVFEntity::search(size_t inverted_list_id, const void *query,
                       uint32_t *scan_count, IndexDocumentHeap *heap,
                       IndexContext::Stats *context_stats) const {
-  if (quantizer_ && !query_distance_.valid() && packed_query_.empty()) {
+  if ((quantizer_ || distance_quantizer_) && !query_distance_.valid() &&
+      packed_query_.empty()) {
     return IndexError_InvalidArgument;
   }
   ailego_assert_with(inverted_list_id < header_.inverted_list_count,
@@ -1366,6 +1375,7 @@ IVFEntity::Pointer IVFEntity::clone(const IVFEntity::Pointer &entity) const {
   entity->reformer_ = this->reformer_;
   entity->calculator_ = this->calculator_;
   entity->quantizer_ = this->quantizer_;
+  entity->distance_quantizer_ = this->distance_quantizer_;
   entity->query_distance_ = turbo::DistanceImpl{};
   entity->packed_quantizer_ = packed_quantizer_;
   entity->packed_query_.clear();
