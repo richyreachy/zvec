@@ -1056,7 +1056,7 @@ INSTANTIATE_TEST_SUITE_P(AddApis, HnswExternalCoreCompatibilityTest,
 TEST(HnswTurboRabitq, BuildsFromOriginalAndReopensWithoutProvider) {
   for (auto metric :
        {MetricType::kL2sq, MetricType::kCosine, MetricType::kInnerProduct}) {
-    for (int bits : {1, 4, 7, 8}) {
+    for (int bits : {1, 4, 7, 8, 9}) {
       SCOPED_TRACE(static_cast<int>(metric));
       SCOPED_TRACE(bits);
       CheckOriginalProviderUsesTurbo(metric, QuantizerType::kRabitq,
@@ -1083,7 +1083,7 @@ TEST(HnswTurboRabitq,
   param->use_external_vector = true;
   EXPECT_EQ(nullptr, IndexFactory::CreateAndInitIndex(*param));
   param->use_external_vector = false;
-  param->quantizer_param = std::make_shared<RabitqQuantizerParam>(9);
+  param->quantizer_param = std::make_shared<RabitqQuantizerParam>(10);
   EXPECT_EQ(nullptr, IndexFactory::CreateAndInitIndex(*param));
 }
 
@@ -1121,5 +1121,115 @@ TEST(HnswTurboRabitq, RejectsCorruptPersistedRotation) {
   EXPECT_NE(0,
             reopened->open(path, {StorageOptions::StorageType::kMMAP, false}));
   reopened.reset();
+  zvec::test_util::RemoveTestFiles(path);
+}
+
+namespace {
+class InspectableRabitqHnsw : public HNSWIndex {
+ public:
+  using Index::init;
+  // Keep the context statistics available after search; the public wrapper
+  // normally resets the thread-local context after collecting its results.
+  int search(const VectorData &query, const BaseIndexQueryParam::Pointer &param,
+             SearchResult *result) override {
+    auto &ctx = acquire_context();
+    ctx->reset();
+    int ret = _prepare_for_search(query, param, ctx);
+    if (ret != 0) return ret;
+    return _dense_search(query, param, result, ctx);
+  }
+  zvec::core::HnswContext *context() {
+    return dynamic_cast<zvec::core::HnswContext *>(acquire_context().get());
+  }
+  std::string quantizer_state() {
+    std::string state;
+    EXPECT_EQ(0, turbo_quantizer_->serialize(&state));
+    return state;
+  }
+};
+}  // namespace
+
+TEST(HnswTurboRabitq, ScreensDuringTraversalAndClearsRefinementForBuild) {
+  const std::string path = "hnsw_turbo_rabitq_stages.index";
+  zvec::test_util::RemoveTestFiles(path);
+  auto vectors = RandomVectors(kGraphVectorCount);
+  auto provider = std::make_shared<
+      zvec::core::MultiPassIndexProvider<zvec::core::IndexMeta::DT_FP32>>(
+      kDimension);
+  for (size_t i = 0; i < vectors.size(); ++i) {
+    zvec::ailego::NumericalVector<float> value(kDimension);
+    std::copy(vectors[i].begin(), vectors[i].end(), value.begin());
+    ASSERT_TRUE(provider->emplace(i, value));
+  }
+  auto param = MakeParam(MetricType::kL2sq, QuantizerType::kRabitq);
+  param->provider = provider;
+  param->provider_meta =
+      zvec::core::IndexMeta(zvec::core::IndexMeta::DT_FP32, kDimension);
+  param->provider_meta.set_metric("SquaredEuclidean", 0,
+                                  zvec::ailego::Params{});
+  InspectableRabitqHnsw index;
+  ASSERT_EQ(0, index.init(*param));
+  ASSERT_EQ(0, index.open(path, {StorageOptions::StorageType::kMMAP, true}));
+  const auto trained_state = index.quantizer_state();
+  AddVectors(&index, vectors);
+  auto linear = SearchRows(&index, vectors[37], true);
+  auto graph = SearchRows(&index, vectors[37], false);
+  CheckGraphRecall(linear, graph);
+  auto *ctx = index.context();
+  ASSERT_NE(nullptr, ctx);
+  EXPECT_TRUE(ctx->dist_calculator().has_refinement());
+  EXPECT_GT(ctx->dist_calculator().refinement_count(), 0u);
+  EXPECT_GT(ctx->dist_calculator().bound_pruned_count(), 0u);
+  EXPECT_GT(ctx->dist_calculator().estimate_count(),
+            ctx->dist_calculator().refinement_count());
+
+  // Alternating search and construction must never evaluate raw FP32 vectors
+  // through a stale RaBitQ coarse-distance callback.
+  const uint32_t id = vectors.size();
+  zvec::ailego::NumericalVector<float> extra(kDimension);
+  std::copy(vectors[37].begin(), vectors[37].end(), extra.begin());
+  ASSERT_TRUE(provider->emplace(id, extra));
+  ASSERT_EQ(0, index.add(VectorData{DenseVector{extra.data()}}, id));
+  EXPECT_FALSE(index.context()->dist_calculator().has_refinement());
+  EXPECT_EQ(trained_state, index.quantizer_state());
+
+  auto query_param =
+      HNSWQueryParamBuilder().with_topk(kTopK).with_ef_search(100).build();
+  query_param->filter = std::make_shared<IndexFilter>();
+  query_param->filter->set([](uint64_t key) { return key % 2 == 0; });
+  SearchResult filtered;
+  ASSERT_EQ(0, index.search(VectorData{DenseVector{vectors[37].data()}},
+                            query_param, &filtered));
+  EXPECT_EQ(kTopK, filtered.doc_list_.size());
+  for (const auto &doc : filtered.doc_list_) EXPECT_EQ(1u, doc.key() % 2);
+  EXPECT_TRUE(index.context()->dist_calculator().has_refinement());
+  EXPECT_GT(index.context()->dist_calculator().refinement_count(), 0u);
+  query_param->filter.reset();
+  query_param->group_by_param = std::make_shared<GroupByParam>();
+  query_param->group_by_param->group_count = 3;
+  query_param->group_by_param->group_topk = 2;
+  query_param->group_by_param->group_by = [](uint64_t key) {
+    return std::to_string(key % 3);
+  };
+  SearchResult grouped;
+  ASSERT_EQ(0, index.search(VectorData{DenseVector{vectors[37].data()}},
+                            query_param, &grouped));
+  EXPECT_EQ(3u, grouped.group_doc_list_.size());
+  for (const auto &group : grouped.group_doc_list_) {
+    EXPECT_EQ(2u, group.docs().size());
+    for (const auto &doc : group.docs())
+      EXPECT_EQ(group.group_id(), std::to_string(doc.key() % 3));
+  }
+  ASSERT_EQ(0, index.close());
+
+  // A provider on reopen must not silently retrain and reinterpret old codes.
+  InspectableRabitqHnsw reopened;
+  ASSERT_EQ(0, reopened.init(*param));
+  ASSERT_EQ(0,
+            reopened.open(path, {StorageOptions::StorageType::kMMAP, false}));
+  EXPECT_EQ(trained_state, reopened.quantizer_state());
+  auto rows = SearchRows(&reopened, vectors[37], false);
+  ASSERT_FALSE(rows.empty());
+  ASSERT_EQ(0, reopened.close());
   zvec::test_util::RemoveTestFiles(path);
 }

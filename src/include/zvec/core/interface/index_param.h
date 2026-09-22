@@ -187,6 +187,8 @@ struct PqQuantizerParam : public QuantizerParam {
 //! RaBitQ; enable_rotate does not request a separate preprocessing stage.
 struct RabitqQuantizerParam : public QuantizerParam {
   int total_bits = kDefaultRabitqTotalBits;
+  int num_clusters = 16;
+  int sample_count = 0;  // 0 trains on all provider vectors
 
   explicit RabitqQuantizerParam(int bits = kDefaultRabitqTotalBits)
       : QuantizerParam(QuantizerType::kRabitq), total_bits(bits) {}

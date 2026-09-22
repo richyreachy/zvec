@@ -10,14 +10,26 @@
 // limitations under the License.
 
 #include "rabitq_quantizer.h"
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <limits>
 #include <rabitqlib/quantization/rabitq_impl.hpp>
+#include <zvec/core/framework/index_cluster.h>
 #include <zvec/core/framework/index_factory.h>
+#include <zvec/core/framework/index_features.h>
+#include <zvec/core/framework/index_threads.h>
 
 namespace zvec::turbo {
 namespace {
+// Version the record/query layout independently of the common quantizer header.
+constexpr uint32_t kSplitFormat = 0x52425132;
+constexpr size_t kRecordHeader = 9 * sizeof(float);
+uint32_t ReadUint(const void *data, size_t offset = 0) {
+  uint32_t value;
+  std::memcpy(&value, static_cast<const char *>(data) + offset, sizeof(value));
+  return value;
+}
 float ReadFloat(const void *data, size_t offset) {
   float value;
   std::memcpy(&value, static_cast<const char *>(data) + offset, sizeof(value));
@@ -34,22 +46,34 @@ int RabitqQuantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   int64_t bits = 7;
   if (params.has(RABITQ_TOTAL_BITS) && !params.get(RABITQ_TOTAL_BITS, &bits))
     return kErrInvalidArgument;
+  int64_t clusters = 16, samples = 0;
+  if ((params.has(RABITQ_NUM_CLUSTERS) &&
+       !params.get(RABITQ_NUM_CLUSTERS, &clusters)) ||
+      (params.has(RABITQ_SAMPLE_COUNT) &&
+       !params.get(RABITQ_SAMPLE_COUNT, &samples)) ||
+      clusters < 1 || clusters > 65536 || samples < 0)
+    return kErrInvalidArgument;
   const auto metric = metric_from_name(meta.metric_name());
   if (meta.data_type() != IndexMeta::DT_FP32 || meta.dimension() < 2 ||
-      meta.dimension() > 4095 || bits < 1 || bits > 8 ||
-      meta.element_size() != static_cast<size_t>(meta.dimension()) * sizeof(float) ||
+      meta.dimension() > 4095 || bits < 1 || bits > 9 ||
+      meta.element_size() !=
+          static_cast<size_t>(meta.dimension()) * sizeof(float) ||
       (metric != MetricType::kSquaredEuclidean &&
        metric != MetricType::kInnerProduct && metric != MetricType::kCosine))
     return kErrInvalidArgument;
   dim_ = static_cast<int>(meta.dimension());
   bits_ = static_cast<int>(bits);
   metric_ = metric;
-  rotator_ = FhtRotator::create(dim_);
+  padded_dim_ = (dim_ + 63) / 64 * 64;
+  num_clusters_ = static_cast<uint32_t>(clusters);
+  sample_count_ = static_cast<size_t>(samples);
+  centroids_.clear();
+  rotator_ = FhtRotator::create(padded_dim_);
   if (!rotator_) return kErrRuntime;
   rescale_ =
       bits_ > 1
           ? rabitqlib::quant::rabitq_impl::ex_bits::get_const_scaling_factors(
-                dim_, bits_ - 1)
+                padded_dim_, bits_ - 1)
           : -1;
   meta_ = meta;
   // DT_BINARY rounds to whole 32-bit words. Describe our exact byte layout
@@ -58,85 +82,271 @@ int RabitqQuantizer::init(const IndexMeta &meta, const ailego::Params &params) {
                  static_cast<uint32_t>(quantized_datapoint_vector_length()));
   ailego::Params encoding;
   encoding.set(RABITQ_TOTAL_BITS, bits_);
+  encoding.set(RABITQ_NUM_CLUSTERS, num_clusters_);
+  encoding.set(RABITQ_SAMPLE_COUNT, sample_count_);
   meta_.set_quantizer("RabitqQuantizer", 0, encoding);
   return 0;
 }
 
 float RabitqQuantizer::rotate(const void *input,
                               std::vector<float> *out) const {
-  std::vector<float> raw(dim_);
+  std::vector<float> raw(padded_dim_, 0);
   std::memcpy(raw.data(), input, dim_ * sizeof(float));
   double norm2 = 0;
   for (float v : raw) norm2 += static_cast<double>(v) * v;
   const float norm = static_cast<float>(std::sqrt(norm2));
   if (metric_ == MetricType::kCosine && norm > 0)
     for (float &v : raw) v /= norm;
-  out->resize(dim_);
+  out->resize(padded_dim_);
   rotator_->apply(raw.data(), out->data());
   return norm;
+}
+
+int RabitqQuantizer::train(IndexHolder::Pointer holder) {
+  if (!rotator_ || !require_train() || !holder || holder->count() == 0 ||
+      holder->data_type() != IndexMeta::DT_FP32 ||
+      holder->dimension() != static_cast<size_t>(dim_) ||
+      holder->element_size() != dim_ * sizeof(float))
+    return kErrInvalidArgument;
+  IndexMeta training_meta(IndexMeta::DT_FP32, dim_);
+  training_meta.set_metric(metric_ == MetricType::kSquaredEuclidean
+                               ? "SquaredEuclidean"
+                               : "InnerProduct",
+                           0, ailego::Params{});
+  const size_t count = sample_count_ == 0
+                           ? holder->count()
+                           : std::min(sample_count_, holder->count());
+  auto samples = std::make_shared<SampleIndexFeatures<CompactIndexFeatures>>(
+      training_meta, count);
+  auto it = holder->create_iterator();
+  if (!it) return kErrInvalidArgument;
+  for (; it->is_valid(); it->next()) {
+    if (!it->data() || !FiniteInput(it->data(), dim_))
+      return kErrInvalidArgument;
+    std::vector<float> value(dim_);
+    std::memcpy(value.data(), it->data(), dim_ * sizeof(float));
+    if (metric_ == MetricType::kCosine) {
+      double norm2 = 0;
+      for (float v : value) norm2 += static_cast<double>(v) * v;
+      if (norm2 > 0)
+        for (float &v : value) v /= std::sqrt(norm2);
+    }
+    samples->emplace(value.data());
+  }
+  if (samples->count() == 0) return kErrInvalidArgument;
+  std::vector<float> centroids;
+  auto append = [&](const void *value) {
+    std::vector<float> padded(padded_dim_, 0), rotated(padded_dim_);
+    std::memcpy(padded.data(), value, dim_ * sizeof(float));
+    rotator_->apply(padded.data(), rotated.data());
+    centroids.insert(centroids.end(), rotated.begin(), rotated.end());
+  };
+  if (samples->count() <= num_clusters_) {
+    for (size_t i = 0; i < samples->count(); ++i) {
+      std::vector<float> center(dim_);
+      std::memcpy(center.data(), samples->element(i), dim_ * sizeof(float));
+      // Match spherical k-means centroids for IP/cosine even when there are
+      // fewer samples than requested centers and clustering is unnecessary.
+      if (metric_ != MetricType::kSquaredEuclidean) {
+        double norm2 = 0;
+        for (float v : center) norm2 += static_cast<double>(v) * v;
+        if (norm2 > 0)
+          for (float &v : center) v /= std::sqrt(norm2);
+      }
+      append(center.data());
+    }
+  } else {
+    // Reuse the same centroid trainer as the dedicated HNSW-RaBitQ converter.
+    auto cluster = IndexFactory::CreateCluster("OptKmeansCluster");
+    if (!cluster) return kErrRuntime;
+    int ret = cluster->init(training_meta, ailego::Params{});
+    if (ret != 0) return ret;
+    ret = cluster->mount(samples);
+    if (ret != 0) return ret;
+    cluster->suggest(num_clusters_);
+    IndexCluster::CentroidList centers;
+    ret = cluster->cluster(std::make_shared<SingleQueueIndexThreads>(0, false),
+                           centers);
+    if (ret != 0) return ret;
+    if (centers.empty() || centers.size() > num_clusters_) return kErrRuntime;
+    for (const auto &center : centers) append(center.feature());
+  }
+  centroids_ = std::move(centroids);
+  return 0;
+}
+
+uint32_t RabitqQuantizer::nearest_centroid(const std::vector<float> &x) const {
+  uint32_t best = 0;
+  double best_distance = std::numeric_limits<double>::infinity();
+  for (size_t c = 0; c < centroids_.size() / padded_dim_; ++c) {
+    double distance = 0;
+    for (int i = 0; i < padded_dim_; ++i) {
+      const double v = centroids_[c * padded_dim_ + i];
+      distance += metric_ == MetricType::kSquaredEuclidean
+                      ? (x[i] - v) * (x[i] - v)
+                      : -x[i] * v;
+    }
+    if (distance < best_distance) {
+      best_distance = distance;
+      best = c;
+    }
+  }
+  return best;
 }
 
 void RabitqQuantizer::quantize_data(const void *input, void *output) const {
   std::vector<float> rotated;
   const float original_norm = rotate(input, &rotated);
-  std::vector<uint8_t> codes(dim_, 0);
-  // The library produces the extra bits (including the negative-coordinate
-  // complement). Add the sign bit to obtain the complete midpoint code.
-  if (bits_ > 1 && original_norm > 0) {
-    rabitqlib::quant::rabitq_impl::ex_bits::ex_bits_code<float, uint8_t>(
-        rotated.data(), dim_, bits_ - 1, codes.data(), rescale_);
+  const uint32_t cluster = nearest_centroid(rotated);
+  const float *centroid = centroids_.data() + cluster * padded_dim_;
+  std::vector<int> binary(padded_dim_);
+  std::vector<uint8_t> extra(padded_dim_, 0);
+  const auto metric = metric_ == MetricType::kSquaredEuclidean
+                          ? rabitqlib::METRIC_L2
+                          : rabitqlib::METRIC_IP;
+  float bin_add, bin_scale, bin_error;
+  rabitqlib::quant::rabitq_impl::one_bit::one_bit_code_with_factor(
+      rotated.data(), centroid, padded_dim_, binary.data(), bin_add, bin_scale,
+      bin_error, metric);
+  double norm2 = 0;
+  for (int i = 0; i < padded_dim_; ++i) {
+    const double r = rotated[i] - centroid[i];
+    norm2 += r * r;
   }
+  // The upstream formula is undefined for a zero residual and can round
+  // slightly negative inside sqrt. Both mean a zero error radius here.
+  if (!std::isfinite(bin_error)) bin_error = 0;
+  float full_add = bin_add, full_scale = bin_scale, full_error;
+  if (bits_ > 1 && norm2 > 0) {
+    rabitqlib::quant::rabitq_impl::ex_bits::ex_bits_code_with_factor(
+        rotated.data(), centroid, padded_dim_, bits_ - 1, extra.data(),
+        full_add, full_scale, full_error, metric, rescale_);
+  }
+  double code_norm2 = 0, dot = 0;
   const float midpoint = ((1u << bits_) - 1) * 0.5f;
-  double norm2 = 0, dot = 0;
   std::memset(output, 0, quantized_datapoint_vector_length());
-  auto *packed = static_cast<uint8_t *>(output) + 3 * sizeof(float);
-  for (int i = 0; i < dim_; ++i) {
-    codes[i] += static_cast<uint8_t>((rotated[i] >= 0) << (bits_ - 1));
-    norm2 += static_cast<double>(rotated[i]) * rotated[i];
-    dot += static_cast<double>(rotated[i]) * (codes[i] - midpoint);
-    const size_t pos = static_cast<size_t>(i) * bits_;
-    const unsigned shift = pos % 8;
-    packed[pos / 8] |= codes[i] << shift;
-    if (shift + bits_ > 8) packed[pos / 8 + 1] |= codes[i] >> (8 - shift);
+  auto *signs = static_cast<uint8_t *>(output) + kRecordHeader;
+  auto *packed = signs + padded_dim_ / 8;
+  for (int i = 0; i < padded_dim_; ++i) {
+    signs[i / 8] |= binary[i] << (i % 8);
+    if (bits_ > 1) {
+      const size_t pos = static_cast<size_t>(i) * (bits_ - 1);
+      const unsigned shift = pos % 8;
+      packed[pos / 8] |= extra[i] << shift;
+      if (shift + bits_ - 1 > 8) packed[pos / 8 + 1] |= extra[i] >> (8 - shift);
+    }
+    const float code = (binary[i] << (bits_ - 1)) + extra[i] - midpoint;
+    dot += (rotated[i] - centroid[i]) * static_cast<double>(code);
+    code_norm2 += static_cast<double>(code) * code;
   }
-  // RaBitQ's unbiased inner-product estimator: ||x||² / <x, code>.
-  // Keep the original norm independently for vector reconstruction (Cosine).
-  const float factors[] = {static_cast<float>(norm2),
-                           dot > 0 ? static_cast<float>(norm2 / dot) : 0.0f,
-                           original_norm};
-  std::memcpy(output, factors, sizeof(factors));
+  const float factors[] = {original_norm,
+                           static_cast<float>(norm2),
+                           static_cast<float>(dot / code_norm2),
+                           bin_add,
+                           bin_scale,
+                           bin_error,
+                           full_add,
+                           full_scale};
+  std::memcpy(output, &cluster, sizeof(cluster));
+  std::memcpy(static_cast<char *>(output) + sizeof(cluster), factors,
+              sizeof(factors));
 }
 
 void RabitqQuantizer::quantize_query(const void *input, void *output) const {
   std::vector<float> rotated;
   rotate(input, &rotated);
+  std::vector<float> values(quantized_query_vector_length() / sizeof(float), 0);
+  std::copy(rotated.begin(), rotated.end(), values.begin());
+  std::vector<float> zero(padded_dim_, 0);
+  std::vector<uint8_t> codes(padded_dim_, 0);
   double norm2 = 0;
   for (float v : rotated) norm2 += static_cast<double>(v) * v;
-  rotated.push_back(static_cast<float>(norm2));
-  std::memcpy(output, rotated.data(), quantized_query_vector_length());
+  float delta = 0, vl = 0;
+  if (norm2 > 0) {
+    rabitqlib::quant::rabitq_impl::total_bits::rabitq_scalar_impl(
+        rotated.data(), zero.data(), padded_dim_, 4, codes.data(), delta, vl,
+        rabitqlib::quant::rabitq_impl::ex_bits::get_const_scaling_factors(
+            padded_dim_, 3));
+  }
+  // Scalar equivalent of SplitSingleQuery's 4-bit warmup. Keep the FP32
+  // rotated query separately for full estimates and the original sum
+  // correction.
+  for (int i = 0; i < padded_dim_; ++i) {
+    values[padded_dim_ + i] = codes[i] * delta + vl;
+    values[2 * padded_dim_] += rotated[i];
+  }
+  for (size_t c = 0; c < centroids_.size() / padded_dim_; ++c) {
+    double distance = 0, dot = 0;
+    for (int i = 0; i < padded_dim_; ++i) {
+      const double center = centroids_[c * padded_dim_ + i];
+      distance += (rotated[i] - center) * (rotated[i] - center);
+      dot += rotated[i] * center;
+    }
+    values[2 * padded_dim_ + 1 + c] =
+        metric_ == MetricType::kSquaredEuclidean ? distance : -dot;
+    values[2 * padded_dim_ + 1 + num_clusters_ + c] = std::sqrt(distance);
+  }
+  std::memcpy(output, values.data(), quantized_query_vector_length());
+}
+
+unsigned RabitqQuantizer::sign(const void *data, int i) const {
+  const auto *packed = static_cast<const uint8_t *>(data) + kRecordHeader;
+  return (packed[i / 8] >> (i % 8)) & 1;
 }
 
 unsigned RabitqQuantizer::code(const void *data, int i) const {
-  const auto *packed = static_cast<const uint8_t *>(data) + 3 * sizeof(float);
-  const size_t pos = static_cast<size_t>(i) * bits_;
+  if (bits_ == 1) return sign(data, i);
+  const auto *packed =
+      static_cast<const uint8_t *>(data) + kRecordHeader + padded_dim_ / 8;
+  const size_t pos = static_cast<size_t>(i) * (bits_ - 1);
   const unsigned shift = pos % 8;
   unsigned value = packed[pos / 8] >> shift;
-  if (shift + bits_ > 8)
+  if (shift + bits_ - 1 > 8)
     value |= static_cast<unsigned>(packed[pos / 8 + 1]) << (8 - shift);
-  return value & ((1u << bits_) - 1);
+  return (sign(data, i) << (bits_ - 1)) | (value & ((1u << (bits_ - 1)) - 1));
+}
+
+float RabitqQuantizer::estimate(const void *dp, const void *q, bool full,
+                                float *lower) const {
+  const uint32_t cluster = ReadUint(dp);
+  if (cluster >= centroids_.size() / padded_dim_) {
+    *lower = std::numeric_limits<float>::infinity();
+    return *lower;
+  }
+  double dot = 0;
+  for (int i = 0; i < padded_dim_; ++i) {
+    dot += (full ? code(dp, i) : sign(dp, i)) *
+           static_cast<double>(
+               ReadFloat(q, (full ? i : padded_dim_ + i) * sizeof(float)));
+  }
+  dot -= (full ? ((1u << bits_) - 1) * 0.5f : 0.5f) *
+         ReadFloat(q, 2 * padded_dim_ * sizeof(float));
+  const float g_add =
+      ReadFloat(q, (2 * padded_dim_ + 1 + cluster) * sizeof(float));
+  const float g_error = ReadFloat(
+      q, (2 * padded_dim_ + 1 + num_clusters_ + cluster) * sizeof(float));
+  const float add = ReadFloat(dp, (full ? 7 : 4) * sizeof(float));
+  const float scale = ReadFloat(dp, (full ? 8 : 5) * sizeof(float));
+  // Library IP estimators use 1-IP. Turbo's internal IP space uses -IP.
+  const float score = add + g_add + scale * dot -
+                      (metric_ == MetricType::kInnerProduct ? 1 : 0);
+  *lower = score - ReadFloat(dp, 6 * sizeof(float)) * g_error /
+                       (full ? (1u << (bits_ - 1)) : 1);
+  return score;
+}
+
+DistanceEstimate RabitqQuantizer::estimate_distance_dp_query(
+    const void *dp, const void *q) const {
+  float lower;
+  const float distance = estimate(dp, q, false, &lower);
+  // With no extra bits the coarse score is already the final score.
+  return {distance, bits_ == 1 ? distance : lower};
 }
 
 float RabitqQuantizer::calc_distance_dp_query(const void *dp,
                                               const void *q) const {
-  const float midpoint = ((1u << bits_) - 1) * 0.5f;
-  double dot = 0;
-  for (int i = 0; i < dim_; ++i)
-    dot += (code(dp, i) - midpoint) *
-           static_cast<double>(ReadFloat(q, i * sizeof(float)));
-  const float ip = static_cast<float>(dot * ReadFloat(dp, sizeof(float)));
-  if (metric_ == MetricType::kSquaredEuclidean)
-    return ReadFloat(dp, 0) + ReadFloat(q, dim_ * sizeof(float)) - 2 * ip;
-  return metric_ == MetricType::kCosine ? 1 - ip : -ip;
+  float lower;
+  return estimate(dp, q, bits_ > 1, &lower);
 }
 
 void RabitqQuantizer::calc_distance_dp_query_batch(const void *const *dp, int n,
@@ -174,12 +384,12 @@ bool RabitqQuantizer::valid_input(const IndexQueryMeta &meta) const {
 
 int RabitqQuantizer::quantize(const void *data, const IndexQueryMeta &meta,
                               std::string *out, IndexQueryMeta *ometa) const {
-  if (!data || !out || !ometa || !valid_input(meta) || !FiniteInput(data, dim_))
+  if (!data || !out || !ometa || !valid_input(meta) || require_train() ||
+      !FiniteInput(data, dim_))
     return kErrInvalidArgument;
   out->resize(quantized_query_vector_length());
   quantize_query(data, out->data());
-  ometa->set_meta(IndexMeta::DT_FP32, dim_, static_cast<uint32_t>(type_),
-                  sizeof(float));
+  *ometa = quantized_query_meta();
   return 0;
 }
 
@@ -187,7 +397,8 @@ int RabitqQuantizer::quantize_datapoint(const void *data,
                                         const IndexQueryMeta &meta,
                                         std::string *out,
                                         IndexQueryMeta *ometa) const {
-  if (!data || !out || !ometa || !valid_input(meta) || !FiniteInput(data, dim_))
+  if (!data || !out || !ometa || !valid_input(meta) || require_train() ||
+      !FiniteInput(data, dim_))
     return kErrInvalidArgument;
   out->resize(quantized_datapoint_vector_length());
   quantize_data(data, out->data());
@@ -201,23 +412,17 @@ int RabitqQuantizer::dequantize(const void *data, const IndexQueryMeta &meta,
   if (!data || !out ||
       meta.element_size() != quantized_datapoint_vector_length())
     return kErrInvalidArgument;
-  std::vector<float> rotated(dim_), raw(dim_);
+  const uint32_t cluster = ReadUint(data);
+  if (cluster >= centroids_.size() / padded_dim_) return kErrInvalidArgument;
+  std::vector<float> rotated(padded_dim_), raw(padded_dim_);
   const float midpoint = ((1u << bits_) - 1) * 0.5f;
-  double code_norm2 = 0;
-  for (int i = 0; i < dim_; ++i) {
-    rotated[i] = code(data, i) - midpoint;
-    code_norm2 += static_cast<double>(rotated[i]) * rotated[i];
-  }
-  // For reconstruction use the least-squares scale, rather than the unbiased
-  // estimator scale used for search: <x, code> / ||code||².
-  const float unbiased_scale = ReadFloat(data, sizeof(float));
-  float scale = unbiased_scale > 0
-                    ? ReadFloat(data, 0) / (unbiased_scale * code_norm2)
-                    : 0;
-  if (metric_ == MetricType::kCosine)
-    scale *= ReadFloat(data, 2 * sizeof(float));
-  for (float &v : rotated) v *= scale;
+  const float scale = ReadFloat(data, 3 * sizeof(float));
+  for (int i = 0; i < padded_dim_; ++i)
+    rotated[i] = centroids_[cluster * padded_dim_ + i] +
+                 scale * (code(data, i) - midpoint);
   rotator_->apply_inverse(rotated.data(), raw.data());
+  if (metric_ == MetricType::kCosine)
+    for (float &v : raw) v *= ReadFloat(data, sizeof(float));
   out->assign(reinterpret_cast<const char *>(raw.data()), dim_ * sizeof(float));
   return 0;
 }
@@ -246,37 +451,57 @@ int RabitqQuantizer::serialize(std::string *out) const {
   header.dim = dim_;
   header.metric = static_cast<uint32_t>(metric_);
   header.data_type = static_cast<uint16_t>(DataType::kUint8);
-  header.payload_size = sizeof(uint32_t) + rotation.size();
-  const uint32_t bits = bits_;
+  const uint32_t fields[] = {
+      kSplitFormat, static_cast<uint32_t>(bits_), num_clusters_,
+      static_cast<uint32_t>(centroids_.size() / padded_dim_),
+      static_cast<uint32_t>(rotation.size())};
+  header.payload_size =
+      sizeof(fields) + rotation.size() + centroids_.size() * sizeof(float);
   out->assign(reinterpret_cast<const char *>(&header), sizeof(header));
-  out->append(reinterpret_cast<const char *>(&bits), sizeof(bits));
+  out->append(reinterpret_cast<const char *>(fields), sizeof(fields));
   out->append(rotation);
+  if (!centroids_.empty())
+    out->append(reinterpret_cast<const char *>(centroids_.data()),
+                centroids_.size() * sizeof(float));
   return 0;
 }
 
 int RabitqQuantizer::deserialize(const void *data, size_t len) {
-  if (!data || !rotator_ || len < sizeof(QuantizerSerHeader) + sizeof(uint32_t))
+  if (!data || !rotator_ ||
+      len < sizeof(QuantizerSerHeader) + 5 * sizeof(uint32_t))
     return kErrInvalidArgument;
   QuantizerSerHeader header;
   std::memcpy(&header, data, sizeof(header));
-  uint32_t bits;
   const char *payload = static_cast<const char *>(data) + sizeof(header);
-  std::memcpy(&bits, payload, sizeof(bits));
+  const uint32_t format = ReadUint(payload), bits = ReadUint(payload, 4);
+  const uint32_t clusters = ReadUint(payload, 8),
+                 trained = ReadUint(payload, 12);
+  const uint32_t rotation_size = ReadUint(payload, 16);
   if (header.magic != kQuantizerMagic ||
       header.version != kQuantizerSerVersion ||
       header.quant_type != static_cast<uint16_t>(type_) ||
       header.dim != static_cast<uint32_t>(dim_) ||
       header.metric != static_cast<uint32_t>(metric_) ||
       header.data_type != static_cast<uint16_t>(DataType::kUint8) ||
-      header.reserved != 0 || bits != static_cast<uint32_t>(bits_) ||
-      header.payload_size != len - sizeof(header))
+      header.reserved != 0 || format != kSplitFormat ||
+      bits != static_cast<uint32_t>(bits_) || clusters != num_clusters_ ||
+      trained > clusters || header.payload_size != len - sizeof(header) ||
+      rotation_size != sizeof(RotatorSerHeader) + 4 * ((padded_dim_ + 7) / 8) ||
+      len - sizeof(header) !=
+          20 + rotation_size +
+              static_cast<size_t>(trained) * padded_dim_ * sizeof(float))
     return kErrInvalidArgument;
-  const size_t rotation_size = sizeof(RotatorSerHeader) + 4 * ((dim_ + 7) / 8);
-  if (len - sizeof(header) - sizeof(bits) != rotation_size)
+  auto rotation = FhtRotator::from_blob(payload + 20, rotation_size);
+  if (!rotation || rotation->in_dim() != padded_dim_)
     return kErrInvalidArgument;
-  auto rotation = FhtRotator::from_blob(payload + sizeof(bits), rotation_size);
-  if (!rotation || rotation->in_dim() != dim_) return kErrInvalidArgument;
+  std::vector<float> centroids(static_cast<size_t>(trained) * padded_dim_);
+  if (!centroids.empty())
+    std::memcpy(centroids.data(), payload + 20 + rotation_size,
+                centroids.size() * sizeof(float));
+  if (!FiniteInput(centroids.data(), centroids.size()))
+    return kErrInvalidArgument;
   rotator_ = std::move(rotation);
+  centroids_ = std::move(centroids);
   return 0;
 }
 

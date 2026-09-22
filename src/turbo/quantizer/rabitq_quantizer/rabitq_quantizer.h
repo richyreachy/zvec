@@ -17,10 +17,9 @@
 
 namespace zvec::turbo {
 
-// Zero-centered RaBitQ with an intrinsic random rotation. Uses the bundled
-// RaBitQ library's multi-bit encoder; codes are densely packed in bit order.
-// Records: [norm squared, unbiased scale, original norm][packed codes].
-// Queries: [rotated FP32 coordinates][norm squared]. No training is required.
+// Centroid-based split RaBitQ: independent 1-bit codes/factors screen graph
+// neighbors; extra bits refine surviving candidates. Graph building uses raw
+// vectors. The portable kernels share the dedicated index's scalar encoder.
 class RabitqQuantizer final : public Quantizer {
  public:
   RabitqQuantizer() : Quantizer(QuantizeType::kRabit) {}
@@ -35,26 +34,33 @@ class RabitqQuantizer final : public Quantizer {
     return dim_;
   }
   bool require_train() const override {
-    return false;
+    return centroids_.empty();
   }
+  int train(IndexHolder::Pointer holder) override;
   bool requires_original_vectors() const override {
     return true;
   }
   size_t quantized_datapoint_vector_length() const override {
-    return 3 * sizeof(float) + (static_cast<size_t>(dim_) * bits_ + 7) / 8;
+    return 9 * sizeof(float) + static_cast<size_t>(padded_dim_) * bits_ / 8;
   }
   size_t quantized_query_vector_length() const override {
-    return (static_cast<size_t>(dim_) + 1) * sizeof(float);
+    return (2 * static_cast<size_t>(padded_dim_) + 1 + 2 * num_clusters_) *
+           sizeof(float);
   }
   IndexQueryMeta quantized_query_meta() const override {
     IndexQueryMeta result;
     result.set_meta(IndexMeta::DT_FP32, dim_, static_cast<uint32_t>(type_),
-                    sizeof(float));
+                    quantized_query_vector_length() - dim_ * sizeof(float));
     return result;
   }
   void quantize_data(const void *, void *) const override;
   void quantize_query(const void *, void *) const override;
   float calc_distance_dp_query(const void *, const void *) const override;
+  bool supports_distance_refinement() const override {
+    return true;
+  }
+  DistanceEstimate estimate_distance_dp_query(const void *,
+                                              const void *) const override;
   void calc_distance_dp_query_batch(const void *const *, int, const void *,
                                     float *) const override;
   float calc_distance_dp_query_unquantized(const void *,
@@ -89,9 +95,16 @@ class RabitqQuantizer final : public Quantizer {
   bool valid_input(const IndexQueryMeta &) const;
   float rotate(const void *, std::vector<float> *) const;
   unsigned code(const void *, int) const;
+  unsigned sign(const void *, int) const;
+  uint32_t nearest_centroid(const std::vector<float> &) const;
+  float estimate(const void *, const void *, bool full, float *lower) const;
   IndexMeta meta_;
   int dim_{0};
   int bits_{7};
+  int padded_dim_{0};
+  uint32_t num_clusters_{16};
+  size_t sample_count_{0};
+  std::vector<float> centroids_;  // rotated centroids, immutable after training
   MetricType metric_{MetricType::kUnknown};
   double rescale_{-1};
   FhtRotator::Pointer rotator_;

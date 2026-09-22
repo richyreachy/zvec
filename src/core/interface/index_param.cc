@@ -516,6 +516,8 @@ ailego::JsonObject RabitqQuantizerParam::serialize_to_json_object(
     bool omit_empty_value) const {
   auto json_obj = QuantizerParam::serialize_to_json_object(omit_empty_value);
   json_obj.set("total_bits", ailego::JsonValue(total_bits));
+  json_obj.set("num_clusters", ailego::JsonValue(num_clusters));
+  json_obj.set("sample_count", ailego::JsonValue(sample_count));
   return json_obj;
 }
 
@@ -523,7 +525,10 @@ bool RabitqQuantizerParam::deserialize_from_json_object(
     const ailego::JsonObject &json_obj) {
   if (!QuantizerParam::deserialize_from_json_object(json_obj)) return false;
   DESERIALIZE_VALUE_FIELD(json_obj, total_bits);
-  return total_bits >= 1 && total_bits <= 8;
+  DESERIALIZE_VALUE_FIELD(json_obj, num_clusters);
+  DESERIALIZE_VALUE_FIELD(json_obj, sample_count);
+  return total_bits >= 1 && total_bits <= 9 && num_clusters >= 1 &&
+         num_clusters <= 65536 && sample_count >= 0;
 }
 
 bool PqQuantizerParam::deserialize_from_json_object(

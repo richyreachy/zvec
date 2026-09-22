@@ -124,6 +124,10 @@ int HNSWIndex::create_and_init_converter_reformer(
       quantizer_params.set(turbo::RABITQ_TOTAL_BITS,
                            rabitq ? rabitq->total_bits
                                   : static_cast<int>(kDefaultRabitqTotalBits));
+      quantizer_params.set(turbo::RABITQ_NUM_CLUSTERS,
+                           rabitq ? rabitq->num_clusters : 16);
+      quantizer_params.set(turbo::RABITQ_SAMPLE_COUNT,
+                           rabitq ? rabitq->sample_count : 0);
     }
     if (turbo_quantizer_->init(proxima_index_meta_, quantizer_params) != 0) {
       LOG_ERROR("Failed to init turbo quantizer %s", quantizer_name);

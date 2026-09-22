@@ -324,6 +324,13 @@ int HnswStreamer::setup_entity() {
 int HnswStreamer::open_quantizer(const IndexStorage::Pointer &storage,
                                  bool create) {
   if (!quantizer_) return 0;
+  // Train once from the original provider before storing any encoded records.
+  // Reopen always restores the saved model, even when a provider is attached.
+  if (create && quantizer_->requires_original_vectors() &&
+      quantizer_->require_train() && provider_ && provider_->count() != 0) {
+    const int ret = quantizer_->train(provider_);
+    if (ret != 0) return ret;
+  }
   std::string state;
   int ret = quantizer_->serialize(&state);
   if (ret != 0 || state.empty()) return ret;
@@ -354,6 +361,9 @@ int HnswStreamer::open_quantizer(const IndexStorage::Pointer &storage,
 int HnswStreamer::check_params(const void *query, const IndexQueryMeta &qmeta,
                                bool search) const {
   if (!query) return IndexError_InvalidArgument;
+  if (quantizer_ && quantizer_->requires_original_vectors() &&
+      quantizer_->require_train())
+    return IndexError_NoReady;
   if (!search && quantizer_ && quantizer_->requires_original_vectors() &&
       !provider_) {
     LOG_ERROR(
@@ -801,6 +811,15 @@ void HnswStreamer::bind_search_dist_space(HnswContext *ctx) const {
       metric_ ? metric_->extra_values_size_per_vector() : 0;
   ctx->bind_dist_space(search_distance_, search_batch_distance_, nullptr,
                        meta_.element_size(), extra_values_size);
+  if (quantizer_ && quantizer_->supports_distance_refinement()) {
+    ctx->dist_calculator().set_estimate_distance(
+        [quantizer = quantizer_](const void *dp, const void *q, float *score,
+                                 float *lower) {
+          const auto estimate = quantizer->estimate_distance_dp_query(dp, q);
+          *score = estimate.distance;
+          *lower = estimate.lower_bound;
+        });
+  }
 }
 
 //! Add a vector with id into index

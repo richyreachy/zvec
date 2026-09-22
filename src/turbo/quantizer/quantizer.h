@@ -79,6 +79,11 @@ struct QuantizerSerHeader {
 static_assert(sizeof(QuantizerSerHeader) == 24,
               "QuantizerSerHeader must be 24 bytes");
 
+struct DistanceEstimate {
+  float distance;
+  float lower_bound;
+};
+
 class Quantizer {
  public:
   typedef std::shared_ptr<Quantizer> Pointer;
@@ -149,6 +154,17 @@ class Quantizer {
   //! Distance between a quantized datapoint and a quantized query
   virtual float calc_distance_dp_query(const void *dp,
                                        const void *query) const = 0;
+
+  //! Optional coarse estimate used to screen graph neighbors before refinement.
+  //! The lower bound is in the same distance space as calc_distance_dp_query.
+  virtual bool supports_distance_refinement() const {
+    return false;
+  }
+  virtual DistanceEstimate estimate_distance_dp_query(const void *dp,
+                                                      const void *query) const {
+    const float d = calc_distance_dp_query(dp, query);
+    return {d, d};
+  }
 
   //! Batched distance between quantized datapoints and a quantized query.
   //! Gather-style contract: each datapoint is addressed by its own pointer,
