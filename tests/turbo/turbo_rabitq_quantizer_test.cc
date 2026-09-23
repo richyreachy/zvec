@@ -5,6 +5,7 @@
 #include <limits>
 #include <random>
 #include <gtest/gtest.h>
+#include <rabitqlib/utils/space.hpp>
 #include <turbo/quantizer/rabitq_quantizer/rabitq_quantizer.h>
 #include <zvec/core/framework/index_factory.h>
 #if RABITQ_SUPPORTED
@@ -14,6 +15,19 @@
 
 namespace zvec::turbo {
 namespace {
+
+TEST(RabitqQuantizer, PortablePopulationCount) {
+  uint64_t code = 0;
+  for (uint32_t bits = 0; bits <= 64; ++bits) {
+    SCOPED_TRACE(bits);
+    EXPECT_EQ(bits, rabitqlib::popcount(&code, 64));
+    EXPECT_EQ(bits, rabitqlib::ip_bin_bin(&code, &code, 64));
+    EXPECT_FLOAT_EQ(static_cast<float>(bits) * 0.75f,
+                    rabitqlib::ip_x0_q(&code, &code, 0.5f, 0.25f, 64, 1));
+    // Exercise the high bit as well as every population count, including 64.
+    code = (code >> 1) | (uint64_t{1} << 63);
+  }
+}
 
 TEST(RabitqQuantizer, BitsMetricsAsymmetricEncodingAndPersistence) {
   constexpr int dim =

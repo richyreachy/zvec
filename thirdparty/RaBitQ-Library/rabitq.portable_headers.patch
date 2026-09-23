@@ -1,0 +1,265 @@
+--- a/include/rabitqlib/fastscan/fastscan.hpp
++++ b/include/rabitqlib/fastscan/fastscan.hpp
+@@ -106,16 +106,16 @@
+ 
+ // use fast scan to accumulate one block, dim % 16 == 0
+ void accumulate(
+-    const uint8_t* __restrict__ codes,
+-    const uint8_t* __restrict__ lp_table,
+-    uint16_t* __restrict__ result,
++    const uint8_t* __restrict codes,
++    const uint8_t* __restrict lp_table,
++    uint16_t* __restrict result,
+     size_t dim
+ );
+ 
+ // pack lookup table for fastscan, for each 4 dim, we have 16 (2^4) different results
+ // ! dim % 4 == 0
+ template <typename T>
+-inline void pack_lut(size_t dim, const T* __restrict__ query, T* __restrict__ lut) {
++inline void pack_lut(size_t dim, const T* __restrict query, T* __restrict lut) {
+     size_t num_codebook = dim >> 2;
+     for (size_t i = 0; i < num_codebook; ++i) {
+         lut[0] = 0;
+--- a/include/rabitqlib/simd/space_dispatch.hpp
++++ b/include/rabitqlib/simd/space_dispatch.hpp
+@@ -6,23 +6,23 @@
+ namespace rabitqlib::simd {
+ namespace excode_ipimpl {
+ 
+-float ip16_fxu1_avx2(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu2_avx2(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu3_avx2(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip16_fxu4_avx2(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu5_avx2(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu6_avx2(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu7_avx2(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip16_fxu8_avx2(const float* __restrict__ query, const uint8_t* __restrict__ code, size_t dim);
++float ip16_fxu1_avx2(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu2_avx2(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu3_avx2(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip16_fxu4_avx2(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu5_avx2(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu6_avx2(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu7_avx2(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip16_fxu8_avx2(const float* __restrict query, const uint8_t* __restrict code, size_t dim);
+ 
+-float ip16_fxu1_avx512(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu2_avx512(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu3_avx512(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip16_fxu4_avx512(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu5_avx512(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu6_avx512(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu7_avx512(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip16_fxu8_avx512(const float* __restrict__ query, const uint8_t* __restrict__ code, size_t dim);
++float ip16_fxu1_avx512(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu2_avx512(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu3_avx512(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip16_fxu4_avx512(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu5_avx512(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu6_avx512(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu7_avx512(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip16_fxu8_avx512(const float* __restrict query, const uint8_t* __restrict code, size_t dim);
+ 
+ }  // namespace excode_ipimpl
+ 
+--- a/include/rabitqlib/utils/space.hpp
++++ b/include/rabitqlib/utils/space.hpp
+@@ -20,8 +20,8 @@
+ namespace scalar_impl {
+ template <typename T>
+ void scalar_quantize_normal(
+-    T* __restrict__ result,
+-    const float* __restrict__ vec0,
++    T* __restrict result,
++    const float* __restrict vec0,
+     size_t dim,
+     float lo,
+     float delta
+@@ -37,8 +37,8 @@
+ 
+ template <typename T>
+ void scalar_quantize_optimized(
+-    T* __restrict__ result,
+-    const float* __restrict__ vec0,
++    T* __restrict result,
++    const float* __restrict vec0,
+     size_t dim,
+     float lo,
+     float delta
+@@ -48,8 +48,8 @@
+ 
+ template <>
+ inline void scalar_quantize_optimized<uint8_t>(
+-    uint8_t* __restrict__ result,
+-    const float* __restrict__ vec0,
++    uint8_t* __restrict result,
++    const float* __restrict vec0,
+     size_t dim,
+     float lo,
+     float delta
+@@ -59,8 +59,8 @@
+ 
+ template <>
+ inline void scalar_quantize_optimized<uint16_t>(
+-    uint16_t* __restrict__ result,
+-    const float* __restrict__ vec0,
++    uint16_t* __restrict result,
++    const float* __restrict vec0,
+     size_t dim,
+     float lo,
+     float delta
+@@ -76,7 +76,7 @@
+ }
+ 
+ template <typename T>
+-inline T euclidean_sqr(const T* __restrict__ vec0, const T* __restrict__ vec1, size_t dim) {
++inline T euclidean_sqr(const T* __restrict vec0, const T* __restrict vec1, size_t dim) {
+     ConstVectorMap<T> v0(vec0, dim);
+     ConstVectorMap<T> v1(vec1, dim);
+     return (v0 - v1).dot(v0 - v1);
+@@ -84,7 +84,7 @@
+ 
+ template <typename T>
+ inline T dot_product_dis(
+-    const T* __restrict__ vec0, const T* __restrict__ vec1, size_t dim
++    const T* __restrict vec0, const T* __restrict vec1, size_t dim
+ ) {
+     ConstVectorMap<T> v0(vec0, dim);
+     ConstVectorMap<T> v1(vec1, dim);
+@@ -92,13 +92,13 @@
+ }
+ 
+ template <typename T>
+-inline T l2norm_sqr(const T* __restrict__ vec0, size_t dim) {
++inline T l2norm_sqr(const T* __restrict vec0, size_t dim) {
+     ConstVectorMap<T> v0(vec0, dim);
+     return v0.dot(v0);
+ }
+ 
+ template <typename T>
+-inline T dot_product(const T* __restrict__ vec0, const T* __restrict__ vec1, size_t dim) {
++inline T dot_product(const T* __restrict vec0, const T* __restrict vec1, size_t dim) {
+     ConstVectorMap<T> v0(vec0, dim);
+     ConstVectorMap<T> v1(vec1, dim);
+     return v0.dot(v1);
+@@ -106,7 +106,7 @@
+ 
+ template <typename T>
+ inline T normalize_vec(
+-    const T* __restrict__ vec, const T* __restrict__ centroid, T* res, T dist2c, size_t dim
++    const T* __restrict vec, const T* __restrict centroid, T* res, T dist2c, size_t dim
+ ) {
+     RowMajorArrayMap<T> r(res, 1, dim);
+     if (dist2c > 1e-5) {
+@@ -123,7 +123,7 @@
+ // pack 0/1 data to usigned integer
+ template <typename T>
+ inline void pack_binary(
+-    const int* __restrict__ binary_code, T* __restrict__ compact_code, size_t length
++    const int* __restrict binary_code, T* __restrict compact_code, size_t length
+ ) {
+     constexpr size_t kTypeBits = sizeof(T) * 8;
+ 
+@@ -138,7 +138,7 @@
+ }
+ 
+ template <typename T>
+-inline void data_range(const T* __restrict__ vec0, size_t dim, T& lo, T& hi) {
++inline void data_range(const T* __restrict vec0, size_t dim, T& lo, T& hi) {
+     ConstRowMajorArrayMap<T> v0(vec0, 1, dim);
+     lo = v0.minCoeff();
+     hi = v0.maxCoeff();
+@@ -146,7 +146,7 @@
+ 
+ template <typename T, typename TD>
+ void scalar_quantize(
+-    T* __restrict__ result, const TD* __restrict__ vec0, size_t dim, TD lo, TD delta
++    T* __restrict result, const TD* __restrict vec0, size_t dim, TD lo, TD delta
+ ) {
+     assert_integral<T>();
+     scalar_impl::scalar_quantize_optimized(result, vec0, dim, lo, delta);
+@@ -233,17 +233,17 @@
+ 
+ namespace excode_ipimpl {
+ 
+-float ip16_fxu1_avx(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu2_avx(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu3_avx(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip16_fxu4_avx(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu5_avx(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu6_avx(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
+-float ip64_fxu7_avx(const float* __restrict__ query, const uint8_t* __restrict__ compact_code, size_t dim);
++float ip16_fxu1_avx(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu2_avx(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu3_avx(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip16_fxu4_avx(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu5_avx(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu6_avx(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
++float ip64_fxu7_avx(const float* __restrict query, const uint8_t* __restrict compact_code, size_t dim);
+ 
+ // inner product between float type and int type vectors
+ template <typename TF, typename TI>
+-inline TF ip_fxi(const TF* __restrict__ vec0, const TI* __restrict__ vec1, size_t dim) {
++inline TF ip_fxi(const TF* __restrict vec0, const TI* __restrict vec1, size_t dim) {
+     static_assert(std::is_floating_point_v<TF>, "TF must be an floating type");
+     static_assert(std::is_integral_v<TI>, "TI must be an integeral type");
+ 
+@@ -290,6 +290,21 @@
+     return mask_ip_x0_q(query, data, padded_dim);
+ }
+ 
++// MSVC does not provide GCC's population-count builtins. Keep this fallback
++// independent of CPU intrinsics so it also works on Windows ARM64.
++inline uint32_t popcount_u64(uint64_t value) {
++#ifdef _MSC_VER
++    uint32_t count = 0;
++    while (value != 0) {
++        value &= value - 1;
++        ++count;
++    }
++    return count;
++#else
++    return static_cast<uint32_t>(__builtin_popcountll(value));
++#endif
++}
++
+ inline float ip_x0_q(
+     const uint64_t* data,
+     const uint64_t* query,
+@@ -307,11 +322,11 @@
+ 
+     for (size_t i = 0; i < num_blk; ++i) {
+         uint64_t x = *static_cast<const uint64_t*>(it_data);
+-        ppc += __builtin_popcountll(x);
++        ppc += popcount_u64(x);
+ 
+         for (size_t j = 0; j < b_query; ++j) {
+             uint64_t y = *static_cast<const uint64_t*>(it_query);
+-            ip += (__builtin_popcountll(x & y) << j);
++            ip += (popcount_u64(x & y) << j);
+             it_query++;
+         }
+         it_data++;
+@@ -324,7 +339,7 @@
+     uint64_t ret = 0;
+     size_t iter = padded_dim / 64;
+     for (size_t i = 0; i < iter; ++i) {
+-        ret += __builtin_popcountll((*d) & (*q));
++        ret += popcount_u64((*d) & (*q));
+         q++;
+         d++;
+     }
+@@ -343,10 +358,10 @@
+     return ret;
+ }
+ 
+-inline size_t popcount(const uint64_t* __restrict__ d, size_t length) {
++inline size_t popcount(const uint64_t* __restrict d, size_t length) {
+     size_t ret = 0;
+     for (size_t i = 0; i < length / 64; ++i) {
+-        ret += __builtin_popcountll((*d));
++        ret += popcount_u64((*d));
+         ++d;
+     }
+     return ret;

@@ -7,6 +7,13 @@ apply_patch_once(
     "${RABITQ_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/rabitq.optional_openmp.patch")
 
+# The scalar encoder includes shared utility/SIMD declarations even when the
+# RaBitQ SIMD runtime is disabled. These headers must also be valid with MSVC.
+apply_patch_once(
+    "rabitq_portable_headers"
+    "${RABITQ_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/rabitq.portable_headers.patch")
+
 add_library(rabitqlib INTERFACE)
 target_include_directories(
     rabitqlib SYSTEM INTERFACE "${RABITQ_SOURCE_DIR}/include"
