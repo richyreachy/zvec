@@ -14,7 +14,6 @@
 #include <fstream>
 #include <iostream>
 #include <unordered_set>
-#include <ailego/math/distance.h>
 #include <ailego/math/norm_matrix.h>
 #include <ailego/math/normalizer.h>
 #include <gtest/gtest.h>
@@ -65,6 +64,30 @@ static inline auto IsAlmostEqual(const T &x, const T &y, int ulp) ->
           (std::fabs(x - y) < std::numeric_limits<T>::min()));
 }
 
+namespace {
+struct ReferenceDistance {
+  static float InnerProduct(const float *a, const float *b, size_t dim) {
+    float sum = 0;
+    for (size_t i = 0; i < dim; ++i) sum += a[i] * b[i];
+    return sum;
+  }
+  static float MinusInnerProduct(const float *a, const float *b, size_t dim) {
+    return -InnerProduct(a, b, dim);
+  }
+  static float SquaredEuclidean(const float *a, const float *b, size_t dim) {
+    float sum = 0;
+    for (size_t i = 0; i < dim; ++i) sum += (a[i] - b[i]) * (a[i] - b[i]);
+    return sum;
+  }
+  static float MipsSquaredEuclidean(const float *a, const float *b, size_t dim,
+                                    float /*eta*/) {
+    return 2.0f -
+           2.0f * InnerProduct(a, b, dim) /
+               std::max(InnerProduct(a, a, dim), InnerProduct(b, b, dim));
+  }
+};
+}  // namespace
+
 TEST(QuantizedIntegerMetric, General) {
   auto metric = IndexFactory::CreateMetric("MipsSquaredEuclidean");
   ASSERT_TRUE(metric);
@@ -104,8 +127,9 @@ TEST(QuantizedIntegerMetric, General) {
   }
   printf("\n");
 
-  auto v1 = ailego::Distance::SquaredEuclidean(xt.data(), yt.data(), DIMENSION);
-  auto ip = ailego::Distance::InnerProduct(x.data(), y.data(), DIMENSION);
+  auto v1 =
+      ReferenceDistance::SquaredEuclidean(xt.data(), yt.data(), DIMENSION);
+  auto ip = ReferenceDistance::InnerProduct(x.data(), y.data(), DIMENSION);
   ailego::SquaredNorm2Matrix<float, 1>::Compute(x.data(), DIMENSION, &x2);
   ailego::SquaredNorm2Matrix<float, 1>::Compute(y.data(), DIMENSION, &y2);
 #if 0
@@ -124,14 +148,14 @@ TEST(QuantizedIntegerMetric, General) {
       x[0], y[0], xt[0], yt[0], xa, xb, ya, yb, x2, y2, x1, y1, ip);
   printf("v1=%f v2=%f v3=%f\n", v1, v2, v3);
 
-  auto ip_t = ailego::Distance::InnerProduct(xt.data(), yt.data(), DIMENSION);
+  auto ip_t = ReferenceDistance::InnerProduct(xt.data(), yt.data(), DIMENSION);
   auto v = xa * ya * ip + xb * ya * y1 + xa * yb * x1 + xb * yb * DIMENSION;
   printf("V=%f %f\n", ip_t, v);
 
   printf("=========\n");
   float mips;
-  ailego::MipsSquaredEuclideanDistanceMatrix<float, 1, 1>::Compute(
-      xt.data(), yt.data(), DIMENSION, 0.0, &mips);
+  mips = ReferenceDistance::MipsSquaredEuclidean(xt.data(), yt.data(),
+                                                 DIMENSION, 0.0);
   printf("u2=%f v2=%f\n", x2, y2);
   float uu2 = xa * xa * x2 + 2 * xa * xb * x1 + xb * xb * DIMENSION;
   float vv2 = ya * ya * y2 + 2 * ya * yb * y1 + yb * yb * DIMENSION;
@@ -187,8 +211,8 @@ TEST(QuantizedIntegerMetric, TestInt8SquaredEuclidean) {
     const float *mf = (const float *)iter->data();
     const int8_t *mi = (const int8_t *)iter2->data();
     const int8_t *qi = reinterpret_cast<const int8_t *>(&out[0]);
-    float v1 =
-        ailego::Distance::SquaredEuclidean(mf, vec.data(), holder->dimension());
+    float v1 = ReferenceDistance::SquaredEuclidean(mf, vec.data(),
+                                                   holder->dimension());
     float v2;
     compute(mi, qi, holder2->dimension(), &v2);
     // printf("%f %f\n", v1, v2);
@@ -390,8 +414,8 @@ TEST(QuantizedIntegerMetric, TestInt4SquaredEuclidean) {
     const float *mf = (const float *)iter->data();
     const int8_t *mi = (const int8_t *)iter2->data();
     const int8_t *qi = reinterpret_cast<const int8_t *>(&out[0]);
-    float v1 =
-        ailego::Distance::SquaredEuclidean(mf, vec.data(), holder->dimension());
+    float v1 = ReferenceDistance::SquaredEuclidean(mf, vec.data(),
+                                                   holder->dimension());
     float v2;
     compute(mi, qi, holder2->dimension(), &v2);
     ASSERT_NEAR(v1, v2, 0.2 * DIMENSION);
@@ -592,8 +616,8 @@ TEST(QuantizedIntegerMetric, TestInt8InnerProduct) {
     const float *mf = (const float *)iter->data();
     const int8_t *mi = (const int8_t *)iter2->data();
     const int8_t *qi = reinterpret_cast<const int8_t *>(&out[0]);
-    float v1 = ailego::Distance::MinusInnerProduct(mf, vec.data(),
-                                                   holder->dimension());
+    float v1 = ReferenceDistance::MinusInnerProduct(mf, vec.data(),
+                                                    holder->dimension());
     float v2;
     compute(mi, qi, holder2->dimension(), &v2);
     // printf("%f %f\n", v1, v2);
@@ -678,8 +702,8 @@ TEST(QuantizedIntegerMetric, TestInt4InnerProduct) {
     const float *mf = (const float *)iter->data();
     const int8_t *mi = (const int8_t *)iter2->data();
     const int8_t *qi = reinterpret_cast<const int8_t *>(&out[0]);
-    float v1 = ailego::Distance::MinusInnerProduct(mf, vec.data(),
-                                                   holder->dimension());
+    float v1 = ReferenceDistance::MinusInnerProduct(mf, vec.data(),
+                                                    holder->dimension());
     float v2;
     compute(mi, qi, holder2->dimension(), &v2);
     ASSERT_NEAR(v1, v2, 0.2 * DIMENSION);
@@ -766,7 +790,7 @@ TEST(QuantizedIntegerMetric, TestInt8MipsSquaredEuclidean) {
     const float *mf = (const float *)iter->data();
     const int8_t *mi = (const int8_t *)iter2->data();
     const int8_t *qi = reinterpret_cast<const int8_t *>(&out[0]);
-    float v1 = ailego::Distance::MipsSquaredEuclidean(
+    float v1 = ReferenceDistance::MipsSquaredEuclidean(
         mf, vec.data(), holder->dimension(), 0.0f);
     float v2;
     compute(mi, qi, holder2->dimension(), &v2);
@@ -852,8 +876,8 @@ TEST(QuantizedIntegerMetric, TestInt4MipsSquaredEuclidean) {
     const float *mf = (const float *)iter->data();
     const int8_t *mi = (const int8_t *)iter2->data();
     const int8_t *qi = reinterpret_cast<const int8_t *>(&out[0]);
-    float v1 = ailego::Distance::MipsSquaredEuclidean(mf, vec.data(),
-                                                      holder->dimension(), 0.0);
+    float v1 = ReferenceDistance::MipsSquaredEuclidean(
+        mf, vec.data(), holder->dimension(), 0.0);
     float v2;
     compute(mi, qi, holder2->dimension(), &v2);
     ASSERT_NEAR(v1, v2, 0.2 * DIMENSION);
@@ -951,7 +975,7 @@ TEST(QuantizedIntegerMetric, TestInt8NormalizedCosine) {
     ailego::Normalizer<float>::L2((float *)normalized_vec.data(), DIMENSION,
                                   &norm_vec);
 
-    float v1 = ailego::Distance::MinusInnerProduct(
+    float v1 = ReferenceDistance::MinusInnerProduct(
         normalized_mf.data(), normalized_vec.data(), holder->dimension());
     float v2;
     compute(mi, qi, holder2->dimension(), &v2);
@@ -1055,7 +1079,7 @@ TEST(QuantizedIntegerMetric, TestInt8Cosine) {
     ailego::Normalizer<float>::L2((float *)normalized_vec.data(), DIMENSION,
                                   &norm_vec);
 
-    float v1 = ailego::Distance::MinusInnerProduct(
+    float v1 = ReferenceDistance::MinusInnerProduct(
         normalized_mf.data(), normalized_vec.data(), holder->dimension());
     float v2;
     compute_batch(reinterpret_cast<const void **>(&mi), qi, 1,
@@ -1132,7 +1156,7 @@ TEST(QuantizedIntegerMetric, TestInt4NormalizedCosine) {
     ailego::Normalizer<float>::L2((float *)normalized_vec.data(), DIMENSION,
                                   &norm_vec);
 
-    float v1 = ailego::Distance::MinusInnerProduct(
+    float v1 = ReferenceDistance::MinusInnerProduct(
         normalized_mf.data(), normalized_vec.data(), holder->dimension());
     float v2;
     compute(mi, qi, holder2->dimension(), &v2);
