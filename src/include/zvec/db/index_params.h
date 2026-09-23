@@ -588,20 +588,24 @@ class ZVEC_API IVFIndexParams : public VectorIndexParams {
   IVFIndexParams(MetricType metric_type, int n_list = 1024, int n_iters = 10,
                  bool use_soar = false,
                  QuantizeType quantize_type = QuantizeType::UNDEFINED,
-                 QuantizerParam quantizer_param = {})
+                 QuantizerParam quantizer_param = {},
+                 int total_bits = core_interface::kDefaultRabitqTotalBits,
+                 int sample_count = 0)
       : VectorIndexParams(IndexType::IVF, metric_type, quantize_type,
                           quantizer_param),
         n_list_(n_list),
         n_iters_(n_iters),
-        use_soar_(use_soar) {}
+        use_soar_(use_soar),
+        total_bits_(total_bits),
+        sample_count_(sample_count) {}
 
   using OPtr = std::shared_ptr<IVFIndexParams>;
 
  public:
   Ptr clone() const override {
-    return std::make_shared<IVFIndexParams>(metric_type_, n_list_, n_iters_,
-                                            use_soar_, quantize_type_,
-                                            quantizer_param_);
+    return std::make_shared<IVFIndexParams>(
+        metric_type_, n_list_, n_iters_, use_soar_, quantize_type_,
+        quantizer_param_, total_bits_, sample_count_);
   }
 
   std::string to_string() const override {
@@ -609,6 +613,7 @@ class ZVEC_API IVFIndexParams : public VectorIndexParams {
                                                   metric_type_, quantize_type_);
     std::ostringstream oss;
     oss << base_str << ",n_list:" << n_list_ << ",n_iters:" << n_iters_
+        << ",total_bits:" << total_bits_ << ",sample_count:" << sample_count_
         << ",enable_rotate:"
         << (quantizer_param_.enable_rotate() ? "true" : "false") << "}";
     return oss.str();
@@ -638,6 +643,19 @@ class ZVEC_API IVFIndexParams : public VectorIndexParams {
     use_soar_ = use_soar;
   }
 
+  int total_bits() const {
+    return total_bits_;
+  }
+  void set_total_bits(int value) {
+    total_bits_ = value;
+  }
+  int sample_count() const {
+    return sample_count_;
+  }
+  void set_sample_count(int value) {
+    sample_count_ = value;
+  }
+
   bool operator==(const IndexParams &other) const override {
     return type() == other.type() &&
            metric_type() ==
@@ -645,6 +663,10 @@ class ZVEC_API IVFIndexParams : public VectorIndexParams {
            n_list_ == static_cast<const IVFIndexParams &>(other).n_list_ &&
            n_iters_ == static_cast<const IVFIndexParams &>(other).n_iters_ &&
            use_soar_ == static_cast<const IVFIndexParams &>(other).use_soar_ &&
+           total_bits_ ==
+               static_cast<const IVFIndexParams &>(other).total_bits_ &&
+           sample_count_ ==
+               static_cast<const IVFIndexParams &>(other).sample_count_ &&
            quantize_type() ==
                static_cast<const IVFIndexParams &>(other).quantize_type() &&
            quantizer_param_ ==
@@ -655,6 +677,8 @@ class ZVEC_API IVFIndexParams : public VectorIndexParams {
   int n_list_;
   int n_iters_;
   bool use_soar_;
+  int total_bits_;
+  int sample_count_;
 };
 
 class ZVEC_API DiskAnnIndexParams : public VectorIndexParams {

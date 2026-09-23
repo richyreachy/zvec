@@ -1182,10 +1182,11 @@ ZVEC_EXPORT zvec_error_code_t ZVEC_CALL zvec_index_params_get_ivf_params(
 
 /**
  * @brief Set IVF RaBitQ specific parameters
- * @param params Index parameters (must be IVF_RABITQ type)
- * @param nlist Number of cluster centers
- * @param total_bits Total bits for RaBitQ quantization
- * @param sample_count Sample count for training, 0 means use all vectors
+ * @param params IVF_RABITQ parameters, or IVF parameters with RABITQ
+ * quantization
+ * @param nlist Number of cluster centers (must be positive)
+ * @param total_bits Total bits for RaBitQ quantization (1-9)
+ * @param sample_count Sample count for training, 0 selects automatic sampling
  * @return ZVEC_OK on success, error code on failure
  */
 ZVEC_EXPORT zvec_error_code_t ZVEC_CALL zvec_index_params_set_ivf_rabitq_params(
@@ -1193,7 +1194,8 @@ ZVEC_EXPORT zvec_error_code_t ZVEC_CALL zvec_index_params_set_ivf_rabitq_params(
 
 /**
  * @brief Get IVF RaBitQ parameters (all at once)
- * @param params Index parameters (must be IVF_RABITQ type)
+ * @param params IVF_RABITQ parameters, or IVF parameters with RABITQ
+ * quantization
  * @param out_nlist Output parameter for nlist
  * @param out_total_bits Output parameter for total_bits
  * @param out_sample_count Output parameter for sample_count

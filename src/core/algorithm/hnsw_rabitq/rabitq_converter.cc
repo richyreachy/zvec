@@ -82,6 +82,8 @@ int RabitqConverter::init(const IndexMeta &meta, const ailego::Params &params) {
     return IndexError_Unsupported;
   }
   params.get(PARAM_RABITQ_SAMPLE_COUNT, &sample_count_);
+  cluster_params_.clear();
+  params.get(PARAM_RABITQ_CLUSTER_PARAMS, &cluster_params_);
 
   std::string rotator_type_str;
   params.get(PARAM_RABITQ_ROTATOR_TYPE, &rotator_type_str);
@@ -174,8 +176,7 @@ int RabitqConverter::train(IndexHolder::Pointer holder,
   LOG_INFO(
       "Initializing KmeansCluster with meta: dim=%u, data_type=%d, metric=%s",
       meta_.dimension(), (int)meta_.data_type(), meta_.metric_name().c_str());
-  ailego::Params cluster_params;
-  int ret = cluster->init(meta_, cluster_params);
+  int ret = cluster->init(meta_, cluster_params_);
   if (ret != 0) {
     LOG_ERROR("Failed to initialize KmeansCluster: %d", ret);
     return ret;

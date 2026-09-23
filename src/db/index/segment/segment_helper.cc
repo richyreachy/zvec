@@ -881,7 +881,8 @@ Status SegmentHelper::PrepareQuantizeField(
   return Status::NotSupported(
       "RabitQ is not supported on this platform (Linux x86_64 only)");
 #else
-  if (vector_index_params->type() == IndexType::IVF_RABITQ) {
+  if (vector_index_params->type() == IndexType::IVF_RABITQ ||
+      vector_index_params->type() == IndexType::IVF) {
     *out_field = field_clone;
     return Status::OK();
   }
