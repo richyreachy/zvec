@@ -14,3 +14,7 @@ endif()
 if(BUILD_C_BINDINGS)
     cc_directories(c)
 endif()
+
+if(NOT IOS AND NOT ANDROID)
+    add_subdirectory(cmake/link_dependencies)
+endif()

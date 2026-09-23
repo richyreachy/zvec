@@ -5,7 +5,7 @@
 The same `RABITQ_SUPPORTED` platform gate applies to both integrated HNSW
 and dedicated HNSW/IVF RaBitQ: only Linux x86_64 builds with the required SIMD
 compiler support enable the backend. Windows, macOS, and other unsupported
-platforms exclude the RaBitQ quantizer and reject index creation. The RaBitQ
+platforms do not compile or register the RaBitQ quantizer and reject index creation. The RaBitQ
 initialization path returns `IndexError_Unsupported`; the index factory returns
 null. There is no fallback to an unquantized index.
 

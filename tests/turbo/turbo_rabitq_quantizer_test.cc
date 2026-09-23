@@ -89,10 +89,11 @@ TEST(RabitqQuantizer, BitsMetricsAsymmetricEncodingAndPersistence) {
       }
       const bool l2 = std::strcmp(metric, "SquaredEuclidean") == 0;
       const bool cosine = std::strcmp(metric, "Cosine") == 0;
-      if (bits > 1)
+      if (bits > 1) {
         EXPECT_NEAR(l2 || cosine ? 0 : -norm2,
                     quantizer->calc_distance_dp_query(dp.data(), self.data()),
                     1e-3f);
+      }
       EXPECT_NEAR(l2 ? query_norm2 : (cosine ? 1 : 0), batch[1], 1e-3f);
       std::string reconstructed;
       ASSERT_EQ(0, quantizer->dequantize(dp.data(), dp_meta, &reconstructed));
@@ -103,7 +104,9 @@ TEST(RabitqQuantizer, BitsMetricsAsymmetricEncodingAndPersistence) {
         EXPECT_TRUE(std::isfinite(v));
         error2 += (v - x[i]) * (v - x[i]);
       }
-      if (bits >= 7) EXPECT_LT(error2 / norm2, 0.01);
+      if (bits >= 7) {
+        EXPECT_LT(error2 / norm2, 0.01);
+      }
       ASSERT_EQ(0, quantizer->dequantize(z.data(), dp_meta, &reconstructed));
       for (int i = 0; i < dim; ++i) {
         float value;
