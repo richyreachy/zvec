@@ -237,7 +237,8 @@ int HnswStreamer::init(
 
   quantizer_ = quantizer;
   int ret = this->init(imeta, params);
-  if (ret == 0 && quantizer->requires_original_vectors() && use_external_vector_) {
+  if (ret == 0 && quantizer->requires_original_vectors() &&
+      use_external_vector_) {
     LOG_ERROR("This quantizer requires in-index vector storage");
     ret = IndexError_Unsupported;
   }
