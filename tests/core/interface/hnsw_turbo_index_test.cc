@@ -1053,6 +1053,7 @@ INSTANTIATE_TEST_SUITE_P(AddApis, HnswExternalCoreCompatibilityTest,
 }  // namespace core
 }  // namespace zvec
 
+#if RABITQ_SUPPORTED
 TEST(HnswTurboRabitq, BuildsFromOriginalAndReopensWithoutProvider) {
   for (auto metric :
        {MetricType::kL2sq, MetricType::kCosine, MetricType::kInnerProduct}) {
@@ -1088,7 +1089,8 @@ TEST(HnswTurboRabitq,
 }
 
 TEST(HnswTurboRabitq, BufferPoolAndContiguousStorage) {
-  ASSERT_EQ(0, zvec::ailego::MemoryLimitPool::get_instance().init(100 * 1024 * 1024));
+  ASSERT_EQ(
+      0, zvec::ailego::MemoryLimitPool::get_instance().init(100 * 1024 * 1024));
   CheckOriginalProviderUsesTurbo(MetricType::kL2sq, QuantizerType::kRabitq,
                                  "RabitqQuantizer",
                                  "hnsw_turbo_rabitq_buffer.index", 7,
@@ -1233,3 +1235,24 @@ TEST(HnswTurboRabitq, ScreensDuringTraversalAndClearsRefinementForBuild) {
   ASSERT_EQ(0, reopened.close());
   zvec::test_util::RemoveTestFiles(path);
 }
+#else
+TEST(HnswTurboRabitq, RejectsUnsupportedPlatform) {
+  class TestHnswIndex : public HNSWIndex {
+   public:
+    using HNSWIndex::create_and_init_converter_reformer;
+    using Index::init;
+  };
+  EXPECT_EQ(nullptr,
+            zvec::core::IndexFactory::CreateQuantizer("RabitqQuantizer"));
+  for (auto metric :
+       {MetricType::kL2sq, MetricType::kCosine, MetricType::kInnerProduct}) {
+    auto param = MakeParam(metric, QuantizerType::kRabitq);
+    TestHnswIndex index;
+    EXPECT_EQ(zvec::core::IndexError_Unsupported,
+              index.create_and_init_converter_reformer(*param->quantizer_param,
+                                                       *param));
+    EXPECT_NE(0, index.init(*param));
+    EXPECT_EQ(nullptr, IndexFactory::CreateAndInitIndex(*param));
+  }
+}
+#endif  // RABITQ_SUPPORTED

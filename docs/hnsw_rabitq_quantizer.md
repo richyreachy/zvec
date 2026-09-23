@@ -4,6 +4,12 @@
 1–9, defaulting to 7, as in the dedicated HNSW-RaBitQ index. Graph construction
 uses the original FP32 provider; stored vectors use centroid-based RaBitQ codes.
 
+Platform support matches the dedicated HNSW-RaBitQ index: Linux x86_64 with
+`RABITQ_SUPPORTED` enabled by the compiler capability checks. Windows, macOS,
+and other unsupported platforms do not compile or register `RabitqQuantizer`.
+Initializing standard HNSW with this quantizer fails with an unsupported-platform
+log message; `IndexFactory::CreateAndInitIndex` returns `nullptr`.
+
 ```cpp
 using namespace zvec::core_interface;
 
