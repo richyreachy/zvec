@@ -1088,7 +1088,8 @@ TEST(HnswTurboRabitq,
 }
 
 TEST(HnswTurboRabitq, BufferPoolAndContiguousStorage) {
-  ASSERT_EQ(0, zvec::ailego::MemoryLimitPool::get_instance().init(100 * 1024 * 1024));
+  ASSERT_EQ(
+      0, zvec::ailego::MemoryLimitPool::get_instance().init(100 * 1024 * 1024));
   CheckOriginalProviderUsesTurbo(MetricType::kL2sq, QuantizerType::kRabitq,
                                  "RabitqQuantizer",
                                  "hnsw_turbo_rabitq_buffer.index", 7,
