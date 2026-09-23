@@ -6,11 +6,11 @@ foreach(CC_SRCS ${ALL_TEST_SRCS})
   get_filename_component(CC_TARGET ${CC_SRCS} NAME_WE)
   set(TEST_EXTRA_LIBS)
   if(CC_TARGET STREQUAL "turbo_rabitq_quantizer_test")
-    # Same registered centroid trainer as the dedicated RaBitQ index.
-    list(APPEND TEST_EXTRA_LIBS core_knn_cluster)
-    if(RABITQ_SUPPORTED)
-      list(APPEND TEST_EXTRA_LIBS rabitqlib)
+    if(NOT RABITQ_SUPPORTED)
+      continue()
     endif()
+    # Same registered centroid trainer as the dedicated RaBitQ index.
+    list(APPEND TEST_EXTRA_LIBS core_knn_cluster rabitqlib)
   endif()
   cc_gtest(
       NAME ${CC_TARGET}

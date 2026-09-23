@@ -106,6 +106,12 @@ int HNSWIndex::prepare_streamer_open(const StorageOptions &options) {
 
 int HNSWIndex::create_and_init_converter_reformer(
     const QuantizerParam &quantizer_param, const BaseIndexParam &index_param) {
+#if !RABITQ_SUPPORTED
+  if (quantizer_param.type == QuantizerType::kRabitq) {
+    LOG_ERROR("RaBitQ is not supported on this platform (Linux x86_64 only)");
+    return core::IndexError_Unsupported;
+  }
+#endif
   const auto &hnsw_param = dynamic_cast<const HNSWIndexParam &>(index_param);
   const char *quantizer_name =
       use_legacy_pipeline_

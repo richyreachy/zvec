@@ -85,6 +85,11 @@ endif()
 
 file(GLOB_RECURSE ALL_SRCS *.cc *.c *.h)
 
+# Match the platform gate used by the dedicated RaBitQ indexes.
+if(NOT RABITQ_SUPPORTED)
+  list(FILTER ALL_SRCS EXCLUDE REGEX ".*/quantizer/rabitq_quantizer/.*")
+endif()
+
 # Set per-file compile flags for SIMD sources.
 # set_source_files_properties is directory-scoped, so it must be called in the
 # same directory that adds the sources to a target (i.e. here, not in a

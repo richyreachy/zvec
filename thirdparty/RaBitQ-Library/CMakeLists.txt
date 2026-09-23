@@ -1,18 +1,18 @@
 set(RABITQ_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/RaBitQ-Library-0.1)
 
-# Turbo uses the scalar encoder and its own portable rotation/distance paths.
-# Those headers must also compile in builds without OpenMP (including macOS).
-apply_patch_once(
-    "rabitq_optional_openmp"
-    "${RABITQ_SOURCE_DIR}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/rabitq.optional_openmp.patch")
-
 add_library(rabitqlib INTERFACE)
 target_include_directories(
     rabitqlib SYSTEM INTERFACE "${RABITQ_SOURCE_DIR}/include"
   )
 
 if(RABITQ_SUPPORTED)
+  # Turbo uses the scalar encoder and its own portable rotation/distance paths.
+  # The supported Linux build may also disable OpenMP.
+  apply_patch_once(
+      "rabitq_optional_openmp"
+      "${RABITQ_SOURCE_DIR}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/rabitq.optional_openmp.patch")
+
   set(RABITQ_LUT_REUSE_PATCH
       "${CMAKE_CURRENT_SOURCE_DIR}/rabitq_lut_reuse.patch")
   apply_patch_once(
