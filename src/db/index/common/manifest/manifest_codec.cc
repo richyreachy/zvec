@@ -77,6 +77,8 @@ constexpr uint32_t kBase = 1;
 constexpr uint32_t kNList = 2;
 constexpr uint32_t kNIters = 3;
 constexpr uint32_t kUseSoar = 4;
+constexpr uint32_t kTotalBits = 5;
+constexpr uint32_t kSampleCount = 6;
 }  // namespace f_ivf
 namespace f_diskann {
 constexpr uint32_t kBase = 1;
@@ -429,6 +431,15 @@ void EncodeIvf(const IVFIndexParams *params, std::string *out) {
   w.put_varint(f_ivf::kNList, static_cast<uint64_t>(params->n_list()));
   w.put_varint(f_ivf::kNIters, static_cast<uint64_t>(params->n_iters()));
   w.put_bool(f_ivf::kUseSoar, params->use_soar());
+  // Omit defaults so existing IVF manifests retain their wire representation.
+  if (params->total_bits() != core_interface::kDefaultRabitqTotalBits) {
+    w.put_varint(f_ivf::kTotalBits,
+                 static_cast<uint64_t>(params->total_bits()));
+  }
+  if (params->sample_count() != 0) {
+    w.put_varint(f_ivf::kSampleCount,
+                 static_cast<uint64_t>(params->sample_count()));
+  }
 }
 
 IVFIndexParams::OPtr DecodeIvf(std::string_view buf) {
@@ -436,6 +447,8 @@ IVFIndexParams::OPtr DecodeIvf(std::string_view buf) {
   int32_t n_list = 0;
   int32_t n_iters = 0;
   bool use_soar = false;
+  int32_t total_bits = core_interface::kDefaultRabitqTotalBits;
+  int32_t sample_count = 0;
   Reader r(buf);
   while (r.next()) {
     switch (r.field()) {
@@ -448,6 +461,12 @@ IVFIndexParams::OPtr DecodeIvf(std::string_view buf) {
       case f_ivf::kNIters:
         n_iters = r.int32_value();
         break;
+      case f_ivf::kTotalBits:
+        total_bits = r.int32_value();
+        break;
+      case f_ivf::kSampleCount:
+        sample_count = r.int32_value();
+        break;
       case f_ivf::kUseSoar:
         use_soar = r.bool_value();
         break;
@@ -455,9 +474,9 @@ IVFIndexParams::OPtr DecodeIvf(std::string_view buf) {
         break;
     }
   }
-  return std::make_shared<IVFIndexParams>(base.metric_type, n_list, n_iters,
-                                          use_soar, base.quantize_type,
-                                          QuantizerParam(base.enable_rotate));
+  return std::make_shared<IVFIndexParams>(
+      base.metric_type, n_list, n_iters, use_soar, base.quantize_type,
+      QuantizerParam(base.enable_rotate), total_bits, sample_count);
 }
 
 void EncodeDiskAnn(const DiskAnnIndexParams *params, std::string *out) {

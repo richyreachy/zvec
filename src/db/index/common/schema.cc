@@ -153,7 +153,9 @@ Status FieldSchema::validate() const {
       }
 
       if (index_params_->type() == IndexType::HNSW_RABITQ ||
-          index_params_->type() == IndexType::IVF_RABITQ) {
+          index_params_->type() == IndexType::IVF_RABITQ ||
+          (index_params_->type() == IndexType::IVF &&
+           vector_index_params->quantize_type() == QuantizeType::RABITQ)) {
         if (dimension_ < kMinRabitqDimSize || dimension_ > kMaxRabitqDimSize) {
           return Status::InvalidArgument(
               "Invalid schema: RabitQ index only support "
@@ -208,9 +210,16 @@ Status FieldSchema::validate() const {
 
       if (index_params_->type() == IndexType::IVF &&
           vector_index_params->quantize_type() == QuantizeType::RABITQ) {
-        return Status::InvalidArgument(
-            "Invalid schema: IVF index does not support RABITQ "
-            "quantization; use the dedicated IVF_RABITQ index instead");
+        auto params = std::dynamic_pointer_cast<IVFIndexParams>(index_params_);
+        if (!params || params->n_list() <= 0 || params->n_iters() <= 0 ||
+            params->total_bits() < 1 || params->total_bits() > 9 ||
+            params->sample_count() < 0 || params->use_soar() ||
+            params->quantizer_param().enable_rotate()) {
+          return Status::InvalidArgument(
+              "Invalid IVF RABITQ parameters: n_list/n_iters must be positive, "
+              "total_bits in [1, 9], sample_count >= 0; SOAR and "
+              "enable_rotate are unsupported");
+        }
       }
 
       if (index_params_->type() == IndexType::DISKANN) {

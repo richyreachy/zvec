@@ -742,7 +742,7 @@ int Index::search(const VectorData &vector_data,
   }
 
   const bool has_group_by = has_group_by_search(search_param);
-  if (has_group_by && is_group_by_unsupported_index(param_.index_type)) {
+  if (has_group_by && !supports_group_by()) {
     LOG_ERROR("group_by search is not supported for this index type");
     return core::IndexError_Unsupported;
   }
