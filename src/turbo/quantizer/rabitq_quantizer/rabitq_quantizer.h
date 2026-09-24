@@ -12,6 +12,9 @@
 
 #include <vector>
 #include "preprocessor/fht_rotator/fht_rotator.h"
+#if RABITQ_SUPPORTED
+#include <cstdint>
+#endif
 #include "quantizer/quantizer.h"
 #include "rabitq_params.h"
 
@@ -44,8 +47,16 @@ class RabitqQuantizer final : public Quantizer {
     return 9 * sizeof(float) + static_cast<size_t>(padded_dim_) * bits_ / 8;
   }
   size_t quantized_query_vector_length() const override {
+#if RABITQ_SUPPORTED
+    // [rotated query][bit-plane transposed 4-bit query bin (p*4/8 bytes)]
+    // [delta, vl, k1xsumq, kbxsumq][g_add per cluster][g_error per cluster]
+    return static_cast<size_t>(padded_dim_) * sizeof(float) +
+           static_cast<size_t>(padded_dim_) * 4 / 8 +
+           (4 + 2 * num_clusters_) * sizeof(float);
+#else
     return (2 * static_cast<size_t>(padded_dim_) + 1 + 2 * num_clusters_) *
            sizeof(float);
+#endif
   }
   IndexQueryMeta quantized_query_meta() const override {
     IndexQueryMeta result;
@@ -107,7 +118,14 @@ class RabitqQuantizer final : public Quantizer {
   std::vector<float> centroids_;  // rotated centroids, immutable after training
   MetricType metric_{MetricType::kUnknown};
   double rescale_{-1};
+  // Precomputed 4-bit query rescale (ex_bits=3); deterministic, so it is
+  // recomputed on every init() instead of being serialized.
+  double query_rescale_{-1};
   FhtRotator::Pointer rotator_;
+#if RABITQ_SUPPORTED
+  // Dispatched ex-code inner product kernel, resolved once at init.
+  float (*ex_ipfunc_)(const float *, const uint8_t *, size_t) = nullptr;
+#endif
 };
 
 }  // namespace zvec::turbo
