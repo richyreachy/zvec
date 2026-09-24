@@ -155,10 +155,11 @@ const char *MetricName(MetricType metric) {
 
 SearchRowList SearchRows(Index *index, const std::vector<float> &query,
                          bool linear, bool fetch_vector = false,
-                         const zvec::core::VectorSource *source = nullptr) {
+                         const zvec::core::VectorSource *source = nullptr,
+                         uint32_t ef_search = 100) {
   auto query_param = HNSWQueryParamBuilder()
                          .with_topk(kTopK)
-                         .with_ef_search(100)
+                         .with_ef_search(ef_search)
                          .with_is_linear(linear)
                          .with_fetch_vector(fetch_vector)
                          .build();
@@ -413,13 +414,26 @@ void CheckOriginalProviderUsesTurbo(MetricType metric, QuantizerType quantizer,
 
   AddVectors(index.get(), vectors);
   CheckGraphSearchEnabled(index.get());
+  // This test checks encoding and persistence, not approximate-search recall.
+  // A raw-vector graph with a random 1-bit RaBitQ model can miss quantized
+  // top-10 neighbors at ef=100. Give RaBitQ enough candidates to traverse the
+  // entire graph and require exact agreement with its linear scan. Keep the
+  // graph path active; bounded traversal and pruning have a separate test.
+  const bool exhaustive_graph = quantizer == QuantizerType::kRabitq;
+  const uint32_t graph_ef =
+      exhaustive_graph ? static_cast<uint32_t>(vectors.size()) : 100;
   std::vector<SearchRowList> linear_results;
   std::vector<SearchRowList> graph_results;
   for (uint32_t query_id : kGraphQueryIds) {
     SCOPED_TRACE(query_id);
     auto linear_rows = SearchRows(index.get(), vectors[query_id], true);
-    auto graph_rows = SearchRows(index.get(), vectors[query_id], false);
-    CheckGraphRecall(linear_rows, graph_rows);
+    auto graph_rows = SearchRows(index.get(), vectors[query_id], false, false,
+                                 nullptr, graph_ef);
+    if (exhaustive_graph) {
+      EXPECT_EQ(linear_rows, graph_rows);
+    } else {
+      CheckGraphRecall(linear_rows, graph_rows);
+    }
     ASSERT_FALSE(graph_rows.empty());
     EXPECT_EQ(query_id, graph_rows.front().first);
     linear_results.push_back(std::move(linear_rows));
@@ -439,11 +453,15 @@ void CheckOriginalProviderUsesTurbo(MetricType metric, QuantizerType quantizer,
     SCOPED_TRACE(kGraphQueryIds[i]);
     auto linear_rows =
         SearchRows(reopened.get(), vectors[kGraphQueryIds[i]], true);
-    auto graph_rows =
-        SearchRows(reopened.get(), vectors[kGraphQueryIds[i]], false);
+    auto graph_rows = SearchRows(reopened.get(), vectors[kGraphQueryIds[i]],
+                                 false, false, nullptr, graph_ef);
     EXPECT_EQ(linear_results[i], linear_rows);
     EXPECT_EQ(graph_results[i], graph_rows);
-    CheckGraphRecall(linear_rows, graph_rows);
+    if (exhaustive_graph) {
+      EXPECT_EQ(linear_rows, graph_rows);
+    } else {
+      CheckGraphRecall(linear_rows, graph_rows);
+    }
   }
   ASSERT_EQ(0, reopened->close());
   zvec::test_util::RemoveTestFiles(path);
