@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "hnsw_streamer.h"
+#if RABITQ_SUPPORTED
+#include <rabitqlib/utils/cpu_features.hpp>
+#endif
 #include <iostream>
 #include <ailego/internal/cpu_features.h>
 #include <ailego/pattern/defer.h>
@@ -76,6 +79,27 @@ void HnswStreamer::merge_trained_meta(const IndexMeta &trained_meta) {
 }
 
 int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
+  symphony_qg_enabled_ = false;
+  params.get(PARAM_HNSW_SYMPHONY_QG, &symphony_qg_enabled_);
+  bool external = false;
+  params.get(PARAM_HNSW_STREAMER_USE_EXTERNAL_VECTOR, &external);
+  if (symphony_qg_enabled_) {
+#if !RABITQ_SUPPORTED
+    LOG_ERROR("SymphonyQG requires a RaBitQ-enabled build");
+    return IndexError_Unsupported;
+#else
+    if ((!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core()) ||
+        external || quantizer_ || !imeta.quantizer_name().empty() ||
+        imeta.data_type() != IndexMeta::DataType::DT_FP32 ||
+        imeta.metric_name() != "SquaredEuclidean" || imeta.dimension() == 0 ||
+        imeta.dimension() > 4096) {
+      LOG_ERROR(
+          "SymphonyQG requires AVX2/FMA or AVX512 and inline FP32 L2 vectors "
+          "(1..4096D)");
+      return IndexError_Unsupported;
+    }
+#endif
+  }
   meta_ = imeta;
   meta_.set_streamer("HnswStreamer", HnswEntity::kRevision, params);
 
@@ -241,6 +265,8 @@ int HnswStreamer::cleanup() {
 
   LOG_INFO("HnswStreamer cleanup");
 
+  symphony_qg_.reset();
+  symphony_qg_enabled_ = false;
   meta_.clear();
   metric_.reset();
   quantizer_.reset();
@@ -576,6 +602,10 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
     return ret;
   }
 
+  if (symphony_qg_enabled_) {
+    symphony_qg_ = std::make_shared<HnswSymphonyQG>(meta_.dimension());
+    alg_->set_symphony_qg(symphony_qg_);
+  }
   state_ = STATE_OPENED;
   magic_ = IndexContext::GenerateMagic();
 
@@ -584,6 +614,9 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
 
 int HnswStreamer::close() {
   LOG_INFO("HnswStreamer close");
+  std::unique_lock<std::shared_mutex> qg_lock(symphony_qg_mutex_);
+  if (alg_) alg_->set_symphony_qg(nullptr);
+  symphony_qg_.reset();
 
   stats_.clear();
   if (metric_) {
@@ -755,6 +788,12 @@ int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
   }
   AILEGO_DEFER([&]() { shared_mutex_.unlock_shared(); });
 
+  std::unique_lock<std::shared_mutex> qg_lock(symphony_qg_mutex_,
+                                              std::defer_lock);
+  if (symphony_qg_enabled_) {
+    qg_lock.lock();
+    symphony_qg_->clear();
+  }
   ctx->clear();
   bind_add_dist_space(ctx);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
@@ -857,6 +896,12 @@ int HnswStreamer::add_impl(uint64_t pkey, const void *query,
   }
   AILEGO_DEFER([&]() { shared_mutex_.unlock_shared(); });
 
+  std::unique_lock<std::shared_mutex> qg_lock(symphony_qg_mutex_,
+                                              std::defer_lock);
+  if (symphony_qg_enabled_) {
+    qg_lock.lock();
+    symphony_qg_->clear();
+  }
   ctx->clear();
   bind_add_dist_space(ctx);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
@@ -938,6 +983,9 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
     return IndexError_Cast;
   }
 
+  std::shared_lock<std::shared_mutex> qg_lock(symphony_qg_mutex_,
+                                              std::defer_lock);
+  if (symphony_qg_enabled_) qg_lock.lock();
   if (entity_->doc_cnt() <= ctx->get_bruteforce_threshold()) {
     return search_bf_impl(query, qmeta, count, context);
   }
@@ -993,6 +1041,10 @@ int HnswStreamer::search_candidates_impl(
   if (entity_->doc_cnt() <= ctx->get_bruteforce_threshold()) {
     return IndexRunner::search_candidates_impl(query, qmeta, keys, context);
   }
+
+  std::shared_lock<std::shared_mutex> qg_lock(symphony_qg_mutex_,
+                                              std::defer_lock);
+  if (symphony_qg_enabled_) qg_lock.lock();
 
   if (ctx->magic() != magic_) {
     ret = update_context(ctx);

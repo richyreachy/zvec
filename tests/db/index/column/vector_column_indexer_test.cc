@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <zvec/ailego/buffer/block_eviction_queue.h>
+#include "db/index/column/vector_column/engine_helper.hpp"
 #include "db/index/column/vector_column/vector_column_params.h"
 #include "tests/test_util.h"
 #include "zvec/ailego/utility/float_helper.h"
@@ -2685,3 +2686,21 @@ TEST(VectorColumnIndexerTest, Refiner) {
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic pop
 #endif
+
+TEST(VectorColumnIndexerTest, SymphonyQGReachesOrdinaryHnswEngine) {
+  for (bool enabled : {false, true}) {
+    auto params = std::make_shared<HnswIndexParams>(MetricType::L2);
+    params->set_symphony_qg(enabled);
+    FieldSchema field("embedding", DataType::VECTOR_FP32, 128, false, params);
+    auto converted = ProximaEngineHelper::convert_to_engine_index_param(field);
+    ASSERT_TRUE(converted.has_value());
+    auto hnsw = std::dynamic_pointer_cast<core_interface::HNSWIndexParam>(
+        converted.value());
+    ASSERT_NE(nullptr, hnsw);
+    EXPECT_EQ(core_interface::IndexType::kHNSW, hnsw->index_type);
+    EXPECT_EQ(enabled, hnsw->symphony_qg);
+    core_interface::HNSWIndexParam restored;
+    ASSERT_TRUE(restored.deserialize_from_json(hnsw->serialize_to_json()));
+    EXPECT_EQ(enabled, restored.symphony_qg);
+  }
+}

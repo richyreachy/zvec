@@ -22,6 +22,7 @@
 #include "hnsw_dist_calculator.h"
 #include "hnsw_entity.h"
 #include "hnsw_streamer_entity.h"
+#include "hnsw_symphony_qg.h"
 
 namespace zvec {
 namespace core {
@@ -38,6 +39,12 @@ class HnswAlgorithmBase {
   virtual int search(HnswContext *ctx) const = 0;
   virtual int init() = 0;
   virtual uint32_t get_random_level() const = 0;
+  void set_symphony_qg(std::shared_ptr<HnswSymphonyQG> qg) {
+    symphony_qg_ = std::move(qg);
+  }
+
+ protected:
+  std::shared_ptr<HnswSymphonyQG> symphony_qg_;
 };
 
 //! hnsw graph algorithm implement, templated on EntityType

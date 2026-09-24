@@ -46,6 +46,7 @@ constexpr uint32_t kEnableRangeOptimization = 1;
 constexpr uint32_t kEnableExtendedWildcard = 2;
 }  // namespace f_invert
 namespace f_hnsw {
+constexpr uint32_t kSymphonyQG = 7;
 constexpr uint32_t kBase = 1;
 constexpr uint32_t kM = 2;
 constexpr uint32_t kEfConstruction = 3;
@@ -222,6 +223,7 @@ void EncodeHnsw(const HnswIndexParams *params, std::string *out) {
   std::string base;
   EncodeBase(MakeBase(params), &base);
   Writer w(out);
+  if (params->symphony_qg()) w.put_bool(f_hnsw::kSymphonyQG, true);
   w.put_message(f_hnsw::kBase, base);
   w.put_varint(f_hnsw::kM, static_cast<uint64_t>(params->m()));
   w.put_varint(f_hnsw::kEfConstruction,
@@ -241,6 +243,7 @@ HnswIndexParams::OPtr DecodeHnsw(std::string_view buf) {
   int32_t m = 0;
   int32_t ef_construction = 0;
   bool use_contiguous_memory = false;
+  bool symphony_qg = false;
   bool use_flat_contiguous_memory = false;
   DataType flat_data_type = DataType::VECTOR_FP32;
   Reader r(buf);
@@ -265,6 +268,9 @@ HnswIndexParams::OPtr DecodeHnsw(std::string_view buf) {
         flat_data_type = DataTypeCodeBook::Get(
             wire::FromNumber<wire::DataType>(r.int32_value()));
         break;
+      case f_hnsw::kSymphonyQG:
+        symphony_qg = r.bool_value();
+        break;
       default:
         break;
     }
@@ -272,7 +278,7 @@ HnswIndexParams::OPtr DecodeHnsw(std::string_view buf) {
   return std::make_shared<HnswIndexParams>(
       base.metric_type, m, ef_construction, base.quantize_type,
       use_contiguous_memory, QuantizerParam(base.enable_rotate),
-      use_flat_contiguous_memory, flat_data_type);
+      use_flat_contiguous_memory, flat_data_type, symphony_qg);
 }
 
 void EncodeHnswRabitq(const HnswRabitqIndexParams *params, std::string *out) {
