@@ -85,9 +85,9 @@ endif()
 
 file(GLOB_RECURSE ALL_SRCS *.cc *.c *.h)
 
-# Match the dedicated RaBitQ index's platform support, including registration.
+# Match the platform gate used by the dedicated RaBitQ indexes.
 if(NOT RABITQ_SUPPORTED)
-  list(FILTER ALL_SRCS EXCLUDE REGEX "/quantizer/rabitq_quantizer/")
+  list(FILTER ALL_SRCS EXCLUDE REGEX ".*/quantizer/rabitq_quantizer/.*")
 endif()
 
 # Set per-file compile flags for SIMD sources.

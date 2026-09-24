@@ -6,7 +6,8 @@ target_include_directories(
   )
 
 if(RABITQ_SUPPORTED)
-  # Turbo consumes the scalar encoder without requiring OpenMP.
+  # Turbo uses the scalar encoder and its own portable rotation/distance paths.
+  # The supported Linux build may also disable OpenMP.
   apply_patch_once(
       "rabitq_optional_openmp"
       "${RABITQ_SOURCE_DIR}"

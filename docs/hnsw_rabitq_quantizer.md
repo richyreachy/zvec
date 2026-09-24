@@ -1,14 +1,15 @@
 # RaBitQ in the standard HNSW index
 
 `HNSWIndexParam` accepts `RabitqQuantizerParam(total_bits)`. The bit count is
-1–9, defaulting to 7, as in the dedicated HNSW-RaBitQ index. Graph construction
-uses the original FP32 provider; stored vectors use centroid-based RaBitQ codes.
+1–9, defaulting to 7, as in the dedicated HNSW-RaBitQ index.
+The same `RABITQ_SUPPORTED` platform gate applies to both integrated HNSW
+and dedicated HNSW/IVF RaBitQ: only Linux x86_64 builds with the required SIMD
+compiler support enable the backend. Windows, macOS, and other unsupported
+platforms do not compile or register the RaBitQ quantizer and reject index creation. The RaBitQ
+initialization path returns `IndexError_Unsupported`; the index factory returns
+null. There is no fallback to an unquantized index.
 
-Platform support matches the dedicated HNSW-RaBitQ index: Linux x86_64 with
-`RABITQ_SUPPORTED` enabled by the compiler capability checks. Windows, macOS,
-and other unsupported platforms do not compile or register `RabitqQuantizer`.
-Initializing standard HNSW with this quantizer fails with an unsupported-platform
-log message; `IndexFactory::CreateAndInitIndex` returns `nullptr`.
+Graph construction uses the original FP32 provider; stored vectors use centroid-based RaBitQ codes.
 
 ```cpp
 using namespace zvec::core_interface;

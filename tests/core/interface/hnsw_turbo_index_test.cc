@@ -1235,6 +1235,7 @@ TEST(HnswTurboRabitq, ScreensDuringTraversalAndClearsRefinementForBuild) {
   ASSERT_EQ(0, reopened.close());
   zvec::test_util::RemoveTestFiles(path);
 }
+
 #else
 TEST(HnswTurboRabitq, RejectsUnsupportedPlatform) {
   class TestHnswIndex : public HNSWIndex {
@@ -1242,17 +1243,21 @@ TEST(HnswTurboRabitq, RejectsUnsupportedPlatform) {
     using HNSWIndex::create_and_init_converter_reformer;
     using Index::init;
   };
-  EXPECT_EQ(nullptr,
-            zvec::core::IndexFactory::CreateQuantizer("RabitqQuantizer"));
   for (auto metric :
        {MetricType::kL2sq, MetricType::kCosine, MetricType::kInnerProduct}) {
-    auto param = MakeParam(metric, QuantizerType::kRabitq);
-    TestHnswIndex index;
-    EXPECT_EQ(zvec::core::IndexError_Unsupported,
-              index.create_and_init_converter_reformer(*param->quantizer_param,
-                                                       *param));
-    EXPECT_NE(0, index.init(*param));
-    EXPECT_EQ(nullptr, IndexFactory::CreateAndInitIndex(*param));
+    for (int bits : {1, 7, 9}) {
+      auto param = MakeParam(metric, QuantizerType::kRabitq);
+      param->quantizer_param = std::make_shared<RabitqQuantizerParam>(bits);
+      TestHnswIndex index;
+      EXPECT_EQ(zvec::core::IndexError_Unsupported,
+                index.create_and_init_converter_reformer(
+                    *param->quantizer_param, *param));
+      EXPECT_NE(0, index.init(*param));
+      EXPECT_EQ(nullptr, IndexFactory::CreateAndInitIndex(*param));
+    }
   }
+  // Unsupported builds must not register a usable RaBitQ backend.
+  EXPECT_EQ(nullptr,
+            zvec::core::IndexFactory::CreateQuantizer("RabitqQuantizer"));
 }
 #endif  // RABITQ_SUPPORTED
