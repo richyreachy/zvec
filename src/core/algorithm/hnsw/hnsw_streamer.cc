@@ -15,6 +15,7 @@
 #if RABITQ_SUPPORTED
 #include <rabitqlib/utils/cpu_features.hpp>
 #endif
+#include <chrono>
 #include <iostream>
 #include <ailego/internal/cpu_features.h>
 #include <ailego/pattern/defer.h>
@@ -604,6 +605,16 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
 
   if (symphony_qg_enabled_) {
     symphony_qg_ = std::make_shared<HnswSymphonyQG>(meta_.dimension());
+    const auto prebuild_start = std::chrono::steady_clock::now();
+    ret = symphony_qg_->prebuild(*entity_, entity_->doc_cnt(), 8);
+    if (ret != 0) {
+      return ret;
+    }
+    LOG_INFO(
+        "HnswStreamer symphony_qg prebuild done, cost_ms=%d",
+        static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                             std::chrono::steady_clock::now() - prebuild_start)
+                             .count()));
     alg_->set_symphony_qg(symphony_qg_);
   }
   state_ = STATE_OPENED;

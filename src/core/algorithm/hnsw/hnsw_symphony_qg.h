@@ -32,12 +32,13 @@ class HnswSymphonyQG {
 
   int search(node_id_t entry, HnswContext &ctx) const;
   void clear();
+  int prebuild(const HnswEntity &entity, size_t doc_cnt, size_t threads);
 
  private:
   struct Block {
-    std::vector<float> center;
+    const float *center;
     std::vector<node_id_t> neighbors;
-    std::vector<char> codes;
+    std::shared_ptr<const char> codes;
   };
 
   int get_block(const HnswEntity &entity, node_id_t id,
