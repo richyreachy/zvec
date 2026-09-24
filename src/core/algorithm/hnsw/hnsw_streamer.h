@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <shared_mutex>
 #include <ailego/parallel/lock.h>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_provider.h>
@@ -266,6 +267,9 @@ class HnswStreamer : public IndexStreamer {
     }
   };
 
+  bool symphony_qg_enabled_{false};
+  std::shared_ptr<HnswSymphonyQG> symphony_qg_;
+  mutable std::shared_mutex symphony_qg_mutex_;
   std::unique_ptr<HnswStreamerEntity> entity_;
   HnswAlgorithmBase::UPointer alg_;
   IndexMeta meta_{};

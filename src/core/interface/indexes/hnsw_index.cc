@@ -33,7 +33,8 @@ const char *ResolveTurboQuantizerName(const QuantizerParam &quantizer_param,
   // vector storage. External-vector HNSW is also supported: its source stays
   // in the FP32 input layout and the streamer quantizes source vectors only
   // for distance calculation.
-  if (hnsw_param.is_sparse || hnsw_param.data_type != DataType::DT_FP32 ||
+  if (hnsw_param.symphony_qg || hnsw_param.is_sparse ||
+      hnsw_param.data_type != DataType::DT_FP32 ||
       hnsw_param.metric_type == MetricType::kMIPSL2sq) {
     return nullptr;
   }
@@ -188,6 +189,16 @@ int HNSWIndex::search_with_source(
 
 int HNSWIndex::create_and_init_streamer(const BaseIndexParam &param) {
   param_ = dynamic_cast<const HNSWIndexParam &>(param);
+  if (param_.symphony_qg &&
+      (param_.is_sparse || param_.use_external_vector ||
+       param_.metric_type != MetricType::kL2sq ||
+       param_.data_type != DataType::DT_FP32 ||
+       (param_.quantizer_param &&
+        param_.quantizer_param->type != QuantizerType::kNone))) {
+    LOG_ERROR("SymphonyQG requires inline, unquantized FP32 L2 HNSW");
+    return core::IndexError_Unsupported;
+  }
+  proxima_index_params_.set(core::PARAM_HNSW_SYMPHONY_QG, param_.symphony_qg);
 
   // valid
   param_.ef_construction = std::max(1, std::min(2048, param_.ef_construction));

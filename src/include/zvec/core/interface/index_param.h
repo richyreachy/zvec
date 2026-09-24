@@ -407,6 +407,7 @@ struct ZVEC_CORE_API IVFIndexParam : public BaseIndexParam {
 };
 
 struct ZVEC_CORE_API HNSWIndexParam : public BaseIndexParam {
+  bool symphony_qg = false;
   using Pointer = std::shared_ptr<HNSWIndexParam>;
   int m = kDefaultHnswNeighborCnt;
   int ef_construction = kDefaultHnswEfConstruction;

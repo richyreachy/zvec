@@ -84,6 +84,10 @@ int HnswAlgorithm<EntityType>::search(HnswContext *ctx) const {
     select_entry_point(cur_level, &entry_point, &dist, ctx);
   }
 
+  if (symphony_qg_ && !ctx->group_by_search()) {
+    return symphony_qg_->search(entry_point, *ctx);
+  }
+
   const uint32_t capacity = std::max(ctx->topk(), ctx->ef());
   if (!ctx->filter().is_valid()) {
     ctx->search_heap().reset_pool(capacity, entity_.max_degree(0));

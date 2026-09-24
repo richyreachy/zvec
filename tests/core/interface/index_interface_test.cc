@@ -3276,6 +3276,7 @@ TEST(IndexInterface, Serialize) {
     param->data_type = DataType::DT_FP32;
     param->dimension = 64;
     param->use_contiguous_memory = true;
+    param->symphony_qg = true;
 
     auto json_str = param->serialize_to_json();
     std::cout << "hnsw contiguous -- json: " << json_str << std::endl;
@@ -3288,6 +3289,7 @@ TEST(IndexInterface, Serialize) {
         std::dynamic_pointer_cast<HNSWIndexParam>(deserialized_param);
     ASSERT_NE(nullptr, hnsw_param.get());
     ASSERT_TRUE(hnsw_param->use_contiguous_memory);
+    ASSERT_TRUE(hnsw_param->symphony_qg);
 
     ASSERT_TRUE(deserialized_param->serialize_to_json() == json_str);
   }
