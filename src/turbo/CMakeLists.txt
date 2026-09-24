@@ -85,6 +85,11 @@ endif()
 
 file(GLOB_RECURSE ALL_SRCS *.cc *.c *.h)
 
+# Match the platform gate used by the dedicated RaBitQ indexes.
+if(NOT RABITQ_SUPPORTED)
+  list(FILTER ALL_SRCS EXCLUDE REGEX ".*/quantizer/rabitq_quantizer/.*")
+endif()
+
 # Set per-file compile flags for SIMD sources.
 # set_source_files_properties is directory-scoped, so it must be called in the
 # same directory that adds the sources to a target (i.e. here, not in a
@@ -166,9 +171,12 @@ cc_library(
 )
 
 # Eigen (header-only, shipped inside the RaBitQ third-party tree) backs the OPQ
-# rotator only. It must be a SYSTEM include: INCS above maps to a plain
-# target_include_directories, and STRICT turns Eigen's own warnings into errors.
-# Only the headers are consumed -- rabitqlib/rabitqlib_runtime is NOT linked.
+# rotator and the scalar RaBitQ encoder. It must be a SYSTEM include: INCS
+# above maps to a plain target_include_directories, and STRICT turns Eigen's
+# own warnings into errors.
+# The scalar encoders stay header-only on every platform; on RABITQ_SUPPORTED
+# builds the split estimator additionally calls rabitqlib's dispatched SIMD
+# kernels (warmup/mask/excode-ip), so rabitqlib_runtime must be linked.
 set(TURBO_EIGEN_INC
     ${PROJECT_ROOT_DIR}/thirdparty/RaBitQ-Library/RaBitQ-Library-0.1/include)
 foreach(_turbo_tgt zvec_turbo zvec_turbo_objects zvec_turbo_export_objects)
@@ -176,3 +184,13 @@ foreach(_turbo_tgt zvec_turbo zvec_turbo_objects zvec_turbo_export_objects)
     target_include_directories(${_turbo_tgt} SYSTEM PRIVATE ${TURBO_EIGEN_INC})
   endif()
 endforeach()
+
+if(RABITQ_SUPPORTED)
+  # Plain signature: bazel.cmake's cc_library already links zvec_turbo that
+  # way, and keyword/plain styles cannot be mixed on one target.
+  foreach(_turbo_tgt zvec_turbo zvec_turbo_objects zvec_turbo_export_objects)
+    if(TARGET ${_turbo_tgt})
+      target_link_libraries(${_turbo_tgt} rabitqlib)
+    endif()
+  endforeach()
+endif()
