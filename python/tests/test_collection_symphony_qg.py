@@ -43,23 +43,31 @@ from zvec import (
 def test_symphony_qg_optimize_reopen(tmp_path, enable_mmap, use_contiguous_memory):
     schema = zvec.CollectionSchema(
         name="symphony_qg",
-        vectors=[VectorSchema(
-            "embedding", DataType.VECTOR_FP32, dimension=128,
-            index_param=HnswIndexParam(
-                metric_type=MetricType.L2, m=17,
-                symphony_qg=True, use_contiguous_memory=use_contiguous_memory,
-            ),
-        )],
+        vectors=[
+            VectorSchema(
+                "embedding",
+                DataType.VECTOR_FP32,
+                dimension=128,
+                index_param=HnswIndexParam(
+                    metric_type=MetricType.L2,
+                    m=17,
+                    symphony_qg=True,
+                    use_contiguous_memory=use_contiguous_memory,
+                ),
+            )
+        ],
     )
     path = str(tmp_path / "collection")
     option = CollectionOption(enable_mmap=enable_mmap)
     collection = zvec.create_and_open(path=path, schema=schema, option=option)
-    docs = [Doc(id=str(i), vectors={"embedding": [i / 100.0] * 128})
-            for i in range(1200)]
+    docs = [
+        Doc(id=str(i), vectors={"embedding": [i / 100.0] * 128}) for i in range(1200)
+    ]
     assert all(status.ok() for status in collection.insert(docs))
     collection.optimize()
-    query = Query(field_name="embedding", vector=[1.42] * 128,
-                  param=HnswQueryParam(ef=100))
+    query = Query(
+        field_name="embedding", vector=[1.42] * 128, param=HnswQueryParam(ef=100)
+    )
     before = collection.query(query, topk=5)
     assert before[0].id == "142"
     # Keep a second, unoptimized block across reopen.
