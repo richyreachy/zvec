@@ -13,54 +13,99 @@
 // limitations under the License.
 #pragma once
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 namespace zvec::core {
 
-// Sorted bounded beam. Keep the expanded flag separate from the ID so the
-// whole HNSW uint32_t ID range remains usable. Estimates are local to an edge,
-// so duplicate IDs with different estimates are intentional (visited on pop).
+// Sorted linear beam mirroring SymphonyQG's SearchBuffer: branchless binary
+// search, raw memmove inserts into capacity+1 slots, and an expanded flag
+// borrowed from the id's top bit (in-memory HNSW ids stay below 2^31).
 class SymphonyQGBeam {
  public:
   explicit SymphonyQGBeam(size_t capacity)
       : capacity_(std::max(size_t{1}, capacity)) {
-    entries_.reserve(capacity_ + 1);
+    entries_.resize(capacity_ + 1);
+  }
+
+  void reset(size_t capacity) {
+    capacity_ = std::max(size_t{1}, capacity);
+    if (entries_.size() < capacity_ + 1) entries_.resize(capacity_ + 1);
+    size_ = 0;
+    cursor_ = 0;
+  }
+
+  // Cheapest rejection first: the caller tests this before touching the visit
+  // set or loading the neighbor id.
+  bool is_full(float distance) const {
+    return size_ == capacity_ && distance > entries_[size_ - 1].distance;
   }
 
   void insert(uint32_t id, float distance) {
-    if (entries_.size() == capacity_ && distance > entries_.back().distance)
-      return;
-    auto it = std::lower_bound(
-        entries_.begin(), entries_.end(), distance,
-        [](const Entry &entry, float value) { return entry.distance < value; });
-    const size_t pos = it - entries_.begin();
-    entries_.insert(it, Entry{id, distance, false});
-    if (entries_.size() > capacity_) entries_.pop_back();
-    cursor_ = std::min(cursor_, pos);
+    const size_t lo = binary_search(distance);
+    std::memmove(&entries_[lo + 1], &entries_[lo],
+                 (size_ - lo) * sizeof(Entry));
+    entries_[lo] = Entry{id, distance};
+    size_ += static_cast<size_t>(size_ < capacity_);
+    cursor_ = lo < cursor_ ? lo : cursor_;
   }
 
   bool has_next() const {
-    return cursor_ < entries_.size();
+    return cursor_ < size_;
+  }
+
+  // Whether an index beyond the cursor is still an unexpanded candidate.
+  bool has_next_at(size_t ahead) const {
+    size_t i = cursor_;
+    while (i < size_ && ahead > 0) {
+      if (!(entries_[i].id & kExpanded)) --ahead;
+      ++i;
+    }
+    return i < size_ && !(entries_[i].id & kExpanded);
+  }
+
+  uint32_t next_id_at(size_t ahead) const {
+    size_t i = cursor_;
+    while (i < size_ && ahead > 0) {
+      if (!(entries_[i].id & kExpanded)) --ahead;
+      ++i;
+    }
+    while (i < size_ && (entries_[i].id & kExpanded)) ++i;
+    return entries_[i < size_ ? i : size_ - 1].id & kIdMask;
   }
 
   uint32_t pop() {
-    auto &entry = entries_[cursor_++];
-    entry.expanded = true;
-    const uint32_t id = entry.id;
-    while (has_next() && entries_[cursor_].expanded) ++cursor_;
+    Entry &entry = entries_[cursor_++];
+    entry.id |= kExpanded;
+    const uint32_t id = entry.id & kIdMask;
+    while (cursor_ < size_ && (entries_[cursor_].id & kExpanded)) ++cursor_;
     return id;
   }
 
  private:
+  size_t binary_search(float distance) const {
+    size_t lo = 0;
+    size_t len = size_;
+    while (len > 1) {
+      const size_t half = len >> 1;
+      len -= half;
+      lo += static_cast<size_t>(entries_[lo + half - 1].distance < distance) *
+            half;
+    }
+    return (lo < size_ && entries_[lo].distance < distance) ? lo + 1 : lo;
+  }
+
+  static constexpr uint32_t kExpanded = 1u << 31;
+  static constexpr uint32_t kIdMask = kExpanded - 1;
+
   struct Entry {
     uint32_t id;
     float distance;
-    bool expanded;
   };
   size_t capacity_;
+  size_t size_{0};
   size_t cursor_{0};
   std::vector<Entry> entries_;
 };

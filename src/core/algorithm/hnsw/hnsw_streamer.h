@@ -268,6 +268,7 @@ class HnswStreamer : public IndexStreamer {
   };
 
   bool symphony_qg_enabled_{false};
+  uint32_t symphony_qg_degree_{32};
   std::shared_ptr<HnswSymphonyQG> symphony_qg_;
   mutable std::shared_mutex symphony_qg_mutex_;
   std::unique_ptr<HnswStreamerEntity> entity_;

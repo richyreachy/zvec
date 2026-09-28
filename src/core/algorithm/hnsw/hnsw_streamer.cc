@@ -81,7 +81,9 @@ void HnswStreamer::merge_trained_meta(const IndexMeta &trained_meta) {
 
 int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
   symphony_qg_enabled_ = false;
+  symphony_qg_degree_ = 32;
   params.get(PARAM_HNSW_SYMPHONY_QG, &symphony_qg_enabled_);
+  params.get(PARAM_HNSW_SYMPHONY_QG_DEGREE, &symphony_qg_degree_);
   bool external = false;
   params.get(PARAM_HNSW_STREAMER_USE_EXTERNAL_VECTOR, &external);
   if (symphony_qg_enabled_) {
@@ -604,7 +606,8 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
   }
 
   if (symphony_qg_enabled_) {
-    symphony_qg_ = std::make_shared<HnswSymphonyQG>(meta_.dimension());
+    symphony_qg_ = std::make_shared<HnswSymphonyQG>(meta_.dimension(),
+                                                    symphony_qg_degree_);
     const auto prebuild_start = std::chrono::steady_clock::now();
     ret = symphony_qg_->prebuild(*entity_, entity_->doc_cnt(), 8);
     if (ret != 0) {
@@ -1028,7 +1031,6 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
   if (ailego_unlikely(ctx->error())) {
     return IndexError_Runtime;
   }
-
   return 0;
 }
 

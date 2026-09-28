@@ -79,13 +79,55 @@ int HnswAlgorithm<EntityType>::search(HnswContext *ctx) const {
     return 0;
   }
 
+  if (symphony_qg_ && !ctx->group_by_search()) {
+    const node_id_t sym_entry = symphony_qg_->entry();
+    if (sym_entry != kInvalidNodeId) {
+      // Upstream SymphonyQG searches a single level from the node nearest
+      // the corpus centroid; skip the upper-level descent entirely.
+      return symphony_qg_->search(sym_entry, *ctx);
+    }
+    if (ailego_unlikely(ctx->has_extra_values())) {
+      dist_t dist = ctx->dist_calculator().dist(entry_point);
+      for (level_t cur_level = max_level; cur_level >= 1; --cur_level) {
+        select_entry_point(cur_level, &entry_point, &dist, ctx);
+      }
+    } else {
+      // Lean greedy descent for the quantized level-0 search: same closest-
+      // neighbor traversal as select_entry_point, but with borrowed vector
+      // blocks and no per-hop allocations.
+      const auto &entity = static_cast<const EntityType &>(ctx->get_entity());
+      HnswDistCalculator &dc = ctx->dist_calculator();
+      dist_t dist = dc.dist(entry_point);
+      for (level_t cur_level = max_level; cur_level >= 1; --cur_level) {
+        while (true) {
+          const auto neighbors = entity.get_neighbors(cur_level, entry_point);
+          const uint32_t size = neighbors.size();
+          if (size == 0) break;
+          node_id_t best = entry_point;
+          dist_t best_dist = dist;
+          for (uint32_t i = 0; i < size; ++i) {
+            IndexStorage::MemoryBlock block;
+            if (ailego_unlikely(dc.get_vector(neighbors[i], block) != 0)) {
+              break;
+            }
+            const dist_t d = dc.dist(block.data());
+            if (d < best_dist) {
+              best_dist = d;
+              best = neighbors[i];
+            }
+          }
+          if (best == entry_point) break;
+          entry_point = best;
+          dist = best_dist;
+        }
+      }
+    }
+    return symphony_qg_->search(entry_point, *ctx);
+  }
+
   dist_t dist = ctx->dist_calculator().dist(entry_point);
   for (level_t cur_level = max_level; cur_level >= 1; --cur_level) {
     select_entry_point(cur_level, &entry_point, &dist, ctx);
-  }
-
-  if (symphony_qg_ && !ctx->group_by_search()) {
-    return symphony_qg_->search(entry_point, *ctx);
   }
 
   const uint32_t capacity = std::max(ctx->topk(), ctx->ef());
