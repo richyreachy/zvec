@@ -35,8 +35,8 @@ constexpr uint32_t kSplitFormat = 0x52425133;
 constexpr size_t kBinPrefix = 8;  // u32 cluster + u32 zero pad for alignment
 #else
 constexpr uint32_t kSplitFormat = 0x52425132;
-#endif
 constexpr size_t kRecordHeader = 9 * sizeof(float);
+#endif
 uint32_t ReadUint(const void *data, size_t offset = 0) {
   uint32_t value;
   std::memcpy(&value, static_cast<const char *>(data) + offset, sizeof(value));
