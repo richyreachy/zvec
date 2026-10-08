@@ -24,9 +24,9 @@ namespace zvec::core {
 // Sorted linear beam mirroring SymphonyQG's SearchBuffer: branchless binary
 // search and raw memmove inserts into capacity+1 slots. Expansion state is
 // separate from the id so every bit of an HNSW node id is preserved.
-class SymphonyQGBeam {
+class QuantizedGraphBeam {
  public:
-  explicit SymphonyQGBeam(size_t capacity)
+  explicit QuantizedGraphBeam(size_t capacity)
       : capacity_(std::max(size_t{1}, capacity)) {
     entries_.resize(capacity_ + 1);
   }

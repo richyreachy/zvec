@@ -4,46 +4,86 @@ Enable this experimental mode with `HnswIndexParam(metric_type=MetricType.L2,
 symphony_qg=True)` in Python, `HnswIndexParams::set_symphony_qg(true)` in the
 database C++ API, or `HNSWIndexParamBuilder::with_symphony_qg(true)` in the core
 API. The low-level streamer parameter is `proxima.hnsw.symphony_qg`.
-It defaults to false. The index type remains HNSW.
+It defaults to false. The index type and persistent graph format remain HNSW.
 
-HNSW construction and upper-layer navigation use the existing exact distances.
-Level-zero traversal uses SymphonyQG's node-centered one-bit RaBitQ neighbor
-blocks, scanned in batches of 32. A lookup table is prepared once per query;
-each expanded node contributes an exact squared-L2 result. The beam size is
-`max(ef, topk)`. Filters exclude results but allow traversal. Group-by and
-brute-force queries retain the ordinary HNSW paths. This integrates the search
-method, not the standalone SymphonyQG iterative graph builder.
+## Quantized graph framework
 
-The pinned RaBitQ-Library provides `quantize_qg_batch`, `BatchQuery`, and runtime
-AVX2/AVX512 `fastscan::accumulate`. Accumulation is split at 1024 dimensions to
-avoid 16-bit overflow. Rotation uses three normalized randomized Hadamard passes
-with fixed signs and power-of-two zero padding. This preserves L2 distances and
-rebuilds identical derived codes after reopen without storing a trained rotator.
+The reusable engine is `QuantizedGraph<Codec>` in
+[`../quantized_graph/quantized_graph.h`](../quantized_graph/quantized_graph.h).
+It owns neighbor blocks, degree pruning, centroid entry selection, eager/lazy
+caching, beam traversal, and result completion. It has no dependency on HNSW,
+RaBitQ, or a particular storage implementation. Its current contract is dense
+FP32 vectors with squared-L2 scores and fixed-size encoded neighbor batches.
+Other metrics and variable-length codes are outside this contract.
 
-## Storage and updates
+There are three compile-time extension points:
 
-Raw vectors and graph adjacency remain in the existing HNSW storage. No separate
-RaBitQ index, trained clustering, or raw Flat provider is needed. Neighbor blocks
-are an immutable in-memory cache, built on first visit and cleared on insertion
-or close. In this mode insertions serialize with graph searches; concurrent
-queries share blocks and access storage through their own context entities.
+- **Graph adapter:** exposes `valid(id)`, `neighbors(id)`, and
+  `get_vector(id, Vector&)`. IDs are uint32 values in `[0, doc_cnt)`, with
+  `UINT32_MAX` reserved. `Vector::data()` supplies FP32 data and the vector
+  handle keeps it alive; a returned neighbor view likewise owns/pins its data.
+  The adapter must support concurrent reads during prebuild and search.
+- **Codec:** supplies `kBatchSize`, `encoded_dim()`, `batch_bytes()`,
+  `transform()`, `encode()`, and per-query `Query`, `prepare_query()`, `scan()`.
+  Transform produces `encoded_dim()` floats; encode consumes a center and up
+  to one batch of transformed vectors. Scan writes `kBatchSize` distance
+  estimates; the engine ignores padded lanes. The codec must be immutable
+  during reads; scratch and query state belong to the worker/query.
+- **Query adapter:** supplies the query, top-k, bounded result heap, exact L2
+  distance computation, exclusion predicate, scan-budget check, and expansion
+  callback. The heap exposes `limit/size/clear/emplace`. Exact distance calls
+  account for the budget. Excluded nodes can still be traversed.
 
-Cold queries rotate and quantize adjacency lists. Cache memory per visited node
-is approximately `4 * dimension + ceil(degree / 32) * (4 * padded_dimension + 256)`
-bytes, plus neighbor IDs and container overhead. There is no eviction policy.
+A backend constructs `QuantizedGraph<Codec>(dimension, codec, max_neighbors)`,
+then calls `prebuild(graph, doc_cnt, threads)` and
+`search(entry, graph, query_context)`. Prebuild chooses the live node nearest
+its corpus mean; search also accepts a caller-selected entry. The degree bound
+is rounded down to a codec batch multiple, with a minimum of one batch.
+The graph and context are borrowed for each call, not retained by the engine.
+
+[`hnsw_symphony_qg.cc`](hnsw_symphony_qg.cc) is the thin HNSW adapter. It maps
+level-zero adjacency and `HnswContext` to those contracts.
+[`SymphonyQGCodec`](../quantized_graph/symphony_qg_codec.h) implements the first
+production codec: node-centered one-bit RaBitQ, batches of 32, deterministic
+single-pass normalized Hadamard rotation, and per-query LUT scanning. It
+supports both uint16 and int32 RaBitQ accumulation APIs, using slices of at
+most 1024 dimensions to avoid overflow with the older API. AVX512 kernels are
+codec details with runtime dispatch and portable/reference fallbacks.
+
+## HNSW search and cache lifecycle
+
+HNSW construction still uses the existing exact distances. After prebuild,
+search starts directly at the centroid entry on level zero. After cache
+invalidation, HNSW upper-layer navigation selects an entry for lazy search.
+The beam capacity is `max(ef, topk)`; estimates prioritize expansion and each
+expanded node contributes an exact squared-L2 score. Group-by and brute-force
+queries retain the ordinary HNSW paths. The SymphonyQG graph builder is not used.
+
+Raw vectors and adjacency remain in HNSW storage. Opening prebuilds a fixed-
+stride arena, while blocks after insertion are rebuilt lazily. The caller must
+exclude clear/prebuild and graph mutation from concurrent searches, and clear
+the cache before changing vectors, validity, or edges. The HNSW streamer
+provides this synchronization and invalidates on insertion/close. Concurrent
+queries share immutable cached blocks and use their own query state. There is
+no eviction policy. Cached centers are original vectors; codes are derived.
+
 The flag is stored in optional HNSW manifest field 7; old manifests default to
-false. The graph format is unchanged. Benchmark cold and warm queries separately;
-this implementation has no established speedup or recall improvement.
+false. The public parameters, persistence format, and unsupported-platform
+behavior are unchanged. This implementation has no established speedup or
+recall improvement; benchmark it on the intended corpus and hardware.
 
-## Supported configuration
+## Supported configuration and validation
 
-FP32 squared L2, dimensions 1 through 4096, inline vectors, and a RaBitQ-enabled
-Linux x86-64 build with AVX2/FMA or AVX512 are required. Extra FP16/INT8/Turbo
-quantization and external-vector storage are rejected. The normal HNSW path
-remains available on all existing platforms when the flag is false.
+The SymphonyQG integration requires FP32 squared L2, dimensions 1 through 4096,
+inline vectors, and a RaBitQ-enabled build with the required SIMD support.
+Extra FP16/INT8/Turbo quantization and external-vector storage are rejected.
+The ordinary HNSW path remains available when the flag is false. These codec
+restrictions do not constrain other codecs plugged into `QuantizedGraph`.
 
-Tests cover portable rotation and beam behavior, batch estimation (including
-partial blocks, duplicate vectors, and large dimensions), HNSW insertion,
-filtering and reopen, manifest compatibility, and Python optimize/reopen with
-mmap/buffered and contiguous storage. The SIMD and end-to-end cases need a
-supported machine.
+Unit tests remain in `symphony_qg_test.cc`. A standalone graph, result adapter,
+and scalar int8 codec with batches of three exercise the generic engine without
+HNSW or SIMD. They cover multiple/partial batches, filtering and scan budgets,
+centroid holes, invalidation, failed prebuild, and concurrent lazy searches.
+The existing beam, rotation, RaBitQ scanner, and HNSW adapter tests remain;
+SIMD runtime cases need a supported machine. Collection/manifest tests continue
+to cover insertion, persistence, and reopen through the public API.

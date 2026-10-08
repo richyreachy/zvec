@@ -15,16 +15,71 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <numeric>
+#include <random>
 #include <type_traits>
 #include <vector>
-#include <rabitqlib/index/query.hpp>
-#include <rabitqlib/quantization/data_layout.hpp>
-#include "symphony_qg_beam.h"
 #include "symphony_qg_kernels.h"
+#if RABITQ_SUPPORTED
+#include <rabitqlib/index/query.hpp>
+#include <rabitqlib/quantization/rabitq.hpp>
+#endif
 
 namespace zvec::core {
+
+// Randomized normalized Hadamard passes form an orthogonal rotation. A single
+// pass matches upstream SymphonyQG's rotator; more passes improve the
+// Gaussianity of rotated coordinates at proportional query-time cost.
+// Fixed signs make derived codes reproducible after reopen without changing
+// the source graph storage format. Zero padding preserves original L2
+// distances. The 1/sqrt(padded) normalization is folded into the signs so the
+// hot path is one element-wise multiply plus the transform.
+class SymphonyQGRotation {
+ public:
+  static constexpr size_t kPasses = 1;
+  explicit SymphonyQGRotation(size_t dimension) : dimension_(dimension) {
+    padded_ = 64;
+    while (padded_ < dimension) padded_ *= 2;
+    const float scale = 1.0f / std::sqrt(static_cast<float>(padded_));
+    std::mt19937 rng(0x535147U);
+    signs_.resize(kPasses * padded_);
+    for (auto &sign : signs_) sign = ((rng() & 1U) ? 1.0f : -1.0f) * scale;
+  }
+  size_t padded_dim() const {
+    return padded_;
+  }
+  void rotate(const void *data, std::vector<float> &out) const {
+    const auto *values = static_cast<const float *>(data);
+    out.assign(padded_, 0.0f);
+    std::copy(values, values + dimension_, out.begin());
+    for (size_t pass = 0; pass < kPasses; ++pass) {
+      const float *signs = signs_.data() + pass * padded_;
+      if (!symqg_mul(signs, out.data(), padded_)) {
+        for (size_t i = 0; i < padded_; ++i) out[i] *= signs[i];
+      }
+      if (!symqg_hadamard(out.data(), padded_)) {
+        for (size_t stride = 1; stride < padded_; stride *= 2) {
+          for (size_t offset = 0; offset < padded_; offset += 2 * stride) {
+            for (size_t i = 0; i < stride; ++i) {
+              float a = out[offset + i], b = out[offset + i + stride];
+              out[offset + i] = a + b;
+              out[offset + i + stride] = a - b;
+            }
+          }
+        }
+      }
+    }
+  }
+
+ private:
+  size_t dimension_, padded_;
+  std::vector<float> signs_;
+};
+
+#if RABITQ_SUPPORTED
+
 
 // Query-side state for the SymphonyQG fastscan hot loop. Produces the same
 // 8-bit LUT, delta and correction terms as rabitqlib's Lut/BatchQuery: the
@@ -108,4 +163,44 @@ inline void ScanSymphonyQGBatch(const char *codes, const SymQuery &query,
   }
 }
 
+
+// Codec policy for QuantizedGraph: all RaBitQ and rotation details live here.
+class SymphonyQGCodec {
+ public:
+  static constexpr size_t kBatchSize = rabitqlib::fastscan::kBatchSize;
+  struct Query {
+    std::vector<float> rotated;
+    SymQuery lookup;
+  };
+
+  explicit SymphonyQGCodec(size_t dimension) : rotation_(dimension) {}
+
+  size_t encoded_dim() const {
+    return rotation_.padded_dim();
+  }
+  size_t batch_bytes() const {
+    return rabitqlib::QGBatchDataMap<float>::data_bytes(encoded_dim());
+  }
+  void transform(const void *vector, std::vector<float> &out) const {
+    rotation_.rotate(vector, out);
+  }
+  void encode(const float *center, const float *vectors, size_t count,
+              char *codes) const {
+    rabitqlib::quant::quantize_qg_batch(vectors, center, count, encoded_dim(),
+                                        codes, rabitqlib::METRIC_L2);
+  }
+  void prepare_query(const void *vector, Query &query) const {
+    transform(vector, query.rotated);
+    query.lookup.reset(query.rotated.data(), encoded_dim());
+  }
+  void scan(const char *codes, Query &query, float center_distance,
+            float *distances) const {
+    query.lookup.set_g_add(center_distance);
+    ScanSymphonyQGBatch(codes, query.lookup, encoded_dim(), distances);
+  }
+
+ private:
+  SymphonyQGRotation rotation_;
+};
+#endif
 }  // namespace zvec::core

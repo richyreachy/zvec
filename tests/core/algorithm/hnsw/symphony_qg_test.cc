@@ -16,25 +16,305 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 #include <gtest/gtest.h>
+#include "algorithm/quantized_graph/quantized_graph.h"
+#include "algorithm/quantized_graph/symphony_qg_codec.h"
 #include "hnsw_symphony_qg.h"
-#include "symphony_qg_beam.h"
-#include "symphony_qg_rotation.h"
 #if RABITQ_SUPPORTED
 #include <rabitqlib/quantization/rabitq.hpp>
 #include <rabitqlib/utils/cpu_features.hpp>
-#include "symphony_qg_utils.h"
+#include "hnsw_context.h"
 #endif
 
 namespace zvec::core {
 namespace {
 
+// These adapters deliberately have no HNSW or RaBitQ dependencies. A three-
+// vector int8 batch also catches assumptions about SymphonyQG's batch of 32.
+class ScalarGraphCodec {
+ public:
+  static constexpr size_t kBatchSize = 3;
+  using Query = std::vector<float>;
+  explicit ScalarGraphCodec(size_t dimension) : dimension_(dimension) {}
+  size_t encoded_dim() const {
+    return dimension_;
+  }
+  size_t batch_bytes() const {
+    return kBatchSize * dimension_;
+  }
+  void transform(const void *vector, std::vector<float> &out) const {
+    const auto *values = static_cast<const float *>(vector);
+    out.assign(values, values + dimension_);
+  }
+  void encode(const float *, const float *vectors, size_t count,
+              char *codes) const {
+    for (size_t i = 0; i < count * dimension_; ++i) {
+      const int8_t value = static_cast<int8_t>(vectors[i]);
+      std::memcpy(codes + i, &value, sizeof(value));
+    }
+  }
+  void prepare_query(const void *vector, Query &query) const {
+    transform(vector, query);
+  }
+  void scan(const char *codes, Query &query, float, float *distances) const {
+    for (size_t i = 0; i < kBatchSize; ++i) {
+      distances[i] = 0;
+      for (size_t d = 0; d < dimension_; ++d) {
+        int8_t value;
+        std::memcpy(&value, codes + i * dimension_ + d, sizeof(value));
+        const float diff = query[d] - value;
+        distances[i] += diff * diff;
+      }
+    }
+  }
+
+ private:
+  size_t dimension_;
+};
+
+struct PlainGraph {
+  struct Vector {
+    const float *values = nullptr;
+    const void *data() const {
+      return values;
+    }
+  };
+  explicit PlainGraph(std::vector<std::vector<float>> input)
+      : vectors(std::move(input)),
+        links(vectors.size()),
+        live(vectors.size(), true) {}
+  bool valid(uint32_t id) const {
+    return id < live.size() && live[id];
+  }
+  const std::vector<uint32_t> &neighbors(uint32_t id) const {
+    return links.at(id);
+  }
+  int get_vector(uint32_t id, Vector &out) const {
+    if (id == failed_id) return IndexError_ReadData;
+    out.values = vectors.at(id).data();
+    return 0;
+  }
+  std::vector<std::vector<float>> vectors;
+  std::vector<std::vector<uint32_t>> links;
+  std::vector<bool> live;
+  uint32_t failed_id = UINT32_MAX;
+};
+
+struct PlainGraphQuery {
+  struct Results {
+    size_t capacity = 8;
+    std::vector<std::pair<uint32_t, float>> values;
+    size_t limit() const {
+      return capacity;
+    }
+    size_t size() const {
+      return values.size();
+    }
+    void clear() {
+      values.clear();
+    }
+    void emplace(uint32_t id, float distance) {
+      values.emplace_back(id, distance);
+      std::sort(values.begin(), values.end(), [](const auto &a, const auto &b) {
+        return a.second < b.second ||
+               (a.second == b.second && a.first < b.first);
+      });
+      if (values.size() > capacity) values.resize(capacity);
+    }
+  } results;
+  std::vector<float> vector;
+  std::vector<uint32_t> exclusions;
+  size_t k = 1, budget = 100, scans = 0, expansions = 0;
+  Results &reset_results() {
+    scans = 0;
+    expansions = 0;
+    return results;
+  }
+  size_t topk() const {
+    return k;
+  }
+  const void *query() const {
+    return vector.data();
+  }
+  bool reach_scan_limit() const {
+    return scans >= budget;
+  }
+  bool excluded(uint32_t id) const {
+    return std::find(exclusions.begin(), exclusions.end(), id) !=
+           exclusions.end();
+  }
+  void on_expand() {
+    ++expansions;
+  }
+  float distance(const void *raw) {
+    ++scans;
+    const auto *values = static_cast<const float *>(raw);
+    float distance = 0;
+    for (size_t d = 0; d < vector.size(); ++d) {
+      const float diff = vector[d] - values[d];
+      distance += diff * diff;
+    }
+    return distance;
+  }
+};
+
+using PlainQuantizedGraph = QuantizedGraph<ScalarGraphCodec>;
+
+TEST(QuantizedGraphTest, IndependentBackendUsesMultipleAndPartialCodecBatches) {
+  PlainGraph source({{0, 0}, {1, -1}, {2, -2}, {3, -3}, {4, -4}, {5, -5}});
+  source.links[0] = {1, 2, 3, 4, 5};
+  PlainQuantizedGraph index(2, ScalarGraphCodec(2), 6);
+  PlainGraphQuery query;
+  query.vector = {4, -4};
+  for (bool prebuilt : {false, true}) {
+    SCOPED_TRACE(prebuilt);
+    if (prebuilt)
+      ASSERT_EQ(0, index.prebuild(source, source.vectors.size(), 2));
+    ASSERT_EQ(0, index.search(0, source, query));
+    ASSERT_EQ(6U, query.results.size());
+    EXPECT_EQ(4U, query.results.values.front().first);
+    EXPECT_FLOAT_EQ(0, query.results.values.front().second);
+    EXPECT_EQ(6U, query.expansions);
+    EXPECT_EQ(6U, query.scans);
+  }
+}
+
+TEST(QuantizedGraphTest, DegreeBoundUsesCodecBatchSize) {
+  PlainGraph source({{0}, {1}, {2}, {3}, {4}, {5}});
+  source.links[0] = {5, 4, 3, 2, 1};
+  PlainQuantizedGraph index(1, ScalarGraphCodec(1), 4);  // rounds down to three
+  ASSERT_EQ(0, index.prebuild(source, source.vectors.size(), 2));
+  PlainGraphQuery query;
+  query.vector = {3};
+  ASSERT_EQ(0, index.search(0, source, query));
+  EXPECT_EQ(4U, query.expansions);  // entry plus three pruned neighbors
+  ASSERT_EQ(4U, query.results.size());
+  EXPECT_EQ(3U, query.results.values.front().first);
+}
+
+TEST(QuantizedGraphTest, QuantizedEstimatesDoNotReplaceExactScores) {
+  PlainGraph source({{0.25f}, {1.75f}, {2.5f}});
+  source.links[0] = {1, 2};
+  PlainQuantizedGraph index(1, ScalarGraphCodec(1));
+  PlainGraphQuery query;
+  query.vector = {1.5f};
+  ASSERT_EQ(0, index.search(0, source, query));
+  ASSERT_FALSE(query.results.values.empty());
+  EXPECT_EQ(1U, query.results.values.front().first);
+  // The codec rounds 1.75 to 1 (estimated distance 0.25), whereas the result
+  // must use the original vector (exact distance 0.0625).
+  EXPECT_FLOAT_EQ(0.0625f, query.results.values.front().second);
+}
+
+TEST(QuantizedGraphTest, CompletionFiltersUnvisitedNodesAndHonorsBudget) {
+  PlainGraph source({{0}, {1}, {2}, {3}});
+  source.links[0] = {1, 2, 3};
+  PlainQuantizedGraph index(1, ScalarGraphCodec(1));
+  PlainGraphQuery query;
+  query.vector = {1};
+  query.results.capacity = 1;
+  query.exclusions = {0, 1, 2};
+  for (bool prebuilt : {false, true}) {
+    SCOPED_TRACE(prebuilt);
+    if (prebuilt)
+      ASSERT_EQ(0, index.prebuild(source, source.vectors.size(), 2));
+    query.budget = 2;
+    ASSERT_EQ(0, index.search(0, source, query));
+    EXPECT_EQ(0U, query.results.size());
+    EXPECT_EQ(2U, query.scans);
+    query.budget = 3;
+    ASSERT_EQ(0, index.search(0, source, query));
+    ASSERT_EQ(1U, query.results.size());
+    EXPECT_EQ(3U, query.results.values.front().first);
+    EXPECT_FLOAT_EQ(4, query.results.values.front().second);
+    EXPECT_EQ(3U, query.scans);
+    EXPECT_EQ(2U, query.expansions);
+  }
+}
+
+TEST(QuantizedGraphTest, RebuildAndClearReplaceCachedVectorsAndNeighbors) {
+  PlainGraph source({{0}, {1}, {9}});
+  source.links[0] = {1};
+  PlainQuantizedGraph index(1, ScalarGraphCodec(1));
+  PlainGraphQuery query;
+  query.vector = {1};
+  ASSERT_EQ(0, index.search(0, source, query));  // builds a lazy generation
+  ASSERT_EQ(1U, query.results.values.front().first);
+  index.clear();
+  source.links[0] = {2};
+  source.vectors[2][0] = 1;
+  source.live[1] = false;
+  ASSERT_EQ(0, index.search(0, source, query));
+  EXPECT_EQ(2U, query.results.values.front().first);
+  index.clear();
+  ASSERT_EQ(0, index.prebuild(source, source.vectors.size(), 2));
+  ASSERT_EQ(0, index.search(0, source, query));
+  EXPECT_EQ(2U, query.results.values.front().first);
+  index.clear();
+  EXPECT_EQ(PlainQuantizedGraph::kInvalidNodeId, index.entry());
+}
+
+TEST(QuantizedGraphTest, CentroidIgnoresHolesAndHandlesEmptyGraphs) {
+  PlainGraph source(
+      {{1}, {2}, {10}, {100}, {100}, {100}, {100}, {100}, {100}, {100}});
+  std::fill(source.live.begin() + 3, source.live.end(), false);
+  PlainQuantizedGraph index(1, ScalarGraphCodec(1));
+  ASSERT_EQ(0, index.prebuild(source, source.vectors.size(), 3));
+  EXPECT_EQ(1U, index.entry());
+  std::fill(source.live.begin(), source.live.end(), false);
+  ASSERT_EQ(0, index.prebuild(source, source.vectors.size(), 2));
+  EXPECT_EQ(PlainQuantizedGraph::kInvalidNodeId, index.entry());
+  ASSERT_EQ(0, index.prebuild(source, 0, 1));
+  PlainGraphQuery query;
+  query.vector = {1};
+  ASSERT_EQ(0, index.search(index.entry(), source, query));
+  EXPECT_EQ(0U, query.scans);
+  EXPECT_EQ(0U, query.results.size());
+}
+
+TEST(QuantizedGraphTest, FailedPrebuildDoesNotPublishPartialBlocks) {
+  PlainGraph source({{0}, {1}});
+  source.links[0] = {1};
+  source.failed_id = 1;
+  PlainQuantizedGraph index(1, ScalarGraphCodec(1));
+  EXPECT_EQ(IndexError_ReadData,
+            index.prebuild(source, source.vectors.size(), 2));
+  EXPECT_EQ(PlainQuantizedGraph::kInvalidNodeId, index.entry());
+  source.failed_id = UINT32_MAX;
+  ASSERT_EQ(0, index.prebuild(source, source.vectors.size(), 2));
+  PlainGraphQuery query;
+  query.vector = {1};
+  ASSERT_EQ(0, index.search(0, source, query));
+  ASSERT_EQ(1U, query.results.values.front().first);
+}
+
+TEST(QuantizedGraphTest, ConcurrentLazySearchesUseSeparateQueryState) {
+  PlainGraph source({{0}, {1}, {2}, {3}});
+  source.links[0] = {1, 2, 3};
+  PlainQuantizedGraph index(1, ScalarGraphCodec(1));
+  std::vector<std::thread> threads;
+  for (uint32_t id = 0; id < 4; ++id) {
+    threads.emplace_back([&, id] {
+      PlainGraphQuery query;
+      query.vector = {static_cast<float>(id)};
+      for (size_t repeat = 0; repeat < 10; ++repeat) {
+        ASSERT_EQ(0, index.search(0, source, query));
+        ASSERT_FALSE(query.results.values.empty());
+        EXPECT_EQ(id, query.results.values.front().first);
+      }
+    });
+  }
+  for (auto &thread : threads) thread.join();
+}
+
 TEST(SymphonyQGTest, BeamKeepsFullWidthIdsAndRevisitsBetterEstimates) {
-  SymphonyQGBeam beam(2);
+  QuantizedGraphBeam beam(2);
   beam.insert(0x80000001U, 5);
   beam.insert(2, 10);
   EXPECT_EQ(0x80000001U, beam.pop());
@@ -49,7 +329,7 @@ TEST(SymphonyQGTest, BeamKeepsFullWidthIdsAndRevisitsBetterEstimates) {
 }
 
 TEST(SymphonyQGTest, BeamCapacityAndEqualEstimates) {
-  SymphonyQGBeam beam(0);
+  QuantizedGraphBeam beam(0);
   beam.insert(1, 5);
   beam.insert(2, 4);
   EXPECT_EQ(2U, beam.pop());
@@ -61,7 +341,7 @@ TEST(SymphonyQGTest, BeamCapacityAndEqualEstimates) {
 }
 
 TEST(SymphonyQGTest, BeamLookaheadSkipsExpandedEntriesAndResetClearsState) {
-  SymphonyQGBeam beam(4);
+  QuantizedGraphBeam beam(4);
   beam.insert(0x80000001U, 1);
   beam.insert(2, 2);
   beam.insert(0xFFFFFFFEU, 3);
