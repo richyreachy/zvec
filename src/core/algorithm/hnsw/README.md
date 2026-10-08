@@ -11,7 +11,7 @@ It defaults to false. The index type and persistent graph format remain HNSW.
 The reusable engine is `QuantizedGraph<Codec>` in
 [`../quantized_graph/quantized_graph.h`](../quantized_graph/quantized_graph.h).
 It owns neighbor blocks, degree pruning, centroid entry selection, eager/lazy
-caching, beam traversal, and result completion. It has no dependency on HNSW,
+caching, quantized search policies, and result completion. It has no dependency on HNSW,
 RaBitQ, or a particular storage implementation. Its current contract is dense
 FP32 vectors with squared-L2 scores and fixed-size encoded neighbor batches.
 Other metrics and variable-length codes are outside this contract.
@@ -50,6 +50,30 @@ supports both uint16 and int32 RaBitQ accumulation APIs, using slices of at
 most 1024 dimensions to avoid overflow with the older API. AVX512 kernels are
 codec details with runtime dispatch and portable/reference fallbacks.
 
+## Shared traversal experiment
+
+Ordinary HNSW and `QuantizedGraph` now call the same templated
+[`SearchGraph`](../../utility/graph_search.h) loop. It pops candidates, opens
+adjacency, scans neighbor batches, and updates the frontier. Policies are
+resolved at compile time, with no virtual dispatch in this loop.
+
+- HNSW marks neighbors on discovery and scores compact batches with its existing
+  distance calculator. Direct storage retains its prefetch behavior; buffered
+  storage pins vector blocks through distance computation. The existing
+  LinearPool/BlockHeap and fallback candidate/result heaps remain in use.
+- Quantized search marks nodes on expansion, scans complete codec batches, and
+  allows a better center-dependent estimate to re-admit an unexpanded node.
+  Expanded centers still contribute exact distances to the result heap.
+- Each frontier retains its stopping rule and scan-budget behavior. The common
+  loop does not compare approximate candidate scores to exact result scores.
+  Filtering remains in the result policy so excluded nodes can connect paths.
+
+The HNSW fallback used by upper levels, filtered queries, and construction also
+uses this loop with exact distances. Quantized caching, encoding, entry
+selection, and result completion remain in `QuantizedGraph`; they are not
+required by ordinary HNSW. This is a traversal refactor with no measured
+performance claim.
+
 ## HNSW search and cache lifecycle
 
 HNSW construction still uses the existing exact distances. After prebuild,
@@ -84,6 +108,8 @@ Unit tests remain in `symphony_qg_test.cc`. A standalone graph, result adapter,
 and scalar int8 codec with batches of three exercise the generic engine without
 HNSW or SIMD. They cover multiple/partial batches, filtering and scan budgets,
 centroid holes, invalidation, failed prebuild, and concurrent lazy searches.
+Shared-loop tests additionally cover exact pool ordering, duplicate discovery,
+read failures, partial codec batches, and center-dependent candidate re-entry.
 The existing beam, rotation, RaBitQ scanner, and HNSW adapter tests remain;
 SIMD runtime cases need a supported machine. Collection/manifest tests continue
 to cover insertion, persistence, and reopen through the public API.

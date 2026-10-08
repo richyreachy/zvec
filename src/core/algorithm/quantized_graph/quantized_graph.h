@@ -30,6 +30,7 @@
 #include <utility>
 #include <vector>
 #include <zvec/core/framework/index_error.h>
+#include "utility/graph_search.h"
 #include "quantized_graph_beam.h"
 #if defined(__linux__)
 #include <sys/mman.h>
@@ -540,41 +541,64 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   beam.insert(entry, std::numeric_limits<float>::max());
   thread_local typename Codec::Query batch_query;
   codec_.prepare_query(ctx.query(), batch_query);
-  constexpr size_t batch_size = Codec::kBatchSize;
-  const size_t batch_bytes = codec_.batch_bytes();
-  std::array<float, batch_size> distances;
   thread_local std::vector<NodeId> expanded;
   expanded.clear();
-  while (beam.has_next() && !ctx.reach_scan_limit()) {
-    const NodeId id = beam.pop();
-    // Local estimates for the same neighbor differ by center. Like SymphonyQG,
-    // mark nodes on expansion, allowing a better estimate to re-enter the beam.
-    if (visited.visited(id)) continue;
-    visited.set_visited(id);
-    expanded.push_back(id);
-    const Block *block = get_block(entity, id);
-    if (block == nullptr) return IndexError_Mismatch;
-    const float exact = ctx.distance(block->center());
-    if (!ctx.excluded(id)) {
-      results.emplace(id, exact);
+  struct Scan {
+    enum { kVisitOnExpansion = true };
+    const QuantizedGraph &index;
+    const Graph &entity;
+    Context &ctx;
+    decltype(results) output;
+    typename Codec::Query &query;
+    std::vector<NodeId> &expanded;
+    const Block *block = nullptr;
+    float exact = 0;
+    int begin(NodeId id) {
+      expanded.push_back(id);
+      block = index.get_block(entity, id);
+      if (block == nullptr) return IndexError_Mismatch;
+      exact = ctx.distance(block->center());
+      if (!ctx.excluded(id)) output.emplace(id, exact);
+      ctx.on_expand();
+      return 0;
     }
-    ctx.on_expand();
-    const char *codes = block->codes();
-    const NodeId *neighbors = block->neighbors();
-    const size_t neighbor_cnt = block->neighbor_cnt;
-    for (size_t offset = 0; offset < neighbor_cnt; offset += batch_size) {
-      const size_t count = std::min(batch_size, neighbor_cnt - offset);
-      codec_.scan(codes + (offset / batch_size) * batch_bytes, batch_query,
-                  exact, distances.data());
-      for (size_t i = 0; i < count; ++i) {
-        const float distance = distances[i];
-        if (beam.is_full(distance) || !std::isfinite(distance)) continue;
-        const NodeId neighbor = neighbors[offset + i];
-        if (visited.visited(neighbor)) continue;
-        beam.insert(neighbor, distance);
-      }
+    size_t neighbor_count() const {
+      return block->neighbor_cnt;
     }
-  }
+    size_t batch_size() const {
+      return Codec::kBatchSize;
+    }
+    NodeId neighbor(size_t i) const {
+      return block->neighbors()[i];
+    }
+    void prepare_batch(size_t) {}
+    void stage(NodeId, size_t, size_t) {}
+    int score(size_t offset, const NodeId *, size_t, float *distances) {
+      index.codec_.scan(block->codes() + (offset / Codec::kBatchSize) *
+                                             index.codec_.batch_bytes(),
+                        query, exact, distances);
+      return 0;
+    }
+  } scan{*this, entity, ctx, results, batch_query, expanded};
+  struct Frontier {
+    QuantizedGraphBeam &beam;
+    Context &ctx;
+    bool has_next() const {
+      return beam.has_next() && !ctx.reach_scan_limit();
+    }
+    NodeId pop() {
+      return beam.pop();
+    }
+    bool accepts(float distance) const {
+      return !beam.is_full(distance) && std::isfinite(distance);
+    }
+    void push(NodeId id, float distance) {
+      beam.insert(id, distance);
+    }
+  } frontier{beam, ctx};
+  thread_local GraphSearchScratch scratch;
+  const int search_ret = SearchGraph(scan, frontier, visited, scratch);
+  if (search_ret != 0) return search_ret;
   // As in SymphonyQG's result completion step, score unvisited neighbors if
   // duplicate estimates or filters left fewer than k eligible results. Avoid
   // building additional cached blocks and respect the exact-distance budget.

@@ -25,6 +25,7 @@
 #include <gtest/gtest.h>
 #include "algorithm/quantized_graph/quantized_graph.h"
 #include "algorithm/quantized_graph/symphony_qg_codec.h"
+#include "utility/linear_pool.h"
 #include "hnsw_symphony_qg.h"
 #if RABITQ_SUPPORTED
 #include <rabitqlib/quantization/rabitq.hpp>
@@ -165,6 +166,142 @@ struct PlainGraphQuery {
 };
 
 using PlainQuantizedGraph = QuantizedGraph<ScalarGraphCodec>;
+
+struct SearchVisits {
+  explicit SearchVisits(size_t size) : seen(size, false) {}
+  bool visited(uint32_t id) const {
+    return seen.at(id);
+  }
+  void set_visited(uint32_t id) {
+    seen.at(id) = true;
+  }
+  std::vector<bool> seen;
+};
+
+// A small graph with caller-supplied edge scores isolates visit timing and
+// batching from the codec. Delayed mode writes all three lanes, like FastScan.
+template <bool Delayed>
+struct TraversalScan {
+  static constexpr bool kVisitOnExpansion = Delayed;
+  std::vector<std::vector<uint32_t>> links;
+  std::vector<std::vector<float>> scores;
+  std::vector<uint32_t> expanded, scored;
+  std::vector<size_t> positions;
+  uint32_t current = 0, fail_begin = UINT32_MAX, fail_score = UINT32_MAX;
+  size_t duplicates = 0;
+  int begin(uint32_t id) {
+    current = id;
+    expanded.push_back(id);
+    return id == fail_begin ? IndexError_ReadData : 0;
+  }
+  size_t neighbor_count() const {
+    return links[current].size();
+  }
+  size_t batch_size() const {
+    return Delayed ? 3 : neighbor_count();
+  }
+  uint32_t neighbor(size_t i) const {
+    return links[current][i];
+  }
+  void prepare_batch(size_t capacity) {
+    positions.resize(capacity);
+  }
+  void stage(uint32_t, size_t position, size_t slot) {
+    positions[slot] = position;
+  }
+  void on_duplicate() {
+    ++duplicates;
+  }
+  int score(size_t, const uint32_t *ids, size_t count, float *distances) {
+    if (current == fail_score) return IndexError_ReadData;
+    if constexpr (Delayed) std::fill_n(distances, 3, NAN);
+    for (size_t i = 0; i < count; ++i) {
+      scored.push_back(ids[i]);
+      distances[i] = scores[current][positions[i]];
+    }
+    return 0;
+  }
+};
+
+TEST(GraphSearchTest, ExactPoolScoresDiscoveriesOnceAndPreservesLaneOrder) {
+  TraversalScan<false> scan;
+  scan.links = {{0, 1, 1, 2, 3}, {0, 2, 4}, {3, 4}, {}, {1}};
+  scan.scores = {{25, 16, 16, 9, 4}, {25, 9, 1}, {4, 1}, {}, {16}};
+  SearchVisits visits(5);
+  visits.set_visited(0);
+  LinearPool<float> pool(5, 5);
+  pool.insert(0, 25);
+  GraphSearchPoolFrontier<LinearPool<float>> frontier{pool};
+  GraphSearchScratch scratch;
+  ASSERT_EQ(0, SearchGraph(scan, frontier, visits, scratch));
+  EXPECT_EQ((std::vector<uint32_t>{0, 3, 2, 4, 1}), scan.expanded);
+  EXPECT_EQ((std::vector<uint32_t>{1, 2, 3, 4}), scan.scored);
+  EXPECT_EQ(7U, scan.duplicates);
+  ASSERT_EQ(5, pool.size());
+  for (int i = 0; i < 5; ++i) {
+    EXPECT_EQ(4 - i, pool.id(i));
+    EXPECT_FLOAT_EQ((i + 1) * (i + 1), pool.dist(i));
+  }
+}
+
+TEST(GraphSearchTest, ScanFailuresStopWithoutPublishingUnscoredCandidates) {
+  for (bool fail_on_begin : {true, false}) {
+    SCOPED_TRACE(fail_on_begin);
+    TraversalScan<false> scan;
+    scan.links = {{1}, {2}, {}};
+    scan.scores = {{1}, {0}, {}};
+    if (fail_on_begin)
+      scan.fail_begin = 1;
+    else
+      scan.fail_score = 1;
+    SearchVisits visits(3);
+    visits.set_visited(0);
+    LinearPool<float> pool(3, 3);
+    pool.insert(0, 2);
+    GraphSearchPoolFrontier<LinearPool<float>> frontier{pool};
+    GraphSearchScratch scratch;
+    EXPECT_EQ(IndexError_ReadData,
+              SearchGraph(scan, frontier, visits, scratch));
+    EXPECT_EQ((std::vector<uint32_t>{0, 1}), scan.expanded);
+    EXPECT_EQ((std::vector<uint32_t>{1}), scan.scored);
+    ASSERT_EQ(2, pool.size());
+    EXPECT_EQ(1, pool.id(0));
+    EXPECT_FLOAT_EQ(1, pool.dist(0));
+  }
+}
+
+TEST(GraphSearchTest, QuantizedBeamReadmitsRejectedNodesWithBetterEstimates) {
+  TraversalScan<true> scan;
+  scan.links = {{1, 2, 3}, {3, 2, 0}, {3}, {0}};
+  scan.scores = {{1, 5, 20}, {0.5f, 0.25f, 0}, {0.1f}, {0}};
+  SearchVisits visits(4);
+  QuantizedGraphBeam beam(2);
+  beam.insert(0, 100);
+  struct Frontier {
+    QuantizedGraphBeam &beam;
+    bool has_next() const {
+      return beam.has_next();
+    }
+    uint32_t pop() {
+      return beam.pop();
+    }
+    bool accepts(float distance) const {
+      return std::isfinite(distance) && !beam.is_full(distance);
+    }
+    void push(uint32_t id, float distance) {
+      beam.insert(id, distance);
+    }
+  } frontier{beam};
+  GraphSearchScratch scratch;
+  ASSERT_EQ(0, SearchGraph(scan, frontier, visits, scratch));
+  // Node 3 is initially rejected at 20, then admitted at 0.5 and improved to
+  // 0.1 by another center. Marking it at discovery would lose the result.
+  EXPECT_EQ((std::vector<uint32_t>{0, 1, 2, 3}), scan.expanded);
+  EXPECT_EQ(0U, scan.duplicates);
+  EXPECT_TRUE(std::all_of(visits.seen.begin(), visits.seen.end(),
+                          [](bool seen) { return seen; }));
+}
+
 
 TEST(QuantizedGraphTest, IndependentBackendUsesMultipleAndPartialCodecBatches) {
   PlainGraph source({{0, 0}, {1, -1}, {2, -2}, {3, -3}, {4, -4}, {5, -5}});
