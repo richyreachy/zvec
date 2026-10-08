@@ -161,12 +161,19 @@ if(WIN32 AND (BUILD_ZVEC_CORE_SHARED OR BUILD_ZVEC_SHARED))
   endif()
 endif()
 
+set(ZVEC_TURBO_LIBS zvec_ailego)
+if(RABITQ_SUPPORTED)
+  # cc_library uses plain linkage for archives and PRIVATE linkage for object
+  # libraries. Let it apply the dependency to every variant consistently.
+  list(APPEND ZVEC_TURBO_LIBS rabitqlib)
+endif()
+
 cc_library(
     NAME zvec_turbo STATIC STRICT ALWAYS_LINK PACKED
     ${ZVEC_TURBO_LIBRARY_OPTIONS}
     SRCS ${ALL_SRCS}
     DEFS ${ZVEC_TURBO_DEFS}
-    LIBS zvec_ailego
+    LIBS ${ZVEC_TURBO_LIBS}
     INCS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/distance ${PROJECT_ROOT_DIR}/src/include
 )
 
@@ -184,13 +191,3 @@ foreach(_turbo_tgt zvec_turbo zvec_turbo_objects zvec_turbo_export_objects)
     target_include_directories(${_turbo_tgt} SYSTEM PRIVATE ${TURBO_EIGEN_INC})
   endif()
 endforeach()
-
-if(RABITQ_SUPPORTED)
-  # Plain signature: bazel.cmake's cc_library already links zvec_turbo that
-  # way, and keyword/plain styles cannot be mixed on one target.
-  foreach(_turbo_tgt zvec_turbo zvec_turbo_objects zvec_turbo_export_objects)
-    if(TARGET ${_turbo_tgt})
-      target_link_libraries(${_turbo_tgt} rabitqlib)
-    endif()
-  endforeach()
-endif()

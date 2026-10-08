@@ -17,4 +17,9 @@ endif()
 
 if(NOT IOS AND NOT ANDROID)
     add_subdirectory(cmake/link_dependencies)
+    add_test(NAME turbo_link_dependencies_test
+        COMMAND ${CMAKE_COMMAND}
+            -S "${CMAKE_CURRENT_SOURCE_DIR}/cmake/turbo_link_dependencies"
+            -B "${CMAKE_CURRENT_BINARY_DIR}/cmake/turbo_link_dependencies"
+            -G "${CMAKE_GENERATOR}")
 endif()
