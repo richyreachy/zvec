@@ -17,6 +17,7 @@
 #include <array>
 #include <cstdint>
 #include <numeric>
+#include <type_traits>
 #include <vector>
 #include <rabitqlib/index/query.hpp>
 #include <rabitqlib/quantization/data_layout.hpp>
@@ -78,7 +79,7 @@ class SymQuery {
   float g_add_ = 0.0f;
 };
 
-// The upstream QG estimator accumulates a whole vector into uint16_t.
+// RaBitQ 0.1 accumulates into uint16_t; 0.3.8 uses int32_t.
 // At most 256 four-dimensional LUT entries (1024 dimensions) fit without
 // overflow: 256 * 255 < 65536. Accumulate slices and widen between slices to
 // support all zvec RaBitQ dimensions, including padding to 4096.
@@ -87,7 +88,12 @@ inline void ScanSymphonyQGBatch(const char *codes, const SymQuery &query,
   constexpr size_t batch_size = rabitqlib::fastscan::kBatchSize;
   rabitqlib::ConstQGBatchDataMap<float> batch(codes, padded_dim);
   std::array<uint32_t, batch_size> sums{};
-  std::array<uint16_t, batch_size> partial;
+  // Match the installed FastScan API while retaining bounded slices for 0.1.
+  using Accumulator = std::conditional_t<
+      std::is_invocable_v<decltype(&rabitqlib::fastscan::accumulate),
+                          const uint8_t *, const uint8_t *, int32_t *, size_t>,
+      int32_t, uint16_t>;
+  std::array<Accumulator, batch_size> partial;
   for (size_t dim = 0; dim < padded_dim; dim += 1024) {
     rabitqlib::fastscan::accumulate(batch.bin_code() + dim * 4,
                                     query.lut() + dim * 4, partial.data(),
