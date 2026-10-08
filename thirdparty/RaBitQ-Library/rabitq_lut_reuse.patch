@@ -51,17 +51,29 @@ index 5690dcf..e6c3dd2 100644
 \ No newline at end of file
 +}  // namespace rabitqlib
 diff --git a/include/rabitqlib/index/query.hpp b/include/rabitqlib/index/query.hpp
-index fb98479..cde2f4f 100644
+index 04ab11a..2556f02 100644
 --- a/include/rabitqlib/index/query.hpp
 +++ b/include/rabitqlib/index/query.hpp
-@@ -71,3 +71,3 @@ class SplitBatchQuery {
+@@ -24,0 +25,2 @@ class BatchQuery {
++    BatchQuery() = default;
++
+@@ -26 +28,5 @@ class BatchQuery {
+-        lookup_table_ = std::move(Lut<T>(rotated_query, padded_dim));
++        reset(rotated_query, padded_dim);
++    }
++
++    void reset(const T* rotated_query, size_t padded_dim) {
++        lookup_table_.reset(rotated_query, padded_dim);
+@@ -33,0 +40 @@ class BatchQuery {
++        G_add_ = 0;
+@@ -71,3 +78,3 @@ class SplitBatchQuery {
 -    )
 -        : rotated_query_(rotated_query) {
 -        lookup_table_ = std::move(Lut<T>(rotated_query, padded_dim, use_hacc));
 +    ) {
 +        reset(rotated_query, padded_dim, ex_bits, metric_type, use_hacc);
 +    }
-@@ -74,0 +75,9 @@ class SplitBatchQuery {
+@@ -74,0 +82,9 @@ class SplitBatchQuery {
 +    void reset(
 +        const T* rotated_query,
 +        size_t padded_dim,
@@ -71,10 +83,6 @@ index fb98479..cde2f4f 100644
 +    ) {
 +        rotated_query_ = rotated_query;
 +        lookup_table_.reset(rotated_query, padded_dim, use_hacc);
-@@ -75,0 +85,2 @@ class SplitBatchQuery {
+@@ -75,0 +92,2 @@ class SplitBatchQuery {
 +        G_add_ = 0;
 +        G_error_ = 0;
-@@ -187 +198 @@ class SplitSingleQuery {
--}  // namespace rabitqlib
-\ No newline at end of file
-+}  // namespace rabitqlib
