@@ -39,7 +39,8 @@ TEST(SymphonyQGTest, FastScanHandlesPartialBlocksDuplicatesAndLargeDimensions) {
       rabitqlib::quant::quantize_qg_batch(data.data(), center.data(), count,
                                           dim, codes.data(),
                                           rabitqlib::METRIC_L2);
-      rabitqlib::BatchQuery<float> q(query.data(), dim);
+      SymQuery q;
+      q.reset(query.data(), dim);
       q.set_g_add(0.25f * dim);
       std::array<float, 32> result;
       ScanSymphonyQGBatch(codes.data(), q, dim, result.data());
@@ -47,6 +48,36 @@ TEST(SymphonyQGTest, FastScanHandlesPartialBlocksDuplicatesAndLargeDimensions) {
         const float diff = 0.5f + i * 0.125f - 1.0f;
         EXPECT_NEAR(diff * diff * dim, result[i], 0.01f * dim);
         EXPECT_TRUE(std::isfinite(result[i]));
+      }
+    }
+  }
+}
+
+TEST(SymphonyQGTest, ReusedQueryMatchesReferenceLut) {
+  if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core()) {
+    GTEST_SKIP() << "RaBitQ requires AVX2/FMA or AVX512";
+  }
+  SymQuery actual;
+  for (size_t dim : {64U, 128U, 1024U, 2048U, 4096U, 64U}) {
+    for (int pattern : {0, 1, 2}) {
+      SCOPED_TRACE(std::to_string(dim) + "/" + std::to_string(pattern));
+      std::vector<float> query(dim, 0.0f);
+      for (size_t i = 0; i < dim; ++i) {
+        if (pattern == 1) query[i] = 1.0f;
+        // Exactly representable mixed signs keep subset sums reproducible.
+        if (pattern == 2)
+          query[i] = (static_cast<int>(i * 37 % 101) - 50) / 16.0f;
+      }
+      actual.set_g_add(123.0f);
+      actual.reset(query.data(), dim);
+      rabitqlib::BatchQuery<float> expected(query.data(), dim);
+      EXPECT_FLOAT_EQ(0.0f, actual.g_add());
+      EXPECT_FLOAT_EQ(expected.delta(), actual.delta());
+      EXPECT_FLOAT_EQ(expected.sum_vl_lut(), actual.sum_vl_lut());
+      EXPECT_FLOAT_EQ(expected.k1xsumq(), actual.k1xsumq());
+      for (size_t i = 0; i < dim * 4; ++i) {
+        // SIMD and reference rounding can differ by one quantization step.
+        EXPECT_LE(std::abs(int(expected.lut()[i]) - int(actual.lut()[i])), 1);
       }
     }
   }

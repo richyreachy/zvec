@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -21,8 +22,8 @@
 namespace zvec::core {
 
 // Sorted linear beam mirroring SymphonyQG's SearchBuffer: branchless binary
-// search, raw memmove inserts into capacity+1 slots, and an expanded flag
-// borrowed from the id's top bit (in-memory HNSW ids stay below 2^31).
+// search and raw memmove inserts into capacity+1 slots. Expansion state is
+// separate from the id so every bit of an HNSW node id is preserved.
 class SymphonyQGBeam {
  public:
   explicit SymphonyQGBeam(size_t capacity)
@@ -44,10 +45,11 @@ class SymphonyQGBeam {
   }
 
   void insert(uint32_t id, float distance) {
+    if (is_full(distance)) return;
     const size_t lo = binary_search(distance);
     std::memmove(&entries_[lo + 1], &entries_[lo],
                  (size_ - lo) * sizeof(Entry));
-    entries_[lo] = Entry{id, distance};
+    entries_[lo] = Entry{id, distance, false};
     size_ += static_cast<size_t>(size_ < capacity_);
     cursor_ = lo < cursor_ ? lo : cursor_;
   }
@@ -60,27 +62,28 @@ class SymphonyQGBeam {
   bool has_next_at(size_t ahead) const {
     size_t i = cursor_;
     while (i < size_ && ahead > 0) {
-      if (!(entries_[i].id & kExpanded)) --ahead;
+      if (!entries_[i].expanded) --ahead;
       ++i;
     }
-    return i < size_ && !(entries_[i].id & kExpanded);
+    while (i < size_ && entries_[i].expanded) ++i;
+    return i < size_;
   }
 
   uint32_t next_id_at(size_t ahead) const {
     size_t i = cursor_;
     while (i < size_ && ahead > 0) {
-      if (!(entries_[i].id & kExpanded)) --ahead;
+      if (!entries_[i].expanded) --ahead;
       ++i;
     }
-    while (i < size_ && (entries_[i].id & kExpanded)) ++i;
-    return entries_[i < size_ ? i : size_ - 1].id & kIdMask;
+    while (i < size_ && entries_[i].expanded) ++i;
+    return entries_[i < size_ ? i : size_ - 1].id;
   }
 
   uint32_t pop() {
     Entry &entry = entries_[cursor_++];
-    entry.id |= kExpanded;
-    const uint32_t id = entry.id & kIdMask;
-    while (cursor_ < size_ && (entries_[cursor_].id & kExpanded)) ++cursor_;
+    entry.expanded = true;
+    const uint32_t id = entry.id;
+    while (cursor_ < size_ && entries_[cursor_].expanded) ++cursor_;
     return id;
   }
 
@@ -97,12 +100,10 @@ class SymphonyQGBeam {
     return (lo < size_ && entries_[lo].distance < distance) ? lo + 1 : lo;
   }
 
-  static constexpr uint32_t kExpanded = 1u << 31;
-  static constexpr uint32_t kIdMask = kExpanded - 1;
-
   struct Entry {
     uint32_t id;
     float distance;
+    bool expanded;
   };
   size_t capacity_;
   size_t size_{0};

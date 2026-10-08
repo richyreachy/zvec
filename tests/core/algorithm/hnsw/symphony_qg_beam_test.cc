@@ -44,4 +44,31 @@ TEST(SymphonyQGTest, BeamCapacityAndEqualEstimates) {
   EXPECT_FALSE(beam.has_next());
 }
 
+TEST(SymphonyQGTest, BeamLookaheadSkipsExpandedEntriesAndResetClearsState) {
+  SymphonyQGBeam beam(4);
+  beam.insert(0x80000001U, 1);
+  beam.insert(2, 2);
+  beam.insert(0xFFFFFFFEU, 3);
+  EXPECT_EQ(0x80000001U, beam.pop());
+  beam.insert(0x80000004U, 0);
+  ASSERT_TRUE(beam.has_next_at(0));
+  EXPECT_EQ(0x80000004U, beam.next_id_at(0));
+  ASSERT_TRUE(beam.has_next_at(1));
+  EXPECT_EQ(2U, beam.next_id_at(1));
+  ASSERT_TRUE(beam.has_next_at(2));
+  EXPECT_EQ(0xFFFFFFFEU, beam.next_id_at(2));
+  EXPECT_FALSE(beam.has_next_at(3));
+  EXPECT_EQ(0x80000004U, beam.pop());
+  EXPECT_EQ(2U, beam.pop());
+  EXPECT_EQ(0xFFFFFFFEU, beam.pop());
+  EXPECT_FALSE(beam.has_next());
+  beam.reset(1);
+  EXPECT_FALSE(beam.has_next());
+  beam.insert(0x80000001U, 5);
+  EXPECT_EQ(0x80000001U, beam.pop());
+  beam.reset(8);
+  beam.insert(0x80000002U, 6);
+  EXPECT_EQ(0x80000002U, beam.pop());
+}
+
 }  // namespace zvec::core

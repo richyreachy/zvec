@@ -44,6 +44,8 @@ HnswSymphonyQG::HnswSymphonyQG(size_t dimension, size_t max_neighbors)
   stride_ = (Block::kCenterOffset + dimension_ * sizeof(float) +
              neighbor_bytes_ + code_bytes + 63) &
             ~size_t{63};
+#else
+  (void)max_neighbors;
 #endif
 }
 
@@ -265,8 +267,9 @@ int HnswSymphonyQG::prebuild(const HnswEntity &entity, size_t doc_cnt,
 #endif
     arena.reset(static_cast<char *>(mem));
   }
-  std::vector<std::vector<float>> centroid_parts(
-      nthreads, std::vector<float>(dimension_, 0.0f));
+  std::vector<std::vector<double>> centroid_parts(
+      nthreads, std::vector<double>(dimension_, 0.0));
+  std::vector<size_t> valid_counts(nthreads, 0);
   std::atomic<node_id_t> next_id{0};
   std::atomic<int> first_error{0};
 
@@ -299,6 +302,7 @@ int HnswSymphonyQG::prebuild(const HnswEntity &entity, size_t doc_cnt,
       }
       const auto *values = static_cast<const float *>(raw.data());
       for (size_t d = 0; d < dimension_; ++d) centroid[d] += values[d];
+      ++valid_counts[part];
       int error = 0;
       if (!build_block(entity, id, raw.data(), slot, scratch, error)) {
         first_error.store(error);
@@ -316,15 +320,21 @@ int HnswSymphonyQG::prebuild(const HnswEntity &entity, size_t doc_cnt,
     return first_error.load();
   }
 
-  std::vector<float> centroid(dimension_, 0.0f);
+  std::vector<double> centroid(dimension_, 0.0);
   for (const auto &part : centroid_parts)
     for (size_t d = 0; d < dimension_; ++d) centroid[d] += part[d];
+
+  const size_t valid_count =
+      std::accumulate(valid_counts.begin(), valid_counts.end(), size_t{0});
+  if (valid_count != 0) {
+    for (double &value : centroid) value /= valid_count;
+  }
 
   // Entry point: level-0 node nearest the corpus centroid, matching upstream
   // SymphonyQG, whose single-level search starts there.
   std::atomic<node_id_t> next_entry_id{0};
   std::vector<node_id_t> best_ids(nthreads, kInvalidNodeId);
-  std::vector<float> best_dists(nthreads, std::numeric_limits<float>::max());
+  std::vector<double> best_dists(nthreads, std::numeric_limits<double>::max());
   auto entry_worker = [&](size_t part) {
     while (true) {
       const node_id_t id =
@@ -334,9 +344,9 @@ int HnswSymphonyQG::prebuild(const HnswEntity &entity, size_t doc_cnt,
       IndexStorage::MemoryBlock raw;
       if (entity.get_vector(id, raw) != 0 || raw.data() == nullptr) continue;
       const auto *values = static_cast<const float *>(raw.data());
-      float dist = 0.0f;
+      double dist = 0.0;
       for (size_t d = 0; d < dimension_; ++d) {
-        const float diff = values[d] - centroid[d];
+        const double diff = values[d] - centroid[d];
         dist += diff * diff;
       }
       if (dist < best_dists[part]) {
@@ -351,7 +361,7 @@ int HnswSymphonyQG::prebuild(const HnswEntity &entity, size_t doc_cnt,
     for (auto &t : pool) t.join();
   }
   entry_ = kInvalidNodeId;
-  float best = std::numeric_limits<float>::max();
+  double best = std::numeric_limits<double>::max();
   for (size_t i = 0; i < nthreads; ++i) {
     if (best_ids[i] != kInvalidNodeId && best_dists[i] < best) {
       best = best_dists[i];
@@ -472,7 +482,7 @@ int HnswSymphonyQG::search(node_id_t entry, HnswContext &ctx) const {
       const auto key = entity.get_key(candidate);
       if (visited.visited(candidate) || key == kInvalidKey) continue;
       visited.set_visited(candidate);
-      if (ctx.filter().is_valid() && !ctx.filter()(key)) continue;
+      if (ctx.filter().is_valid() && ctx.filter()(key)) continue;
       IndexStorage::MemoryBlock raw;
       int ret = entity.get_vector(candidate, raw);
       if (ret != 0) return ret;
@@ -485,6 +495,10 @@ int HnswSymphonyQG::search(node_id_t entry, HnswContext &ctx) const {
 }
 
 #else
+int HnswSymphonyQG::prebuild(const HnswEntity &, size_t, size_t) {
+  return IndexError_Unsupported;
+}
+
 int HnswSymphonyQG::search(node_id_t, HnswContext &) const {
   return IndexError_Unsupported;
 }
