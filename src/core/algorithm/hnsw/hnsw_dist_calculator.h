@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <algorithm>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_metric.h>
 #include <zvec/core/framework/index_provider.h>
@@ -38,8 +39,9 @@ class HnswDistCalculator {
   HnswDistCalculator(const HnswEntity *entity,
                      const IndexMetric::Pointer &metric, uint32_t dim)
       : entity_(entity),
-        distance_(metric->distance()),
-        batch_distance_(metric->batch_distance()),
+        distance_(metric ? metric->distance() : IndexMetric::MatrixDistance{}),
+        batch_distance_(metric ? metric->batch_distance()
+                               : IndexMetric::MatrixBatchDistance{}),
         query_(nullptr),
         dim_(dim),
         compare_cnt_(0) {}
@@ -49,8 +51,9 @@ class HnswDistCalculator {
                      const IndexMetric::Pointer &metric, uint32_t dim,
                      const void *query)
       : entity_(entity),
-        distance_(metric->distance()),
-        batch_distance_(metric->batch_distance()),
+        distance_(metric ? metric->distance() : IndexMetric::MatrixDistance{}),
+        batch_distance_(metric ? metric->batch_distance()
+                               : IndexMetric::MatrixBatchDistance{}),
         query_(query),
         dim_(dim),
         compare_cnt_(0) {}
@@ -59,23 +62,26 @@ class HnswDistCalculator {
   HnswDistCalculator(const HnswEntity *entity,
                      const IndexMetric::Pointer &metric)
       : entity_(entity),
-        distance_(metric->distance()),
-        batch_distance_(metric->batch_distance()),
+        distance_(metric ? metric->distance() : IndexMetric::MatrixDistance{}),
+        batch_distance_(metric ? metric->batch_distance()
+                               : IndexMetric::MatrixBatchDistance{}),
         query_(nullptr),
         dim_(0),
         compare_cnt_(0) {}
 
   void update(const HnswEntity *entity, const IndexMetric::Pointer &metric) {
     entity_ = entity;
-    distance_ = metric->distance();
-    batch_distance_ = metric->batch_distance();
+    distance_ = metric ? metric->distance() : IndexMetric::MatrixDistance{};
+    batch_distance_ =
+        metric ? metric->batch_distance() : IndexMetric::MatrixBatchDistance{};
   }
 
   void update(const HnswEntity *entity, const IndexMetric::Pointer &metric,
               uint32_t dim) {
     entity_ = entity;
-    distance_ = metric->distance();
-    batch_distance_ = metric->batch_distance();
+    distance_ = metric ? metric->distance() : IndexMetric::MatrixDistance{};
+    batch_distance_ =
+        metric ? metric->batch_distance() : IndexMetric::MatrixBatchDistance{};
     dim_ = dim;
   }
 
@@ -84,6 +90,54 @@ class HnswDistCalculator {
       const IndexMetric::MatrixBatchDistance &batch_distance) {
     distance_ = distance;
     batch_distance_ = batch_distance;
+  }
+
+  using EstimateDistance =
+      std::function<void(const void *, const void *, float *, float *)>;
+
+  void set_estimate_distance(EstimateDistance estimate) {
+    estimate_distance_ = std::move(estimate);
+  }
+  bool has_refinement() const {
+    return static_cast<bool>(estimate_distance_);
+  }
+  float estimate(const void *vector, float *lower_bound) {
+    ++compare_cnt_;
+    ++estimate_cnt_;
+    if (!vector || !query_ || !estimate_distance_) {
+      error_ = true;
+      *lower_bound = 0;
+      return 0;
+    }
+    float score;
+    estimate_distance_(vector, query_, &score, lower_bound);
+    return score;
+  }
+  float estimate(node_id_t id) {
+    IndexStorage::MemoryBlock block;
+    if (get_vector(id, block) != 0) {
+      error_ = true;
+      return 0;
+    }
+    float lower;
+    return estimate(block.data(), &lower);
+  }
+  float refine(const void *vector) {
+    // A refinement belongs to an already-counted coarse comparison.
+    ++refinement_cnt_;
+    return dist(vector, query_);
+  }
+  uint32_t estimate_count() const {
+    return estimate_cnt_;
+  }
+  uint32_t refinement_count() const {
+    return refinement_cnt_;
+  }
+  void note_bound_pruned() {
+    ++bound_pruned_cnt_;
+  }
+  uint32_t bound_pruned_count() const {
+    return bound_pruned_cnt_;
   }
 
   //! Update the dimension used by distance computation
@@ -107,6 +161,11 @@ class HnswDistCalculator {
 
     float score{0.0f};
 
+    if (ailego_unlikely(!distance_)) {
+      LOG_ERROR("Distance function is not initialized");
+      error_ = true;
+      return 0.0f;
+    }
     distance_(vec_lhs, vec_rhs, dim_, &score);
 
     return score;
@@ -186,6 +245,12 @@ class HnswDistCalculator {
                   const void **extra_values) {
     compare_cnt_++;
 
+    if (ailego_unlikely(!batch_distance_)) {
+      LOG_ERROR("Batch distance function is not initialized");
+      error_ = true;
+      std::fill(distances, distances + num, 0.0f);
+      return;
+    }
     batch_distance_(vecs, query_, num, dim_, distances, extra_values);
   }
 
@@ -198,6 +263,11 @@ class HnswDistCalculator {
       return 0.0f;
     }
     dist_t score = 0;
+    if (ailego_unlikely(!batch_distance_)) {
+      LOG_ERROR("Batch distance function is not initialized");
+      error_ = true;
+      return 0.0f;
+    }
     if (extra_values != nullptr) {
       batch_distance_(&feat, query_, 1, dim_, &score, &extra_values);
     } else {
@@ -209,11 +279,13 @@ class HnswDistCalculator {
 
   inline void clear() {
     compare_cnt_ = 0;
+    estimate_cnt_ = refinement_cnt_ = bound_pruned_cnt_ = 0;
     error_ = false;
   }
 
   inline void clear_compare_cnt() {
     compare_cnt_ = 0;
+    estimate_cnt_ = refinement_cnt_ = bound_pruned_cnt_ = 0;
   }
 
   inline bool error() const {
@@ -282,6 +354,10 @@ class HnswDistCalculator {
   const void *query_;
   uint32_t dim_;
 
+  EstimateDistance estimate_distance_;
+  uint32_t estimate_cnt_{0};
+  uint32_t refinement_cnt_{0};
+  uint32_t bound_pruned_cnt_{0};
   uint32_t compare_cnt_;  // record distance compute times
   // uint32_t compare_cnt_batch_;  // record batch distance compute time
   bool error_{false};
