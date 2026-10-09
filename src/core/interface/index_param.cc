@@ -372,6 +372,30 @@ ailego::JsonObject HNSWRabitqIndexParam::serialize_to_json_object(
   return json_obj;
 }
 
+bool IVFIndexParam::deserialize_from_json_object(
+    const ailego::JsonObject &json_obj) {
+  if (!BaseIndexParam::deserialize_from_json_object(json_obj) ||
+      index_type != IndexType::kIVF)
+    return false;
+  DESERIALIZE_VALUE_FIELD(json_obj, nlist);
+  DESERIALIZE_VALUE_FIELD(json_obj, niters);
+  DESERIALIZE_VALUE_FIELD(json_obj, use_soar);
+  DESERIALIZE_VALUE_FIELD(json_obj, total_bits);
+  DESERIALIZE_VALUE_FIELD(json_obj, sample_count);
+  return true;
+}
+
+ailego::JsonObject IVFIndexParam::serialize_to_json_object(
+    bool omit_empty_value) const {
+  auto json_obj = BaseIndexParam::serialize_to_json_object(omit_empty_value);
+  json_obj.set("nlist", ailego::JsonValue(nlist));
+  json_obj.set("niters", ailego::JsonValue(niters));
+  json_obj.set("use_soar", ailego::JsonValue(use_soar));
+  json_obj.set("total_bits", ailego::JsonValue(total_bits));
+  json_obj.set("sample_count", ailego::JsonValue(sample_count));
+  return json_obj;
+}
+
 bool IVFRabitqIndexParam::deserialize_from_json_object(
     const ailego::JsonObject &json_obj) {
   if (!BaseIndexParam::deserialize_from_json_object(json_obj)) {

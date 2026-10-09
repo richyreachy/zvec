@@ -494,6 +494,8 @@ class ProximaEngineHelper {
         index_param_builder->with_n_list(db_index_params->n_list());
         index_param_builder->with_n_iters(db_index_params->n_iters());
         index_param_builder->with_use_soar(db_index_params->use_soar());
+        index_param_builder->with_total_bits(db_index_params->total_bits());
+        index_param_builder->with_sample_count(db_index_params->sample_count());
 
         return index_param_builder->build();
       }

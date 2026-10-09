@@ -878,7 +878,8 @@ Status SegmentHelper::PrepareQuantizeField(
   (void)raw_vector_provider;
   return Status::NotSupported(core::kRabitqUnsupportedPlatform);
 #else
-  if (vector_index_params->type() == IndexType::IVF_RABITQ) {
+  if (vector_index_params->type() == IndexType::IVF_RABITQ ||
+      vector_index_params->type() == IndexType::IVF) {
     *out_field = field_clone;
     return Status::OK();
   }
