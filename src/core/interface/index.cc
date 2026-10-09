@@ -913,8 +913,9 @@ int Index::_dense_add(const VectorData &vector_data, const uint32_t doc_id,
   if (turbo_quantizer_ != nullptr) {
     core::IndexQueryMeta new_meta;
     auto *new_vector = context->mutable_features();
-    if (turbo_quantizer_->quantize(dense_vector.data, input_vector_meta_,
-                                   new_vector, &new_meta) != 0) {
+    if (turbo_quantizer_->quantize_datapoint(dense_vector.data,
+                                             input_vector_meta_, new_vector,
+                                             &new_meta) != 0) {
       LOG_ERROR("Failed to quantize vector with turbo quantizer");
       return core::IndexError_Runtime;
     }
