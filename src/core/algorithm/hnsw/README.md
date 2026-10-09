@@ -13,8 +13,10 @@ The reusable engine is `QuantizedGraph<Codec>` in
 It owns neighbor blocks, degree pruning, centroid entry selection, eager/lazy
 caching, quantized search policies, and result completion. It has no dependency on HNSW,
 RaBitQ, or a particular storage implementation. Its current contract is dense
-FP32 vectors with squared-L2 scores and fixed-size encoded neighbor batches.
-Other metrics and variable-length codes are outside this contract.
+FP32 coordinates and fixed-size encoded neighbor batches. The codec and query
+adapter must agree on the score metric. Centroid selection and diversity
+pruning use squared L2 in coordinate space; cosine uses normalized coordinates.
+Variable-length codes are outside this contract.
 
 There are three compile-time extension points:
 
@@ -29,7 +31,7 @@ There are three compile-time extension points:
   to one batch of transformed vectors. Scan writes `kBatchSize` distance
   estimates; the engine ignores padded lanes. The codec must be immutable
   during reads; scratch and query state belong to the worker/query.
-- **Query adapter:** supplies the query, top-k, bounded result heap, exact L2
+- **Query adapter:** supplies the query, top-k, bounded result heap, exact
   distance computation, exclusion predicate, scan-budget check, and expansion
   callback. The heap exposes `limit/size/clear/emplace`. Exact distance calls
   account for the budget. Excluded nodes can still be traversed.
@@ -39,7 +41,10 @@ then calls `prebuild(graph, doc_cnt, threads)` and
 `search(entry, graph, query_context)`. Prebuild chooses the live node nearest
 its corpus mean; search also accepts a caller-selected entry. The degree bound
 is rounded down to a codec batch multiple, with a minimum of one batch.
-The graph and context are borrowed for each call, not retained by the engine.
+An optional fourth constructor argument, `stored_dimension`, preserves trailing
+FP32 metadata in cached centers without using it in centroid selection, pruning,
+or encoding. It defaults to `dimension`. The graph and context are borrowed
+for each call, not retained by the engine.
 
 [`hnsw_symphony_qg.cc`](hnsw_symphony_qg.cc) is the thin HNSW adapter. It maps
 level-zero adjacency and `HnswContext` to those contracts.
@@ -80,7 +85,7 @@ HNSW construction still uses the existing exact distances. After prebuild,
 search starts directly at the centroid entry on level zero. After cache
 invalidation, HNSW upper-layer navigation selects an entry for lazy search.
 The beam capacity is `max(ef, topk)`; estimates prioritize expansion and each
-expanded node contributes an exact squared-L2 score. Group-by and brute-force
+expanded node contributes an exact score in the configured metric. Group-by and brute-force
 queries retain the ordinary HNSW paths. The SymphonyQG graph builder is not used.
 
 Raw vectors and adjacency remain in HNSW storage. Opening prebuilds a fixed-
@@ -89,16 +94,41 @@ exclude clear/prebuild and graph mutation from concurrent searches, and clear
 the cache before changing vectors, validity, or edges. The HNSW streamer
 provides this synchronization and invalidates on insertion/close. Concurrent
 queries share immutable cached blocks and use their own query state. There is
-no eviction policy. Cached centers are original vectors; codes are derived.
+no eviction policy. Cached centers retain the stored vectors, including any
+auxiliary norm; codes are derived.
 
 The flag is stored in optional HNSW manifest field 7; old manifests default to
 false. The public parameters, persistence format, and unsupported-platform
 behavior are unchanged. This implementation has no established speedup or
 recall improvement; benchmark it on the intended corpus and hardware.
 
+## Cosine distance
+
+Use `HnswIndexParam(metric_type=MetricType.COSINE, symphony_qg=True)`. The
+existing `CosineFp32Converter` and query reformer normalize vectors and queries;
+callers do not need to normalize them. Stored FP32 cosine vectors append their
+original norm after the coordinates. This auxiliary value is retained for the
+existing storage contract but excluded from rotation, encoding, pruning, and
+centroid selection. A 4096-dimensional cosine vector therefore occupies 4097
+stored floats while still using a 4096-dimensional RaBitQ code.
+
+The codec converts the L2 coefficients once when encoding each neighbor:
+`f_add_cos = (f_add_l2 + norm2(center) - norm2(neighbor)) / 2` and
+`f_rescale_cos = f_rescale_l2 / 2`. With the exact center score `1 - dot(q, c)`,
+the scan estimates `1 - dot(q, x)`. The norm correction is necessary for zero
+vectors; simply halving L2 is only valid for unit vectors. Original-vector
+norms are not used in this formula: these norms are of the normalized, rotated
+coordinates. The one-bit codes and two FP32 factors keep the same layout.
+
+Final results use the existing exact cosine metric, including its convention
+that a zero vector has distance 1 from every vector, including another zero.
+Scores are cosine distances (smaller is better), not similarities or squared
+L2 scores. Cache invalidation, filtering, and reopen follow the same HNSW paths.
+
 ## Supported configuration and validation
 
-The SymphonyQG integration requires FP32 squared L2, dimensions 1 through 4096,
+The SymphonyQG integration supports FP32 squared L2 or cosine, dimensions 1
+through 4096,
 inline vectors, and a RaBitQ-enabled build with the required SIMD support.
 Extra FP16/INT8/Turbo quantization and external-vector storage are rejected.
 The ordinary HNSW path remains available when the flag is false. These codec
@@ -112,4 +142,6 @@ Shared-loop tests additionally cover exact pool ordering, duplicate discovery,
 read failures, partial codec batches, and center-dependent candidate re-entry.
 The existing beam, rotation, RaBitQ scanner, and HNSW adapter tests remain;
 SIMD runtime cases need a supported machine. Collection/manifest tests continue
-to cover insertion, persistence, and reopen through the public API.
+to cover insertion, persistence, and reopen through the public API. Cosine
+coverage includes auxiliary norm preservation, zero vectors, coefficient
+conversion, exact scores, filters, both storage modes, and reopen.

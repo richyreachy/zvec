@@ -25,7 +25,9 @@ class HnswContext;
 // The streamer owns synchronization and invalidates the cache on mutation.
 class HnswSymphonyQG {
  public:
-  HnswSymphonyQG(size_t dimension, size_t max_neighbors = 32);
+  // For cosine, dimension includes the trailing norm from CosineFp32Converter.
+  HnswSymphonyQG(size_t dimension, size_t max_neighbors = 32,
+                 bool cosine = false);
   ~HnswSymphonyQG();
   int search(uint32_t entry, HnswContext &ctx) const;
   void clear();

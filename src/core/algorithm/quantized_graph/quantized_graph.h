@@ -38,13 +38,16 @@
 
 namespace zvec::core {
 
-// Fixed-batch quantized neighbor search over an externally owned FP32 L2 graph.
+// Fixed-batch quantized neighbor search over an externally owned FP32 graph.
 // Graph: valid(id), neighbors(id) (size/index access), and get_vector(id,
 // Vector&). A Graph::Vector owns/pins its FP32 data until destruction; data()
 // exposes it. IDs occupy [0, doc_cnt), with holes reported by valid(). Reads
 // must be safe across prebuild workers and concurrent searches. Codec:
 // kBatchSize, encoded_dim(), batch_bytes(), transform(), encode(), and
-// Query/prepare_query()/scan(). Estimates and exact scores use squared L2.
+// Query/prepare_query()/scan(). Estimates and exact scores must use the same
+// metric; centroid selection and diversity pruning use squared L2 on the
+// first dimension coordinates. Optional trailing FP32 metadata is retained
+// in cached centers for exact scoring but excluded from graph geometry.
 // Context: reset_results() returns a bounded heap with limit/size/emplace;
 // query(), topk(), distance(), excluded(id), reach_scan_limit(), on_expand().
 // distance() accounts for the exact scan budget; excluded() means EXCLUDE.
@@ -58,7 +61,10 @@ class QuantizedGraph {
   using NodeId = uint32_t;
   static constexpr NodeId kInvalidNodeId = std::numeric_limits<NodeId>::max();
 
-  QuantizedGraph(size_t dimension, Codec codec, size_t max_neighbors = 32);
+  // stored_dimension defaults to dimension; larger values preserve auxiliary
+  // fields following the coordinates (e.g. cosine storage's original norm).
+  QuantizedGraph(size_t dimension, Codec codec, size_t max_neighbors = 32,
+                 size_t stored_dimension = 0);
   void clear();
   template <class Graph>
   int prebuild(const Graph &graph, size_t doc_cnt, size_t threads);
@@ -182,6 +188,7 @@ class QuantizedGraph {
                    Block *slot, Scratch &scratch, int &error) const;
 
   size_t dimension_;
+  size_t stored_dimension_;
   size_t max_neighbors_{32};
   size_t neighbor_bytes_{0};
   Codec codec_;
@@ -196,8 +203,11 @@ class QuantizedGraph {
 
 template <class Codec>
 QuantizedGraph<Codec>::QuantizedGraph(size_t dimension, Codec codec,
-                                      size_t max_neighbors)
-    : dimension_(dimension), codec_(std::move(codec)) {
+                                      size_t max_neighbors,
+                                      size_t stored_dimension)
+    : dimension_(dimension),
+      stored_dimension_(std::max(dimension, stored_dimension)),
+      codec_(std::move(codec)) {
   static_assert(Codec::kBatchSize > 0, "Codec batch size must be positive");
   constexpr size_t batch_size = Codec::kBatchSize;
   max_neighbors_ =
@@ -205,7 +215,7 @@ QuantizedGraph<Codec>::QuantizedGraph(size_t dimension, Codec codec,
   neighbor_bytes_ = (max_neighbors_ * sizeof(NodeId) + 63) & ~size_t{63};
   const size_t code_bytes =
       (max_neighbors_ / batch_size) * codec_.batch_bytes();
-  stride_ = (Block::kCenterOffset + dimension_ * sizeof(float) +
+  stride_ = (Block::kCenterOffset + stored_dimension_ * sizeof(float) +
              neighbor_bytes_ + code_bytes + 63) &
             ~size_t{63};
 }
@@ -241,8 +251,8 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
   // degree_bound_, but with the HNSW diversity heuristic so the truncated
   // graph keeps short and long-range links and stays navigable: plain
   // truncation loses several recall points because HNSW's link order is
-  // newest-first. Distances are squared L2, matching the metric this scanner
-  // targets.
+  // newest-first. Distances use squared L2 in coordinate space; for cosine
+  // these are the normalized coordinates, with norm metadata excluded.
   const size_t kMaxBlockNeighbors = max_neighbors_;
   if (scratch.neighbors.size() > kMaxBlockNeighbors) {
     const size_t cnt = scratch.neighbors.size();
@@ -317,10 +327,11 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
   auto *block = new (slot) Block{};
   const auto *center = static_cast<const float *>(center_ptr);
   block->neighbor_cnt = static_cast<uint32_t>(neighbor_cnt);
-  block->center_floats = static_cast<uint32_t>(dimension_);
+  block->center_floats = static_cast<uint32_t>(stored_dimension_);
   block->code_bytes = static_cast<uint32_t>(code_bytes);
   block->neighbor_bytes = static_cast<uint32_t>(neighbor_bytes_);
-  std::copy(center, center + dimension_, const_cast<float *>(block->center()));
+  std::copy(center, center + stored_dimension_,
+            const_cast<float *>(block->center()));
   std::copy(scratch.neighbors.begin(), scratch.neighbors.end(),
             const_cast<NodeId *>(block->neighbors()));
 
@@ -393,9 +404,10 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
         // Deleted ids never become expandable (blocks only store valid keys),
         // but leave their slots as defined empty blocks instead of garbage.
         auto *empty = new (slot) Block{};
-        empty->center_floats = static_cast<uint32_t>(dimension_);
+        empty->center_floats = static_cast<uint32_t>(stored_dimension_);
         empty->neighbor_bytes = static_cast<uint32_t>(neighbor_bytes_);
-        std::fill_n(const_cast<float *>(empty->center()), dimension_, 0.0f);
+        std::fill_n(const_cast<float *>(empty->center()), stored_dimension_,
+                    0.0f);
         continue;
       }
       typename Graph::Vector raw;

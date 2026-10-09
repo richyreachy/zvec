@@ -78,6 +78,27 @@ class SymphonyQGRotation {
   std::vector<float> signs_;
 };
 
+// Convert node-centered squared-L2 coefficients to 1 - dot(query, neighbor).
+// With g_cos = 1 - dot(query, center), the additive correction is
+// (f_add_l2 + ||center||^2 - ||neighbor||^2) / 2. Keeping both norms also
+// handles zero vectors, for which simply halving L2 would be incorrect.
+// The caller supplies normalized coordinates, without any norm metadata.
+template <class AddFactors, class ScaleFactors>
+inline void ConvertSymphonyQGCosineFactors(const float *center,
+                                           const float *vectors, size_t count,
+                                           size_t dimension, AddFactors f_add,
+                                           ScaleFactors f_rescale) {
+  const float center_norm =
+      std::inner_product(center, center + dimension, center, 0.0f);
+  for (size_t i = 0; i < count; ++i) {
+    const float *vector = vectors + i * dimension;
+    const float norm =
+        std::inner_product(vector, vector + dimension, vector, 0.0f);
+    f_add[i] = 0.5f * (f_add[i] + center_norm - norm);
+    f_rescale[i] = 0.5f * f_rescale[i];
+  }
+}
+
 #if RABITQ_SUPPORTED
 
 
@@ -173,7 +194,8 @@ class SymphonyQGCodec {
     SymQuery lookup;
   };
 
-  explicit SymphonyQGCodec(size_t dimension) : rotation_(dimension) {}
+  explicit SymphonyQGCodec(size_t dimension, bool cosine = false)
+      : rotation_(dimension), cosine_(cosine) {}
 
   size_t encoded_dim() const {
     return rotation_.padded_dim();
@@ -188,6 +210,11 @@ class SymphonyQGCodec {
               char *codes) const {
     rabitqlib::quant::quantize_qg_batch(vectors, center, count, encoded_dim(),
                                         codes, rabitqlib::METRIC_L2);
+    if (cosine_) {
+      rabitqlib::QGBatchDataMap<float> batch(codes, encoded_dim());
+      ConvertSymphonyQGCosineFactors(center, vectors, count, encoded_dim(),
+                                     batch.f_add(), batch.f_rescale());
+    }
   }
   void prepare_query(const void *vector, Query &query) const {
     transform(vector, query.rotated);
@@ -201,6 +228,7 @@ class SymphonyQGCodec {
 
  private:
   SymphonyQGRotation rotation_;
+  bool cosine_;
 };
 #endif
 }  // namespace zvec::core

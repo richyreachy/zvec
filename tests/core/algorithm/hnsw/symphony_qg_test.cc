@@ -322,6 +322,61 @@ TEST(QuantizedGraphTest, IndependentBackendUsesMultipleAndPartialCodecBatches) {
   }
 }
 
+TEST(QuantizedGraphTest, AuxiliaryNormIsCachedButExcludedFromGeometry) {
+  PlainGraph source({{1, 0, 1}, {0, 1, 1000}, {-1, 0, 1}});
+  source.links = {{1, 2}, {0, 2}, {0, 1}};
+  PlainQuantizedGraph index(2, ScalarGraphCodec(2), 3, 3);
+  ASSERT_EQ(0, index.prebuild(source, 3, 2));
+  EXPECT_EQ(1U, index.entry());  // norm 1000 must not move the centroid
+  struct Query : PlainGraphQuery {
+    std::vector<float> norms;
+    float distance(const void *raw) {
+      norms.push_back(static_cast<const float *>(raw)[2]);
+      return PlainGraphQuery::distance(raw);
+    }
+  } query;
+  query.vector = {0, 1};
+  for (bool lazy : {false, true}) {
+    if (lazy) index.clear();
+    query.norms.clear();
+    ASSERT_EQ(0, index.search(0, source, query));
+    ASSERT_EQ(3U, query.results.size());
+    EXPECT_EQ(1U, query.results.values.front().first);
+    std::sort(query.norms.begin(), query.norms.end());
+    EXPECT_EQ((std::vector<float>{1, 1, 1000}), query.norms);
+  }
+}
+
+TEST(SymphonyQGTest, CosineFactorsHandleZeroCentersNeighborsAndQueries) {
+  const std::array<std::array<float, 2>, 4> vectors{
+      {{{1, 0}}, {{0, 1}}, {{-1, 0}}, {{0, 0}}}};
+  std::vector<float> packed;
+  for (const auto &vector : vectors)
+    packed.insert(packed.end(), vector.begin(), vector.end());
+  for (const auto &center : vectors) {
+    std::array<float, 4> add, scale;
+    const float center_norm = center[0] * center[0] + center[1] * center[1];
+    for (size_t i = 0; i < vectors.size(); ++i) {
+      const auto &x = vectors[i];
+      // Exact L2 representation using t = dot(query, x - center).
+      add[i] = x[0] * x[0] + x[1] * x[1] - center_norm;
+      scale[i] = -2;
+    }
+    ConvertSymphonyQGCosineFactors(center.data(), packed.data(), vectors.size(),
+                                   2, add.data(), scale.data());
+    for (const auto &query : vectors) {
+      const float g = 1 - query[0] * center[0] - query[1] * center[1];
+      for (size_t i = 0; i < vectors.size(); ++i) {
+        const auto &x = vectors[i];
+        const float t =
+            query[0] * (x[0] - center[0]) + query[1] * (x[1] - center[1]);
+        EXPECT_FLOAT_EQ(1 - query[0] * x[0] - query[1] * x[1],
+                        add[i] + g + scale[i] * t);
+      }
+    }
+  }
+}
+
 TEST(QuantizedGraphTest, DegreeBoundUsesCodecBatchSize) {
   PlainGraph source({{0}, {1}, {2}, {3}, {4}, {5}});
   source.links[0] = {5, 4, 3, 2, 1};
@@ -531,12 +586,13 @@ TEST(SymphonyQGRotationTest, PreservesDistancesAndRebuildsIdentically) {
 // A fixed level-zero graph makes completion and entry selection deterministic.
 class SymphonyTestEntity : public HnswEntity {
  public:
-  explicit SymphonyTestEntity(std::vector<float> values)
+  explicit SymphonyTestEntity(std::vector<float> values, size_t dimension = 1)
       : values_(std::move(values)),
-        keys_(values_.size()),
-        links_(values_.size()) {
-    *mutable_doc_cnt() = static_cast<node_id_t>(values_.size());
-    set_vector_size(sizeof(float));
+        keys_(values_.size() / dimension),
+        links_(keys_.size()),
+        dimension_(dimension) {
+    *mutable_doc_cnt() = static_cast<node_id_t>(keys_.size());
+    set_vector_size(dimension * sizeof(float));
     for (size_t i = 0; i < keys_.size(); ++i) keys_[i] = i;
   }
 
@@ -544,7 +600,7 @@ class SymphonyTestEntity : public HnswEntity {
     return keys_.at(id);
   }
   const void *get_vector(node_id_t id) const override {
-    return &values_.at(id);
+    return &values_.at(id * dimension_);
   }
   int get_vector(const node_id_t *ids, uint32_t count,
                  const void **vectors) const override {
@@ -554,7 +610,7 @@ class SymphonyTestEntity : public HnswEntity {
   int get_vector(node_id_t id,
                  IndexStorage::MemoryBlock &block) const override {
     block = IndexStorage::MemoryBlock::MakeBorrowedView(
-        const_cast<float *>(&values_.at(id)));
+        const_cast<float *>(&values_.at(id * dimension_)));
     return 0;
   }
   int get_vector(
@@ -572,6 +628,7 @@ class SymphonyTestEntity : public HnswEntity {
   std::vector<float> values_;
   std::vector<key_t> keys_;
   std::vector<std::vector<node_id_t>> links_;
+  size_t dimension_;
 };
 
 TEST(SymphonyQGTest, PrebuildSelectsMeanOfValidVectors) {
@@ -657,6 +714,107 @@ TEST(SymphonyQGTest, CompletionHonorsExclusionFilterAndScanBudget) {
       EXPECT_FLOAT_EQ(0.0f, distance);
       return true;
     });
+  }
+}
+
+TEST(SymphonyQGTest, CosineSearchUsesNormalizedCoordinatesAndExactScores) {
+  if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core())
+    GTEST_SKIP();
+  // Two normalized coordinates followed by the original norm. In particular,
+  // the large norm of node 1 must never participate in quantization.
+  auto entity = std::make_shared<SymphonyTestEntity>(
+      std::vector<float>{0, 0, 0, 1, 0, 300, 0, 1, 8, -1, 0, 4, 0.6f, 0.8f, 10},
+      3);
+  for (uint32_t i = 0; i < entity->doc_cnt(); ++i)
+    for (uint32_t j = 0; j < entity->doc_cnt(); ++j)
+      if (i != j) entity->links_[i].push_back(j);
+  HnswSymphonyQG index(3, 32, true);
+  HnswContext ctx(3, nullptr, entity);
+  ctx.set_ef(8);
+  ctx.set_topk(5);
+  ctx.set_max_scan_num(100);
+  ctx.dist_calculator().update_distance(
+      [](const void *lhs, const void *rhs, size_t dim, float *out) {
+        const auto *x = static_cast<const float *>(lhs);
+        const auto *q = static_cast<const float *>(rhs);
+        *out = 1 - std::inner_product(x, x + dim - 1, q, 0.0f);
+      },
+      {});
+  const std::array<std::array<float, 3>, 3> queries{
+      {{{1, 0, 100}}, {{0.6f, 0.8f, 2}}, {{0, 0, 0}}}};
+  for (bool prebuilt : {true, false}) {
+    if (prebuilt)
+      ASSERT_EQ(0, index.prebuild(*entity, entity->doc_cnt(), 2));
+    else
+      index.clear();
+    for (const auto &query : queries) {
+      for (bool filtered : {false, true}) {
+        ctx.dist_calculator().clear_compare_cnt();
+        ctx.dist_calculator().reset_query(query.data());
+        if (filtered)
+          ctx.set_filter([](uint64_t id) { return id == 1; });
+        else
+          ctx.reset_filter();
+        ASSERT_EQ(0, index.search(0, ctx));
+        EXPECT_EQ(filtered ? 4U : 5U, ctx.search_heap().size());
+        EXPECT_EQ(5U, ctx.dist_calculator().compare_cnt());
+        ctx.search_heap().for_each([&](node_id_t id, dist_t distance) {
+          if (filtered) EXPECT_NE(1U, id);
+          const auto *x = static_cast<const float *>(entity->get_vector(id));
+          EXPECT_NEAR(1 - query[0] * x[0] - query[1] * x[1], distance, 1e-6);
+          return true;
+        });
+      }
+    }
+  }
+}
+
+TEST(SymphonyQGTest, CosineCodecMatchesL2ConversionIncludingZeroVectors) {
+  if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core())
+    GTEST_SKIP();
+  for (size_t dim : {1U, 128U, 4096U}) {
+    SymphonyQGCodec l2(dim), cosine(dim, true);
+    const size_t padded = l2.encoded_dim();
+    constexpr size_t count = 5;
+    for (bool zero_center : {false, true}) {
+      std::vector<float> center(dim + 1, 0);
+      center[0] = zero_center ? 0 : 1;
+      center[dim] = 1000;  // original norm, excluded by transform()
+      std::vector<float> rotated_center, vectors(padded * count), scratch;
+      l2.transform(center.data(), rotated_center);
+      std::array<float, count> norms{};
+      for (size_t i = 0; i < count; ++i) {
+        std::vector<float> vector(dim + 1, 0);
+        if (i != 0) vector[(i - 1) % dim] = i % 2 == 0 ? -1 : 1;
+        vector[dim] = 17 * i;
+        norms[i] = i == 0 ? 0 : 1;
+        l2.transform(vector.data(), scratch);
+        std::copy(scratch.begin(), scratch.end(), vectors.begin() + i * padded);
+      }
+      std::vector<char> l2_codes(l2.batch_bytes()),
+          cos_codes(cosine.batch_bytes());
+      l2.encode(rotated_center.data(), vectors.data(), count, l2_codes.data());
+      cosine.encode(rotated_center.data(), vectors.data(), count,
+                    cos_codes.data());
+      for (float q : {-1.0f, 0.0f, 1.0f}) {
+        std::vector<float> query(dim + 1, 0);
+        query[0] = q;
+        query[dim] = 9999;
+        SymphonyQGCodec::Query l2_query, cos_query;
+        l2.prepare_query(query.data(), l2_query);
+        cosine.prepare_query(query.data(), cos_query);
+        std::array<float, SymphonyQGCodec::kBatchSize> l2_dist, cos_dist;
+        l2.scan(l2_codes.data(), l2_query, (q - center[0]) * (q - center[0]),
+                l2_dist.data());
+        cosine.scan(cos_codes.data(), cos_query, 1 - q * center[0],
+                    cos_dist.data());
+        for (size_t i = 0; i < count; ++i) {
+          EXPECT_TRUE(std::isfinite(cos_dist[i]));
+          EXPECT_NEAR(1 + 0.5f * (l2_dist[i] - q * q - norms[i]), cos_dist[i],
+                      1e-5);
+        }
+      }
+    }
   }
 }
 

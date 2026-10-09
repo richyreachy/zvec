@@ -91,14 +91,18 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
     LOG_ERROR("SymphonyQG requires a RaBitQ-enabled build");
     return IndexError_Unsupported;
 #else
+    const bool cosine = imeta.metric_name() == "Cosine";
+    // FP32 cosine storage appends the original norm after the coordinates.
+    const size_t extra_dimension = cosine ? 1 : 0;
     if ((!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core()) ||
         external || quantizer_ || !imeta.quantizer_name().empty() ||
         imeta.data_type() != IndexMeta::DataType::DT_FP32 ||
-        imeta.metric_name() != "SquaredEuclidean" || imeta.dimension() == 0 ||
-        imeta.dimension() > 4096) {
+        (imeta.metric_name() != "SquaredEuclidean" && !cosine) ||
+        imeta.dimension() <= extra_dimension ||
+        imeta.dimension() > 4096 + extra_dimension) {
       LOG_ERROR(
-          "SymphonyQG requires AVX2/FMA or AVX512 and inline FP32 L2 vectors "
-          "(1..4096D)");
+          "SymphonyQG requires AVX2/FMA or AVX512 and inline FP32 L2 or cosine "
+          "vectors (1..4096D)");
       return IndexError_Unsupported;
     }
 #endif
@@ -606,8 +610,9 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
   }
 
   if (symphony_qg_enabled_) {
-    symphony_qg_ = std::make_shared<HnswSymphonyQG>(meta_.dimension(),
-                                                    symphony_qg_degree_);
+    symphony_qg_ =
+        std::make_shared<HnswSymphonyQG>(meta_.dimension(), symphony_qg_degree_,
+                                         meta_.metric_name() == "Cosine");
     const auto prebuild_start = std::chrono::steady_clock::now();
     ret = symphony_qg_->prebuild(*entity_, entity_->doc_cnt(), 8);
     if (ret != 0) {

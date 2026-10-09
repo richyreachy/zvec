@@ -1358,12 +1358,25 @@ TEST(FieldSchemaTest, HnswRabitqIndexValidation_UnsupportedDataTypes) {
 }
 
 TEST(FieldSchemaTest, SymphonyQGRejectsUnsupportedMetrics) {
-  for (auto metric : {MetricType::IP, MetricType::COSINE}) {
+  for (auto metric : {MetricType::IP}) {
     auto params = std::make_shared<HnswIndexParams>(metric);
     params->set_symphony_qg(true);
     FieldSchema field("qg", DataType::VECTOR_FP32, 128, false, params);
     auto status = field.validate();
     EXPECT_EQ(StatusCode::INVALID_ARGUMENT, status.code());
     EXPECT_NE(std::string::npos, status.message().find("SymphonyQG"));
+  }
+}
+
+TEST(FieldSchemaTest, SymphonyQGAcceptsL2AndCosineWhenSupported) {
+  for (auto metric : {MetricType::L2, MetricType::COSINE}) {
+    auto params = std::make_shared<HnswIndexParams>(metric);
+    params->set_symphony_qg(true);
+    FieldSchema field("qg", DataType::VECTOR_FP32, 4096, false, params);
+#if RABITQ_SUPPORTED
+    EXPECT_TRUE(field.validate().ok());
+#else
+    EXPECT_EQ(StatusCode::INVALID_ARGUMENT, field.validate().code());
+#endif
   }
 }

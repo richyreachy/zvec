@@ -382,7 +382,7 @@ class HnswIndexParam(VectorIndexParam):
 
     @property
     def symphony_qg(self) -> bool:
-        """Enable experimental RaBitQ neighbor scanning on FP32 L2 HNSW."""
+        """Enable experimental RaBitQ neighbor scanning on FP32 L2 or cosine HNSW."""
 
     @property
     def ef_construction(self) -> int:
