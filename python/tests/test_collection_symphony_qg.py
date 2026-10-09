@@ -63,7 +63,13 @@ def test_symphony_qg_optimize_reopen(tmp_path, enable_mmap, use_contiguous_memor
     docs = [
         Doc(id=str(i), vectors={"embedding": [i / 100.0] * 128}) for i in range(1200)
     ]
-    assert all(status.ok() for status in collection.insert(docs))
+    # Keep all 1200 documents while staying below the per-write batch limit.
+    batch_size = 512
+    for offset in range(0, len(docs), batch_size):
+        batch = docs[offset : offset + batch_size]
+        statuses = collection.insert(batch)
+        assert len(statuses) == len(batch)
+        assert all(status.ok() for status in statuses)
     collection.optimize()
     query = Query(
         field_name="embedding", vector=[1.42] * 128, param=HnswQueryParam(ef=100)
