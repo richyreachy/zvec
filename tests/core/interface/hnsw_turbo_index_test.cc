@@ -204,6 +204,41 @@ void CheckGraphSearchEnabled(Index *index) {
   ASSERT_GT(index->get_doc_count(), hnsw_context->get_bruteforce_threshold());
 }
 
+SearchRowList CanonicalizeScoreTies(SearchRowList rows) {
+  // Result heaps compare scores only. Canonicalize IDs within each exact tie
+  // without changing the ranking of distinct scores or accepting different IDs.
+  for (auto begin = rows.begin(); begin != rows.end();) {
+    auto end = std::find_if(std::next(begin), rows.end(),
+                            [score = begin->second](const auto &row) {
+                              return row.second != score;
+                            });
+    std::sort(begin, end);
+    begin = end;
+  }
+  return rows;
+}
+
+TEST(HnswTurboResultComparison, AllowsOnlyExactScoreTiePermutations) {
+  const SearchRowList linear{
+      {1000, 0.0f}, {729, 1.19504f}, {581, 1.19504f}, {716, 1.20319f}};
+  const SearchRowList graph{
+      {1000, 0.0f}, {581, 1.19504f}, {729, 1.19504f}, {716, 1.20319f}};
+  EXPECT_EQ(CanonicalizeScoreTies(linear), CanonicalizeScoreTies(graph));
+
+  auto wrong_id = graph;
+  wrong_id[1].first = 582;
+  EXPECT_NE(CanonicalizeScoreTies(linear), CanonicalizeScoreTies(wrong_id));
+  auto wrong_score = graph;
+  wrong_score[1].second = std::nextafter(wrong_score[1].second, 2.0f);
+  EXPECT_NE(CanonicalizeScoreTies(linear), CanonicalizeScoreTies(wrong_score));
+  auto wrong_rank = graph;
+  std::swap(wrong_rank.front(), wrong_rank.back());
+  EXPECT_NE(CanonicalizeScoreTies(linear), CanonicalizeScoreTies(wrong_rank));
+  auto missing = graph;
+  missing.pop_back();
+  EXPECT_NE(CanonicalizeScoreTies(linear), CanonicalizeScoreTies(missing));
+}
+
 void CheckGraphRecall(const SearchRowList &linear_rows,
                       const SearchRowList &graph_rows) {
   ASSERT_EQ(kTopK, linear_rows.size());
@@ -417,7 +452,7 @@ void CheckOriginalProviderUsesTurbo(MetricType metric, QuantizerType quantizer,
   // This test checks encoding and persistence, not approximate-search recall.
   // A raw-vector graph with a random 1-bit RaBitQ model can miss quantized
   // top-10 neighbors at ef=100. Give RaBitQ enough candidates to traverse the
-  // entire graph and require exact agreement with its linear scan. Keep the
+  // entire graph and require exact agreement except for score ties. Keep the
   // graph path active; bounded traversal and pruning have a separate test.
   const bool exhaustive_graph = quantizer == QuantizerType::kRabitq;
   const uint32_t graph_ef =
@@ -430,7 +465,8 @@ void CheckOriginalProviderUsesTurbo(MetricType metric, QuantizerType quantizer,
     auto graph_rows = SearchRows(index.get(), vectors[query_id], false, false,
                                  nullptr, graph_ef);
     if (exhaustive_graph) {
-      EXPECT_EQ(linear_rows, graph_rows);
+      EXPECT_EQ(CanonicalizeScoreTies(linear_rows),
+                CanonicalizeScoreTies(graph_rows));
     } else {
       CheckGraphRecall(linear_rows, graph_rows);
     }
@@ -458,7 +494,8 @@ void CheckOriginalProviderUsesTurbo(MetricType metric, QuantizerType quantizer,
     EXPECT_EQ(linear_results[i], linear_rows);
     EXPECT_EQ(graph_results[i], graph_rows);
     if (exhaustive_graph) {
-      EXPECT_EQ(linear_rows, graph_rows);
+      EXPECT_EQ(CanonicalizeScoreTies(linear_rows),
+                CanonicalizeScoreTies(graph_rows));
     } else {
       CheckGraphRecall(linear_rows, graph_rows);
     }
