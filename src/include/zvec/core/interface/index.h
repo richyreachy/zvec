@@ -350,7 +350,8 @@ class ZVEC_CORE_API IVFIndex : public Index {
  private:
   int load_streamer();
   int restore_legacy_pipeline();
-  int init_rabitq_pipeline();
+  // Dedicated backend is used only to read existing legacy files.
+  bool legacy_rabitq_{false};
   bool use_rabitq_{false};
 
   std::shared_ptr<zvec::turbo::Quantizer> ivf_quantizer_{};

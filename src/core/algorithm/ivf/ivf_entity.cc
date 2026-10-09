@@ -821,7 +821,8 @@ int IVFEntity::load(const IndexStorage::Pointer &container) {
 int IVFEntity::search(size_t inverted_list_id, const void *query,
                       const IndexFilter &filter, uint32_t *scan_count,
                       IndexDocumentHeap *heap,
-                      IndexContext::Stats *context_stats) const {
+                      IndexContext::Stats *context_stats,
+                      const CandidateVisitor &visitor) const {
   if (quantizer_ && !query_distance_.valid()) {
     return IndexError_InvalidArgument;
   }
@@ -927,7 +928,10 @@ int IVFEntity::search(size_t inverted_list_id, const void *query,
       for (size_t k = 0; k < vecs_count; ++k) {
         if (keeps & (1ULL << k)) {
           if (block_keys[k] != kInvalidKey) {
-            heap->emplace(block_keys[k], distances[k] * norm_val, id_off + k);
+            if (visitor)
+              visitor(block_keys[k], distances[k] * norm_val);
+            else
+              heap->emplace(block_keys[k], distances[k] * norm_val, id_off + k);
           }
         }
       }
@@ -941,7 +945,8 @@ int IVFEntity::search(size_t inverted_list_id, const void *query,
 //! search in inverted list without filter
 int IVFEntity::search(size_t inverted_list_id, const void *query,
                       uint32_t *scan_count, IndexDocumentHeap *heap,
-                      IndexContext::Stats *context_stats) const {
+                      IndexContext::Stats *context_stats,
+                      const CandidateVisitor &visitor) const {
   if (quantizer_ && !query_distance_.valid()) {
     return IndexError_InvalidArgument;
   }
@@ -1021,7 +1026,10 @@ int IVFEntity::search(size_t inverted_list_id, const void *query,
       for (size_t k = 0; k < vecs_count; ++k) {
         if (block_keys[k] != kInvalidKey) {
           uint32_t id = list_meta->id_offset + (i + b) * block_vecs + k;
-          heap->emplace(block_keys[k], distances[k] * norm_val, id);
+          if (visitor)
+            visitor(block_keys[k], distances[k] * norm_val);
+          else
+            heap->emplace(block_keys[k], distances[k] * norm_val, id);
         }
       }
       *(context_stats->mutable_dist_calced_count()) += vecs_count;
@@ -1035,10 +1043,12 @@ int IVFEntity::search(size_t inverted_list_id, const void *query,
 //! search all inverted list with filter
 int IVFEntity::search(const void *query, const IndexFilter &filter,
                       IndexDocumentHeap *heap,
-                      IndexContext::Stats *context_stats) const {
+                      IndexContext::Stats *context_stats,
+                      const CandidateVisitor &visitor) const {
   for (size_t i = 0; i < header_.inverted_list_count; ++i) {
     uint32_t scan_count;
-    int ret = this->search(i, query, filter, &scan_count, heap, context_stats);
+    int ret = this->search(i, query, filter, &scan_count, heap, context_stats,
+                           visitor);
     if (ret != 0) {
       return ret;
     }
@@ -1049,10 +1059,11 @@ int IVFEntity::search(const void *query, const IndexFilter &filter,
 
 //! search all inverted list without filter
 int IVFEntity::search(const void *query, IndexDocumentHeap *heap,
-                      IndexContext::Stats *context_stats) const {
+                      IndexContext::Stats *context_stats,
+                      const CandidateVisitor &visitor) const {
   for (size_t i = 0; i < header_.inverted_list_count; ++i) {
     uint32_t scan_count;
-    int ret = this->search(i, query, &scan_count, heap, context_stats);
+    int ret = this->search(i, query, &scan_count, heap, context_stats, visitor);
     if (ret != 0) {
       return ret;
     }

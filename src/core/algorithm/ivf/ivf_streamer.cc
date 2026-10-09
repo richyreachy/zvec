@@ -189,10 +189,11 @@ int IVFStreamer::search_bf_impl(const void *query, const IndexQueryMeta &qmeta,
     auto &context_stats = ctx->mutable_stats(q);
     auto &heap = ctx->mutable_result_heap();
     heap.clear();
+    const auto visitor = ctx->candidate_visitor();
     if (!filter.is_valid()) {
-      ret = entity->search(query, &heap, &context_stats);
+      ret = entity->search(query, &heap, &context_stats, visitor);
     } else {
-      ret = entity->search(query, filter, &heap, &context_stats);
+      ret = entity->search(query, filter, &heap, &context_stats, visitor);
     }
     ivf_check_with_msg(ret, "Failed to search in entity for %s",
                        IndexError::What(ret));
@@ -261,6 +262,7 @@ int IVFStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
     auto &context_stats = ctx->mutable_stats(q);
     auto &heap = ctx->mutable_result_heap();
     heap.clear();
+    const auto visitor = ctx->candidate_visitor();
     size_t total_scan_count = 0;
     for (size_t i = 0;
          i < centroids.size() && total_scan_count < ctx->max_scan_count();
@@ -268,10 +270,11 @@ int IVFStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
       auto cid = centroids[i].key();
       uint32_t scan_count = 0;
       if (!filter.is_valid()) {
-        ret = entity->search(cid, query, &scan_count, &heap, &context_stats);
+        ret = entity->search(cid, query, &scan_count, &heap, &context_stats,
+                             visitor);
       } else {
         ret = entity->search(cid, query, filter, &scan_count, &heap,
-                             &context_stats);
+                             &context_stats, visitor);
       }
       ivf_check_with_msg(ret, "Failed to search in entity for %s",
                          IndexError::What(ret));

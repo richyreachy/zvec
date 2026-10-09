@@ -115,6 +115,7 @@ class RabitqQuantizer final : public Quantizer {
   int padded_dim_{0};
   uint32_t num_clusters_{16};
   size_t sample_count_{0};
+  int niters_{20};
   std::vector<float> centroids_;  // rotated centroids, immutable after training
   MetricType metric_{MetricType::kUnknown};
   double rescale_{-1};

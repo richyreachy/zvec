@@ -79,6 +79,13 @@ TEST(RabitqQuantizer, BitsMetricsAsymmetricEncodingAndPersistence) {
       quantizer->calc_distance_dp_query_batch(points, 2, query.data(), batch);
       quantizer->calc_distance_dp_query_batch_unquantized(points, 2, q.data(),
                                                           raw_batch);
+      auto bound = quantizer->distance(query.data(), query_meta);
+      ASSERT_TRUE(bound.valid());
+      ASSERT_TRUE(bound.batch_valid());
+      float bound_batch[2];
+      bound.batch(points, 2, bound_batch);
+      EXPECT_FLOAT_EQ(batch[0], bound_batch[0]);
+      EXPECT_FLOAT_EQ(batch[1], bound_batch[1]);
       EXPECT_FLOAT_EQ(actual, batch[0]);
       EXPECT_FLOAT_EQ(batch[0], raw_batch[0]);
       EXPECT_FLOAT_EQ(batch[1], raw_batch[1]);
@@ -148,6 +155,11 @@ TEST(RabitqQuantizer, RejectsInvalidConfigurationAndMismatchedState) {
     EXPECT_NE(0, q.init(meta, params));
   }
   params.set(RABITQ_TOTAL_BITS, 7);
+  for (int niters : {-1, 0}) {
+    params.set(RABITQ_NITERS, niters);
+    EXPECT_NE(0, q.init(meta, params));
+  }
+  params.set(RABITQ_NITERS, 3);
   ASSERT_EQ(0, q.init(meta, params));
   std::string state;
   ASSERT_EQ(0, q.serialize(&state));

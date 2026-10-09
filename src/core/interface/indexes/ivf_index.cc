@@ -36,18 +36,33 @@ int IVFIndex::create_and_init_converter_reformer(
 #if !RABITQ_SUPPORTED
     return core::IndexError_Unsupported;
 #else
+    const auto &ivf = dynamic_cast<const IVFIndexParam &>(index_param);
     if (index_param.is_sparse || index_param.data_type != DataType::DT_FP32 ||
-        index_param.dimension < core::kMinRabitqDimSize ||
-        index_param.dimension > core::kMaxRabitqDimSize ||
         (index_param.metric_type != MetricType::kL2sq &&
          index_param.metric_type != MetricType::kInnerProduct &&
          index_param.metric_type != MetricType::kCosine)) {
       return core::IndexError_Unsupported;
     }
-    if (param.enable_rotate) return core::IndexError_InvalidArgument;
-    // RaBitQ owns rotation and residual encoding; the existing converter
-    // only normalizes cosine inputs and queries.
-    return Index::create_and_init_converter_reformer(param, index_param);
+    if (ivf.nlist <= 0 || ivf.niters <= 0 || ivf.use_soar)
+      return core::IndexError_InvalidArgument;
+    const auto *typed = dynamic_cast<const RabitqQuantizerParam *>(&param);
+    RabitqQuantizerParam config;
+    if (typed) {
+      config = *typed;
+    } else {
+      config.total_bits = ivf.total_bits;
+      config.sample_count = ivf.sample_count;
+      config.num_clusters = ivf.nlist;
+      config.niters = ivf.niters;
+    }
+    ivf_quantizer_ = core::IndexFactory::CreateQuantizer("RabitqQuantizer");
+    if (!ivf_quantizer_) return core::IndexError_NoExist;
+    const auto params = config.to_params();
+    const int ret = ivf_quantizer_->init(proxima_index_meta_, params);
+    if (ret != 0) return ret;
+    // IVF retains raw metadata for clustering; the builder owns code metadata.
+    proxima_index_meta_.set_quantizer("RabitqQuantizer", 0, params);
+    return 0;
 #endif
   }
   // Clustering and centroid selection use the input vectors. Only the
@@ -93,9 +108,11 @@ int IVFIndex::create_and_init_streamer(const BaseIndexParam &param) {
   param_ = dynamic_cast<const IVFIndexParam &>(param);
   use_rabitq_ = param_.quantizer_param &&
                 param_.quantizer_param->type == QuantizerType::kRabitq;
-  if (use_rabitq_) return init_rabitq_pipeline();
-  param_.nlist = std::max(1, std::min(1024, param_.nlist));
-  param_.niters = std::max(1, std::min(1024, param_.niters));
+  legacy_rabitq_ = false;
+  if (!use_rabitq_) {
+    param_.nlist = std::max(1, std::min(1024, param_.nlist));
+    param_.niters = std::max(1, std::min(1024, param_.niters));
+  }
 
   proxima_index_params_.set(core::PARAM_IVF_BUILDER_CENTROID_COUNT,
                             param_.nlist);
@@ -138,31 +155,6 @@ int IVFIndex::create_and_init_streamer(const BaseIndexParam &param) {
   return 0;
 }
 
-int IVFIndex::init_rabitq_pipeline() {
-#if !RABITQ_SUPPORTED
-  return core::IndexError_Unsupported;
-#else
-  if (param_.nlist <= 0 || param_.niters <= 0 || param_.total_bits < 1 ||
-      param_.total_bits > 9 || param_.sample_count < 0 || param_.use_soar) {
-    return core::IndexError_InvalidArgument;
-  }
-  proxima_index_params_.set(core::PARAM_IVF_RABITQ_NLIST, param_.nlist);
-  proxima_index_params_.set(core::PARAM_IVF_RABITQ_NITERS, param_.niters);
-  proxima_index_params_.set(core::PARAM_RABITQ_TOTAL_BITS, param_.total_bits);
-  proxima_index_params_.set(core::PARAM_RABITQ_SAMPLE_COUNT,
-                            param_.sample_count);
-  proxima_index_params_.set(core::PARAM_RABITQ_GENERAL_DIMENSION,
-                            input_vector_meta_.dimension());
-  builder_ = core::IndexFactory::CreateBuilder("IvfRabitqBuilder");
-  streamer_ = core::IndexFactory::CreateStreamer("IvfRabitqStreamer");
-  if (!builder_ || !streamer_) return core::IndexError_NoExist;
-  const auto &meta = converter_ ? converter_->meta() : proxima_index_meta_;
-  int ret = builder_->init(meta, proxima_index_params_);
-  if (ret != 0) return ret;
-  return streamer_->init(meta, proxima_index_params_);
-#endif
-}
-
 int IVFIndex::restore_legacy_pipeline() {
   ivf_quantizer_.reset();
   converter_.reset();
@@ -195,7 +187,7 @@ int IVFIndex::load_streamer() {
     proxima_index_meta_.set_meta(param_.data_type, param_.dimension);
     int ret = parse_metric_name(param_);
     if (ret != 0) return ret;
-    ret = create_and_init_converter_reformer(
+    ret = Index::create_and_init_converter_reformer(
         QuantizerParam(QuantizerType::kRabitq), param_);
     if (ret != 0) return ret;
     ret = create_and_init_metric(param_);
@@ -210,6 +202,7 @@ int IVFIndex::load_streamer() {
       return core::IndexError_Mismatch;
     }
     use_rabitq_ = true;
+    legacy_rabitq_ = true;
     proxima_index_params_.set(core::PARAM_RABITQ_GENERAL_DIMENSION,
                               input_vector_meta_.dimension());
     streamer_ = core::IndexFactory::CreateStreamer("IvfRabitqStreamer");
@@ -221,7 +214,10 @@ int IVFIndex::load_streamer() {
     return reformer_ ? reformer_->load(storage_) : 0;
 #endif
   }
-  if (use_rabitq_) return core::IndexError_Mismatch;
+  // A previous open may have selected the compatibility streamer.
+  legacy_rabitq_ = false;
+  streamer_ = core::IndexFactory::CreateStreamer("IVFStreamer");
+  if (!streamer_) return core::IndexError_NoExist;
   IndexMeta persisted_meta;
   int ret = core::IndexHelper::DeserializeFromStorage(storage_.get(),
                                                       &persisted_meta);
@@ -254,6 +250,8 @@ int IVFIndex::load_streamer() {
   if (ret != 0) return ret;
   auto ivf_streamer = std::dynamic_pointer_cast<core::IVFStreamer>(streamer_);
   ivf_quantizer_ = ivf_streamer->quantizer();
+  use_rabitq_ =
+      ivf_quantizer_ && ivf_quantizer_->type() == turbo::QuantizeType::kRabit;
   if (reformer_) {
     ret = reformer_->load(storage_);
   }
@@ -381,15 +379,12 @@ int IVFIndex::train() {
 }
 
 int IVFIndex::reset_builder() {
-  auto next_builder = core::IndexFactory::CreateBuilder(
-      use_rabitq_ ? "IvfRabitqBuilder" : "IVFBuilder");
+  auto next_builder = core::IndexFactory::CreateBuilder("IVFBuilder");
   if (!next_builder) {
     return core::IndexError_NoExist;
   }
   const auto &meta = converter_ ? converter_->meta() : proxima_index_meta_;
-  int ret = use_rabitq_ ? next_builder->init(meta, proxima_index_params_)
-                        : next_builder->init(meta, proxima_index_params_,
-                                             ivf_quantizer_);
+  int ret = next_builder->init(meta, proxima_index_params_, ivf_quantizer_);
   if (ret != 0) {
     return ret;
   }
@@ -533,9 +528,14 @@ int IVFIndex::_prepare_for_search(
 
   // The public IVF type shares one thread-local context slot across its
   // posting formats. Replace an incompatible context before applying options.
-  bool compatible = dynamic_cast<core::IVFSearcherContext *>(context.get());
+  auto *ivf_context = dynamic_cast<core::IVFSearcherContext *>(context.get());
+  auto *ivf_streamer = dynamic_cast<core::IVFStreamer *>(streamer_.get());
+  // Bind the current entity before applying nprobe. A later entity switch in
+  // search_impl would otherwise replace query options with index defaults.
+  bool compatible =
+      ivf_context && ivf_streamer && ivf_streamer->owns_context(*ivf_context);
 #if RABITQ_SUPPORTED
-  if (use_rabitq_) {
+  if (legacy_rabitq_) {
     compatible = dynamic_cast<core::IvfRabitqContext *>(context.get());
   }
 #endif
@@ -560,8 +560,8 @@ int IVFIndex::_prepare_for_search(
 
   if (ivf_search_param->nprobe > 0) {
     ailego::Params params;
-    params.set(use_rabitq_ ? core::PARAM_IVF_RABITQ_NPROBE
-                           : core::PARAM_IVF_SEARCHER_NPROBE,
+    params.set(legacy_rabitq_ ? core::PARAM_IVF_RABITQ_NPROBE
+                              : core::PARAM_IVF_SEARCHER_NPROBE,
                ivf_search_param->nprobe);
     return context->update(params);
   }

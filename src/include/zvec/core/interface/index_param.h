@@ -183,12 +183,14 @@ struct PqQuantizerParam : public QuantizerParam {
       const ailego::JsonObject &json_obj) override;
 };
 
-//! RaBitQ parameters for the standard HNSW index. Rotation is intrinsic to
-//! RaBitQ; enable_rotate does not request a separate preprocessing stage.
+//! RaBitQ parameters for the standard HNSW and IVF indexes. Rotation is
+//! intrinsic to RaBitQ; enable_rotate does not request a separate preprocessing
+//! stage.
 struct RabitqQuantizerParam : public QuantizerParam {
   int total_bits = kDefaultRabitqTotalBits;
   int num_clusters = 16;
   int sample_count = 0;  // 0 trains on all provider vectors
+  int niters = 20;
 
   explicit RabitqQuantizerParam(int bits = kDefaultRabitqTotalBits)
       : QuantizerParam(QuantizerType::kRabitq), total_bits(bits) {}
@@ -196,6 +198,9 @@ struct RabitqQuantizerParam : public QuantizerParam {
   QuantizerParam::Pointer clone() const override {
     return std::make_shared<RabitqQuantizerParam>(*this);
   }
+
+  //! Shared Turbo configuration, independent of the index algorithm.
+  ailego::Params to_params() const;
 
  protected:
   ailego::JsonObject serialize_to_json_object(

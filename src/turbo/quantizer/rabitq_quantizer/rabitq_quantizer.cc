@@ -58,12 +58,14 @@ int RabitqQuantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   int64_t bits = 7;
   if (params.has(RABITQ_TOTAL_BITS) && !params.get(RABITQ_TOTAL_BITS, &bits))
     return kErrInvalidArgument;
-  int64_t clusters = 16, samples = 0;
+  int64_t clusters = 16, samples = 0, niters = 20;
   if ((params.has(RABITQ_NUM_CLUSTERS) &&
        !params.get(RABITQ_NUM_CLUSTERS, &clusters)) ||
       (params.has(RABITQ_SAMPLE_COUNT) &&
        !params.get(RABITQ_SAMPLE_COUNT, &samples)) ||
-      clusters < 1 || clusters > 65536 || samples < 0)
+      (params.has(RABITQ_NITERS) && !params.get(RABITQ_NITERS, &niters)) ||
+      clusters < 1 || clusters > 65536 || samples < 0 || niters <= 0 ||
+      niters > std::numeric_limits<int>::max())
     return kErrInvalidArgument;
   const auto metric = metric_from_name(meta.metric_name());
   if (meta.data_type() != IndexMeta::DT_FP32 || meta.dimension() < 2 ||
@@ -78,6 +80,7 @@ int RabitqQuantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   metric_ = metric;
   padded_dim_ = (dim_ + 63) / 64 * 64;
   num_clusters_ = static_cast<uint32_t>(clusters);
+  niters_ = static_cast<int>(niters);
   sample_count_ = static_cast<size_t>(samples);
   centroids_.clear();
   rotator_ = FhtRotator::create(padded_dim_);
@@ -107,6 +110,7 @@ int RabitqQuantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   encoding.set(RABITQ_TOTAL_BITS, bits_);
   encoding.set(RABITQ_NUM_CLUSTERS, num_clusters_);
   encoding.set(RABITQ_SAMPLE_COUNT, sample_count_);
+  encoding.set(RABITQ_NITERS, niters_);
   meta_.set_quantizer("RabitqQuantizer", 0, encoding);
   return 0;
 }
@@ -182,7 +186,9 @@ int RabitqQuantizer::train(IndexHolder::Pointer holder) {
     // Reuse the same centroid trainer as the dedicated HNSW-RaBitQ converter.
     auto cluster = IndexFactory::CreateCluster("OptKmeansCluster");
     if (!cluster) return kErrRuntime;
-    int ret = cluster->init(training_meta, ailego::Params{});
+    ailego::Params cluster_params;
+    cluster_params.set("proxima.optkmeans.cluster.max_iterations", niters_);
+    int ret = cluster->init(training_meta, cluster_params);
     if (ret != 0) return ret;
     ret = cluster->mount(samples);
     if (ret != 0) return ret;
@@ -673,8 +679,20 @@ DistanceImpl RabitqQuantizer::distance(const void *query,
   auto single = [this](const void *dp, const void *q, size_t, float *out) {
     *out = calc_distance_dp_query(dp, q);
   };
+  auto batch = [this](const void **points, const void *q, size_t count, size_t,
+                      float *out, const void **) {
+    // DistanceImpl uses size_t counts; the quantizer batch API uses int.
+    while (count != 0) {
+      const int n = static_cast<int>(std::min(
+          count, static_cast<size_t>(std::numeric_limits<int>::max())));
+      calc_distance_dp_query_batch(points, n, q, out);
+      points += n;
+      out += n;
+      count -= n;
+    }
+  };
   return DistanceImpl(
-      single, {},
+      single, batch,
       std::string(static_cast<const char *>(query), meta.element_size()), dim_);
 }
 

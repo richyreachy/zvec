@@ -24,6 +24,7 @@ zvec::core::IndexMeta original_meta(zvec::core::IndexMeta::DT_FP32, dimension);
 original_meta.set_metric("SquaredEuclidean", 0, zvec::ailego::Params{});
 RabitqQuantizerParam quantizer(7);
 quantizer.num_clusters = 16;  // default; fewer samples use fewer centers
+quantizer.niters = 20;       // model clustering iterations
 quantizer.sample_count = 0;   // default: all provider vectors; >0 samples them
 
 auto param = HNSWIndexParamBuilder()
@@ -78,6 +79,12 @@ split distance estimators. Each record contains a centroid ID, reconstruction
 metadata, independent binary/full-distance factors, and separately packed
 1-bit/extra-bit codes: `36 + padded_dimension * total_bits / 8` bytes. Queries
 keep rotated FP32 coordinates, the reconstructed 4-bit query, and per-centroid
-factors. The container and packing are specific to standard HNSW; files are not
+factors. The quantizer and record packing are shared with standard IVF; index containers
+remain algorithm-specific. Files are not
 interchangeable with the dedicated HNSW-RaBitQ index. Its SIMD kernels and binary
 file format are not migrated. Performance equivalence has not been benchmarked.
+
+The standard IVF integration uses this same `RabitqQuantizerParam` and Turbo
+quantizer. HNSW uses its coarse/refined distance interface for graph traversal;
+IVF uses complete batched distances over row-major postings. See
+[IVF RaBitQ](ivf-rabitq.md) for legacy parameter mapping and file compatibility.

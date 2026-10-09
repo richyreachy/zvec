@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 #include <zvec/core/interface/index_factory.h>
 #include <zvec/core/interface/index_param_builders.h>
+#include "algorithm/ivf/ivf_index_format.h"
 #include "tests/test_util.h"
 
 namespace zvec::core_interface {
@@ -38,16 +39,58 @@ TEST(IVFRabitqIntegration, ParamsRoundTrip) {
   EXPECT_EQ(3, decoded->niters);
   EXPECT_EQ(9, decoded->total_bits);
   EXPECT_EQ(80, decoded->sample_count);
+  auto typed =
+      std::dynamic_pointer_cast<RabitqQuantizerParam>(decoded->quantizer_param);
+  ASSERT_NE(nullptr, typed);
+  EXPECT_EQ(9, typed->total_bits);
+  EXPECT_EQ(4, typed->num_clusters);
+  EXPECT_EQ(80, typed->sample_count);
+  EXPECT_EQ(3, typed->niters);
+}
+
+TEST(IVFRabitqIntegration, TypedParametersOverrideLegacyFields) {
+  RabitqQuantizerParam quantizer(5);
+  quantizer.num_clusters = 3;
+  quantizer.sample_count = 24;
+  quantizer.niters = 6;
+  auto param = RabitqParam(MetricType::kL2sq, 9);
+  param->quantizer_param = quantizer.clone();
+  auto decoded = std::dynamic_pointer_cast<IVFIndexParam>(
+      IndexFactory::DeserializeIndexParamFromJson(param->serialize_to_json()));
+  ASSERT_NE(nullptr, decoded);
+  auto typed =
+      std::dynamic_pointer_cast<RabitqQuantizerParam>(decoded->quantizer_param);
+  ASSERT_NE(nullptr, typed);
+  EXPECT_EQ(quantizer.serialize_to_json(), typed->serialize_to_json());
+}
+
+TEST(IVFRabitqIntegration, RejectsInvalidNestedAndLegacyJson) {
+  auto param = RabitqParam(MetricType::kL2sq);
+  param->total_bits = 10;
+  EXPECT_EQ(nullptr, IndexFactory::DeserializeIndexParamFromJson(
+                         param->serialize_to_json()));
+  RabitqQuantizerParam invalid(7);
+  invalid.niters = 0;
+  param->quantizer_param = invalid.clone();
+  EXPECT_EQ(nullptr, IndexFactory::DeserializeIndexParamFromJson(
+                         param->serialize_to_json()));
 }
 
 #if RABITQ_SUPPORTED
 class IVFRabitqIntegrationTest
-    : public testing::TestWithParam<std::tuple<MetricType, int>> {};
+    : public testing::TestWithParam<std::tuple<MetricType, int, bool>> {};
 
 TEST_P(IVFRabitqIntegrationTest, TrainSearchAndReopen) {
   const auto metric = std::get<0>(GetParam());
   const auto bits = std::get<1>(GetParam());
   auto param = RabitqParam(metric, bits);
+  if (std::get<2>(GetParam())) {
+    RabitqQuantizerParam quantizer(bits);
+    quantizer.num_clusters = 3;  // independent of the four IVF lists
+    quantizer.sample_count = 80;
+    quantizer.niters = 3;
+    param->quantizer_param = quantizer.clone();
+  }
   auto index = IndexFactory::CreateAndInitIndex(*param);
   ASSERT_NE(nullptr, std::dynamic_pointer_cast<IVFIndex>(index));
   const std::string path = "ivf_integrated_rabitq.index";
@@ -69,6 +112,15 @@ TEST_P(IVFRabitqIntegrationTest, TrainSearchAndReopen) {
   ASSERT_EQ(0, index->train());
   ASSERT_EQ(0, index->train());
   EXPECT_EQ(80, index->get_doc_count());
+  auto storage = core::IndexFactory::CreateStorage("MMapFileReadStorage");
+  ASSERT_EQ(0, storage->init(ailego::Params{}));
+  ASSERT_EQ(0, storage->open(path, false));
+  core::IndexMeta persisted;
+  ASSERT_EQ(
+      0, core::IndexHelper::DeserializeFromStorage(storage.get(), &persisted));
+  EXPECT_EQ("RabitqQuantizer", persisted.quantizer_name());
+  EXPECT_NE(nullptr, storage->get(core::IVF_TURBO_QUANTIZER_SEG_ID));
+  ASSERT_EQ(0, storage->close());
   auto query = IVFQueryParamBuilder().with_topk(5).with_nprobe(4).build();
   SearchResult before;
   auto input = VectorData{DenseVector{vectors[7].data()}};
@@ -171,7 +223,7 @@ TEST_P(IVFRabitqIntegrationTest, TrainSearchAndReopen) {
     ASSERT_EQ(4, after.group_doc_list_.size());
     ASSERT_EQ(0, reopened->close());
   }
-  // Both public APIs must return identical results from the same postings.
+  // The legacy format remains readable through the standard IVF API.
   auto legacy_param =
       IVFRabitqIndexParamBuilder()
           .with_dimension(128)
@@ -183,7 +235,18 @@ TEST_P(IVFRabitqIntegrationTest, TrainSearchAndReopen) {
           .build();
   auto legacy = IndexFactory::CreateAndInitIndex(*legacy_param);
   ASSERT_NE(nullptr, legacy);
-  ASSERT_EQ(0, legacy->open(path, {StorageOptions::StorageType::kMMAP, false}));
+  const std::string legacy_path = path + ".legacy";
+  test_util::RemoveTestFiles(legacy_path);
+  ASSERT_EQ(
+      0, legacy->open(legacy_path, {StorageOptions::StorageType::kMMAP, true}));
+  for (size_t i = 0; i < vectors.size(); ++i)
+    ASSERT_EQ(0,
+              legacy->add(VectorData{DenseVector{vectors[i].data()}}, i * 3));
+  ASSERT_EQ(0, legacy->train());
+  ASSERT_EQ(0, reopened->open(legacy_path,
+                              {StorageOptions::StorageType::kMMAP, false}));
+  ASSERT_EQ(0, reopened->search(input, query, &before));
+  ASSERT_EQ(0, reopened->search(input, group_query, &grouped));
   auto legacy_query = std::make_shared<IVFRabitqQueryParam>();
   legacy_query->nprobe = 4;
   legacy_query->topk = 5;
@@ -211,6 +274,8 @@ TEST_P(IVFRabitqIntegrationTest, TrainSearchAndReopen) {
     }
   }
   ASSERT_EQ(0, legacy->close());
+  ASSERT_EQ(0, reopened->close());
+  test_util::RemoveTestFiles(legacy_path);
   test_util::RemoveTestFiles(path);
 }
 
@@ -219,7 +284,7 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(testing::Values(MetricType::kL2sq,
                                      MetricType::kInnerProduct,
                                      MetricType::kCosine),
-                     testing::Values(1, 7, 9)));
+                     testing::Values(1, 7, 9), testing::Bool()));
 #else
 TEST(IVFRabitqIntegration, UnsupportedPlatform) {
   EXPECT_EQ(nullptr,

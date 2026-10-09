@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <functional>
 #include <turbo/quantizer/quantizer.h>
 #include <zvec/core/framework/index_framework.h>
 #include "ivf_distance_calculator.h"
@@ -50,22 +51,28 @@ class IVFEntity {
     return quantizer_;
   }
 
+  using CandidateVisitor = std::function<void(uint64_t, float)>;
+
   //! search in inverted list with filter
   int search(size_t inverted_list_id, const void *query,
              const IndexFilter &filter, uint32_t *scan_count,
-             IndexDocumentHeap *heap, IndexContext::Stats *context_stats) const;
+             IndexDocumentHeap *heap, IndexContext::Stats *context_stats,
+             const CandidateVisitor &visitor = {}) const;
 
   //! search in inverted list without filter
   int search(size_t inverted_list_id, const void *query, uint32_t *scan_count,
-             IndexDocumentHeap *heap, IndexContext::Stats *context_stats) const;
+             IndexDocumentHeap *heap, IndexContext::Stats *context_stats,
+             const CandidateVisitor &visitor = {}) const;
 
   //! search all inverted list with filter
   int search(const void *query, const IndexFilter &filter,
-             IndexDocumentHeap *heap, IndexContext::Stats *context_stats) const;
+             IndexDocumentHeap *heap, IndexContext::Stats *context_stats,
+             const CandidateVisitor &visitor = {}) const;
 
   //! search all inverted list without filter
   int search(const void *query, IndexDocumentHeap *heap,
-             IndexContext::Stats *context_stats) const;
+             IndexContext::Stats *context_stats,
+             const CandidateVisitor &visitor = {}) const;
 
   //! Clone the entity
   virtual IVFEntity::Pointer clone() const;
