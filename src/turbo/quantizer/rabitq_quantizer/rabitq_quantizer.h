@@ -87,6 +87,10 @@ class RabitqQuantizer final : public Quantizer {
   int dequantize(const void *, const IndexQueryMeta &,
                  std::string *) const override;
   DistanceImpl distance(const void *, const IndexQueryMeta &) const override;
+  size_t scan_block_size() const override;
+  int pack_scan_block(const void *, size_t, size_t, void *) const override;
+  std::unique_ptr<BlockScanner> block_scanner(
+      const DistanceImpl &) const override;
   bool support_score_normalization() const override {
     return metric_ == MetricType::kInnerProduct;
   }

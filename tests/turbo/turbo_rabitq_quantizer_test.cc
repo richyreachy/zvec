@@ -318,6 +318,186 @@ TEST(RabitqQuantizer, MatchesDedicatedRabitqEstimator) {
     }
   }
 }
+
+// Verify uint64 single-code -> uint8 FastScan packing against the independent
+// batch encoder, including partial lanes and the >1024-dimension accumulator.
+TEST(RabitqQuantizer, PackedScanMatchesDedicatedBatchEstimator) {
+  std::mt19937 rng(91);
+  std::normal_distribution<float> random;
+  for (int dim : {128, 1536}) {
+    for (const char *metric_name :
+         {"SquaredEuclidean", "InnerProduct", "Cosine"}) {
+      for (int bits : {1, 7, 9}) {
+        SCOPED_TRACE(testing::Message()
+                     << dim << ':' << metric_name << ':' << bits);
+        IndexMeta meta(IndexMeta::DT_FP32, dim);
+        meta.set_metric(metric_name, 0, ailego::Params{});
+        ailego::Params params;
+        params.set(RABITQ_TOTAL_BITS, bits);
+        params.set(RABITQ_NUM_CLUSTERS, 1);
+        RabitqQuantizer quantizer;
+        ASSERT_EQ(0, quantizer.init(meta, params));
+        auto holder =
+            std::make_shared<MultiPassIndexHolder<IndexMeta::DT_FP32>>(dim);
+        ailego::NumericalVector<float> zero(dim);
+        std::fill(zero.begin(), zero.end(), 0);
+        ASSERT_TRUE(holder->emplace(0, zero));
+        ASSERT_EQ(0, quantizer.train(holder));
+        std::string state;
+        ASSERT_EQ(0, quantizer.serialize(&state));
+        uint32_t rotation_size;
+        std::memcpy(&rotation_size,
+                    state.data() + sizeof(QuantizerSerHeader) + 16, 4);
+        auto rotation = FhtRotator::from_blob(
+            state.data() + sizeof(QuantizerSerHeader) + 20, rotation_size);
+        ASSERT_NE(nullptr, rotation);
+        std::vector<float> raw(dim), rotated(32 * dim), query(dim);
+        for (float &v : query) v = random(rng);
+        const size_t stride = quantizer.quantized_datapoint_vector_length();
+        std::string rows(32 * stride, '\0');
+        for (size_t i = 0; i < 32; ++i) {
+          double norm2 = 0;
+          for (float &v : raw) {
+            v = random(rng);
+            norm2 += double(v) * v;
+          }
+          quantizer.quantize_data(raw.data(), rows.data() + i * stride);
+          if (std::strcmp(metric_name, "Cosine") == 0) {
+            float norm = std::sqrt(norm2);
+            for (float &v : raw) v /= norm;
+          }
+          rotation->apply(raw.data(), rotated.data() + i * dim);
+        }
+        IndexQueryMeta input(IndexMeta::DT_FP32, dim), encoded_meta;
+        std::string encoded;
+        ASSERT_EQ(0, quantizer.quantize(query.data(), input, &encoded,
+                                        &encoded_meta));
+        auto distance = quantizer.distance(encoded.data(), encoded_meta);
+        auto scanner = quantizer.block_scanner(distance);
+        ASSERT_NE(nullptr, scanner);
+        const bool ip = std::strcmp(metric_name, "InnerProduct") == 0;
+        const auto metric = std::strcmp(metric_name, "SquaredEuclidean") == 0
+                                ? rabitqlib::METRIC_L2
+                                : rabitqlib::METRIC_IP;
+        rabitqlib::SplitBatchQuery<float> reference_query(
+            reinterpret_cast<const float *>(encoded.data()), dim, bits - 1,
+            metric, true);
+        const float *scalars = reinterpret_cast<const float *>(
+            encoded.data() + dim * sizeof(float) + dim / 2);
+        reference_query.set_g_add(
+            scalars[5]);  // zero centroid => IP correction is zero
+        for (size_t count : {size_t(1), size_t(17), size_t(32)}) {
+          SCOPED_TRACE(count);
+          std::string packed(quantizer.scan_block_size(), '\0');
+          ASSERT_EQ(0, quantizer.pack_scan_block(rows.data(), count, stride,
+                                                 packed.data()));
+          std::string reference(rabitqlib::BatchDataMap<float>::data_bytes(dim),
+                                '\0');
+          rabitqlib::quant::quantize_one_batch(rotated.data(), zero.data(),
+                                               count, dim, reference.data(),
+                                               metric);
+          EXPECT_EQ(0, std::memcmp(packed.data() + 32 * sizeof(uint32_t),
+                                   reference.data(), reference.size()));
+          float expected[32], lower[32], dot[32];
+          rabitqlib::split_batch_estdist(reference.data(), reference_query, dim,
+                                         expected, lower, dot, true);
+          turbo::DistanceEstimate estimates[32];
+          ASSERT_EQ(0, scanner->estimate(packed.data(), count, estimates));
+          for (size_t i = 0; i < count; ++i) {
+            const float tolerance =
+                1e-5f * std::max(1.0f, std::abs(expected[i]));
+            EXPECT_NEAR(expected[i] - (ip ? 1 : 0), estimates[i].distance,
+                        tolerance);
+            EXPECT_NEAR((bits == 1 ? expected[i] : lower[i]) - (ip ? 1 : 0),
+                        estimates[i].lower_bound, tolerance);
+            EXPECT_FLOAT_EQ(
+                bits == 1 ? estimates[i].distance
+                          : distance(rows.data() + i * stride),
+                scanner->refine(rows.data() + i * stride, estimates[i]));
+          }
+          const uint32_t bad_cluster = 1;
+          std::memcpy(packed.data(), &bad_cluster, sizeof(bad_cluster));
+          EXPECT_NE(0, scanner->estimate(packed.data(), count, estimates));
+        }
+        // Empty-query LUTs must fall back without dividing by a zero range.
+        ASSERT_EQ(
+            0, quantizer.quantize(zero.data(), input, &encoded, &encoded_meta));
+        EXPECT_EQ(nullptr, quantizer.block_scanner(quantizer.distance(
+                               encoded.data(), encoded_meta)));
+      }
+    }
+  }
+}
+
+TEST(RabitqQuantizer, PackedScanUsesEachRowsModelCentroid) {
+  constexpr int dim = 73, padded = 128, clusters = 3;
+  std::mt19937 rng(1234);
+  std::normal_distribution<float> random;
+  for (const char *metric : {"SquaredEuclidean", "InnerProduct", "Cosine"}) {
+    IndexMeta meta(IndexMeta::DT_FP32, dim);
+    meta.set_metric(metric, 0, ailego::Params{});
+    ailego::Params params;
+    params.set(RABITQ_NUM_CLUSTERS, clusters);
+    RabitqQuantizer quantizer;
+    ASSERT_EQ(0, quantizer.init(meta, params));
+    auto holder =
+        std::make_shared<MultiPassIndexHolder<IndexMeta::DT_FP32>>(dim);
+    std::vector<std::vector<float>> centers;
+    for (int c = 0; c < clusters; ++c) {
+      ailego::NumericalVector<float> center(dim);
+      for (float &v : center) v = random(rng);
+      centers.emplace_back(center.begin(), center.end());
+      ASSERT_TRUE(holder->emplace(c, center));
+    }
+    ASSERT_EQ(0, quantizer.train(holder));
+    std::vector<float> query(dim);
+    for (float &v : query) v = random(rng);
+    IndexQueryMeta input(IndexMeta::DT_FP32, dim), qmeta;
+    std::string encoded;
+    ASSERT_EQ(0, quantizer.quantize(query.data(), input, &encoded, &qmeta));
+    auto distance = quantizer.distance(encoded.data(), qmeta);
+    auto scanner = quantizer.block_scanner(distance);
+    ASSERT_NE(nullptr, scanner);
+    distance =
+        {};  // scanner owns its query, including the LUT's source pointer
+    const size_t stride = quantizer.quantized_datapoint_vector_length();
+    std::string rows(17 * stride, '\0'),
+        block(quantizer.scan_block_size(), '\0');
+    for (size_t i = 0; i < 17; ++i) {
+      auto row = centers[i % clusters];
+      if (i >= clusters)
+        for (float &v : row) v += random(rng) * .1f;
+      quantizer.quantize_data(row.data(), rows.data() + i * stride);
+    }
+    ASSERT_EQ(0,
+              quantizer.pack_scan_block(rows.data(), 17, stride, block.data()));
+    DistanceEstimate estimates[32];
+    ASSERT_EQ(0, scanner->estimate(block.data(), 17, estimates));
+    const auto *scalars = reinterpret_cast<const float *>(
+        encoded.data() + padded * sizeof(float) + padded / 2);
+    for (size_t i = 0; i < 17; ++i) {
+      const char *row = rows.data() + i * stride;
+      uint32_t cluster;
+      std::memcpy(&cluster, row, sizeof(cluster));
+      ASSERT_LT(cluster, clusters);
+      if (i < clusters) EXPECT_EQ(i, cluster);
+      float factors[3];
+      std::memcpy(factors, row + 8 + padded / 8, sizeof(factors));
+      const float dot = rabitqlib::mask_ip_x0_q(
+          reinterpret_cast<const float *>(encoded.data()),
+          reinterpret_cast<const uint64_t *>(row + 8), padded);
+      float expected = factors[0] + scalars[4 + cluster] +
+                       factors[1] * (dot + scalars[2]) -
+                       (std::strcmp(metric, "InnerProduct") == 0 ? 1 : 0);
+      float lower = expected - factors[2] * scalars[4 + clusters + cluster];
+      const float tolerance = 1e-4f * std::max(1.0f, std::abs(expected));
+      EXPECT_NEAR(expected, estimates[i].distance, tolerance);
+      EXPECT_NEAR(lower, estimates[i].lower_bound, tolerance);
+      EXPECT_FLOAT_EQ(quantizer.calc_distance_dp_query(row, encoded.data()),
+                      scanner->refine(row, estimates[i]));
+    }
+  }
+}
 #endif
 
 }  // namespace

@@ -51,7 +51,18 @@ class IVFEntity {
     return quantizer_;
   }
 
-  using CandidateVisitor = std::function<void(uint64_t, float)>;
+  struct CandidateVisitor {
+    std::function<void(uint64_t, float)> consume;
+    // Threshold in internal distance units for this candidate's group.
+    // An absent callback disables pruning by the grouped result collector.
+    std::function<float(uint64_t)> threshold;
+    explicit operator bool() const {
+      return bool(consume);
+    }
+    void operator()(uint64_t key, float score) const {
+      consume(key, score);
+    }
+  };
 
   //! search in inverted list with filter
   int search(size_t inverted_list_id, const void *query,
@@ -397,6 +408,13 @@ class IVFEntity {
   turbo::Quantizer::Pointer quantizer_{};
   // Each context owns its entity clone and therefore its query buffer/LUT.
   turbo::DistanceImpl query_distance_{};
+  std::unique_ptr<turbo::BlockScanner> block_scanner_{};
+  IndexStorage::Segment::Pointer scan_blocks_{};
+  std::shared_ptr<const std::vector<size_t>> scan_list_offsets_{};
+  int search_packed(size_t list_id, const IndexFilter *filter,
+                    uint32_t *scan_count, IndexDocumentHeap *heap,
+                    IndexContext::Stats *stats,
+                    const CandidateVisitor &visitor) const;
   IndexStorage::Pointer container_{};
   IndexStorage::Segment::Pointer inverted_{};
   IndexStorage::Segment::Pointer inverted_meta_{};

@@ -49,7 +49,8 @@ auto param = zvec::core_interface::IVFIndexParamBuilder()
 
 标准 HNSW 和 IVF 均使用 Turbo `RabitqQuantizer`：训练、旋转、编码、
 完整距离估计和模型序列化共享一份实现。IVF 使用 `IVFBuilder` / `IVFStreamer`
-构建和扫描标准 IVF postings；HNSW 额外使用 1-bit 下界筛选图邻居。
+构建和扫描标准 IVF postings。HNSW 使用单记录的 1-bit 下界筛选图邻居；
+IVF 使用 32 路 FastScan 粗筛，仅对下界通过当前结果阈值的候选计算完整位数距离。
 IVF 的分组查询在扫描时保留每组 top-k，支持过滤，不需要保留全部候选。
 
 C++ 推荐通过 `RabitqQuantizerParam` 配置模型，显式类型参数优先。
@@ -58,7 +59,11 @@ C++ 推荐通过 `RabitqQuantizerParam` 配置模型，显式类型参数优先�
 IVF 列表聚类和量化器模型训练分别执行；模型中心不强制等于列表中心。
 
 新文件保存标准 IVF header、`RabitqQuantizer` descriptor 和
-`ivf.turbo_quantizer` 模型段。加载以磁盘 descriptor 为准，默认量化参数也能重开。
+`ivf.turbo_quantizer` 模型段，以及可选的 `ivf.turbo_scan.v1` 粗筛段。
+粗筛段按 posting block 顺序保存 32 个模型中心 ID 和 RaBitQ `BatchDataMap`，
+不足 32 个候选的尾块补零；每个候选仍使用自己的模型中心修正距离。
+加载以磁盘 descriptor 为准，默认量化参数也能重开。
+没有粗筛段的已有 Turbo IVF 文件继续使用原有完整距离扫描；重建后才获得 FastScan。
 旧的独立 IVF-RaBitQ 文件通过 header 自动选择兼容加载器；独立 API 保留原格式。
 独立 API 不支持读取新的 Turbo IVF 文件，需要通过标准 IVF API 打开。
 
@@ -88,6 +93,29 @@ collection manifest 中的索引类型仍分别是 `IVF` 和 `IVF_RABITQ`，
 标准 IVF 的 BufferPool 分页现在同样适用于新 RaBitQ postings。
 旧格式兼容加载仍使用原后端的内存布局。
 
-新的 IVF 扫描使用共享量化器的完整距离批处理，不使用独立后端的 FastScan 布局。
+新建索引使用 RaBitQ 库的高精度 FastScan 内核，查询 LUT 每次查询构建一次。
+超过 1024 维时分段累加，避免 SIMD 累加器溢出。普通搜索使用当前 top-k 的
+最差距离作为筛选阈值；分组搜索使用候选所属组的阈值，过滤先于精算执行。
+全零查询回退完整距离扫描，避免 LUT 的零范围除法。
+
+这版保留原有行记录，在额外数据段保存粗筛码，以兼容向量读取和合并流程。
+额外空间约为每个完整块 `32 × (padded_dim / 8 + 16)` 字节；768 维约
+112 字节/向量，100 万向量约 107 MiB，另有尾块填充。构建时暂存该粗筛段，
+还需相应内存和容器扩容余量。后续可再将两类编码合并为独立的存储布局。
+多位精算沿用现有完整距离计算；1-bit 模式直接使用高精度 LUT 粗估距离，
+与旧单记录估计器可能存在小幅数值差异。下界筛选仍需评估召回率。
+
+`ivf_block_scan_test` 在通用平台验证筛选、过滤、分组、尾块、三种存储、
+并发查询、旧文件回退和损坏数据段。`turbo_rabitq_quantizer_test` 在支持
+RaBitQ 的平台对照独立批量编码器和估计器验证布局与数值，涵盖 1/7/9 bit、
+L2/IP/Cosine 和大于 1024 维的情况。
+
+```sh
+cmake --build build --target ivf_block_scan_test turbo_rabitq_quantizer_test ivf_rabitq_index_test
+ctest --test-dir build --output-on-failure -R '^(ivf_block_scan_test|turbo_rabitq_quantizer_test|ivf_rabitq_index_test)$'
+```
+
+复测报告中的 cohere1M 时，需重建 Turbo IVF 索引并保持数据、线程数、
+`nlist`、`nprobe`、位数和计时方式一致，同时报告 QPS、recall、索引体积和内存。
 运行时、召回率及性能需要在支持 RaBitQ 的 Linux x86_64 机器上验证，
 macOS 编译和通用 IVF 测试不能替代 SIMD 路径验证。

@@ -84,6 +84,18 @@ struct DistanceEstimate {
   float lower_bound;
 };
 
+//! Query-local state for an optional 32-lane posting accelerator. The packed
+//! block contains coarse codes only; refinement consumes the original row.
+//! Implementations own their query bytes and must not retain storage pointers.
+class BlockScanner {
+ public:
+  virtual ~BlockScanner() = default;
+  virtual int estimate(const void *block, size_t count,
+                       DistanceEstimate *out) const = 0;
+  virtual float refine(const void *row,
+                       const DistanceEstimate &estimate) const = 0;
+};
+
 class Quantizer {
  public:
   typedef std::shared_ptr<Quantizer> Pointer;
@@ -237,6 +249,19 @@ class Quantizer {
   virtual DistanceImpl distance(const void * /*query*/,
                                 const IndexQueryMeta & /*qmeta*/) const {
     return DistanceImpl{};
+  }
+
+  //! Optional, versioned auxiliary layout. Zero disables packed scanning.
+  //! pack_scan_block accepts 1..32 row-major codes and zero-pads unused lanes.
+  virtual size_t scan_block_size() const {
+    return 0;
+  }
+  virtual int pack_scan_block(const void *, size_t, size_t, void *) const {
+    return kErrUnsupported;
+  }
+  virtual std::unique_ptr<BlockScanner> block_scanner(
+      const DistanceImpl &) const {
+    return nullptr;
   }
 
   //! Convert an internal distance into the caller-facing score in place

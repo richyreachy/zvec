@@ -120,6 +120,7 @@ TEST_P(IVFRabitqIntegrationTest, TrainSearchAndReopen) {
       0, core::IndexHelper::DeserializeFromStorage(storage.get(), &persisted));
   EXPECT_EQ("RabitqQuantizer", persisted.quantizer_name());
   EXPECT_NE(nullptr, storage->get(core::IVF_TURBO_QUANTIZER_SEG_ID));
+  EXPECT_NE(nullptr, storage->get(core::IVF_TURBO_SCAN_SEG_ID));
   ASSERT_EQ(0, storage->close());
   auto query = IVFQueryParamBuilder().with_topk(5).with_nprobe(4).build();
   SearchResult before;

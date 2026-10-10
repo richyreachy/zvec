@@ -11,11 +11,15 @@
 
 #include "rabitq_quantizer.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <limits>
 #include <rabitqlib/quantization/rabitq_impl.hpp>
 #if RABITQ_SUPPORTED
+#include <rabitqlib/fastscan/highacc_fastscan.hpp>
+#include <rabitqlib/index/query.hpp>
+#include <rabitqlib/quantization/data_layout.hpp>
 #include <rabitqlib/utils/space.hpp>
 #include <rabitqlib/utils/warmup_space.hpp>
 #endif
@@ -694,6 +698,140 @@ DistanceImpl RabitqQuantizer::distance(const void *query,
   return DistanceImpl(
       single, batch,
       std::string(static_cast<const char *>(query), meta.element_size()), dim_);
+}
+
+// Auxiliary v1 layout: 32 cluster IDs followed by rabitqlib BatchDataMap.
+// Rows may belong to different model centroids even within one IVF list.
+size_t RabitqQuantizer::scan_block_size() const {
+#if RABITQ_SUPPORTED
+  return 32 * sizeof(uint32_t) +
+         rabitqlib::BatchDataMap<float>::data_bytes(padded_dim_);
+#else
+  return 0;
+#endif
+}
+
+int RabitqQuantizer::pack_scan_block(const void *rows, size_t count,
+                                     size_t stride, void *output) const {
+#if RABITQ_SUPPORTED
+  if (!rows || !output || !count || count > 32 ||
+      stride < quantized_datapoint_vector_length())
+    return kErrInvalidArgument;
+  std::memset(output, 0, scan_block_size());
+  auto *out = static_cast<char *>(output);
+  rabitqlib::BatchDataMap<float> batch(out + 32 * sizeof(uint32_t),
+                                       padded_dim_);
+  std::vector<uint8_t> codes(count * padded_dim_ / 8);
+  for (size_t i = 0; i < count; ++i) {
+    const auto *row = static_cast<const char *>(rows) + i * stride;
+    const uint32_t cluster = ReadUint(row);
+    if (cluster >= centroids_.size() / padded_dim_) return kErrInvalidArgument;
+    std::memcpy(out + i * sizeof(cluster), &cluster, sizeof(cluster));
+    const char *bin = row + kBinPrefix;
+    // Single-record codes pack into uint64_t, FastScan packs into uint8_t.
+    // Extract bytes in dimension order, independently of host endianness.
+    for (int j = 0; j < padded_dim_ / 8; ++j) {
+      uint64_t word;
+      std::memcpy(&word, bin + (j / 8) * sizeof(word), sizeof(word));
+      codes[i * padded_dim_ / 8 + j] = word >> (56 - 8 * (j % 8));
+    }
+    batch.f_add()[i] = ReadFloat(bin, padded_dim_ / 8);
+    batch.f_rescale()[i] = ReadFloat(bin, padded_dim_ / 8 + 4);
+    batch.f_error()[i] = ReadFloat(bin, padded_dim_ / 8 + 8);
+  }
+  rabitqlib::fastscan::pack_codes(padded_dim_, codes.data(), count,
+                                  batch.bin_code());
+  return 0;
+#else
+  (void)rows;
+  (void)count;
+  (void)stride;
+  (void)output;
+  return kErrUnsupported;
+#endif
+}
+
+#if RABITQ_SUPPORTED
+namespace {
+class RabitqBlockScanner final : public BlockScanner {
+ public:
+  RabitqBlockScanner(const DistanceImpl &distance, size_t dim, size_t clusters,
+                     int bits, bool inner_product)
+      : distance_(distance),
+        dim_(dim),
+        clusters_(clusters),
+        bits_(bits),
+        ip_(inner_product),
+        query_(
+            reinterpret_cast<const float *>(distance_.query_storage().data()),
+            dim, bits - 1) {}
+
+  int estimate(const void *block, size_t count,
+               DistanceEstimate *out) const override {
+    if (!block || !out || count > 32) return kErrInvalidArgument;
+    const auto *bytes = static_cast<const char *>(block);
+    rabitqlib::ConstBatchDataMap<float> batch(bytes + 32 * sizeof(uint32_t),
+                                              dim_);
+    // Like split_batch_estdist, accumulate in <=1024-dimension chunks to
+    // avoid overflowing the 16-bit SIMD accumulators. No per-block allocation.
+    std::array<int32_t, 32> sums{}, chunk;
+    for (size_t d = 0; d < dim_; d += 1024) {
+      rabitqlib::fastscan::accumulate_hacc(batch.bin_code() + d * 4,
+                                           query_.lut() + d * 8, chunk.data(),
+                                           std::min(size_t(1024), dim_ - d));
+      for (size_t i = 0; i < 32; ++i) sums[i] += chunk[i];
+    }
+    const auto *scalars = reinterpret_cast<const float *>(
+        distance_.query_storage().data() + dim_ * sizeof(float) + dim_ / 2);
+    const float *g_add = scalars + 4;
+    const float *g_error = g_add + clusters_;
+    for (size_t i = 0; i < count; ++i) {
+      const uint32_t c = ReadUint(bytes + i * sizeof(uint32_t));
+      if (c >= clusters_) return kErrInvalidArgument;
+      const float dot = query_.delta() * sums[i] + query_.sum_vl_lut();
+      const float score = batch.f_add()[i] + g_add[c] +
+                          batch.f_rescale()[i] * (dot + query_.k1xsumq()) -
+                          (ip_ ? 1 : 0);
+      out[i] = {score,
+                bits_ == 1 ? score : score - batch.f_error()[i] * g_error[c]};
+    }
+    return 0;
+  }
+
+  float refine(const void *row, const DistanceEstimate &coarse) const override {
+    // Preserve the existing full-bit score. Only surviving rows pay for it.
+    return bits_ == 1 ? coarse.distance : distance_(row);
+  }
+
+ private:
+  DistanceImpl distance_;
+  size_t dim_, clusters_;
+  int bits_;
+  bool ip_;
+  rabitqlib::SplitBatchQuery<float> query_;
+};
+}  // namespace
+#endif
+
+std::unique_ptr<BlockScanner> RabitqQuantizer::block_scanner(
+    const DistanceImpl &distance) const {
+#if RABITQ_SUPPORTED
+  if (!distance.valid() ||
+      distance.query_storage().size() != quantized_query_vector_length())
+    return nullptr;
+  // The upstream LUT encoder divides by its range; a zero query has no range.
+  const auto *q =
+      reinterpret_cast<const float *>(distance.query_storage().data());
+  bool nonzero = false;
+  for (int i = 0; i < padded_dim_; ++i) nonzero |= q[i] != 0;
+  if (!nonzero) return nullptr;
+  return std::make_unique<RabitqBlockScanner>(
+      distance, padded_dim_, num_clusters_, bits_,
+      metric_ == MetricType::kInnerProduct);
+#else
+  (void)distance;
+  return nullptr;
+#endif
 }
 
 int RabitqQuantizer::serialize(std::string *out) const {

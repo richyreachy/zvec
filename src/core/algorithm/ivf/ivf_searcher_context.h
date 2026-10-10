@@ -84,12 +84,18 @@ class IVFSearcherContext : public IndexSearcher::Context {
   IVFEntity::CandidateVisitor candidate_visitor() {
     group_heaps_.clear();
     if (!group_count_ || !group_topk_ || !group_by().is_valid()) return {};
-    return [this](uint64_t key, float score) {
-      if (!(score <= threshold())) return;
-      const auto group = group_by()(key);
-      auto entry = group_heaps_.try_emplace(group, group_topk_);
-      entry.first->second.emplace(key, score);
-    };
+    return {[this](uint64_t key, float score) {
+              if (!(score <= threshold())) return;
+              const auto group = group_by()(key);
+              auto entry = group_heaps_.try_emplace(group, group_topk_);
+              entry.first->second.emplace(key, score);
+            },
+            [this](uint64_t key) {
+              auto entry = group_heaps_.find(group_by()(key));
+              return entry != group_heaps_.end() && entry->second.full()
+                         ? std::min(threshold(), entry->second.begin()->score())
+                         : threshold();
+            }};
   }
 
   //! Update the parameters of context
