@@ -119,3 +119,25 @@ ctest --test-dir build --output-on-failure -R '^(ivf_block_scan_test|turbo_rabit
 `nlist`、`nprobe`、位数和计时方式一致，同时报告 QPS、recall、索引体积和内存。
 运行时、召回率及性能需要在支持 RaBitQ 的 Linux x86_64 机器上验证，
 macOS 编译和通用 IVF 测试不能替代 SIMD 路径验证。
+
+后续扫描优化不改变量化编码、距离计算或文件格式，可直接复用已有
+`ivf.turbo_scan.v1` 索引，无需重新构建。mmap 存储直接访问映射中的
+keys、粗筛码和行记录；分页及文件读取使用可复用的窗口缓冲区，每窗口
+最多 32 个块且粗筛数据不超过 64 KiB（单块超过上限时单独读取）。
+完整行仍仅在块中存在通过下界筛选的候选时读取；整窗口被过滤时不读粗筛码。
+普通查询还省去逐候选的过滤/分组分支，并缓存随 top-k 更新的阈值。
+
+内部诊断接口 `IVFSearcherContext::entity()->packed_scan_stats()` 提供
+`coarse_count`、`refined_count`、`key_reads`、`coarse_reads`、`row_reads`
+和 `coarse_copy_bytes`。统计随 `bind_query()` 重置，累计该查询扫描的列表；
+批量查询结束后仅保留最后一个查询，评测需逐查询汇总。
+读取次数是扫描器发起的逻辑读取调用数，不代表系统调用、缺页或物理磁盘 I/O；
+mmap 直接访问的这几项读取计数为零。`refined_count` 是精算接口调用数，
+1-bit 模式该接口直接返回粗估分数。
+
+同索引召回率对照可在查询前调用
+`IVFSearcherContext::entity()->set_packed_scan_pruning(false)`，关闭下界剪枝，
+保留相同的编码、查询估计器和扫描顺序，对所有未过滤的有效候选调用精算。
+该开关默认开启，查询绑定不改变设置，clone 继承设置；对照完成后设回 `true`。
+它只用于内部诊断，尚未暴露为公开查询参数。比较同一索引剪枝开关的 top-k
+及 recall，再比较优化前后的 QPS，可以分别检查召回率损失和读取优化收益。

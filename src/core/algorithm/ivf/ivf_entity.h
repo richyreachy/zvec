@@ -51,6 +51,25 @@ class IVFEntity {
     return quantizer_;
   }
 
+  // Query-local diagnostics, reset by bind_query(). No timers or allocations
+  // in the candidate loop. Batched queries expose the last bound query.
+  struct PackedScanStats {
+    size_t coarse_count{0};
+    size_t refined_count{0};
+    size_t key_reads{0};
+    size_t coarse_reads{0};
+    size_t row_reads{0};
+    size_t coarse_copy_bytes{0};
+  };
+  const PackedScanStats &packed_scan_stats() const {
+    return packed_scan_stats_;
+  }
+  // Diagnostic A/B switch: keep the same codes, candidates and distance
+  // estimators, but refine every unfiltered candidate when disabled.
+  void set_packed_scan_pruning(bool enabled) {
+    packed_scan_pruning_ = enabled;
+  }
+
   struct CandidateVisitor {
     std::function<void(uint64_t, float)> consume;
     // Threshold in internal distance units for this candidate's group.
@@ -415,6 +434,15 @@ class IVFEntity {
                     uint32_t *scan_count, IndexDocumentHeap *heap,
                     IndexContext::Stats *stats,
                     const CandidateVisitor &visitor) const;
+  template <bool HasFilter, bool HasVisitor>
+  int search_packed_impl(size_t list_id, const IndexFilter *filter,
+                         uint32_t *scan_count, IndexDocumentHeap *heap,
+                         IndexContext::Stats *stats,
+                         const CandidateVisitor &visitor) const;
+  mutable PackedScanStats packed_scan_stats_{};
+  bool packed_scan_pruning_{true};
+  mutable std::vector<uint64_t> scan_keys_{};
+  mutable std::vector<char> scan_buffer_{};
   IndexStorage::Pointer container_{};
   IndexStorage::Segment::Pointer inverted_{};
   IndexStorage::Segment::Pointer inverted_meta_{};

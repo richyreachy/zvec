@@ -120,6 +120,7 @@ TEST(IVFBlockScan, StorageFallbackFiltersGroupsAndQueryIsolation) {
         IndexQueryMeta qmeta(IndexMeta::DT_FP32, kDim);
         ASSERT_EQ(0, entity.bind_query(query.data(), qmeta));
         for (bool filtered : {false, true}) {
+          ASSERT_EQ(0, entity.bind_query(query.data(), qmeta));
           IndexDocumentHeap heap(5);
           IndexContext::Stats stats;
           IndexFilter filter;
@@ -136,7 +137,57 @@ TEST(IVFBlockScan, StorageFallbackFiltersGroupsAndQueryIsolation) {
             EXPECT_FLOAT_EQ(doc.key() * doc.key(), doc.score());
             if (filtered) EXPECT_EQ(1u, doc.key() % 2);
           }
-          if (packed) EXPECT_EQ(5u, refinements.load());
+          if (packed) {
+            EXPECT_EQ(5u, refinements.load());
+            const auto &scan = entity.packed_scan_stats();
+            EXPECT_EQ(5u, scan.refined_count);
+            EXPECT_GT(scan.coarse_count, 0u);
+            if (std::strcmp(storage_type, "MMapFileReadStorage") == 0) {
+              EXPECT_EQ(0u, scan.key_reads);
+              EXPECT_EQ(0u, scan.coarse_reads);
+              EXPECT_EQ(0u, scan.row_reads);
+              EXPECT_EQ(0u, scan.coarse_copy_bytes);
+            } else {
+              const size_t blocks1 = (37 + block_size - 1) / block_size;
+              const size_t blocks3 =
+                  (kCount - 37 + block_size - 1) / block_size;
+              const size_t windows = (blocks1 + 31) / 32 + (blocks3 + 31) / 32;
+              EXPECT_EQ(windows, scan.key_reads);
+              EXPECT_LE(scan.coarse_reads, windows);
+              EXPECT_GT(scan.coarse_reads, 0u);
+              EXPECT_LT(scan.coarse_reads, blocks1 + blocks3);
+              EXPECT_LE(scan.coarse_copy_bytes,
+                        (blocks1 + blocks3) * 32 * sizeof(float));
+            }
+          }
+        }
+        if (packed) {
+          // An all-rejected window must not fetch coarse codes or full rows.
+          ASSERT_EQ(0, entity.bind_query(query.data(), qmeta));
+          IndexFilter reject_all;
+          reject_all.set([](uint64_t) { return true; });
+          IndexDocumentHeap heap(5);
+          IndexContext::Stats stats;
+          ASSERT_EQ(0, entity.search(query.data(), reject_all, &heap, &stats));
+          EXPECT_EQ(kCount, stats.filtered_count());
+          EXPECT_EQ(0u, entity.packed_scan_stats().coarse_count);
+          EXPECT_EQ(0u, entity.packed_scan_stats().coarse_reads);
+          EXPECT_EQ(0u, entity.packed_scan_stats().row_reads);
+          EXPECT_EQ(0u, entity.packed_scan_stats().refined_count);
+          // Same-index A/B reference: identical top-k with pruning disabled.
+          entity.set_packed_scan_pruning(false);
+          ASSERT_EQ(0, entity.bind_query(query.data(), qmeta));
+          ASSERT_EQ(0, entity.search(query.data(), &heap, &stats));
+          EXPECT_EQ(kCount, entity.packed_scan_stats().refined_count);
+          EXPECT_EQ(kCount, entity.packed_scan_stats().coarse_count);
+          ASSERT_EQ(5u, heap.size());
+          for (const auto &doc : heap) {
+            EXPECT_LT(doc.key(), 5u);
+            EXPECT_FLOAT_EQ(doc.key() * doc.key(), doc.score());
+          }
+          entity.set_packed_scan_pruning(true);
+          ASSERT_EQ(0, entity.bind_query(query.data(), qmeta));
+          EXPECT_EQ(0u, entity.packed_scan_stats().refined_count);
         }
         // A global top-k threshold would incorrectly suppress later groups.
         std::map<uint64_t, IndexDocumentHeap> groups;
@@ -168,6 +219,7 @@ TEST(IVFBlockScan, StorageFallbackFiltersGroupsAndQueryIsolation) {
         for (size_t t = 0; t < 3; ++t) {
           auto clone = entity.clone();
           ASSERT_NE(nullptr, clone);
+          EXPECT_EQ(0u, clone->packed_scan_stats().refined_count);
           threads.emplace_back([clone, t, qmeta] {
             for (size_t key : {t, kCount - 1 - t}) {
               std::vector<float> q(kDim, 0);

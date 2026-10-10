@@ -705,6 +705,7 @@ int IVFEntity::load_quantizer(const IndexStorage::Pointer &container) {
 }
 
 int IVFEntity::bind_query(const void *query, const IndexQueryMeta &qmeta) {
+  packed_scan_stats_ = {};
   block_scanner_.reset();
   if (!quantizer_) {
     return 0;
@@ -728,6 +729,7 @@ int IVFEntity::bind_query(const void *query, const IndexQueryMeta &qmeta) {
 }
 
 int IVFEntity::load(const IndexStorage::Pointer &container) {
+  packed_scan_stats_ = {};
   block_scanner_.reset();
   scan_blocks_.reset();
   scan_list_offsets_.reset();
@@ -1076,91 +1078,175 @@ int IVFEntity::search(size_t inverted_list_id, const void *query,
   return 0;
 }
 
-// Scan coarse blocks first, then touch full records only for surviving blocks.
-// Keys and coarse bytes are copied before pinning posting pages: storage-backed
-// pointers may be invalidated by another segment read with a small buffer pool.
 int IVFEntity::search_packed(size_t list_id, const IndexFilter *filter,
                              uint32_t *scan_count, IndexDocumentHeap *heap,
                              IndexContext::Stats *stats,
                              const CandidateVisitor &visitor) const {
+  if (filter && filter->is_valid()) {
+    return visitor ? search_packed_impl<true, true>(list_id, filter, scan_count,
+                                                    heap, stats, visitor)
+                   : search_packed_impl<true, false>(
+                         list_id, filter, scan_count, heap, stats, visitor);
+  }
+  return visitor ? search_packed_impl<false, true>(list_id, nullptr, scan_count,
+                                                   heap, stats, visitor)
+                 : search_packed_impl<false, false>(
+                       list_id, nullptr, scan_count, heap, stats, visitor);
+}
+
+// Stable mappings are scanned in place. Other backends fetch coarse codes and
+// keys into bounded, reusable windows, releasing page pins before refinement.
+// Full posting pages are still read only for blocks with surviving candidates.
+template <bool HasFilter, bool HasVisitor>
+int IVFEntity::search_packed_impl(size_t list_id, const IndexFilter *filter,
+                                  uint32_t *scan_count, IndexDocumentHeap *heap,
+                                  IndexContext::Stats *stats,
+                                  const CandidateVisitor &visitor) const {
   if (list_id >= header_.inverted_list_count) return IndexError_OutOfRange;
   const auto *stored_meta = inverted_list_meta(list_id);
   if (!stored_meta) return IndexError_ReadData;
   const auto list = *stored_meta;
+  *scan_count = 0;
+  if (!list.vector_count) return 0;
   const size_t packed_size = quantizer_->scan_block_size();
   const size_t stride = meta_.element_size();
-  std::vector<char> packed(packed_size);
-  scatter_vector_.resize(stride);
-  const auto threshold = [&](uint64_t key) {
-    if (visitor)
-      return visitor.threshold ? visitor.threshold(key)
-                               : std::numeric_limits<float>::infinity();
-    return heap->full() ? heap->begin()->score()
-                        : std::numeric_limits<float>::infinity();
+  const size_t block_vecs = header_.block_vector_count;
+  const size_t coarse_offset = (*scan_list_offsets_)[list_id] * packed_size;
+  const size_t key_offset = size_t(list.id_offset) * sizeof(uint64_t);
+  const size_t row_bytes =
+      size_t(list.block_count - 1) * header_.block_size +
+      (size_t(list.vector_count) - size_t(list.block_count - 1) * block_vecs) *
+          stride;
+  const auto fits = [](size_t offset, size_t length, size_t total) {
+    return offset <= total && length <= total - offset;
   };
-  for (size_t b = 0; b < list.block_count; ++b) {
-    const size_t id = list.id_offset + b * header_.block_vector_count;
-    const size_t count =
-        std::min(size_t(header_.block_vector_count),
-                 list.vector_count - b * header_.block_vector_count);
-    std::array<uint64_t, 32> keys;
-    const auto *source_keys = get_keys(id, count);
-    if (!source_keys) return IndexError_ReadData;
-    std::copy_n(source_keys, count, keys.data());
-    uint32_t keeps = 0;
-    for (size_t i = 0; i < count; ++i) {
-      if (keys[i] == kInvalidKey) continue;
-      if (filter && (*filter)(keys[i])) {
-        ++(*stats->mutable_filtered_count());
-      } else {
+  // The direct path bypasses Segment::read's range checks, so validate all
+  // three list ranges once before constructing any mapped pointers.
+  if (!fits(coarse_offset, size_t(list.block_count) * packed_size,
+            scan_blocks_->data_size()) ||
+      !fits(key_offset, size_t(list.vector_count) * sizeof(uint64_t),
+            keys_->data_size()) ||
+      !fits(list.offset, row_bytes, inverted_->data_size()))
+    return IndexError_InvalidFormat;
+  const auto *coarse_base = scan_blocks_->base_data();
+  const auto *key_base = keys_->base_data();
+  const auto *row_base = inverted_->base_data();
+  // At most 32 blocks and 64 KiB of coarse data. A single larger block is
+  // allowed by the capability contract; RaBitQ blocks fit within 17 KiB.
+  const size_t window_blocks =
+      std::min(size_t(32), std::max(size_t(1), size_t(65536) / packed_size));
+  if (!coarse_base) scan_buffer_.resize(window_blocks * packed_size);
+  if (!key_base) scan_keys_.resize(window_blocks * block_vecs);
+  if (!row_base) scatter_vector_.resize(stride);
+  float worst = heap->full() ? heap->begin()->score()
+                             : std::numeric_limits<float>::infinity();
+  const auto rejected = [&](uint64_t key, float lower_bound) {
+    if (!packed_scan_pruning_) return false;
+    if constexpr (HasVisitor) {
+      return visitor.threshold && lower_bound > visitor.threshold(key);
+    } else {
+      return lower_bound > worst;
+    }
+  };
+  for (size_t first = 0; first < list.block_count; first += window_blocks) {
+    const size_t blocks = std::min(window_blocks, list.block_count - first);
+    const size_t items =
+        std::min(blocks * block_vecs, list.vector_count - first * block_vecs);
+    const size_t key_off = key_offset + first * block_vecs * sizeof(uint64_t);
+    const uint64_t *window_keys;
+    if (key_base) {
+      window_keys = reinterpret_cast<const uint64_t *>(key_base + key_off);
+    } else {
+      const size_t bytes = items * sizeof(uint64_t);
+      ++packed_scan_stats_.key_reads;
+      if (keys_->fetch(key_off, scan_keys_.data(), bytes) != bytes)
+        return IndexError_ReadData;
+      window_keys = scan_keys_.data();
+    }
+    // Delay coarse I/O until the first unfiltered candidate in the window.
+    bool coarse_loaded = false;
+    for (size_t b = 0; b < blocks; ++b) {
+      const size_t block_id = first + b;
+      const size_t id = list.id_offset + block_id * block_vecs;
+      const size_t count = std::min(block_vecs, items - b * block_vecs);
+      const uint64_t *keys = window_keys + b * block_vecs;
+      uint32_t keeps = 0;
+      for (size_t i = 0; i < count; ++i) {
+        if (keys[i] == kInvalidKey) continue;
+        if constexpr (HasFilter) {
+          if ((*filter)(keys[i])) {
+            ++(*stats->mutable_filtered_count());
+            continue;
+          }
+        }
         keeps |= uint32_t(1) << i;
       }
-    }
-    if (!keeps) continue;
-    {
-      IndexStorage::Segment::ScatterBlock spans;
-      const size_t off = ((*scan_list_offsets_)[list_id] + b) * packed_size;
-      if (scan_blocks_->read_scatter(off, spans, packed_size) != packed_size)
-        return IndexError_ReadData;
-      ScatterCursor cursor(spans);
-      if (!cursor.copy(packed.data(), packed_size)) return IndexError_ReadData;
-    }
-    std::array<turbo::DistanceEstimate, 32> estimates;
-    int ret = block_scanner_->estimate(packed.data(), count, estimates.data());
-    if (ret != 0) return IndexError_InvalidFormat;
-    *(stats->mutable_dist_calced_count()) += count;
-    for (size_t i = 0; i < count; ++i) {
-      // NaNs are conservatively refined. Equality is retained for score ties
-      // and inclusive user thresholds.
-      if ((keeps & (uint32_t(1) << i)) &&
-          estimates[i].lower_bound > threshold(keys[i]))
-        keeps &= ~(uint32_t(1) << i);
-    }
-    if (!keeps) continue;
-    const size_t off = list.offset + b * header_.block_size;
-    IndexStorage::Segment::ScatterBlock rows;
-    if (inverted_->read_scatter(off, rows, count * stride) != count * stride)
-      return IndexError_ReadData;
-    ScatterCursor cursor(rows);
-    for (size_t i = 0; i < count; ++i) {
-      if (!(keeps & (uint32_t(1) << i)) ||
-          estimates[i].lower_bound > threshold(keys[i])) {
-        if (!cursor.skip(stride)) return IndexError_ReadData;
-        continue;
-      }
-      float score;
-      if (cursor.contiguous_size() >= stride) {
-        score = block_scanner_->refine(cursor.data(), estimates[i]);
-        if (!cursor.skip(stride)) return IndexError_ReadData;
+      if (!keeps) continue;
+      const void *packed;
+      if (coarse_base) {
+        packed = coarse_base + coarse_offset + block_id * packed_size;
       } else {
-        if (!cursor.copy(scatter_vector_.data(), stride))
-          return IndexError_ReadData;
-        score = block_scanner_->refine(scatter_vector_.data(), estimates[i]);
+        if (!coarse_loaded) {
+          const size_t bytes = blocks * packed_size;
+          ++packed_scan_stats_.coarse_reads;
+          if (scan_blocks_->fetch(coarse_offset + first * packed_size,
+                                  scan_buffer_.data(), bytes) != bytes)
+            return IndexError_ReadData;
+          packed_scan_stats_.coarse_copy_bytes += bytes;
+          coarse_loaded = true;
+        }
+        packed = scan_buffer_.data() + b * packed_size;
       }
-      if (visitor)
-        visitor(keys[i], score);
-      else
-        heap->emplace(keys[i], score, id + i);
+      std::array<turbo::DistanceEstimate, 32> estimates;
+      int ret = block_scanner_->estimate(packed, count, estimates.data());
+      if (ret != 0) return IndexError_InvalidFormat;
+      *(stats->mutable_dist_calced_count()) += count;
+      packed_scan_stats_.coarse_count += count;
+      const auto consume = [&](const void *row, size_t i) {
+        const float score = block_scanner_->refine(row, estimates[i]);
+        ++packed_scan_stats_.refined_count;
+        if constexpr (HasVisitor) {
+          visitor(keys[i], score);
+        } else {
+          heap->emplace(keys[i], score, id + i);
+          if (heap->full()) worst = heap->begin()->score();
+        }
+      };
+      const size_t off = list.offset + block_id * header_.block_size;
+      if (row_base) {
+        // No preliminary mask pass is needed when row access has no I/O cost.
+        for (size_t i = 0; i < count; ++i) {
+          if ((keeps & (uint32_t(1) << i)) &&
+              !rejected(keys[i], estimates[i].lower_bound))
+            consume(row_base + off + i * stride, i);
+        }
+      } else {
+        for (size_t i = 0; i < count; ++i) {
+          if ((keeps & (uint32_t(1) << i)) &&
+              rejected(keys[i], estimates[i].lower_bound))
+            keeps &= ~(uint32_t(1) << i);
+        }
+        if (!keeps) continue;
+        IndexStorage::Segment::ScatterBlock rows;
+        ++packed_scan_stats_.row_reads;
+        if (inverted_->read_scatter(off, rows, count * stride) !=
+            count * stride)
+          return IndexError_ReadData;
+        ScatterCursor cursor(rows);
+        for (size_t i = 0; i < count; ++i) {
+          if (!(keeps & (uint32_t(1) << i)) ||
+              rejected(keys[i], estimates[i].lower_bound)) {
+            if (!cursor.skip(stride)) return IndexError_ReadData;
+          } else if (cursor.contiguous_size() >= stride) {
+            consume(cursor.data(), i);
+            if (!cursor.skip(stride)) return IndexError_ReadData;
+          } else {
+            if (!cursor.copy(scatter_vector_.data(), stride))
+              return IndexError_ReadData;
+            consume(scatter_vector_.data(), i);
+          }
+        }
+      }
     }
   }
   *scan_count = list.vector_count;
@@ -1396,6 +1482,8 @@ IVFEntity::Pointer IVFEntity::clone(const IVFEntity::Pointer &entity) const {
   entity->quantizer_ = this->quantizer_;
   entity->query_distance_ = turbo::DistanceImpl{};
   entity->block_scanner_.reset();
+  entity->packed_scan_stats_ = {};
+  entity->packed_scan_pruning_ = packed_scan_pruning_;
   entity->scan_blocks_ = scan_blocks_ ? scan_blocks_->clone() : nullptr;
   if (scan_blocks_ && !entity->scan_blocks_) return nullptr;
   entity->scan_list_offsets_ = scan_list_offsets_;

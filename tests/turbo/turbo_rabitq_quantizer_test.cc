@@ -437,6 +437,7 @@ TEST(RabitqQuantizer, PackedScanUsesEachRowsModelCentroid) {
     IndexMeta meta(IndexMeta::DT_FP32, dim);
     meta.set_metric(metric, 0, ailego::Params{});
     ailego::Params params;
+    params.set(RABITQ_TOTAL_BITS, 7);
     params.set(RABITQ_NUM_CLUSTERS, clusters);
     RabitqQuantizer quantizer;
     ASSERT_EQ(0, quantizer.init(meta, params));
@@ -475,26 +476,35 @@ TEST(RabitqQuantizer, PackedScanUsesEachRowsModelCentroid) {
     ASSERT_EQ(0, scanner->estimate(block.data(), 17, estimates));
     const auto *scalars = reinterpret_cast<const float *>(
         encoded.data() + padded * sizeof(float) + padded / 2);
-    for (size_t i = 0; i < 17; ++i) {
-      const char *row = rows.data() + i * stride;
-      uint32_t cluster;
-      std::memcpy(&cluster, row, sizeof(cluster));
-      ASSERT_LT(cluster, clusters);
-      if (i < clusters) EXPECT_EQ(i, cluster);
-      float factors[3];
-      std::memcpy(factors, row + 8 + padded / 8, sizeof(factors));
-      const float dot = rabitqlib::mask_ip_x0_q(
-          reinterpret_cast<const float *>(encoded.data()),
-          reinterpret_cast<const uint64_t *>(row + 8), padded);
-      float expected = factors[0] + scalars[4 + cluster] +
-                       factors[1] * (dot + scalars[2]) -
-                       (std::strcmp(metric, "InnerProduct") == 0 ? 1 : 0);
-      float lower = expected - factors[2] * scalars[4 + clusters + cluster];
-      const float tolerance = 1e-4f * std::max(1.0f, std::abs(expected));
-      EXPECT_NEAR(expected, estimates[i].distance, tolerance);
-      EXPECT_NEAR(lower, estimates[i].lower_bound, tolerance);
-      EXPECT_FLOAT_EQ(quantizer.calc_distance_dp_query(row, encoded.data()),
-                      scanner->refine(row, estimates[i]));
+    const auto library_metric = std::strcmp(metric, "SquaredEuclidean") == 0
+                                    ? rabitqlib::METRIC_L2
+                                    : rabitqlib::METRIC_IP;
+    rabitqlib::SplitBatchQuery<float> reference_query(
+        reinterpret_cast<const float *>(encoded.data()), padded, 6,
+        library_metric, true);
+    // The reference uses the same 16-bit LUT estimator, rather than comparing
+    // it with an exact floating-point dot product at an arbitrary tolerance.
+    // Evaluate each model centroid independently, then select its own lanes.
+    for (uint32_t c = 0; c < clusters; ++c) {
+      reference_query.set_g_add(scalars[4 + clusters + c], -scalars[4 + c]);
+      float expected[32], lower[32], dot[32];
+      rabitqlib::split_batch_estdist(block.data() + 32 * sizeof(uint32_t),
+                                     reference_query, padded, expected, lower,
+                                     dot, true);
+      for (size_t i = 0; i < 17; ++i) {
+        const char *row = rows.data() + i * stride;
+        uint32_t cluster;
+        std::memcpy(&cluster, row, sizeof(cluster));
+        ASSERT_LT(cluster, clusters);
+        if (i < clusters) EXPECT_EQ(i, cluster);
+        if (cluster != c) continue;
+        const float offset = std::strcmp(metric, "InnerProduct") == 0 ? 1 : 0;
+        const float tolerance = 1e-5f * std::max(1.0f, std::abs(expected[i]));
+        EXPECT_NEAR(expected[i] - offset, estimates[i].distance, tolerance);
+        EXPECT_NEAR(lower[i] - offset, estimates[i].lower_bound, tolerance);
+        EXPECT_FLOAT_EQ(quantizer.calc_distance_dp_query(row, encoded.data()),
+                        scanner->refine(row, estimates[i]));
+      }
     }
   }
 }
