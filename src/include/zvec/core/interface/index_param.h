@@ -183,6 +183,32 @@ struct PqQuantizerParam : public QuantizerParam {
       const ailego::JsonObject &json_obj) override;
 };
 
+//! RaBitQ parameters for the standard HNSW and IVF indexes. Rotation is
+//! intrinsic to RaBitQ; enable_rotate does not request a separate preprocessing
+//! stage.
+struct RabitqQuantizerParam : public QuantizerParam {
+  int total_bits = kDefaultRabitqTotalBits;
+  int num_clusters = 16;
+  int sample_count = 0;  // 0 trains on all provider vectors
+  int niters = 20;
+
+  explicit RabitqQuantizerParam(int bits = kDefaultRabitqTotalBits)
+      : QuantizerParam(QuantizerType::kRabitq), total_bits(bits) {}
+
+  QuantizerParam::Pointer clone() const override {
+    return std::make_shared<RabitqQuantizerParam>(*this);
+  }
+
+  //! Shared Turbo configuration, independent of the index algorithm.
+  ailego::Params to_params() const;
+
+ protected:
+  ailego::JsonObject serialize_to_json_object(
+      bool omit_empty_value = false) const override;
+  bool deserialize_from_json_object(
+      const ailego::JsonObject &json_obj) override;
+};
+
 // preprocessor
 enum class PreprocessorType {
   kNone,
@@ -381,6 +407,9 @@ struct ZVEC_CORE_API IVFIndexParam : public BaseIndexParam {
   using Pointer = std::shared_ptr<IVFIndexParam>;
   int nlist = 1024;
   int niters = 10;
+  // Used when quantizer_param->type == kRabitq.
+  int total_bits = kDefaultRabitqTotalBits;
+  int sample_count = 0;
   std::shared_ptr<BaseIndexParam> l1_index = nullptr;
   std::shared_ptr<BaseIndexParam> l2_index = nullptr;
   bool use_soar = false;
@@ -404,6 +433,12 @@ struct ZVEC_CORE_API IVFIndexParam : public BaseIndexParam {
 
   // IVFIndexParam.metric_type === l2Index's metric_type
   // IVFIndexParam.quantization === l2Index's quantization
+
+ protected:
+  bool deserialize_from_json_object(
+      const ailego::JsonObject &json_obj) override;
+  ailego::JsonObject serialize_to_json_object(
+      bool omit_empty_value = false) const override;
 };
 
 struct ZVEC_CORE_API HNSWIndexParam : public BaseIndexParam {

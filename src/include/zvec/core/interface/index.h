@@ -168,6 +168,10 @@ class ZVEC_CORE_API Index {
   }
 
  protected:
+  virtual bool supports_group_by() const {
+    return !is_group_by_unsupported_index(param_.index_type);
+  }
+
   int _sparse_fetch(const uint32_t doc_id,
                     VectorDataBuffer *vector_data_buffer);
   virtual int _dense_fetch(const uint32_t doc_id,
@@ -181,9 +185,10 @@ class ZVEC_CORE_API Index {
                      const BaseIndexQueryParam::Pointer &search_param,
                      SearchResult *result,
                      core::IndexContext::Pointer &context);
-  int _dense_search(const VectorData &query,
-                    const BaseIndexQueryParam::Pointer &search_param,
-                    SearchResult *result, core::IndexContext::Pointer &context);
+  virtual int _dense_search(const VectorData &query,
+                            const BaseIndexQueryParam::Pointer &search_param,
+                            SearchResult *result,
+                            core::IndexContext::Pointer &context);
   int _prepare_dense_query(const VectorData &query, std::string *query_storage,
                            const void **prepared_query,
                            core::IndexQueryMeta *prepared_meta);
@@ -312,7 +317,18 @@ class ZVEC_CORE_API IVFIndex : public Index {
   IVFIndex() = default;
 
  protected:
+  bool supports_group_by() const override {
+    return use_rabitq_;
+  }
+
+  int create_and_init_converter_reformer(
+      const QuantizerParam &param, const BaseIndexParam &index_param) override;
   int create_and_init_streamer(const BaseIndexParam &param) override;
+
+  int _dense_search(const VectorData &query,
+                    const BaseIndexQueryParam::Pointer &search_param,
+                    SearchResult *result,
+                    core::IndexContext::Pointer &context) override;
 
   int _prepare_for_search(const VectorData &query,
                           const BaseIndexQueryParam::Pointer &search_param,
@@ -332,6 +348,14 @@ class ZVEC_CORE_API IVFIndex : public Index {
   int generate_holder();
 
  private:
+  int load_streamer();
+  int restore_legacy_pipeline();
+  // Dedicated backend is used only to read existing legacy files.
+  bool legacy_rabitq_{false};
+  bool use_rabitq_{false};
+
+  std::shared_ptr<zvec::turbo::Quantizer> ivf_quantizer_{};
+
   enum class BuildStage { kCollecting, kTrained, kBuilt, kDumped };
 
   int reset_builder();

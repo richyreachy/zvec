@@ -13,9 +13,9 @@
 // limitations under the License.
 #pragma once
 
-#include <core/quantizer/quantizer_params.h>
+#include <functional>
+#include <turbo/quantizer/quantizer.h>
 #include <zvec/core/framework/index_framework.h>
-#include "metric/metric_params.h"
 #include "ivf_distance_calculator.h"
 #include "ivf_index_format.h"
 #include "ivf_params.h"
@@ -44,22 +44,65 @@ class IVFEntity {
   //! load the index from container
   virtual int load(const IndexStorage::Pointer &container);
 
+  //! Prepare the posting distance once per query, after centroid selection.
+  int bind_query(const void *query, const IndexQueryMeta &qmeta);
+
+  const turbo::Quantizer::Pointer &quantizer() const {
+    return quantizer_;
+  }
+
+  // Query-local diagnostics, reset by bind_query(). No timers or allocations
+  // in the candidate loop. Batched queries expose the last bound query.
+  struct PackedScanStats {
+    size_t coarse_count{0};
+    size_t refined_count{0};
+    size_t key_reads{0};
+    size_t coarse_reads{0};
+    size_t row_reads{0};
+    size_t coarse_copy_bytes{0};
+  };
+  const PackedScanStats &packed_scan_stats() const {
+    return packed_scan_stats_;
+  }
+  // Diagnostic A/B switch: keep the same codes, candidates and distance
+  // estimators, but refine every unfiltered candidate when disabled.
+  void set_packed_scan_pruning(bool enabled) {
+    packed_scan_pruning_ = enabled;
+  }
+
+  struct CandidateVisitor {
+    std::function<void(uint64_t, float)> consume;
+    // Threshold in internal distance units for this candidate's group.
+    // An absent callback disables pruning by the grouped result collector.
+    std::function<float(uint64_t)> threshold;
+    explicit operator bool() const {
+      return bool(consume);
+    }
+    void operator()(uint64_t key, float score) const {
+      consume(key, score);
+    }
+  };
+
   //! search in inverted list with filter
   int search(size_t inverted_list_id, const void *query,
              const IndexFilter &filter, uint32_t *scan_count,
-             IndexDocumentHeap *heap, IndexContext::Stats *context_stats) const;
+             IndexDocumentHeap *heap, IndexContext::Stats *context_stats,
+             const CandidateVisitor &visitor = {}) const;
 
   //! search in inverted list without filter
   int search(size_t inverted_list_id, const void *query, uint32_t *scan_count,
-             IndexDocumentHeap *heap, IndexContext::Stats *context_stats) const;
+             IndexDocumentHeap *heap, IndexContext::Stats *context_stats,
+             const CandidateVisitor &visitor = {}) const;
 
   //! search all inverted list with filter
   int search(const void *query, const IndexFilter &filter,
-             IndexDocumentHeap *heap, IndexContext::Stats *context_stats) const;
+             IndexDocumentHeap *heap, IndexContext::Stats *context_stats,
+             const CandidateVisitor &visitor = {}) const;
 
   //! search all inverted list without filter
   int search(const void *query, IndexDocumentHeap *heap,
-             IndexContext::Stats *context_stats) const;
+             IndexContext::Stats *context_stats,
+             const CandidateVisitor &visitor = {}) const;
 
   //! Clone the entity
   virtual IVFEntity::Pointer clone() const;
@@ -203,22 +246,38 @@ class IVFEntity {
   //! Transform a query
   int transform(const void *query, const IndexQueryMeta &qmeta,
                 const void **out, IndexQueryMeta *ometa) const {
+    if (quantizer_) {
+      *out = query;
+      *ometa = qmeta;
+      return 0;
+    }
     return reformer_.transform(query, qmeta, out, ometa);
   }
 
   //! Transform queries
   int transform(const void *query, const IndexQueryMeta &qmeta, uint32_t count,
                 const void **out, IndexQueryMeta *ometa) const {
+    if (quantizer_) {
+      *out = query;
+      *ometa = qmeta;
+      return 0;
+    }
     return reformer_.transform(query, qmeta, count, out, ometa);
   }
 
   //! Normalize the score in query part
   void normalize(size_t qidx, IndexDocumentHeap *heap) const {
+    if (quantizer_) {
+      return;
+    }
     return reformer_.normalize(qidx, heap);
   }
 
   //! Retrieve the value for each inverted list to multiply for normalizing
   float inverted_list_normalize_value(size_t inverted_list_id) const {
+    if (quantizer_) {
+      return 1.0f;
+    }
     if (norm_value_ != 0.0f) {
       return norm_value_;
     }
@@ -339,6 +398,18 @@ class IVFEntity {
   //! Load the header segment
   int load_header(const IndexStorage::Pointer &container);
 
+  int load_quantizer(const IndexStorage::Pointer &container);
+
+  void query_features_distance(const void *query, const void *features,
+                               size_t count, float *out) const {
+    if (quantizer_) {
+      calculator_->query_features_distance(query_distance_, features, count,
+                                           out);
+    } else {
+      calculator_->query_features_distance(query, features, count, out);
+    }
+  }
+
   //! Convert the int8 quantizer scale to normalize value
   float convert_to_normalize_value(float scale) const {
     auto v = scale == 0.0 ? 1.0 : (1.0 / scale);
@@ -353,6 +424,25 @@ class IVFEntity {
   IndexMeta meta_{};
   mutable IVFReformerWrapper reformer_{};
   IVFDistanceCalculator::Pointer calculator_{};
+  turbo::Quantizer::Pointer quantizer_{};
+  // Each context owns its entity clone and therefore its query buffer/LUT.
+  turbo::DistanceImpl query_distance_{};
+  std::unique_ptr<turbo::BlockScanner> block_scanner_{};
+  IndexStorage::Segment::Pointer scan_blocks_{};
+  std::shared_ptr<const std::vector<size_t>> scan_list_offsets_{};
+  int search_packed(size_t list_id, const IndexFilter *filter,
+                    uint32_t *scan_count, IndexDocumentHeap *heap,
+                    IndexContext::Stats *stats,
+                    const CandidateVisitor &visitor) const;
+  template <bool HasFilter, bool HasVisitor>
+  int search_packed_impl(size_t list_id, const IndexFilter *filter,
+                         uint32_t *scan_count, IndexDocumentHeap *heap,
+                         IndexContext::Stats *stats,
+                         const CandidateVisitor &visitor) const;
+  mutable PackedScanStats packed_scan_stats_{};
+  bool packed_scan_pruning_{true};
+  mutable std::vector<uint64_t> scan_keys_{};
+  mutable std::vector<char> scan_buffer_{};
   IndexStorage::Pointer container_{};
   IndexStorage::Segment::Pointer inverted_{};
   IndexStorage::Segment::Pointer inverted_meta_{};

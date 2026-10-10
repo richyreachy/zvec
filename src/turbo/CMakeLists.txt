@@ -85,6 +85,11 @@ endif()
 
 file(GLOB_RECURSE ALL_SRCS *.cc *.c *.h)
 
+# Match the platform gate used by the dedicated RaBitQ indexes.
+if(NOT RABITQ_SUPPORTED)
+  list(FILTER ALL_SRCS EXCLUDE REGEX ".*/quantizer/rabitq_quantizer/.*")
+endif()
+
 # Set per-file compile flags for SIMD sources.
 # set_source_files_properties is directory-scoped, so it must be called in the
 # same directory that adds the sources to a target (i.e. here, not in a
@@ -156,19 +161,29 @@ if(WIN32 AND (BUILD_ZVEC_CORE_SHARED OR BUILD_ZVEC_SHARED))
   endif()
 endif()
 
+set(ZVEC_TURBO_LIBS zvec_ailego)
+if(RABITQ_SUPPORTED)
+  # cc_library uses plain linkage for archives and PRIVATE linkage for object
+  # libraries. Let it apply the dependency to every variant consistently.
+  list(APPEND ZVEC_TURBO_LIBS rabitqlib)
+endif()
+
 cc_library(
     NAME zvec_turbo STATIC STRICT ALWAYS_LINK PACKED
     ${ZVEC_TURBO_LIBRARY_OPTIONS}
     SRCS ${ALL_SRCS}
     DEFS ${ZVEC_TURBO_DEFS}
-    LIBS zvec_ailego
+    LIBS ${ZVEC_TURBO_LIBS}
     INCS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/distance ${PROJECT_ROOT_DIR}/src/include
 )
 
 # Eigen (header-only, shipped inside the RaBitQ third-party tree) backs the OPQ
-# rotator only. It must be a SYSTEM include: INCS above maps to a plain
-# target_include_directories, and STRICT turns Eigen's own warnings into errors.
-# Only the headers are consumed -- rabitqlib/rabitqlib_runtime is NOT linked.
+# rotator and the scalar RaBitQ encoder. It must be a SYSTEM include: INCS
+# above maps to a plain target_include_directories, and STRICT turns Eigen's
+# own warnings into errors.
+# The scalar encoders stay header-only on every platform; on RABITQ_SUPPORTED
+# builds the split estimator additionally calls rabitqlib's dispatched SIMD
+# kernels (warmup/mask/excode-ip), so rabitqlib_runtime must be linked.
 set(TURBO_EIGEN_INC
     ${PROJECT_ROOT_DIR}/thirdparty/RaBitQ-Library/RaBitQ-Library-0.3.8/include)
 foreach(_turbo_tgt zvec_turbo zvec_turbo_objects zvec_turbo_export_objects)
