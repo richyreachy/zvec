@@ -444,6 +444,7 @@ class ProximaEngineHelper {
 
         auto db_index_params = dynamic_cast<const HnswIndexParams *>(
             field_schema.index_params().get());
+        index_param_builder->with_symphony_qg(db_index_params->symphony_qg());
         index_param_builder->with_m(db_index_params->m());
         index_param_builder->with_ef_construction(
             db_index_params->ef_construction());

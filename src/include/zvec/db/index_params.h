@@ -227,7 +227,7 @@ class ZVEC_API HnswIndexParams : public VectorIndexParams {
       QuantizeType quantize_type = QuantizeType::UNDEFINED,
       bool use_contiguous_memory = false, QuantizerParam quantizer_param = {},
       bool use_flat_contiguous_memory = false,
-      DataType flat_data_type = DataType::VECTOR_FP32)
+      DataType flat_data_type = DataType::VECTOR_FP32, bool symphony_qg = false)
       : VectorIndexParams(IndexType::HNSW, metric_type, quantize_type,
                           quantizer_param),
         m_(m),
@@ -236,7 +236,8 @@ class ZVEC_API HnswIndexParams : public VectorIndexParams {
         use_flat_contiguous_memory_(use_flat_contiguous_memory),
         flat_data_type_(flat_data_type == DataType::UNDEFINED
                             ? DataType::VECTOR_FP32
-                            : flat_data_type) {}
+                            : flat_data_type),
+        symphony_qg_(symphony_qg) {}
 
   using OPtr = std::shared_ptr<HnswIndexParams>;
 
@@ -245,7 +246,7 @@ class ZVEC_API HnswIndexParams : public VectorIndexParams {
     return std::make_shared<HnswIndexParams>(
         metric_type_, m_, ef_construction_, quantize_type_,
         use_contiguous_memory_, quantizer_param_, use_flat_contiguous_memory_,
-        flat_data_type_);
+        flat_data_type_, symphony_qg_);
   }
 
   std::string to_string() const override {
@@ -258,13 +259,15 @@ class ZVEC_API HnswIndexParams : public VectorIndexParams {
         << ",use_flat_contiguous_memory:"
         << (use_flat_contiguous_memory_ ? "true" : "false")
         << ",flat_data_type:" << static_cast<uint32_t>(flat_data_type_)
-        << ",enable_rotate:"
+        << ",symphony_qg:" << symphony_qg_ << ",enable_rotate:"
         << (quantizer_param_.enable_rotate() ? "true" : "false") << "}";
     return oss.str();
   }
 
   bool operator==(const IndexParams &other) const override {
     return type() == other.type() &&
+           symphony_qg_ ==
+               static_cast<const HnswIndexParams &>(other).symphony_qg_ &&
            metric_type() ==
                static_cast<const HnswIndexParams &>(other).metric_type() &&
            m_ == static_cast<const HnswIndexParams &>(other).m_ &&
@@ -318,6 +321,13 @@ class ZVEC_API HnswIndexParams : public VectorIndexParams {
     return flat_data_type_;
   }
 
+  bool symphony_qg() const {
+    return symphony_qg_;
+  }
+  void set_symphony_qg(bool value) {
+    symphony_qg_ = value;
+  }
+
  protected:
   int m_;
   int ef_construction_;
@@ -328,6 +338,7 @@ class ZVEC_API HnswIndexParams : public VectorIndexParams {
   bool use_contiguous_memory_{false};
   bool use_flat_contiguous_memory_{false};
   DataType flat_data_type_{DataType::VECTOR_FP32};
+  bool symphony_qg_{false};
 };
 
 class ZVEC_API HnswRabitqIndexParams : public VectorIndexParams {

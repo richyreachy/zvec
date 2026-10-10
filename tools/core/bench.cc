@@ -155,6 +155,13 @@ class Bench {
     query_param_->topk = topk;
     query_param_->is_linear = false;
 
+    // Warmup: one full pass over the query set to populate lazily built
+    // per-index caches (e.g. SymphonyQG quantized blocks) before timing.
+    for (size_t idx = 0; idx < batch_queries_.size(); ++idx) {
+      auto warm_param = query_param_->clone();
+      do_knn_search<T>(index, batch_queries_[idx], warm_param);
+    }
+
     // Do bench
     signal(SIGINT, stop);
     bench_result_.mark_start();
