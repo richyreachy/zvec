@@ -31,6 +31,7 @@
 #include <turbo/quantizer/quantizer.h>
 #include "tests/test_util.h"
 #if RABITQ_SUPPORTED
+#include <rabitqlib/utils/cpu_features.hpp>
 #include "core/algorithm/hnsw_rabitq/rabitq_converter.h"
 #include "zvec/core/framework/index_provider.h"
 #endif
@@ -274,6 +275,129 @@ class ReformerInspectableHNSWIndex : public HNSWIndex {
                                 &output_meta);
   }
 };
+
+#if RABITQ_SUPPORTED
+class SymphonyPipelineTestIndex : public HNSWIndex {
+ public:
+  explicit SymphonyPipelineTestIndex(bool legacy = false) : legacy_(legacy) {}
+  int initialize(const BaseIndexParam &param) {
+    return init(param);
+  }
+  bool uses_turbo() const {
+    return turbo_quantizer_ != nullptr;
+  }
+  const zvec::core::IndexMeta &metadata() const {
+    return proxima_index_meta_;
+  }
+
+ protected:
+  int create_and_init_converter_reformer(
+      const QuantizerParam &param, const BaseIndexParam &index_param) override {
+    // Produce a real old-format file, then reopen with ordinary new dispatch.
+    return legacy_
+               ? Index::create_and_init_converter_reformer(param, index_param)
+               : HNSWIndex::create_and_init_converter_reformer(param,
+                                                               index_param);
+  }
+  int create_and_init_streamer(const BaseIndexParam &param) override {
+    proxima_index_params_.set(
+        zvec::core::PARAM_HNSW_STREAMER_BRUTE_FORCE_THRESHOLD, 0U);
+    return HNSWIndex::create_and_init_streamer(param);
+  }
+
+ private:
+  bool legacy_;
+};
+
+TEST(IndexInterface, SymphonyTurboFp32AndLegacyReopen) {
+  if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core())
+    GTEST_SKIP();
+  constexpr uint32_t dimension = 2;
+  const std::string path = "symphony_turbo_compat.index";
+  for (bool legacy : {false, true}) {
+    for (auto metric : {MetricType::kL2sq, MetricType::kCosine}) {
+      SCOPED_TRACE(testing::Message() << "legacy=" << legacy << " metric="
+                                      << static_cast<int>(metric));
+      zvec::test_util::RemoveTestFiles(path);
+      auto param = HNSWIndexParamBuilder()
+                       .with_dimension(dimension)
+                       .with_data_type(DataType::DT_FP32)
+                       .with_metric_type(metric)
+                       .with_m(16)
+                       .with_symphony_qg(true)
+                       .build();
+      const bool cosine = metric == MetricType::kCosine;
+      std::vector<std::vector<float>> vectors{
+          {0, 0}, {3, 4}, {0, 10}, {-30, -40}};
+      auto search_param =
+          HNSWQueryParamBuilder().with_topk(4).with_ef_search(16).build();
+      auto verify = [&](SymphonyPipelineTestIndex &index) {
+        VectorData input;
+        input.vector = DenseVector{vectors[1].data()};
+        SearchResult result;
+        ASSERT_EQ(0, index.search(input, search_param, &result));
+        ASSERT_EQ(vectors.size(), result.doc_list_.size());
+        EXPECT_EQ(1U, result.doc_list_.front().key());
+        for (const auto &doc : result.doc_list_) {
+          const auto &x = vectors.at(doc.key());
+          const float norm = std::sqrt(x[0] * x[0] + x[1] * x[1]);
+          const float expected =
+              cosine ? (norm == 0 ? 1 : 1 - (3 * x[0] + 4 * x[1]) / (5 * norm))
+                     : (x[0] - 3) * (x[0] - 3) + (x[1] - 4) * (x[1] - 4);
+          EXPECT_NEAR(expected, doc.score(), 1e-5);
+          VectorDataBuffer fetched;
+          ASSERT_EQ(0, index.fetch(doc.key(), &fetched));
+          const auto *raw = reinterpret_cast<const float *>(
+              std::get<DenseVectorBuffer>(fetched.vector_buffer).data.data());
+          EXPECT_NEAR(x[0], raw[0], 1e-5);
+          EXPECT_NEAR(x[1], raw[1], 1e-5);
+        }
+      };
+      {
+        SymphonyPipelineTestIndex index(legacy);
+        ASSERT_EQ(0, index.initialize(*param));
+        EXPECT_EQ(!legacy, index.uses_turbo());
+        EXPECT_EQ(legacy ? "" : "Fp32Quantizer",
+                  index.metadata().quantizer_name());
+        EXPECT_EQ(dimension + (legacy && cosine ? 1 : 0),
+                  index.metadata().dimension());
+        EXPECT_EQ(!legacy && cosine ? sizeof(float) : 0U,
+                  index.metadata().extra_meta_size());
+        ASSERT_EQ(0,
+                  index.open(path, {StorageOptions::StorageType::kMMAP, true}));
+        for (size_t i = 0; i < vectors.size(); ++i) {
+          VectorData input;
+          input.vector = DenseVector{vectors[i].data()};
+          ASSERT_EQ(0, index.add(input, i));
+        }
+        verify(index);
+        ASSERT_EQ(0, index.flush());
+        ASSERT_EQ(0, index.close());
+      }
+      {
+        SymphonyPipelineTestIndex reopened;
+        ASSERT_EQ(0, reopened.initialize(*param));
+        EXPECT_TRUE(
+            reopened.uses_turbo());  // initial default before reading disk
+        ASSERT_EQ(0, reopened.open(
+                         path, {StorageOptions::StorageType::kMMAP, false}));
+        EXPECT_EQ(!legacy, reopened.uses_turbo());
+        verify(reopened);
+        // Exercise invalidation and query encoding after reopening either
+        // layout.
+        vectors.push_back({-8, 6});
+        VectorData input;
+        input.vector = DenseVector{vectors.back().data()};
+        ASSERT_EQ(0, reopened.add(input, vectors.size() - 1));
+        search_param->topk = 5;
+        verify(reopened);
+        ASSERT_EQ(0, reopened.close());
+      }
+      zvec::test_util::RemoveTestFiles(path);
+    }
+  }
+}
+#endif
 
 TEST(IndexInterface, General) {
   constexpr uint32_t kDimension = 64;

@@ -63,16 +63,17 @@ struct HnswQueryAdapter {
 }  // namespace
 
 struct HnswSymphonyQG::Impl {
-  Impl(size_t dimension, size_t max_neighbors, bool cosine)
-      : graph(dimension - static_cast<size_t>(cosine),
-              SymphonyQGCodec(dimension - static_cast<size_t>(cosine), cosine),
-              max_neighbors, dimension) {}
+  Impl(size_t dimension, size_t max_neighbors, bool cosine,
+       size_t stored_dimension)
+      : graph(dimension, SymphonyQGCodec(dimension, cosine), max_neighbors,
+              stored_dimension) {}
   QuantizedGraph<SymphonyQGCodec> graph;
 };
 
 HnswSymphonyQG::HnswSymphonyQG(size_t dimension, size_t max_neighbors,
-                               bool cosine)
-    : impl_(std::make_unique<Impl>(dimension, max_neighbors, cosine)) {}
+                               bool cosine, size_t stored_dimension)
+    : impl_(std::make_unique<Impl>(dimension, max_neighbors, cosine,
+                                   stored_dimension)) {}
 
 int HnswSymphonyQG::prebuild(const HnswEntity &entity, size_t doc_cnt,
                              size_t threads) {
@@ -90,7 +91,7 @@ uint32_t HnswSymphonyQG::entry() const {
 }
 #else
 struct HnswSymphonyQG::Impl {};
-HnswSymphonyQG::HnswSymphonyQG(size_t, size_t, bool) {}
+HnswSymphonyQG::HnswSymphonyQG(size_t, size_t, bool, size_t) {}
 int HnswSymphonyQG::prebuild(const HnswEntity &, size_t, size_t) {
   return IndexError_Unsupported;
 }

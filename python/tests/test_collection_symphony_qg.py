@@ -137,10 +137,11 @@ def test_symphony_qg_cosine_optimize_reopen(
     )
 
     def verify(current):
-        hits = current.query(query, topk=5)
+        hits = current.query(query, topk=5, include_vector=True)
         assert hits[0].id == "142"
         for hit in hits:
             vector = vectors[hit.id]
+            assert hit.vectors["embedding"] == pytest.approx(vector, rel=2e-6, abs=1e-6)
             norm = math.sqrt(sum(x * x for x in vector))
             query_norm = math.sqrt(sum(x * x for x in query_vector))
             expected = (

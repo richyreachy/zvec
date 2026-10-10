@@ -33,8 +33,7 @@ const char *ResolveTurboQuantizerName(const QuantizerParam &quantizer_param,
   // vector storage. External-vector HNSW is also supported: its source stays
   // in the FP32 input layout and the streamer quantizes source vectors only
   // for distance calculation.
-  if (hnsw_param.symphony_qg || hnsw_param.is_sparse ||
-      hnsw_param.data_type != DataType::DT_FP32 ||
+  if (hnsw_param.is_sparse || hnsw_param.data_type != DataType::DT_FP32 ||
       hnsw_param.metric_type == MetricType::kMIPSL2sq) {
     return nullptr;
   }

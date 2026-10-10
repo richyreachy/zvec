@@ -30,7 +30,10 @@
 #if RABITQ_SUPPORTED
 #include <rabitqlib/quantization/rabitq.hpp>
 #include <rabitqlib/utils/cpu_features.hpp>
+#include <turbo/quantizer/quantizer.h>
+#include <zvec/core/framework/index_factory.h>
 #include "hnsw_context.h"
+#include "hnsw_streamer.h"
 #endif
 
 namespace zvec::core {
@@ -728,44 +731,101 @@ TEST(SymphonyQGTest, CosineSearchUsesNormalizedCoordinatesAndExactScores) {
   for (uint32_t i = 0; i < entity->doc_cnt(); ++i)
     for (uint32_t j = 0; j < entity->doc_cnt(); ++j)
       if (i != j) entity->links_[i].push_back(j);
-  HnswSymphonyQG index(3, 32, true);
+  HnswSymphonyQG index(2, 32, true, 3);
   HnswContext ctx(3, nullptr, entity);
   ctx.set_ef(8);
   ctx.set_topk(5);
   ctx.set_max_scan_num(100);
-  ctx.dist_calculator().update_distance(
-      [](const void *lhs, const void *rhs, size_t dim, float *out) {
-        const auto *x = static_cast<const float *>(lhs);
-        const auto *q = static_cast<const float *>(rhs);
-        *out = 1 - std::inner_product(x, x + dim - 1, q, 0.0f);
-      },
-      {});
-  const std::array<std::array<float, 3>, 3> queries{
-      {{{1, 0, 100}}, {{0.6f, 0.8f, 2}}, {{0, 0, 0}}}};
-  for (bool prebuilt : {true, false}) {
-    if (prebuilt)
-      ASSERT_EQ(0, index.prebuild(*entity, entity->doc_cnt(), 2));
-    else
-      index.clear();
-    for (const auto &query : queries) {
-      for (bool filtered : {false, true}) {
-        ctx.dist_calculator().clear_compare_cnt();
-        ctx.dist_calculator().reset_query(query.data());
-        if (filtered)
-          ctx.set_filter([](uint64_t id) { return id == 1; });
-        else
-          ctx.reset_filter();
-        ASSERT_EQ(0, index.search(0, ctx));
-        EXPECT_EQ(filtered ? 4U : 5U, ctx.search_heap().size());
-        EXPECT_EQ(5U, ctx.dist_calculator().compare_cnt());
-        ctx.search_heap().for_each([&](node_id_t id, dist_t distance) {
-          if (filtered) EXPECT_NE(1U, id);
-          const auto *x = static_cast<const float *>(entity->get_vector(id));
-          EXPECT_NEAR(1 - query[0] * x[0] - query[1] * x[1], distance, 1e-6);
-          return true;
-        });
+  IndexMeta raw_meta(IndexMeta::DT_FP32, 2);
+  raw_meta.set_metric("Cosine", 0, ailego::Params());
+  auto quantizer = IndexFactory::CreateQuantizer("Fp32Quantizer");
+  ASSERT_NE(nullptr, quantizer);
+  ASSERT_EQ(0, quantizer->init(raw_meta, ailego::Params()));
+  for (bool turbo : {false, true}) {
+    SCOPED_TRACE(turbo);
+    ctx.dist_calculator().set_dim(turbo ? 2 : 3);
+    ctx.dist_calculator().update_distance(
+        [turbo, quantizer](const void *lhs, const void *rhs, size_t dim,
+                           float *out) {
+          if (turbo) {
+            *out = quantizer->calc_distance_dp_query(lhs, rhs);
+          } else {
+            const auto *x = static_cast<const float *>(lhs);
+            const auto *q = static_cast<const float *>(rhs);
+            *out = 1 - std::inner_product(x, x + dim - 1, q, 0.0f);
+          }
+        },
+        {});
+    const std::array<std::array<float, 3>, 3> queries{
+        {{{1, 0, 100}}, {{0.6f, 0.8f, 2}}, {{0, 0, 0}}}};
+    for (bool prebuilt : {true, false}) {
+      if (prebuilt)
+        ASSERT_EQ(0, index.prebuild(*entity, entity->doc_cnt(), 2));
+      else
+        index.clear();
+      for (const auto &query : queries) {
+        for (bool filtered : {false, true}) {
+          ctx.dist_calculator().clear_compare_cnt();
+          ctx.dist_calculator().reset_query(query.data());
+          if (filtered)
+            ctx.set_filter([](uint64_t id) { return id == 1; });
+          else
+            ctx.reset_filter();
+          ASSERT_EQ(0, index.search(0, ctx));
+          EXPECT_EQ(filtered ? 4U : 5U, ctx.search_heap().size());
+          EXPECT_EQ(5U, ctx.dist_calculator().compare_cnt());
+          ctx.search_heap().for_each([&](node_id_t id, dist_t distance) {
+            if (filtered) EXPECT_NE(1U, id);
+            const auto *x = static_cast<const float *>(entity->get_vector(id));
+            EXPECT_NEAR(1 - query[0] * x[0] - query[1] * x[1], distance, 1e-6);
+            return true;
+          });
+        }
       }
     }
+  }
+}
+
+TEST(SymphonyQGTest, TurboFp32MetadataValidation) {
+  if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core())
+    GTEST_SKIP();
+  ailego::Params params;
+  params.set(PARAM_HNSW_SYMPHONY_QG, true);
+  for (const auto *metric : {"Cosine", "SquaredEuclidean"}) {
+    for (uint32_t dimension : {1U, 4096U, 4097U}) {
+      SCOPED_TRACE(testing::Message() << metric << ":" << dimension);
+      IndexMeta raw(IndexMeta::DT_FP32, dimension);
+      raw.set_metric(metric, 0, ailego::Params());
+      auto quantizer = IndexFactory::CreateQuantizer("Fp32Quantizer");
+      ASSERT_NE(nullptr, quantizer);
+      ASSERT_EQ(0, quantizer->init(raw, ailego::Params()));
+      auto meta = quantizer->meta();
+      meta.set_quantizer("Fp32Quantizer", 0, ailego::Params());
+      IndexStreamer::Pointer valid = std::make_shared<HnswStreamer>();
+      EXPECT_EQ(dimension <= 4096 ? 0 : IndexError_Unsupported,
+                valid->init(meta, params, quantizer));
+      IndexStreamer::Pointer missing_quantizer =
+          std::make_shared<HnswStreamer>();
+      EXPECT_EQ(IndexError_Unsupported, missing_quantizer->init(meta, params));
+      // Dropping or inventing a norm field must not cause cached-vector reads
+      // to overrun storage, even when dimensions and names otherwise match.
+      meta.set_extra_meta_size(meta.extra_meta_size() == 0 ? sizeof(float) : 0);
+      IndexStreamer::Pointer invalid_layout = std::make_shared<HnswStreamer>();
+      EXPECT_EQ(IndexError_Unsupported,
+                invalid_layout->init(meta, params, quantizer));
+    }
+  }
+  for (const auto *name : {"Fp16Quantizer", "Int8Quantizer"}) {
+    IndexMeta raw(IndexMeta::DT_FP32, 128);
+    raw.set_metric("SquaredEuclidean", 0, ailego::Params());
+    auto quantizer = IndexFactory::CreateQuantizer(name);
+    ASSERT_NE(nullptr, quantizer);
+    ASSERT_EQ(0, quantizer->init(raw, ailego::Params()));
+    auto meta = quantizer->meta();
+    meta.set_quantizer(name, 0, ailego::Params());
+    IndexStreamer::Pointer unsupported = std::make_shared<HnswStreamer>();
+    EXPECT_EQ(IndexError_Unsupported,
+              unsupported->init(meta, params, quantizer));
   }
 }
 

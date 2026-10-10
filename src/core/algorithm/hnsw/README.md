@@ -105,8 +105,9 @@ recall improvement; benchmark it on the intended corpus and hardware.
 ## Cosine distance
 
 Use `HnswIndexParam(metric_type=MetricType.COSINE, symphony_qg=True)`. The
-existing `CosineFp32Converter` and query reformer normalize vectors and queries;
-callers do not need to normalize them. Stored FP32 cosine vectors append their
+default path uses Turbo `Fp32Quantizer` to normalize vectors and queries;
+callers do not need to normalize them. Existing converter-format indexes
+retain `CosineFp32Converter` and its reformer when reopened. Stored FP32 cosine vectors append their
 original norm after the coordinates. This auxiliary value is retained for the
 existing storage contract but excluded from rotation, encoding, pruning, and
 centroid selection. A 4096-dimensional cosine vector therefore occupies 4097
@@ -125,12 +126,32 @@ that a zero vector has distance 1 from every vector, including another zero.
 Scores are cosine distances (smaller is better), not similarities or squared
 L2 scores. Cache invalidation, filtering, and reopen follow the same HNSW paths.
 
+## Turbo FP32 and legacy storage
+
+New indexes use the ordinary HNSW Turbo FP32 selection for both L2 and cosine
+(unless another option, such as converter-side rotation, selects the legacy
+pipeline). SymphonyQG reuses the streamer's bound Turbo distance callbacks
+for exact scores; its one-bit adjacency codec remains separate.
+
+Legacy cosine metadata counts the norm as a dimension (`D + 1`). Turbo keeps
+`dimension = D` and stores the norm in `extra_meta_size = sizeof(float)`.
+The streamer resolves coordinate count and full stored-vector size separately,
+so the norm is preserved for reconstruction but never quantized. It validates
+that the quantizer is FP32 and that its metric and record/query sizes agree
+with index metadata.
+
+The existing HNSW reopen dispatch checks persisted metadata before opening the
+streamer. An index without a quantizer name retains its legacy pipeline; a
+new Turbo index retains `Fp32Quantizer`. Reopening does not rewrite vector
+storage or migrate an existing file to the other layout.
+
 ## Supported configuration and validation
 
 The SymphonyQG integration supports FP32 squared L2 or cosine, dimensions 1
 through 4096,
 inline vectors, and a RaBitQ-enabled build with the required SIMD support.
-Extra FP16/INT8/Turbo quantization and external-vector storage are rejected.
+Turbo FP32 is supported; FP16/INT8/INT4 compression and external-vector
+storage remain unsupported.
 The ordinary HNSW path remains available when the flag is false. These codec
 restrictions do not constrain other codecs plugged into `QuantizedGraph`.
 
@@ -145,3 +166,8 @@ SIMD runtime cases need a supported machine. Collection/manifest tests continue
 to cover insertion, persistence, and reopen through the public API. Cosine
 coverage includes auxiliary norm preservation, zero vectors, coefficient
 conversion, exact scores, filters, both storage modes, and reopen.
+
+The interface regression also creates and reopens both legacy and Turbo FP32
+files, checking pipeline selection, exact scores, vector reconstruction, and
+insertion after reopen. Python cosine tests verify reconstructed vectors across
+optimize/reopen for mmap, buffer-pool, and contiguous storage configurations.

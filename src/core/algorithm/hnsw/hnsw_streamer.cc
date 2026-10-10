@@ -92,10 +92,25 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
     return IndexError_Unsupported;
 #else
     const bool cosine = imeta.metric_name() == "Cosine";
-    // FP32 cosine storage appends the original norm after the coordinates.
-    const size_t extra_dimension = cosine ? 1 : 0;
+    // Legacy cosine counts the norm in dimension; Turbo puts it in extras.
+    const bool turbo = quantizer_ != nullptr;
+    const size_t extra_dimension = cosine && !turbo ? 1 : 0;
+    const size_t expected_extras = cosine && turbo ? sizeof(float) : 0;
+    const bool supported_quantizer =
+        turbo ? quantizer_->type() == zvec::turbo::QuantizeType::kFp32 &&
+                    (imeta.quantizer_name().empty() ||
+                     imeta.quantizer_name() == "Fp32Quantizer") &&
+                    quantizer_->meta().dimension() == imeta.dimension() &&
+                    quantizer_->meta().metric_name() == imeta.metric_name() &&
+                    quantizer_->quantized_datapoint_vector_length() ==
+                        imeta.element_size() &&
+                    quantizer_->quantized_query_vector_length() ==
+                        imeta.element_size()
+              : imeta.quantizer_name().empty();
     if ((!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core()) ||
-        external || quantizer_ || !imeta.quantizer_name().empty() ||
+        external || !supported_quantizer ||
+        imeta.extra_meta_size() != expected_extras ||
+        imeta.unit_size() != sizeof(float) ||
         imeta.data_type() != IndexMeta::DataType::DT_FP32 ||
         (imeta.metric_name() != "SquaredEuclidean" && !cosine) ||
         imeta.dimension() <= extra_dimension ||
@@ -610,9 +625,12 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
   }
 
   if (symphony_qg_enabled_) {
+    const bool cosine = meta_.metric_name() == "Cosine";
+    const size_t dimension =
+        meta_.dimension() - (cosine && !quantizer_ ? 1 : 0);
     symphony_qg_ =
-        std::make_shared<HnswSymphonyQG>(meta_.dimension(), symphony_qg_degree_,
-                                         meta_.metric_name() == "Cosine");
+        std::make_shared<HnswSymphonyQG>(dimension, symphony_qg_degree_, cosine,
+                                         meta_.element_size() / sizeof(float));
     const auto prebuild_start = std::chrono::steady_clock::now();
     ret = symphony_qg_->prebuild(*entity_, entity_->doc_cnt(), 8);
     if (ret != 0) {
