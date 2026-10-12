@@ -37,7 +37,8 @@ int IVFDumper::dump_inverted_block(uint32_t inverted_list_id,
   int ret = this->check_dump_inverted_list(inverted_list_id);
   ivf_check_error_code(ret);
 
-  if (block_.match_order(column_major ? IndexMeta::MajorOrder::MO_COLUMN
+  if (!scan_quantizer_ &&
+      block_.match_order(column_major ? IndexMeta::MajorOrder::MO_COLUMN
                                       : IndexMeta::MajorOrder::MO_ROW) &&
       vector_count == block_.capacity()) {
     // Dump the block directly
@@ -130,6 +131,13 @@ int IVFDumper::dump_inverted_vector_finished() {
     return ret;
   }
   dumped_size_ += segment_size;
+
+  if (scan_quantizer_) {
+    ret = dump_segment(IVF_TURBO_SCAN_SEG_ID, scan_blocks_.data(),
+                       scan_blocks_.size());
+    ivf_check_error_code(ret);
+    std::vector<char>().swap(scan_blocks_);
+  }
 
   //! Dump Inverted Index Header Segment
   std::string str;
@@ -235,6 +243,24 @@ int IVFDumper::dump_quantizer_params(
       int8_quantizer ? IVF_INT8_QUANTIZED_PARAMS_SEG_ID
                      : IVF_INT4_QUANTIZED_PARAMS_SEG_ID,
       params.data(), params.size() * sizeof(InvertedIntegerQuantizerParams));
+}
+
+int IVFDumper::dump_turbo_quantizer(
+    const turbo::Quantizer::Pointer &quantizer) {
+  if (!quantizer) {
+    return IndexError_InvalidArgument;
+  }
+  std::string state;
+  int ret = quantizer->serialize(&state);
+  ivf_check_with_msg(ret, "Failed to serialize Turbo IVF quantizer");
+  if (quantizer->require_train() && state.empty()) {
+    LOG_ERROR("Turbo IVF quantizer has no serialized training state");
+    return IndexError_InvalidFormat;
+  }
+  // Stateless quantizers use the default empty serialization. The segment
+  // still marks the index as having a persisted Turbo quantizer.
+  return this->dump_segment(IVF_TURBO_QUANTIZER_SEG_ID, state.data(),
+                            state.size());
 }
 
 int IVFDumper::dump_original_vector(const void *data, size_t size) {
@@ -388,6 +414,15 @@ int IVFDumper::dump_padding(size_t data_size, size_t *padding_size) const {
 int IVFDumper::dump_block() {
   if (block_.empty()) {
     return 0;
+  }
+
+  if (scan_quantizer_) {
+    const size_t off = scan_blocks_.size();
+    scan_blocks_.resize(off + scan_quantizer_->scan_block_size());
+    int ret = scan_quantizer_->pack_scan_block(block_.data(), block_.size(),
+                                               block_.element_size(),
+                                               scan_blocks_.data() + off);
+    ivf_check_error_code(ret);
   }
 
   size_t size = ailego_align(block_.bytes(), 32);

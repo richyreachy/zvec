@@ -6,6 +6,23 @@ target_include_directories(
   )
 
 if(RABITQ_SUPPORTED)
+  # Turbo uses the scalar encoder and its own portable rotation/distance paths.
+  # The supported Linux build may also disable OpenMP.
+  get_filename_component(RABITQ_SOURCE_VERSION_DIR "${RABITQ_SOURCE_DIR}" NAME)
+  if(RABITQ_SOURCE_VERSION_DIR STREQUAL "RaBitQ-Library-0.3.8")
+    # 0.3.8 removed omp.h from rabitq_impl.hpp and rewrote the space.hpp
+    # loops. The 0.1 patch cannot be applied to those headers.
+    apply_patch_once(
+        "rabitq_optional_openmp_0_3_8"
+        "${RABITQ_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/rabitq.optional_openmp.0.3.8.patch")
+  else()
+    apply_patch_once(
+        "rabitq_optional_openmp"
+        "${RABITQ_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/rabitq.optional_openmp.patch")
+  endif()
+
   set(RABITQ_LUT_REUSE_PATCH
       "${CMAKE_CURRENT_SOURCE_DIR}/rabitq_lut_reuse.patch")
   apply_patch_once(

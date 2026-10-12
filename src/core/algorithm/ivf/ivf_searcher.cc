@@ -23,12 +23,25 @@ namespace core {
 
 int IVFSearcher::init(const ailego::Params &parameters) {
   params_ = parameters;
+  quantizer_.reset();
 
   params_.get(PARAM_IVF_SEARCHER_BRUTE_FORCE_THRESHOLD, &bruteforce_threshold_);
 
   searcher_state_ = STATE_INITED;
 
   return 0;
+}
+
+int IVFSearcher::init(const ailego::Params &parameters,
+                      const turbo::Quantizer::Pointer &quantizer) {
+  if (!quantizer) {
+    return init(parameters);
+  }
+  int ret = init(parameters);
+  if (ret == 0) {
+    quantizer_ = quantizer;
+  }
+  return ret;
 }
 
 int IVFSearcher::cleanup() {
@@ -103,6 +116,10 @@ int IVFSearcher::load(IndexStorage::Pointer container,
   ret = entity_->load(container);
   ivf_check_error_code(ret);
 
+  // Restore from the persisted descriptor, including when an injected
+  // quantizer was supplied. Legacy postings retain their original metric.
+  quantizer_ = entity_->quantizer();
+
   magic_ = IndexContext::GenerateMagic();
 
   stats_.set_loaded_count(entity_->vector_count());
@@ -116,6 +133,7 @@ int IVFSearcher::unload() {
   magic_ = 0;
   centroid_index_.reset();
   entity_.reset();
+  quantizer_.reset();
   stats_.set_loaded_count(0UL);
   stats_.set_loaded_costtime(0UL);
   stats_.clear_attributes();
@@ -132,7 +150,12 @@ int IVFSearcher::search_bf_impl(const void *query, const IndexQueryMeta &qmeta,
 int IVFSearcher::search_bf_impl(const void *query, const IndexQueryMeta &qmeta,
                                 uint32_t count,
                                 Context::Pointer &context) const {
-  if (!query || qmeta.element_size() != meta_.element_size()) {
+  if (searcher_state_ != STATE_LOADED) {
+    return IndexError_Runtime;
+  }
+  if (!query || qmeta.element_size() != meta_.element_size() ||
+      (quantizer_ && (qmeta.data_type() != meta_.data_type() ||
+                      qmeta.dimension() != meta_.dimension()))) {
     LOG_ERROR("Null query or invalid qmeta");
     return IndexError_InvalidArgument;
   }
@@ -158,13 +181,16 @@ int IVFSearcher::search_bf_impl(const void *query, const IndexQueryMeta &qmeta,
 
   // TODO: do batch search in matrix
   for (size_t q = 0; q < count; ++q) {
+    ret = entity->bind_query(query, iv_qmeta);
+    ivf_check_error_code(ret);
     auto &context_stats = ctx->mutable_stats(q);
     auto &heap = ctx->mutable_result_heap();
     heap.clear();
+    const auto visitor = ctx->candidate_visitor();
     if (!filter.is_valid()) {
-      ret = entity->search(query, &heap, &context_stats);
+      ret = entity->search(query, &heap, &context_stats, visitor);
     } else {
-      ret = entity->search(query, filter, &heap, &context_stats);
+      ret = entity->search(query, filter, &heap, &context_stats, visitor);
     }
     ivf_check_with_msg(ret, "Failed to search in entity for %s",
                        IndexError::What(ret));
@@ -189,10 +215,15 @@ int IVFSearcher::search_impl(const void *query, const IndexQueryMeta &qmeta,
 
 int IVFSearcher::search_impl(const void *query, const IndexQueryMeta &qmeta,
                              uint32_t count, Context::Pointer &context) const {
+  if (searcher_state_ != STATE_LOADED) {
+    return IndexError_Runtime;
+  }
   if (entity_->vector_count() <= bruteforce_threshold_) {
     return this->search_bf_impl(query, qmeta, count, context);
   }
-  if (!query || qmeta.element_size() != meta_.element_size()) {
+  if (!query || qmeta.element_size() != meta_.element_size() ||
+      (quantizer_ && (qmeta.data_type() != meta_.data_type() ||
+                      qmeta.dimension() != meta_.dimension()))) {
     LOG_ERROR("Null query or invalid qmeta");
     return IndexError_InvalidArgument;
   }
@@ -222,10 +253,13 @@ int IVFSearcher::search_impl(const void *query, const IndexQueryMeta &qmeta,
   ivf_check_with_msg(ret, "Failed to transform querys");
 
   for (size_t q = 0; q < count; ++q) {
+    ret = entity->bind_query(query, iv_qmeta);
+    ivf_check_error_code(ret);
     auto &centroids = centroid_index_ctx->result(q);
     auto &context_stats = ctx->mutable_stats(q);
     auto &heap = ctx->mutable_result_heap();
     heap.clear();
+    const auto visitor = ctx->candidate_visitor();
     size_t total_scan_count = 0;
     for (size_t i = 0;
          i < centroids.size() && total_scan_count < ctx->max_scan_count();
@@ -233,10 +267,11 @@ int IVFSearcher::search_impl(const void *query, const IndexQueryMeta &qmeta,
       auto cid = centroids[i].key();
       uint32_t scan_count = 0;
       if (!filter.is_valid()) {
-        ret = entity->search(cid, query, &scan_count, &heap, &context_stats);
+        ret = entity->search(cid, query, &scan_count, &heap, &context_stats,
+                             visitor);
       } else {
         ret = entity->search(cid, query, filter, &scan_count, &heap,
-                             &context_stats);
+                             &context_stats, visitor);
       }
       ivf_check_with_msg(ret, "Failed to search in entity for %s",
                          IndexError::What(ret));
@@ -307,9 +342,10 @@ IndexProvider::Pointer IVFSearcher::create_provider() const {
     return Provider::Pointer();
   }
 
-  auto *provider = new (std::nothrow)
-      IVFIndexProvider(entity->has_orignal_feature() ? meta_ : entity->meta(),
-                       entity, "IVFSearcher");
+  auto *provider = new (std::nothrow) IVFIndexProvider(
+      (entity->has_orignal_feature() || entity->quantizer()) ? meta_
+                                                             : entity->meta(),
+      entity, "IVFSearcher");
   if (!provider) {
     LOG_ERROR("Failed to alloc IVFIndexProvider");
     return Provider::Pointer();
