@@ -714,3 +714,13 @@ class TestFlatIndexParamQuantizer:
         )
         assert param.quantizer_param.enable_rotate is True
         assert param.quantize_type == QuantizeType.INT8
+
+
+def test_symphony_qg_param_roundtrip():
+    default = HnswIndexParam(metric_type=MetricType.L2)
+    assert default.symphony_qg is False
+    enabled = HnswIndexParam(metric_type=MetricType.L2, symphony_qg=True)
+    assert enabled.to_dict()["symphony_qg"] is True
+    assert '"symphony_qg":true' in repr(enabled)
+    assert pickle.loads(pickle.dumps(enabled)).symphony_qg is True
+    assert pickle.loads(pickle.dumps(default)).symphony_qg is False

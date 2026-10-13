@@ -30,6 +30,9 @@
 #include <random>
 #include <set>
 #include <gtest/gtest.h>
+#if RABITQ_SUPPORTED
+#include <rabitqlib/utils/cpu_features.hpp>
+#endif
 #include <turbo/quantizer/quantizer.h>
 #include <zvec/ailego/container/vector.h>
 #include "tests/test_util.h"
@@ -4761,6 +4764,87 @@ TEST_F(HnswStreamerTest, TestTurboInt8QuantizerDistance) {
   EXPECT_EQ(query_index, ann_ctx->result()[0].key());
   ASSERT_EQ(0, streamer->close());
   ASSERT_EQ(0, storage->close());
+}
+
+TEST_F(HnswStreamerTest, SymphonyQGSearchFilterInsertAndReopen) {
+#if !RABITQ_SUPPORTED
+  GTEST_SKIP() << "Requires a RaBitQ-enabled build";
+#else
+  if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core())
+    GTEST_SKIP();
+#endif
+  auto holder =
+      make_shared<MultiPassIndexProvider<IndexMeta::DataType::DT_FP32>>(dim);
+  constexpr size_t count = 97;
+  for (size_t i = 0; i < count; ++i) {
+    NumericalVector<float> vector(dim);
+    for (size_t j = 0; j < dim; ++j) vector[j] = static_cast<float>(i) / 10;
+    ASSERT_TRUE(holder->emplace(i, vector));
+  }
+  IndexStreamer::Pointer streamer = std::make_shared<HnswStreamer>();
+  ailego::Params params;
+  params.set(PARAM_HNSW_SYMPHONY_QG, true);
+  params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 17U);
+  params.set(PARAM_HNSW_STREAMER_EF, 128U);
+  params.set(PARAM_HNSW_STREAMER_BRUTE_FORCE_THRESHOLD, 0U);
+  ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
+  auto storage = IndexFactory::CreateStorage("MMapFileStorage");
+  ASSERT_NE(nullptr, storage);
+  ASSERT_EQ(0, storage->init(ailego::Params()));
+  ASSERT_EQ(0, storage->open(dir_ + "/SymphonyQG", true));
+  ASSERT_EQ(0, streamer->open(storage));
+  auto context = streamer->create_context();
+  IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dim);
+  ASSERT_EQ(0, streamer->search_impl(holder->get_vector(0), qmeta, context));
+  for (size_t i = 0; i + 1 < count; ++i) {
+    ASSERT_EQ(0, streamer->add_impl(i, holder->get_vector(i), qmeta, context));
+  }
+  context->set_topk(5);
+  auto verify = [&]() {
+    ASSERT_EQ(0, streamer->search_impl(holder->get_vector(42), qmeta, context));
+    ASSERT_EQ(5U, context->result().size());
+    EXPECT_EQ(42U, context->result()[0].key());
+    for (const auto &doc : context->result()) {
+      const auto *a = static_cast<const float *>(holder->get_vector(42));
+      const auto *b = static_cast<const float *>(holder->get_vector(doc.key()));
+      float exact = 0;
+      for (size_t j = 0; j < dim; ++j) exact += (a[j] - b[j]) * (a[j] - b[j]);
+      EXPECT_NEAR(exact, doc.score(), 1e-4);
+    }
+  };
+  verify();  // cold blocks
+  verify();  // cached blocks
+  context->set_filter([](uint64_t key) { return key % 2 == 0; });
+  ASSERT_EQ(0, streamer->search_impl(holder->get_vector(42), qmeta, context));
+  ASSERT_EQ(5U, context->result().size());
+  for (const auto &doc : context->result()) EXPECT_EQ(1U, doc.key() % 2);
+  context->reset_filter();
+
+  // Insertion invalidates cached adjacency, including reverse edges.
+  ASSERT_EQ(0, streamer->add_impl(count - 1, holder->get_vector(count - 1),
+                                  qmeta, context));
+  ASSERT_EQ(
+      0, streamer->search_impl(holder->get_vector(count - 1), qmeta, context));
+  ASSERT_FALSE(context->result().empty());
+  EXPECT_EQ(count - 1, context->result()[0].key());
+  ASSERT_EQ(0, streamer->flush(0));
+  ASSERT_EQ(0, streamer->close());
+  streamer = std::make_shared<HnswStreamer>();
+  ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
+  ASSERT_EQ(0, streamer->open(storage));
+  context = streamer->create_context();
+  context->set_topk(5);
+  verify();
+  ASSERT_EQ(0, streamer->close());
+}
+
+TEST_F(HnswStreamerTest, SymphonyQGRejectsInnerProduct) {
+  IndexMeta meta(IndexMeta::DataType::DT_FP32, dim);
+  meta.set_metric("InnerProduct", 0, ailego::Params());
+  IndexStreamer::Pointer streamer = std::make_shared<HnswStreamer>();
+  ailego::Params params;
+  params.set(PARAM_HNSW_SYMPHONY_QG, true);
+  EXPECT_EQ(IndexError_Unsupported, streamer->init(meta, params));
 }
 
 }  // namespace core

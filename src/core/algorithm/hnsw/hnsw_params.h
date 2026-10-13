@@ -18,6 +18,10 @@
 namespace zvec {
 namespace core {
 
+const std::string PARAM_HNSW_SYMPHONY_QG = "proxima.hnsw.symphony_qg";
+const std::string PARAM_HNSW_SYMPHONY_QG_DEGREE =
+    "proxima.hnsw.symphony_qg.degree";
+
 static const std::string PARAM_HNSW_BUILDER_THREAD_COUNT(
     "proxima.hnsw.builder.thread_count");
 static const std::string PARAM_HNSW_BUILDER_MEMORY_QUOTA(

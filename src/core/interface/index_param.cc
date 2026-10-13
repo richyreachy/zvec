@@ -264,6 +264,9 @@ ailego::JsonObject HNSWIndexParam::serialize_to_json_object(
     json_obj.set("use_contiguous_memory",
                  ailego::JsonValue(use_contiguous_memory));
   }
+  if (!omit_empty_value || symphony_qg) {
+    json_obj.set("symphony_qg", ailego::JsonValue(symphony_qg));
+  }
   return json_obj;
 }
 
@@ -336,6 +339,7 @@ bool HNSWIndexParam::deserialize_from_json_object(
   DESERIALIZE_VALUE_FIELD(json_obj, ef_construction);
   DESERIALIZE_VALUE_FIELD(json_obj, use_contiguous_memory);
 
+  DESERIALIZE_VALUE_FIELD(json_obj, symphony_qg);
   return true;
 }
 

@@ -19,6 +19,18 @@ if(NOT ANDROID AND AUTO_DETECT_ARCH)
           COMPILE_FLAGS "${_BLOCK_HEAP_MARCH_AVX2}"
       )
     endif()
+    # algorithm/quantized_graph/symphony_qg_kernels_avx512.cc uses AVX512 intrinsics
+    # guarded by __AVX512F__/__AVX512BW__ and runtime-gates on CpuFeatures.
+    # Compile that TU with an AVX512-capable -march so the intrinsics are
+    # emitted; the entry points return false and callers use scalar fallbacks
+    # when the flags are absent.
+    if(_BLOCK_HEAP_MARCH_AVX512)
+      set_source_files_properties(
+          algorithm/quantized_graph/symphony_qg_kernels_avx512.cc
+          PROPERTIES
+          COMPILE_FLAGS "${_BLOCK_HEAP_MARCH_AVX512}"
+      )
+    endif()
   endif()
 endif()
 
