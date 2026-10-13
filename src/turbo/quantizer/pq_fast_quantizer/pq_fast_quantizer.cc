@@ -25,7 +25,7 @@
 #include <ailego/math/normalizer.h>
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_threads.h>
-#include "common/fast_scan_common.h"
+#include "quantizer/common/fast_scan.h"
 
 namespace zvec {
 namespace turbo {

@@ -24,7 +24,6 @@
 #include <vector>
 #include <ailego/math/normalizer.h>
 #include <gtest/gtest.h>
-#include <turbo/distance/neon_fp16/fp16/cosine.h>
 #include <turbo/quantizer/quantizer.h>
 #include <zvec/ailego/container/params.h>
 #include <zvec/ailego/utility/float_helper.h>
@@ -372,9 +371,9 @@ TEST(Fp16Quantizer, StoragePrecisionConvertsBeforeCosineNormalization) {
     distances[2][id] = quantizer->calc_distance_dp_query_unquantized(
         candidates[id], input.data());
   }
-  quantizer->calc_distance_dp_query_batch(
-      candidates.data(), static_cast<int>(kCandidateCount), encoded.data(),
-      distances[1].data());
+  quantizer->calc_distance_dp_query_batch(candidates.data(),
+                                          static_cast<int>(kCandidateCount),
+                                          encoded.data(), distances[1].data());
   quantizer->calc_distance_dp_query_batch_unquantized(
       candidates.data(), static_cast<int>(kCandidateCount), input.data(),
       distances[3].data());
@@ -875,8 +874,21 @@ TEST(Fp16Quantizer, NeonCosineRetainsFp16Arithmetic) {
   const auto automatic = turbo::get_distance_kernels(
       turbo::MetricType::kCosine, turbo::DataType::kFp16,
       turbo::QuantizeType::kFp16, turbo::CpuArchType::kAuto);
+  const auto neon = turbo::get_distance_kernels(
+      turbo::MetricType::kCosine, turbo::DataType::kFp16,
+      turbo::QuantizeType::kFp16, turbo::CpuArchType::kNEON);
   const auto *target = automatic.dist.target<RawDistance>();
-  if (!target || *target != turbo::neon_fp16::cosine_fp16_distance_neon_fp16) {
+  const auto *neon_target = neon.dist.target<RawDistance>();
+  // Detect native-half behavior through the public contract, without linking
+  // private ISA symbols. A widened FP32 backend returns a nonzero self
+  // distance.
+  const std::vector<uint16_t> probe(
+      8, FloatHelper::ToFP16(1.0f / std::sqrt(8.0f)));
+  float self_distance = 1.0f;
+  if (neon.dist)
+    neon.dist(probe.data(), probe.data(), probe.size(), &self_distance);
+  if (!target || !neon_target || *target != *neon_target ||
+      self_distance != 0.0f) {
     GTEST_SKIP() << "Native NEON FP16 cosine kernel is not selected";
   }
 

@@ -225,6 +225,8 @@ if(DEFINED ENV{USE_OSS_MIRROR} AND NOT "$ENV{USE_OSS_MIRROR}" STREQUAL "")
 endif()
 message(STATUS "USE_OSS_MIRROR:${USE_OSS_MIRROR}")
 
+include(${PROJECT_ROOT_DIR}/cmake/turbo.cmake)
+
 cc_directory(thirdparty)
 cc_directories(src)
 

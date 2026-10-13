@@ -73,7 +73,9 @@ static void check_opq_kernels_match_scalar(CpuArchType arch) {
   const auto simd = zvec::turbo::get_rotator_kernels(RotateType::kOpq, arch);
   const auto scalar =
       zvec::turbo::get_rotator_kernels(RotateType::kOpq, CpuArchType::kScalar);
-  ASSERT_TRUE(simd.rotate && simd.unrotate);
+  if (!simd.rotate || !simd.unrotate) {
+    GTEST_SKIP() << "Requested OPQ backend is not compiled or unavailable";
+  }
   ASSERT_TRUE(scalar.rotate && scalar.unrotate);
   if (simd.rotate == scalar.rotate) {
     GTEST_SKIP() << "No ISA-specific OPQ kernel selected for this CPU";

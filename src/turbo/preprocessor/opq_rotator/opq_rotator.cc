@@ -19,7 +19,7 @@
 #include <random>
 // Eigen stays inside this translation unit (baseline ISA flags) to avoid the
 // ODR hazard described in src/core/quantizer/rotator/matrix_rotator.cc.
-#include <rabitqlib/third/Eigen/Dense>
+#include <Eigen/Dense>
 
 namespace zvec {
 namespace turbo {

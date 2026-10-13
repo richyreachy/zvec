@@ -22,11 +22,7 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/params.h>
 #include <zvec/turbo/turbo.h>
-#include "distance/avx2/pq_quantizer_fast/pq_distance.h"
-#include "distance/avx512/pq_quantizer_fast/pq_distance.h"
-#include "distance/common/fast_scan_common.h"
-#include "distance/neon/pq_quantizer_fast/pq_distance.h"
-#include "distance/scalar/pq_quantizer_fast/pq_distance.h"
+#include "quantizer/common/fast_scan.h"
 #include "quantizer/pq_fast_quantizer/pq_fast_quantizer.h"
 #include "zvec/core/framework/index_factory.h"
 
@@ -339,8 +335,10 @@ static void check_kernel_equivalence_fn(zvec::turbo::CodebookFastScanFunc fn,
 
   int32_t ref[32];
   int32_t got[32];
-  zvec::turbo::scalar::pq_adc_fast_scan(packed_codes.data(), packed_lut.data(),
-                                        num_chunk, ref);
+  zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt4,
+                              zvec::turbo::QuantizeType::kPQFast,
+                              zvec::turbo::CpuArchType::kScalar)
+      .fast_scan(packed_codes.data(), packed_lut.data(), num_chunk, ref);
   fn(packed_codes.data(), packed_lut.data(), num_chunk, got);
   for (size_t v = 0; v < 32; ++v) {
     ASSERT_EQ(ref[v], got[v]) << "num_chunk=" << num_chunk << " v=" << v;
@@ -392,22 +390,27 @@ static void check_kernel_all_sizes(zvec::turbo::CodebookFastScanFunc fn,
 }
 
 TEST(PqFastScanKernel, Avx2MatchesScalar) {
-  check_kernel_all_sizes(zvec::turbo::avx2::pq_adc_fast_scan_avx2, 100);
+  auto kernels = zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt4,
+                                             zvec::turbo::QuantizeType::kPQFast,
+                                             zvec::turbo::CpuArchType::kAVX2);
+  if (!kernels.fast_scan) GTEST_SKIP() << "Requested backend is unavailable";
+  check_kernel_all_sizes(kernels.fast_scan, 100);
 }
 
 TEST(PqFastScanKernel, Avx512MatchesScalar) {
-  const auto &flags = zvec::ailego::internal::CpuFeatures::static_flags_;
-  if (!flags.AVX512F || !flags.AVX512BW) {
-    GTEST_SKIP() << "host CPU lacks AVX512F / AVX512BW";
-  }
-  check_kernel_all_sizes(zvec::turbo::avx512::pq_adc_fast_scan_avx512, 200);
+  auto kernels = zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt4,
+                                             zvec::turbo::QuantizeType::kPQFast,
+                                             zvec::turbo::CpuArchType::kAVX512);
+  if (!kernels.fast_scan) GTEST_SKIP() << "Requested backend is unavailable";
+  check_kernel_all_sizes(kernels.fast_scan, 200);
 }
 
 TEST(PqFastScanKernel, NeonMatchesScalar) {
-  if (!zvec::ailego::internal::CpuFeatures::static_flags_.NEON) {
-    GTEST_SKIP() << "host CPU lacks NEON";
-  }
-  check_kernel_all_sizes(zvec::turbo::neon::pq_adc_fast_scan_neon, 300);
+  auto kernels = zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt4,
+                                             zvec::turbo::QuantizeType::kPQFast,
+                                             zvec::turbo::CpuArchType::kNEON);
+  if (!kernels.fast_scan) GTEST_SKIP() << "Requested backend is unavailable";
+  check_kernel_all_sizes(kernels.fast_scan, 300);
 }
 
 TEST(PqFastScanKernel, DispatchTableIsFamilyExclusive) {

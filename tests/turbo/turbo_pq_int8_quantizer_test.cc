@@ -21,15 +21,7 @@
 #include <gtest/gtest.h>
 #include <zvec/ailego/container/params.h>
 #include <zvec/turbo/turbo.h>
-// Every ISA header unconditionally: the kernels live in the library, which
-// compiles each one with its own march flags. This TU is built for the
-// baseline arch, so guarding the includes with __AVX2__ / __ARM_NEON would
-// compile the SIMD tests away everywhere instead of selecting them at run
-// time from CpuFeatures.
-#include "distance/avx2/pq_quantizer_int8/pq_distance.h"
-#include "distance/avx512/pq_quantizer_int8/pq_distance.h"
-#include "distance/neon/pq_quantizer_int8/pq_distance.h"
-#include "distance/scalar/pq_quantizer_int8/pq_distance.h"
+// Exercise each available ISA through the public dispatch API.
 #include "quantizer/common/pq_training_samples.h"
 #include "quantizer/pq_int8_quantizer/pq_int8_quantizer.h"
 #include "zvec/core/framework/index_factory.h"
@@ -497,9 +489,8 @@ void fill_random_sdc_table(float *table, size_t num_chunk, std::mt19937 &gen) {
 }
 
 // One ISA's PQ kernel triple. get_pq_kernels() only ever hands back the set
-// dispatch picked for this host, so the tests below reach for every
-// implementation directly: a kernel no host ever calls is a kernel whose bugs
-// surface only in production.
+// dispatch picked for this host by default. Request each backend explicitly
+// through the public API; private ISA headers belong to the standalone library.
 struct KernelSet {
   zvec::turbo::CodebookAsymmetricDistanceFunc adc;
   zvec::turbo::CodebookSymmetricDistanceFunc sdc;
@@ -525,8 +516,10 @@ void check_adc(zvec::turbo::CodebookAsymmetricDistanceFunc fn, float tol,
     fill_random_lut(lut.data(), num_sq, gen);
 
     float expected = 0.0f;
-    zvec::turbo::scalar::pq_adc_int8_distance(codes.data(), lut.data(), num_sq,
-                                              &expected);
+    zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                zvec::turbo::QuantizeType::kPQ,
+                                zvec::turbo::CpuArchType::kScalar)
+        .asymmetric_distance(codes.data(), lut.data(), num_sq, &expected);
     float got = -1.0f;
     fn(codes.data(), lut.data(), num_sq, &got);
     EXPECT_NEAR(expected, got, tol) << "ADC mismatch for M=" << num_sq;
@@ -546,8 +539,11 @@ void check_sdc(zvec::turbo::CodebookSymmetricDistanceFunc fn, float tol,
     fill_random_sdc_table(dist_table.data(), num_sq, gen);
 
     float expected = 0.0f;
-    zvec::turbo::scalar::pq_sdc_int8_distance(
-        codes_a.data(), codes_b.data(), dist_table.data(), num_sq, &expected);
+    zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                zvec::turbo::QuantizeType::kPQ,
+                                zvec::turbo::CpuArchType::kScalar)
+        .symmetric_distance(codes_a.data(), codes_b.data(), dist_table.data(),
+                            num_sq, &expected);
     float got = -1.0f;
     fn(codes_a.data(), codes_b.data(), dist_table.data(), num_sq, &got);
     EXPECT_NEAR(expected, got, tol) << "SDC mismatch for M=" << num_sq;
@@ -575,8 +571,11 @@ void check_batch(zvec::turbo::CodebookBatchAsymmetricDistanceFunc fn, float tol,
 
       std::vector<float> expected(num, 0.0f);
       for (size_t i = 0; i < num; ++i) {
-        zvec::turbo::scalar::pq_adc_int8_distance(codes[i].data(), lut.data(),
-                                                  num_sq, &expected[i]);
+        zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                    zvec::turbo::QuantizeType::kPQ,
+                                    zvec::turbo::CpuArchType::kScalar)
+            .asymmetric_distance(codes[i].data(), lut.data(), num_sq,
+                                 &expected[i]);
       }
 
       std::vector<float> got(num, -1.0f);
@@ -604,38 +603,79 @@ void check_kernel_set(const KernelSet &k, float tol, uint32_t seed) {
 // The scalar single-code kernels are the reference, so only its batch path is
 // a real assertion here.
 TEST(PqInt8SimdConsistency, ScalarBatchMatchesSingle) {
-  check_batch(zvec::turbo::scalar::pq_adc_int8_batch_distance, 1e-5f, 2024);
+  check_batch(zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                          zvec::turbo::QuantizeType::kPQ,
+                                          zvec::turbo::CpuArchType::kScalar)
+                  .batch_asymmetric_distance,
+              1e-5f, 2024);
 }
 
 TEST(PqInt8SimdConsistency, Avx2MatchesScalar) {
-  if (!zvec::ailego::internal::CpuFeatures::static_flags_.AVX2) {
-    GTEST_SKIP() << "host CPU lacks AVX2";
+  if (!zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                   zvec::turbo::QuantizeType::kPQ,
+                                   zvec::turbo::CpuArchType::kAVX2)
+           .asymmetric_distance) {
+    GTEST_SKIP() << "Requested backend is unavailable";
   }
-  const KernelSet k = {zvec::turbo::avx2::pq_adc_int8_distance_avx2,
-                       zvec::turbo::avx2::pq_sdc_int8_distance_avx2,
-                       zvec::turbo::avx2::pq_adc_int8_batch_distance_avx2};
+  const KernelSet k = {
+      zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                  zvec::turbo::QuantizeType::kPQ,
+                                  zvec::turbo::CpuArchType::kAVX2)
+          .asymmetric_distance,
+      zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                  zvec::turbo::QuantizeType::kPQ,
+                                  zvec::turbo::CpuArchType::kAVX2)
+          .symmetric_distance,
+      zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                  zvec::turbo::QuantizeType::kPQ,
+                                  zvec::turbo::CpuArchType::kAVX2)
+          .batch_asymmetric_distance};
   check_kernel_set(k, 1e-5f, 2100);
 }
 
 TEST(PqInt8SimdConsistency, Avx512MatchesScalar) {
-  // Matches the dispatch condition in get_pq_kernels(): these kernels stay
-  // within AVX512F and need no BW/VL extension.
-  if (!zvec::ailego::internal::CpuFeatures::static_flags_.AVX512F) {
-    GTEST_SKIP() << "host CPU lacks AVX512F";
+  if (!zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                   zvec::turbo::QuantizeType::kPQ,
+                                   zvec::turbo::CpuArchType::kAVX512)
+           .asymmetric_distance) {
+    GTEST_SKIP() << "Requested backend is unavailable";
   }
-  const KernelSet k = {zvec::turbo::avx512::pq_adc_int8_distance_avx512,
-                       zvec::turbo::avx512::pq_sdc_int8_distance_avx512,
-                       zvec::turbo::avx512::pq_adc_int8_batch_distance_avx512};
+  const KernelSet k = {
+      zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                  zvec::turbo::QuantizeType::kPQ,
+                                  zvec::turbo::CpuArchType::kAVX512)
+          .asymmetric_distance,
+      zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                  zvec::turbo::QuantizeType::kPQ,
+                                  zvec::turbo::CpuArchType::kAVX512)
+          .symmetric_distance,
+      zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                  zvec::turbo::QuantizeType::kPQ,
+                                  zvec::turbo::CpuArchType::kAVX512)
+          .batch_asymmetric_distance};
   check_kernel_set(k, 1e-5f, 2200);
 }
 
 TEST(PqInt8SimdConsistency, NeonMatchesScalar) {
-  if (!zvec::ailego::internal::CpuFeatures::static_flags_.NEON) {
-    GTEST_SKIP() << "host CPU lacks NEON";
+  if (!zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                   zvec::turbo::QuantizeType::kPQ,
+                                   zvec::turbo::CpuArchType::kNEON)
+           .asymmetric_distance) {
+    GTEST_SKIP() << "Requested backend is unavailable";
   }
-  const KernelSet k = {zvec::turbo::neon::pq_adc_int8_distance_neon,
-                       zvec::turbo::neon::pq_sdc_int8_distance_neon,
-                       zvec::turbo::neon::pq_adc_int8_batch_distance_neon};
+  const KernelSet k = {
+      zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                  zvec::turbo::QuantizeType::kPQ,
+                                  zvec::turbo::CpuArchType::kNEON)
+          .asymmetric_distance,
+      zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                  zvec::turbo::QuantizeType::kPQ,
+                                  zvec::turbo::CpuArchType::kNEON)
+          .symmetric_distance,
+      zvec::turbo::get_pq_kernels(zvec::turbo::DataType::kInt8,
+                                  zvec::turbo::QuantizeType::kPQ,
+                                  zvec::turbo::CpuArchType::kNEON)
+          .batch_asymmetric_distance};
   // NEON accumulates via float32x4_t, a different rounding order than the
   // scalar sequential sum, so allow slightly more slack than x86.
   check_kernel_set(k, 1e-4f, 2300);
