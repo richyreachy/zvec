@@ -157,6 +157,8 @@ TEST(IndexInterface, DiskAnnParamJsonRoundTrip) {
                    .with_max_degree(48)
                    .with_list_size(80)
                    .with_pq_chunk_num(16)
+                   .with_navigation_quantizer("rabitq")
+                   .with_rabitq_bits(4)
                    .build();
 
   auto restored =
@@ -166,7 +168,87 @@ TEST(IndexInterface, DiskAnnParamJsonRoundTrip) {
   EXPECT_EQ(48, diskann->max_degree);
   EXPECT_EQ(80, diskann->list_size);
   EXPECT_EQ(16, diskann->pq_chunk_num);
+  EXPECT_EQ("rabitq", diskann->navigation_quantizer);
+  EXPECT_EQ(4u, diskann->rabitq_bits);
+  auto legacy = IndexFactory::DeserializeIndexParamFromJson(
+      R"({"index_type":"kDiskAnn","dimension":64})");
+  auto legacy_diskann = std::dynamic_pointer_cast<DiskAnnIndexParam>(legacy);
+  ASSERT_NE(nullptr, legacy_diskann);
+  EXPECT_EQ("pq", legacy_diskann->navigation_quantizer);
+  EXPECT_EQ(1u, legacy_diskann->rabitq_bits);
+  for (const auto &invalid :
+       {R"({"index_type":"kDiskAnn","navigation_quantizer":4})",
+        R"({"index_type":"kDiskAnn","navigation_quantizer":"unknown"})",
+        R"({"index_type":"kDiskAnn","rabitq_bits":0})",
+        R"({"index_type":"kDiskAnn","rabitq_bits":10})",
+        R"({"index_type":"kDiskAnn","rabitq_bits":4294967297})"}) {
+    EXPECT_EQ(nullptr, IndexFactory::DeserializeIndexParamFromJson(invalid));
+  }
 }
+
+#if RABITQ_SUPPORTED
+TEST(IndexInterface, DiskAnnRabitqMetricsPrecisionAndReopen) {
+  constexpr uint32_t dim = 65, count = 64;
+  for (auto metric :
+       {MetricType::kL2sq, MetricType::kCosine, MetricType::kInnerProduct}) {
+    for (auto precision : {QuantizerType::kNone, QuantizerType::kFP16}) {
+      SCOPED_TRACE(::testing::Message() << static_cast<int>(metric) << ":"
+                                        << static_cast<int>(precision));
+      const std::string path = "diskann-rabitq-interface.index";
+      auto cleanup = zvec::ailego::ScopeGuard::Make(
+          [&]() { zvec::test_util::RemoveTestFiles(path + "*"); });
+      auto param = DiskAnnIndexParamBuilder()
+                       .with_metric_type(metric)
+                       .with_data_type(DataType::DT_FP32)
+                       .with_quantizer_param(QuantizerParam(precision))
+                       .with_dimension(dim)
+                       .with_max_degree(16)
+                       .with_list_size(64)
+                       .with_navigation_quantizer("rabitq")
+                       .with_rabitq_bits(4)
+                       .build();
+      auto index = IndexFactory::CreateAndInitIndex(*param);
+      ASSERT_NE(nullptr, index);
+      ASSERT_EQ(0,
+                index->open(path, {StorageOptions::StorageType::kMMAP, true}));
+      std::mt19937 random(123);
+      std::normal_distribution<float> normal;
+      std::vector<std::vector<float>> rows(count, std::vector<float>(dim));
+      for (uint32_t id = 0; id < count; ++id) {
+        float norm2 = 0;
+        for (float &v : rows[id]) {
+          v = normal(random);
+          norm2 += v * v;
+        }
+        for (float &v : rows[id]) v /= std::sqrt(norm2);
+        ASSERT_EQ(0, index->add(VectorData{DenseVector{rows[id].data()}}, id));
+      }
+      ASSERT_EQ(0, index->train());
+      ASSERT_EQ(0, index->close());
+      // Loading determines the navigation quantizer from the file, even when
+      // the caller provides the default PQ build options for the reopen.
+      param->navigation_quantizer = "pq";
+      auto reopened = IndexFactory::CreateAndInitIndex(*param);
+      ASSERT_NE(nullptr, reopened);
+      ASSERT_EQ(0, reopened->open(path, {StorageOptions::StorageType::kMMAP,
+                                         false, true}));
+      auto query = std::make_shared<DiskAnnQueryParam>();
+      query->topk = 1;
+      query->list_size = count;
+      for (uint32_t id : {0u, 31u, 63u}) {
+        SearchResult result;
+        ASSERT_EQ(0, reopened->search(VectorData{DenseVector{rows[id].data()}},
+                                      query, &result));
+        ASSERT_EQ(1u, result.doc_list_.size());
+        EXPECT_EQ(id, result.doc_list_[0].key());
+        EXPECT_TRUE(std::isfinite(result.doc_list_[0].score()));
+      }
+      ASSERT_EQ(0, reopened->close());
+    }
+  }
+}
+#endif
+
 #endif
 
 #if RABITQ_SUPPORTED

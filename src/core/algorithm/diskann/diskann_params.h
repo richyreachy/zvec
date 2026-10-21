@@ -18,6 +18,12 @@
 namespace zvec {
 namespace core {
 
+// Navigation codes: "pq" (default) or "rabitq". RaBitQ uses 1..9 bits.
+static const std::string PARAM_DISKANN_BUILDER_QUANTIZER(
+    "zvec.diskann.builder.quantizer");
+static const std::string PARAM_DISKANN_BUILDER_RABITQ_BITS(
+    "zvec.diskann.builder.rabitq_bits");
+
 static const std::string PARAM_DISKANN_BUILDER_MAX_DEGREE(
     "zvec.diskann.builder.max_degree");
 static const std::string PARAM_DISKANN_BUILDER_LIST_SIZE(

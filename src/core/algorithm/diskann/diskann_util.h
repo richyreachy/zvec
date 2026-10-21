@@ -22,6 +22,7 @@
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_framework.h>
 #include "diskann_entity.h"
+#include "diskann_rabitq_quantizer.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <malloc.h>
@@ -147,6 +148,8 @@ class DiskAnnUtil {
       return nullptr;
     }
     switch (static_cast<turbo::QuantizeType>(hdr.quant_type)) {
+      case turbo::QuantizeType::kRabit:
+        return "DiskAnnRabitqQuantizer";
       case turbo::QuantizeType::kPQ:
         return "PqInt8Quantizer";
       case turbo::QuantizeType::kFp16:
@@ -214,8 +217,11 @@ class DiskAnnUtil {
       return ret;
     }
     if (legacy.chunk_num == 0) {
+      // Navigation codes include correction factors and padding; RaBitQ
+      // codes can be wider than the original dimension. The deserialized
+      // quantizer validates the exact byte width before search.
       if (pq_meta->chunk_num == 0 ||
-          pq_meta->chunk_num > init_meta.dimension() ||
+          pq_meta->chunk_num > uint64_t{init_meta.dimension()} * 2 + 128 ||
           pq_meta->quantizer_meta_buffer_size <
               sizeof(turbo::QuantizerSerHeader)) {
         return IndexError_InvalidFormat;
@@ -332,7 +338,9 @@ class DiskAnnUtil {
       LOG_ERROR("Unsupported or corrupted quantizer meta buffer");
       return turbo::Quantizer::Pointer();
     }
-    auto quantizer = IndexFactory::CreateQuantizer(name);
+    auto quantizer = std::strcmp(name, "DiskAnnRabitqQuantizer") == 0
+                         ? CreateDiskAnnRabitqQuantizer()
+                         : IndexFactory::CreateQuantizer(name);
     if (!quantizer) {
       LOG_ERROR("Create quantizer %s failed", name);
       return turbo::Quantizer::Pointer();
@@ -361,6 +369,10 @@ class DiskAnnUtil {
     }
     if (quantizer->deserialize(meta_buffer) != 0) {
       LOG_ERROR("Quantizer %s deserialize failed", name);
+      return turbo::Quantizer::Pointer();
+    }
+    if (quantizer->quantized_datapoint_vector_length() != chunk_num) {
+      LOG_ERROR("DiskAnn navigation code size does not match quantizer");
       return turbo::Quantizer::Pointer();
     }
     return quantizer;

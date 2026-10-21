@@ -148,3 +148,35 @@ $ /home/zvec/workspace/zvec/build/bin/bench_original ./search.yaml
 ```
 
 
+
+
+## DiskANN with RaBitQ navigation codes
+
+DiskANN can keep RaBitQ codes in RAM while retaining the original vectors on
+disk for graph construction and final result scoring. PQ remains the default.
+
+For the core builder (including `local_builder` YAML `BuilderParams`), set:
+
+```yaml
+BuilderParams:
+  zvec.diskann.builder.quantizer: rabitq
+  zvec.diskann.builder.rabitq_bits: 4
+```
+
+For the C++ core interface, configure `DiskAnnIndexParamBuilder` with
+`.with_navigation_quantizer("rabitq").with_rabitq_bits(4)`. These options also
+round-trip through the core interface JSON fields `navigation_quantizer` and
+`rabitq_bits`. The loader discovers the quantizer from the stored index;
+reopening does not require the original build options. Existing PQ indexes,
+including the legacy PQ layout, remain loadable.
+
+RaBitQ accepts FP32 and FP16 build vectors, 1–9 total bits per padded dimension,
+and dimensions 1–4095 after metric preprocessing. It requires a build with
+`RABITQ_SUPPORTED` enabled (currently the x86 runtime). Dimensions are padded to
+a multiple of 64; a single training mean and a persisted FHT rotation are used.
+A code contains the packed bits and the library's distance correction factors.
+`max_pq_chunk_num` controls PQ only. A RaBitQ memory limit that cannot hold the
+selected fixed-width codes is rejected; it does not silently lower the bit count.
+
+These are core-interface options; the collection-level Python/C index parameter
+APIs do not yet expose the navigation quantizer selection.

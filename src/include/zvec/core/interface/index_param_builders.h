@@ -266,6 +266,14 @@ class DiskAnnIndexParamBuilder
     param->list_size = list_size;
     return *this;
   }
+  DiskAnnIndexParamBuilder &with_navigation_quantizer(const std::string &name) {
+    param->navigation_quantizer = name;
+    return *this;
+  }
+  DiskAnnIndexParamBuilder &with_rabitq_bits(uint32_t bits) {
+    param->rabitq_bits = bits;
+    return *this;
+  }
   DiskAnnIndexParamBuilder &with_pq_chunk_num(int pq_chunk_num) {
     param->pq_chunk_num = pq_chunk_num;
     return *this;

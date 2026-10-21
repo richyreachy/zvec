@@ -438,6 +438,21 @@ bool DiskAnnIndexParam::deserialize_from_json_object(
   DESERIALIZE_VALUE_FIELD(json_obj, max_degree);
   DESERIALIZE_VALUE_FIELD(json_obj, list_size);
   DESERIALIZE_VALUE_FIELD(json_obj, pq_chunk_num);
+  ailego::JsonValue navigation_value;
+  if (json_obj.has("navigation_quantizer")) {
+    json_obj.get("navigation_quantizer", &navigation_value);
+    if (!navigation_value.is_string()) return false;
+    navigation_quantizer = navigation_value.as_stl_string();
+  }
+  if (navigation_quantizer != "pq" && navigation_quantizer != "rabitq")
+    return false;
+  if (json_obj.has("rabitq_bits")) {
+    json_obj.get("rabitq_bits", &navigation_value);
+    if (!navigation_value.is_integer() || navigation_value.as_integer() < 1 ||
+        navigation_value.as_integer() > 9)
+      return false;
+    rabitq_bits = static_cast<uint32_t>(navigation_value.as_integer());
+  }
 
   return true;
 }
@@ -448,6 +463,8 @@ ailego::JsonObject DiskAnnIndexParam::serialize_to_json_object(
   json_obj.set("max_degree", ailego::JsonValue(max_degree));
   json_obj.set("list_size", ailego::JsonValue(list_size));
   json_obj.set("pq_chunk_num", ailego::JsonValue(pq_chunk_num));
+  json_obj.set("navigation_quantizer", ailego::JsonValue(navigation_quantizer));
+  json_obj.set("rabitq_bits", ailego::JsonValue(rabitq_bits));
   return json_obj;
 }
 

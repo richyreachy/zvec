@@ -148,7 +148,7 @@ int DiskAnnSearcherEntity::load_pq_segment() {
 
   if (pq_meta_.chunk_num == 0 || meta_header_.doc_cnt == 0 ||
       pq_meta_.quantizer_meta_buffer_size == 0 ||
-      pq_meta_.chunk_num > meta_.dimension()) {
+      pq_meta_.chunk_num > uint64_t{meta_.dimension()} * 2 + 128) {
     LOG_ERROR("Invalid empty DiskAnn PQ metadata");
     return IndexError_InvalidFormat;
   }
@@ -165,7 +165,14 @@ int DiskAnnSearcherEntity::load_pq_segment() {
     return IndexError_InvalidFormat;
   }
 
+  if (meta_header_.doc_cnt >
+      std::numeric_limits<size_t>::max() / pq_meta_.chunk_num) {
+    return IndexError_InvalidFormat;
+  }
   size_t code_bytes = meta_header_.doc_cnt * pq_meta_.chunk_num;
+  if (code_bytes > pq_data_segment_->data_size()) {
+    return IndexError_InvalidFormat;
+  }
 
   try {
     auto pq_codes = std::make_shared<std::string>(code_bytes, '\0');

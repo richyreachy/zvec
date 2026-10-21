@@ -30,6 +30,7 @@
 #include "utility/prefix_index_holder.h"
 #include "diskann_context.h"
 #include "diskann_params.h"
+#include "diskann_rabitq_quantizer.h"
 #include "diskann_util.h"
 
 namespace zvec {
@@ -46,6 +47,17 @@ int DiskAnnBuilder::init(const IndexMeta &meta, const ailego::Params &params) {
   cleanup();
   log_diskann_io_backend();
 
+  if ((params.has(PARAM_DISKANN_BUILDER_QUANTIZER) &&
+       !params.get(PARAM_DISKANN_BUILDER_QUANTIZER, &navigation_quantizer_)) ||
+      (params.has(PARAM_DISKANN_BUILDER_RABITQ_BITS) &&
+       !params.get(PARAM_DISKANN_BUILDER_RABITQ_BITS, &rabitq_bits_)) ||
+      (navigation_quantizer_ != "pq" && navigation_quantizer_ != "rabitq") ||
+      rabitq_bits_ < 1 || rabitq_bits_ > 9) {
+    return IndexError_InvalidArgument;
+  }
+  if (navigation_quantizer_ == "rabitq" && !RABITQ_SUPPORTED) {
+    return IndexError_Unsupported;
+  }
   params.get(PARAM_DISKANN_BUILDER_MAX_DEGREE, &max_degree_);
   params.get(PARAM_DISKANN_BUILDER_LIST_SIZE, &list_size_);
   params.get(PARAM_DISKANN_BUILDER_THREAD_COUNT, &build_thread_count_);
@@ -61,7 +73,8 @@ int DiskAnnBuilder::init(const IndexMeta &meta, const ailego::Params &params) {
   }
 
   uint32_t max_pq_chunk_num{0};
-  if (params.get(PARAM_DISKANN_BUILDER_MAX_PQ_CHUNK_NUM, &max_pq_chunk_num)) {
+  if (navigation_quantizer_ == "pq" &&
+      params.get(PARAM_DISKANN_BUILDER_MAX_PQ_CHUNK_NUM, &max_pq_chunk_num)) {
     if (max_pq_chunk_num > meta.dimension()) {
       LOG_ERROR(
           "PQ Chunk Num larger than dimension, PQ Chunk Num: %d, Dimension: %d",
@@ -160,6 +173,8 @@ int DiskAnnBuilder::cleanup() {
   list_size_ = kDefaultListSize;
   memory_limit_ = 0.0;
   memory_limit_set_ = false;
+  navigation_quantizer_ = "pq";
+  rabitq_bits_ = 1;
   max_pq_chunk_num_ = kDefaultPqChunkNum;
   pq_chunk_num_ = kDefaultPqChunkNum;
   build_thread_count_ = 0;
@@ -265,6 +280,20 @@ int DiskAnnBuilder::calculate_pq_chunk_num() {
     return IndexError_InvalidLength;
   }
 
+  if (navigation_quantizer_ == "rabitq") {
+    auto quantizer = CreateDiskAnnRabitqQuantizer();
+    ailego::Params qp;
+    qp.set("total_bits", rabitq_bits_);
+    if (!quantizer) return IndexError_Unsupported;
+    int ret = quantizer->init(build_meta_, qp);
+    if (ret) return ret;
+    pq_chunk_num_ = quantizer->quantized_datapoint_vector_length();
+    if (memory_limit_set_ &&
+        pq_chunk_num_ > get_memory_in_bytes(memory_limit_) / doc_cnt) {
+      return IndexError_InvalidArgument;
+    }
+    return 0;
+  }
   uint32_t requested_chunk_num = max_pq_chunk_num_;
   if (requested_chunk_num == 0 || requested_chunk_num == kDefaultPqChunkNum) {
     requested_chunk_num =
@@ -380,14 +409,18 @@ int DiskAnnBuilder::train_quantized_data(IndexThreads::Pointer threads) {
 
   ailego::ElapsedTime timer;
 
-  quantizer_ = IndexFactory::CreateQuantizer("PqInt8Quantizer");
+  quantizer_ = navigation_quantizer_ == "rabitq"
+                   ? CreateDiskAnnRabitqQuantizer()
+                   : IndexFactory::CreateQuantizer("PqInt8Quantizer");
   if (!quantizer_) {
-    LOG_ERROR("Create PqInt8Quantizer failed");
+    LOG_ERROR("Create navigation quantizer %s failed",
+              navigation_quantizer_.c_str());
     return IndexError_NoExist;
   }
 
   ailego::Params qp;
   qp.set("num_chunk", pq_chunk_num_);
+  qp.set("total_bits", rabitq_bits_);
   // The quantizer creates its own pool, so bound it by the caller's pool.
   const auto pq_thread_count = static_cast<uint32_t>(std::max<size_t>(
       1, std::min<size_t>(build_thread_count_, threads->count())));
@@ -395,7 +428,7 @@ int DiskAnnBuilder::train_quantized_data(IndexThreads::Pointer threads) {
   qp.set("use_zero_mean", false);
   int ret = quantizer_->init(build_meta_, qp);
   if (ret != 0) {
-    LOG_ERROR("PqInt8Quantizer init failed, ret=%d", ret);
+    LOG_ERROR("Navigation quantizer init failed, ret=%d", ret);
     return ret;
   }
 
@@ -405,14 +438,14 @@ int DiskAnnBuilder::train_quantized_data(IndexThreads::Pointer threads) {
       holder_, max_train_sample_count_, build_meta_);
   ret = quantizer_->train(std::move(training_holder));
   if (ret != 0) {
-    LOG_ERROR("PqInt8Quantizer train failed, ret=%d", ret);
+    LOG_ERROR("Navigation quantizer train failed, ret=%d", ret);
     return ret;
   }
 
   std::string &quantizer_meta_buffer = entity_.pq_quantizer_meta_buffer();
   ret = quantizer_->serialize(&quantizer_meta_buffer);
   if (ret != 0) {
-    LOG_ERROR("PqInt8Quantizer serialize failed, ret=%d", ret);
+    LOG_ERROR("Navigation quantizer serialize failed, ret=%d", ret);
     return ret;
   }
 

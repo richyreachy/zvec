@@ -560,6 +560,9 @@ struct ZVEC_CORE_API DiskAnnIndexParam : public BaseIndexParam {
   int max_degree = kDefaultDiskAnnMaxDegree;
   int list_size = kDefaultDiskAnnListSize;
   int pq_chunk_num = kDefaultDiskAnnPqChunkNum;
+  // In-memory navigation codes; full vectors remain on disk.
+  std::string navigation_quantizer = "pq";
+  uint32_t rabitq_bits = 1;
 
   // Constructors with delegation
   DiskAnnIndexParam() : BaseIndexParam(IndexType::kDiskAnn) {}

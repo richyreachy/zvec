@@ -107,6 +107,8 @@ class DiskAnnBuilder : public IndexBuilder {
   double memory_limit_{0.0};
   bool memory_limit_set_{false};
   uint32_t max_pq_chunk_num_{kDefaultPqChunkNum};
+  std::string navigation_quantizer_{"pq"};
+  uint32_t rabitq_bits_{1};
   uint32_t pq_chunk_num_{kDefaultPqChunkNum};
   uint32_t build_thread_count_{0};
   uint32_t max_train_sample_count_{kDefaultMaxTrainSampleCount};
