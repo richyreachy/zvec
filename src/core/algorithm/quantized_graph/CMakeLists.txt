@@ -1,6 +1,11 @@
 include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
 include(${PROJECT_ROOT_DIR}/cmake/option.cmake)
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  set_property(SOURCE symphony_qg_kernels_avx512.cc
+      APPEND PROPERTY COMPILE_OPTIONS -ffp-contract=off)
+endif()
+
 # symphony_qg_kernels_avx512.cc uses AVX512 intrinsics guarded by
 # __AVX512F__/__AVX512BW__ and runtime-gates on CpuFeatures. Compile it with
 # an AVX512-capable -march so the intrinsics are emitted; the entry points

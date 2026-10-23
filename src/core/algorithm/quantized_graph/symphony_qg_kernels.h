@@ -37,4 +37,11 @@ bool symqg_hadamard(float *v, size_t padded_dim);
 // Element-wise multiply v[i] *= factors[i].
 bool symqg_mul(const float *factors, float *v, size_t n);
 
+// Scan one packed batch of 32 neighbor codes and convert the integer sums to
+// scores. Accumulation widens every 1024 dimensions to prevent uint16 overflow.
+// The score expression preserves the scalar path's operation order.
+bool symqg_scan(const uint8_t *codes, const uint8_t *lut, size_t padded_dim,
+                const float *add, const float *scale, float center_distance,
+                float delta, float sum_vl, float k1xsumq, float *distances);
+
 }  // namespace zvec::core

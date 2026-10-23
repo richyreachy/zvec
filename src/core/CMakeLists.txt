@@ -1,6 +1,13 @@
 include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
 include(${PROJECT_ROOT_DIR}/cmake/option.cmake)
 
+# Preserve the scanner's scalar rounding boundaries, including builds whose
+# architecture flags are supplied explicitly instead of AUTO_DETECT_ARCH.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  set_property(SOURCE algorithm/quantized_graph/symphony_qg_kernels_avx512.cc
+      APPEND PROPERTY COMPILE_OPTIONS -ffp-contract=off)
+endif()
+
 # utility/block_heap.cc uses AVX2 intrinsics guarded by __AVX2__. When the
 # host toolchain supports it, compile this source with an AVX2-capable
 # -march so AVX2 codegen is emitted. zvec_core glob-collects this source

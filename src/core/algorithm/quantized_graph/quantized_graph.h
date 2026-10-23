@@ -116,10 +116,33 @@ class QuantizedGraph {
 
    private:
     static constexpr NodeId kEmpty = 0xFFFFFFFFu;
-    inline static thread_local std::vector<NodeId> table_;
-    inline static thread_local std::unordered_set<NodeId> overflow_;
+    std::vector<NodeId> table_;
+    std::unordered_set<NodeId> overflow_;
     size_t mask_{0};
   };
+
+  // Resolve TLS once at the query boundary. In particular, probing the visit
+  // table must not call __tls_get_addr for every candidate in a shared build.
+  struct SearchState {
+    LocalVisitSet visited;
+    QuantizedGraphBeam beam{1};
+    typename Codec::Query query;
+    std::vector<NodeId> expanded;
+    GraphSearchScratch scratch;
+  };
+
+  // A call boundary prevents the compiler from rematerializing the TLS
+  // address inside the traversal after inlining its small policy methods.
+#if defined(__GNUC__) || defined(__clang__)
+  __attribute__((noinline))
+#elif defined(_MSC_VER)
+  __declspec(noinline)
+#endif
+  static SearchState &
+  search_state() {
+    thread_local SearchState state;
+    return state;
+  }
 
   // One fixed-stride slot per node inside a single arena allocation, like
   // upstream SymphonyQG's row layout: header, center vector, neighbor ids,
@@ -546,14 +569,15 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   results.clear();
   if (entry == kInvalidNodeId || ctx.topk() == 0) return 0;
   if (!entity.valid(entry)) return IndexError_Mismatch;
-  LocalVisitSet visited;
+  auto &state = search_state();
+  auto &visited = state.visited;
   visited.reset(results.limit());
-  thread_local QuantizedGraphBeam beam(1);
+  auto &beam = state.beam;
   beam.reset(std::max(size_t{1}, results.limit()));
   beam.insert(entry, std::numeric_limits<float>::max());
-  thread_local typename Codec::Query batch_query;
+  auto &batch_query = state.query;
   codec_.prepare_query(ctx.query(), batch_query);
-  thread_local std::vector<NodeId> expanded;
+  auto &expanded = state.expanded;
   expanded.clear();
   struct Scan {
     enum { kVisitOnExpansion = true };
@@ -564,11 +588,26 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     typename Codec::Query &query;
     std::vector<NodeId> &expanded;
     const Block *block = nullptr;
+    const NodeId *neighbors = nullptr;
+    const char *codes = nullptr;
     float exact = 0;
     int begin(NodeId id) {
       expanded.push_back(id);
       block = index.get_block(entity, id);
       if (block == nullptr) return IndexError_Mismatch;
+      neighbors = reinterpret_cast<const NodeId *>(block->center() +
+                                                   index.stored_dimension_);
+      codes = reinterpret_cast<const char *>(neighbors) + index.neighbor_bytes_;
+#if defined(__GNUC__) || defined(__clang__)
+      // Fetch the row header and the start of its packed codes while the
+      // exact center distance is being computed. The layout is fixed for
+      // both arena and lazy blocks, so this needs no dependent header load.
+      __builtin_prefetch(block, 0, 2);
+      const size_t code_offset = codes - reinterpret_cast<const char *>(block);
+      const size_t bytes = std::min(size_t{4096}, index.stride_ - code_offset);
+      for (size_t offset = 0; offset < bytes; offset += 64)
+        __builtin_prefetch(codes + offset, 0, 2);
+#endif
       exact = ctx.distance(block->center());
       if (!ctx.excluded(id)) output.emplace(id, exact);
       ctx.on_expand();
@@ -581,20 +620,22 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       return Codec::kBatchSize;
     }
     NodeId neighbor(size_t i) const {
-      return block->neighbors()[i];
+      return neighbors[i];
     }
     void prepare_batch(size_t) {}
     void stage(NodeId, size_t, size_t) {}
     int score(size_t offset, const NodeId *, size_t, float *distances) {
-      index.codec_.scan(block->codes() + (offset / Codec::kBatchSize) *
-                                             index.codec_.batch_bytes(),
-                        query, exact, distances);
+      index.codec_.scan(
+          codes + (offset / Codec::kBatchSize) * index.codec_.batch_bytes(),
+          query, exact, distances);
       return 0;
     }
   } scan{*this, entity, ctx, results, batch_query, expanded};
   struct Frontier {
+    const QuantizedGraph &index;
     QuantizedGraphBeam &beam;
     Context &ctx;
+    NodeId prefetched = kInvalidNodeId;
     bool has_next() const {
       return beam.has_next() && !ctx.reach_scan_limit();
     }
@@ -606,10 +647,26 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     }
     void push(NodeId id, float distance) {
       beam.insert(id, distance);
+#if defined(__GNUC__) || defined(__clang__)
+      if (beam.has_next()) {
+        const NodeId next = beam.next_id_at(0);
+        // Only prefetch published arena slots. Lazy blocks require a lookup
+        // under a mutex and are not safe to speculate about here.
+        if (next < index.arena_count_ && next != prefetched) {
+          prefetched = next;
+          const char *center =
+              reinterpret_cast<const char *>(index.slot(next)->center());
+          const size_t bytes =
+              std::min(size_t{640}, index.stride_ - Block::kCenterOffset);
+          for (size_t offset = 0; offset < bytes; offset += 64) {
+            __builtin_prefetch(center + offset, 0, 2);
+          }
+        }
+      }
+#endif
     }
-  } frontier{beam, ctx};
-  thread_local GraphSearchScratch scratch;
-  const int search_ret = SearchGraph(scan, frontier, visited, scratch);
+  } frontier{*this, beam, ctx};
+  const int search_ret = SearchGraph(scan, frontier, visited, state.scratch);
   if (search_ret != 0) return search_ret;
   // As in SymphonyQG's result completion step, score unvisited neighbors if
   // duplicate estimates or filters left fewer than k eligible results. Avoid

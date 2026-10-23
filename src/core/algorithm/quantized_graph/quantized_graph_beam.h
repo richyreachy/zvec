@@ -22,8 +22,9 @@
 namespace zvec::core {
 
 // Sorted linear beam mirroring SymphonyQG's SearchBuffer: branchless binary
-// search and raw memmove inserts into capacity+1 slots. Expansion state is
-// separate from the id so every bit of an HNSW node id is preserved.
+// search and raw memmove inserts into capacity+1 slots. Expansion flags share
+// the id word until a full-width id is inserted; that query then moves the
+// flags to a separate array without sacrificing any bits of a node id.
 class QuantizedGraphBeam {
  public:
   explicit QuantizedGraphBeam(size_t capacity)
@@ -34,6 +35,7 @@ class QuantizedGraphBeam {
   void reset(size_t capacity) {
     capacity_ = std::max(size_t{1}, capacity);
     if (entries_.size() < capacity_ + 1) entries_.resize(capacity_ + 1);
+    full_width_ = false;
     size_ = 0;
     cursor_ = 0;
   }
@@ -46,10 +48,22 @@ class QuantizedGraphBeam {
 
   void insert(uint32_t id, float distance) {
     if (is_full(distance)) return;
+    if (!full_width_ && (id & kExpanded)) {
+      expanded_.resize(capacity_ + 1);
+      for (size_t i = 0; i < size_; ++i) {
+        expanded_[i] = (entries_[i].id & kExpanded) != 0;
+        entries_[i].id &= ~kExpanded;
+      }
+      full_width_ = true;
+    }
     const size_t lo = binary_search(distance);
     std::memmove(&entries_[lo + 1], &entries_[lo],
                  (size_ - lo) * sizeof(Entry));
-    entries_[lo] = Entry{id, distance, false};
+    if (full_width_) {
+      std::memmove(&expanded_[lo + 1], &expanded_[lo], size_ - lo);
+      expanded_[lo] = false;
+    }
+    entries_[lo] = Entry{id, distance};
     size_ += static_cast<size_t>(size_ < capacity_);
     cursor_ = lo < cursor_ ? lo : cursor_;
   }
@@ -62,32 +76,42 @@ class QuantizedGraphBeam {
   bool has_next_at(size_t ahead) const {
     size_t i = cursor_;
     while (i < size_ && ahead > 0) {
-      if (!entries_[i].expanded) --ahead;
+      if (!expanded(i)) --ahead;
       ++i;
     }
-    while (i < size_ && entries_[i].expanded) ++i;
+    while (i < size_ && expanded(i)) ++i;
     return i < size_;
   }
 
   uint32_t next_id_at(size_t ahead) const {
     size_t i = cursor_;
     while (i < size_ && ahead > 0) {
-      if (!entries_[i].expanded) --ahead;
+      if (!expanded(i)) --ahead;
       ++i;
     }
-    while (i < size_ && entries_[i].expanded) ++i;
-    return entries_[i < size_ ? i : size_ - 1].id;
+    while (i < size_ && expanded(i)) ++i;
+    return node_id(i < size_ ? i : size_ - 1);
   }
 
   uint32_t pop() {
-    Entry &entry = entries_[cursor_++];
-    entry.expanded = true;
-    const uint32_t id = entry.id;
-    while (cursor_ < size_ && entries_[cursor_].expanded) ++cursor_;
+    const uint32_t id = node_id(cursor_);
+    if (full_width_)
+      expanded_[cursor_] = true;
+    else
+      entries_[cursor_].id |= kExpanded;
+    ++cursor_;
+    while (cursor_ < size_ && expanded(cursor_)) ++cursor_;
     return id;
   }
 
  private:
+  static constexpr uint32_t kExpanded = uint32_t{1} << 31;
+  bool expanded(size_t i) const {
+    return full_width_ ? expanded_[i] != 0 : (entries_[i].id & kExpanded) != 0;
+  }
+  uint32_t node_id(size_t i) const {
+    return full_width_ ? entries_[i].id : entries_[i].id & ~kExpanded;
+  }
   size_t binary_search(float distance) const {
     size_t lo = 0;
     size_t len = size_;
@@ -103,12 +127,14 @@ class QuantizedGraphBeam {
   struct Entry {
     uint32_t id;
     float distance;
-    bool expanded;
   };
+  static_assert(sizeof(Entry) == 8, "Beam entries must remain compact");
   size_t capacity_;
   size_t size_{0};
   size_t cursor_{0};
+  bool full_width_{false};
   std::vector<Entry> entries_;
+  std::vector<uint8_t> expanded_;
 };
 
 }  // namespace zvec::core
