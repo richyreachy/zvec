@@ -372,6 +372,7 @@ class HnswIndexParam(VectorIndexParam):
         use_flat_contiguous_memory: bool = False,
         flat_data_type: zvec._zvec.typing.DataType = ...,
         symphony_qg: bool = False,
+        quantized_graph_codec: str = "",
     ) -> None: ...
     def __repr__(self) -> str: ...
     def __setstate__(self, arg0: tuple) -> None: ...
@@ -380,6 +381,8 @@ class HnswIndexParam(VectorIndexParam):
         Convert to dictionary with all fields
         """
 
+    @property
+    def quantized_graph_codec(self) -> str: ...
     @property
     def symphony_qg(self) -> bool:
         """Enable experimental RaBitQ neighbor scanning on FP32 L2 or cosine HNSW."""

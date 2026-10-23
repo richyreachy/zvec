@@ -24,15 +24,16 @@
 #include <vector>
 #include <gtest/gtest.h>
 #include "algorithm/quantized_graph/quantized_graph.h"
+#include "algorithm/quantized_graph/sq8_graph_codec.h"
 #include "algorithm/quantized_graph/symphony_qg_codec.h"
 #include "utility/linear_pool.h"
+#include "hnsw_context.h"
 #include "hnsw_symphony_qg.h"
 #if RABITQ_SUPPORTED
 #include <rabitqlib/quantization/rabitq.hpp>
 #include <rabitqlib/utils/cpu_features.hpp>
 #include <turbo/quantizer/quantizer.h>
 #include <zvec/core/framework/index_factory.h>
-#include "hnsw_context.h"
 #include "hnsw_streamer.h"
 #endif
 
@@ -305,6 +306,111 @@ TEST(GraphSearchTest, QuantizedBeamReadmitsRejectedNodesWithBetterEstimates) {
                           [](bool seen) { return seen; }));
 }
 
+
+TEST(QuantizedGraphTest, SQ8DistanceErrorAndPartialBatches) {
+  for (size_t dim : {1U, 3U, 17U, 128U}) {
+    for (bool cosine : {false, true}) {
+      SQ8GraphCodec codec(dim, cosine);
+      std::vector<float> values(SQ8GraphCodec::kBatchSize * dim);
+      std::vector<float> query(dim);
+      for (size_t d = 0; d < dim; ++d) query[d] = std::sin(float(d + 1));
+      auto normalize = [dim](float *v) {
+        float norm = 0;
+        for (size_t d = 0; d < dim; ++d) norm += v[d] * v[d];
+        if (norm > 0)
+          for (size_t d = 0; d < dim; ++d) v[d] /= std::sqrt(norm);
+      };
+      for (size_t i = 1; i < SQ8GraphCodec::kBatchSize; ++i) {
+        for (size_t d = 0; d < dim; ++d)
+          values[i * dim + d] = float(i) * std::cos(float(d + i));
+        if (cosine) normalize(values.data() + i * dim);
+      }
+      if (cosine) normalize(query.data());
+      SQ8GraphCodec::Query prepared;
+      codec.prepare_query(query.data(), prepared);
+      // Deliberately unaligned storage: odd dimensions make lane offsets
+      // unaligned too. Sentinels catch writes beyond the advertised payload.
+      std::vector<char> bytes(codec.batch_bytes() + 2, char{42});
+      std::array<float, SQ8GraphCodec::kBatchSize> scores;
+      for (size_t count : {0U, 1U, 15U, 16U}) {
+        codec.encode(nullptr, values.data(), count, bytes.data() + 1);
+        codec.scan(bytes.data() + 1, prepared, 123.0f, scores.data());
+        EXPECT_EQ(42, bytes.front());
+        EXPECT_EQ(42, bytes.back());
+        for (size_t i = 0; i < SQ8GraphCodec::kBatchSize; ++i) {
+          float max_abs = 0;
+          for (size_t d = 0; d < dim && i < count; ++d)
+            max_abs = std::max(max_abs, std::abs(values[i * dim + d]));
+          const double error = max_abs / 254.0 + 1e-6;
+          double expected = cosine ? 1 : 0;
+          double bound = 1e-5;
+          for (size_t d = 0; d < dim; ++d) {
+            const double x = i < count ? values[i * dim + d] : 0;
+            const double q = query[d];
+            if (cosine) {
+              expected -= q * x;
+              bound += std::abs(q) * error;
+            } else {
+              expected += (q - x) * (q - x);
+              bound += 2 * std::abs(q - x) * error + error * error;
+            }
+          }
+          EXPECT_NEAR(expected, scores[i], bound);
+        }
+      }
+      std::fill(query.begin(), query.end(), 0.0f);
+      codec.prepare_query(query.data(), prepared);
+      codec.scan(bytes.data() + 1, prepared, 0, scores.data());
+      EXPECT_FLOAT_EQ(cosine ? 1 : 0, scores[0]);
+    }
+  }
+}
+
+TEST(QuantizedGraphTest, SQ8SearchFiltersBudgetAndCacheRebuild) {
+  PlainGraph source({});
+  for (size_t i = 0; i < 35; ++i) {
+    source.vectors.push_back({float(i) / 7, -float(i) / 11, 0.25f});
+    source.links.emplace_back();
+    source.live.push_back(true);
+  }
+  for (size_t i = 0; i < source.vectors.size(); ++i) {
+    for (size_t j = 0; j < source.vectors.size(); ++j)
+      if (i != j) source.links[i].push_back(j);
+  }
+  QuantizedGraph<SQ8GraphCodec> index(3, SQ8GraphCodec(3), 48);
+  PlainGraphQuery query;
+  query.vector = source.vectors[20];
+  query.results.capacity = 40;
+  query.k = 33;  // force exact completion if duplicate beam entries fill it
+  query.exclusions = {0, 20};
+  for (bool lazy : {false, true}) {
+    if (lazy) {
+      index.clear();
+      source.vectors[21] = query.vector;  // mutation must invalidate codes
+    } else {
+      ASSERT_EQ(0, index.prebuild(source, source.vectors.size(), 2));
+    }
+    ASSERT_EQ(0, index.search(0, source, query));
+    ASSERT_EQ(33U, query.results.size());
+    for (const auto &result : query.results.values) {
+      EXPECT_FALSE(query.excluded(result.first));
+      const auto &v = source.vectors[result.first];
+      float expected = 0;
+      for (size_t d = 0; d < 3; ++d) {
+        const float delta = v[d] - query.vector[d];
+        expected += delta * delta;
+      }
+      EXPECT_FLOAT_EQ(expected, result.second);  // final scores stay exact
+    }
+    if (lazy) {
+      EXPECT_EQ(21U, query.results.values.front().first);
+      EXPECT_FLOAT_EQ(0, query.results.values.front().second);
+    }
+  }
+  query.budget = 2;
+  ASSERT_EQ(0, index.search(0, source, query));
+  EXPECT_EQ(2U, query.scans);
+}
 
 TEST(QuantizedGraphTest, IndependentBackendUsesMultipleAndPartialCodecBatches) {
   PlainGraph source({{0, 0}, {1, -1}, {2, -2}, {3, -3}, {4, -4}, {5, -5}});
@@ -585,7 +691,6 @@ TEST(SymphonyQGRotationTest, PreservesDistancesAndRebuildsIdentically) {
   }
 }
 
-#if RABITQ_SUPPORTED
 // A fixed level-zero graph makes completion and entry selection deterministic.
 class SymphonyTestEntity : public HnswEntity {
  public:
@@ -634,92 +739,140 @@ class SymphonyTestEntity : public HnswEntity {
   size_t dimension_;
 };
 
-TEST(SymphonyQGTest, PrebuildSelectsMeanOfValidVectors) {
-  if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core()) {
-    GTEST_SKIP() << "RaBitQ requires AVX2/FMA or AVX512";
-  }
-  SymphonyTestEntity entity({1.0f, 2.0f, 10.0f});
-  HnswSymphonyQG index(1);
-  for (size_t threads : {1U, 3U}) {
-    SCOPED_TRACE(threads);
-    ASSERT_EQ(0, index.prebuild(entity, entity.doc_cnt(), threads));
-    EXPECT_EQ(1U, index.entry());  // nearest 13/3, not nearest the sum 13
-  }
+TEST(QuantizedGraphTest, PrebuildSelectsMeanOfValidVectors) {
+  for (const std::string codec : {"sq8", "symphony_qg"}) {
+    if (!HnswQuantizedGraph::supported(codec)) continue;
+    SCOPED_TRACE(codec);
+    SymphonyTestEntity entity({1.0f, 2.0f, 10.0f});
+    HnswQuantizedGraph index(1, 32, false, 0, codec);
+    for (size_t threads : {1U, 3U}) {
+      SCOPED_TRACE(threads);
+      ASSERT_EQ(0, index.prebuild(entity, entity.doc_cnt(), threads));
+      EXPECT_EQ(1U, index.entry());  // nearest 13/3, not nearest the sum 13
+    }
 
-  // Three live vectors and enough deleted slots that dividing by doc_cnt
-  // instead of the live count would incorrectly select node zero.
-  SymphonyTestEntity holes({1.0f, 2.0f, 10.0f, 100.0f, 100.0f, 100.0f, 100.0f,
-                            100.0f, 100.0f, 100.0f});
-  std::fill(holes.keys_.begin() + 3, holes.keys_.end(), kInvalidKey);
-  ASSERT_EQ(0, index.prebuild(holes, holes.doc_cnt(), 3));
-  EXPECT_EQ(1U, index.entry());
-  std::fill(holes.keys_.begin(), holes.keys_.end(), kInvalidKey);
-  ASSERT_EQ(0, index.prebuild(holes, holes.doc_cnt(), 3));
-  EXPECT_EQ(kInvalidNodeId, index.entry());
-  ASSERT_EQ(0, index.prebuild(entity, 0, 1));
-  EXPECT_EQ(kInvalidNodeId, index.entry());
+    // Three live vectors and enough deleted slots that dividing by doc_cnt
+    // instead of the live count would incorrectly select node zero.
+    SymphonyTestEntity holes({1.0f, 2.0f, 10.0f, 100.0f, 100.0f, 100.0f, 100.0f,
+                              100.0f, 100.0f, 100.0f});
+    std::fill(holes.keys_.begin() + 3, holes.keys_.end(), kInvalidKey);
+    ASSERT_EQ(0, index.prebuild(holes, holes.doc_cnt(), 3));
+    EXPECT_EQ(1U, index.entry());
+    std::fill(holes.keys_.begin(), holes.keys_.end(), kInvalidKey);
+    ASSERT_EQ(0, index.prebuild(holes, holes.doc_cnt(), 3));
+    EXPECT_EQ(kInvalidNodeId, index.entry());
+    ASSERT_EQ(0, index.prebuild(entity, 0, 1));
+    EXPECT_EQ(kInvalidNodeId, index.entry());
+  }
 }
 
-TEST(SymphonyQGTest, CompletionHonorsExclusionFilterAndScanBudget) {
-  if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core()) {
-    GTEST_SKIP() << "RaBitQ requires AVX2/FMA or AVX512";
-  }
-  auto entity = std::make_shared<SymphonyTestEntity>(
-      std::vector<float>{0.0f, 1.0f, 2.0f, 3.0f});
-  entity->links_[0] = {1, 2, 3};
-  HnswSymphonyQG index(1);
-  const float query = 1.0f;
-  HnswContext ctx(1, nullptr, entity);
-  ctx.set_ef(1);
-  ctx.set_topk(1);
-  ctx.dist_calculator().update_distance(
-      [](const void *lhs, const void *rhs, size_t, float *out) {
-        const float diff =
-            *static_cast<const float *>(lhs) - *static_cast<const float *>(rhs);
-        *out = diff * diff;
-      },
-      {});
-  ctx.dist_calculator().reset_query(&query);
+TEST(QuantizedGraphTest, CompletionHonorsExclusionFilterAndScanBudget) {
+  for (const std::string codec : {"sq8", "symphony_qg"}) {
+    if (!HnswQuantizedGraph::supported(codec)) continue;
+    SCOPED_TRACE(codec);
+    auto entity = std::make_shared<SymphonyTestEntity>(
+        std::vector<float>{0.0f, 1.0f, 2.0f, 3.0f});
+    entity->links_[0] = {1, 2, 3};
+    HnswQuantizedGraph index(1, 32, false, 0, codec);
+    const float query = 1.0f;
+    HnswContext ctx(1, nullptr, entity);
+    ctx.set_ef(1);
+    ctx.set_topk(1);
+    ctx.dist_calculator().update_distance(
+        [](const void *lhs, const void *rhs, size_t, float *out) {
+          const float diff = *static_cast<const float *>(lhs) -
+                             *static_cast<const float *>(rhs);
+          *out = diff * diff;
+        },
+        {});
+    ctx.dist_calculator().reset_query(&query);
 
-  for (bool prebuilt : {true, false}) {
-    SCOPED_TRACE(prebuilt);
-    if (prebuilt) {
-      ASSERT_EQ(0, index.prebuild(*entity, entity->doc_cnt(), 1));
-    } else {
-      index.clear();
-    }
-    for (uint32_t budget : {2U, 100U}) {
-      SCOPED_TRACE(budget);
-      ctx.set_max_scan_num(budget);
+    for (bool prebuilt : {true, false}) {
+      SCOPED_TRACE(prebuilt);
+      if (prebuilt) {
+        ASSERT_EQ(0, index.prebuild(*entity, entity->doc_cnt(), 1));
+      } else {
+        index.clear();
+      }
+      for (uint32_t budget : {2U, 100U}) {
+        SCOPED_TRACE(budget);
+        ctx.set_max_scan_num(budget);
+        ctx.dist_calculator().clear_compare_cnt();
+        ctx.set_filter([](uint64_t key) { return key != 3; });
+        ASSERT_EQ(0, index.search(0, ctx));
+        // Beam capacity one expands nodes 0 and 1; only completion can find 3.
+        EXPECT_EQ(budget == 2 ? 0U : 1U, ctx.search_heap().size());
+        ctx.search_heap().for_each([](node_id_t id, dist_t distance) {
+          EXPECT_EQ(3U, id);
+          EXPECT_FLOAT_EQ(4.0f, distance);
+          return true;
+        });
+        EXPECT_LE(ctx.dist_calculator().compare_cnt(), budget);
+      }
       ctx.dist_calculator().clear_compare_cnt();
-      ctx.set_filter([](uint64_t key) { return key != 3; });
+      ctx.set_filter([](uint64_t) { return true; });
       ASSERT_EQ(0, index.search(0, ctx));
-      // Beam capacity one expands nodes 0 and 1; only completion can find 3.
-      EXPECT_EQ(budget == 2 ? 0U : 1U, ctx.search_heap().size());
+      EXPECT_EQ(0U, ctx.search_heap().size());
+
+      ctx.dist_calculator().clear_compare_cnt();
+      ctx.reset_filter();
+      ASSERT_EQ(0, index.search(0, ctx));
+      ASSERT_EQ(1U, ctx.search_heap().size());
       ctx.search_heap().for_each([](node_id_t id, dist_t distance) {
-        EXPECT_EQ(3U, id);
-        EXPECT_FLOAT_EQ(4.0f, distance);
+        EXPECT_EQ(1U, id);
+        EXPECT_FLOAT_EQ(0.0f, distance);
         return true;
       });
-      EXPECT_LE(ctx.dist_calculator().compare_cnt(), budget);
     }
-    ctx.dist_calculator().clear_compare_cnt();
-    ctx.set_filter([](uint64_t) { return true; });
-    ASSERT_EQ(0, index.search(0, ctx));
-    EXPECT_EQ(0U, ctx.search_heap().size());
-
-    ctx.dist_calculator().clear_compare_cnt();
-    ctx.reset_filter();
-    ASSERT_EQ(0, index.search(0, ctx));
-    ASSERT_EQ(1U, ctx.search_heap().size());
-    ctx.search_heap().for_each([](node_id_t id, dist_t distance) {
-      EXPECT_EQ(1U, id);
-      EXPECT_FLOAT_EQ(0.0f, distance);
-      return true;
-    });
   }
 }
 
+TEST(QuantizedGraphTest, SQ8HnswCosineAndCodecSelection) {
+  EXPECT_TRUE(HnswQuantizedGraph::supported("sq8"));
+  EXPECT_FALSE(HnswQuantizedGraph::supported("unknown"));
+  auto entity = std::make_shared<SymphonyTestEntity>(
+      std::vector<float>{0, 0, 0, 1, 0, 300, 0, 1, 8, -1, 0, 4, 0.6f, 0.8f, 10},
+      3);
+  for (uint32_t i = 0; i < entity->doc_cnt(); ++i)
+    for (uint32_t j = 0; j < entity->doc_cnt(); ++j)
+      if (i != j) entity->links_[i].push_back(j);
+  HnswQuantizedGraph invalid(2, 32, true, 3, "unknown");
+  EXPECT_EQ(IndexError_Unsupported,
+            invalid.prebuild(*entity, entity->doc_cnt(), 1));
+  HnswQuantizedGraph index(2, 32, true, 3, "sq8");
+  HnswContext ctx(3, nullptr, entity);
+  ctx.set_ef(8);
+  ctx.set_topk(5);
+  ctx.set_max_scan_num(100);
+  ctx.dist_calculator().update_distance(
+      [](const void *lhs, const void *rhs, size_t, float *out) {
+        const auto *x = static_cast<const float *>(lhs);
+        const auto *q = static_cast<const float *>(rhs);
+        *out = 1 - x[0] * q[0] - x[1] * q[1];
+      },
+      {});
+  const std::array<std::array<float, 3>, 3> queries{
+      {{{1, 0, 100}}, {{0.6f, 0.8f, 2}}, {{0, 0, 0}}}};
+  for (bool lazy : {false, true}) {
+    if (lazy)
+      index.clear();
+    else
+      ASSERT_EQ(0, index.prebuild(*entity, entity->doc_cnt(), 2));
+    for (const auto &query : queries) {
+      ctx.dist_calculator().clear_compare_cnt();
+      ctx.dist_calculator().reset_query(query.data());
+      ASSERT_EQ(0, index.search(0, ctx));
+      EXPECT_EQ(5U, ctx.search_heap().size());
+      ctx.search_heap().for_each([&](node_id_t id, dist_t distance) {
+        const auto *x = static_cast<const float *>(entity->get_vector(id));
+        EXPECT_NEAR(1 - query[0] * x[0] - query[1] * x[1], distance, 1e-6);
+        return true;
+      });
+    }
+  }
+}
+
+#if RABITQ_SUPPORTED
 TEST(SymphonyQGTest, CosineSearchUsesNormalizedCoordinatesAndExactScores) {
   if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core())
     GTEST_SKIP();

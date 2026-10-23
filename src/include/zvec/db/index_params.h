@@ -227,7 +227,8 @@ class ZVEC_API HnswIndexParams : public VectorIndexParams {
       QuantizeType quantize_type = QuantizeType::UNDEFINED,
       bool use_contiguous_memory = false, QuantizerParam quantizer_param = {},
       bool use_flat_contiguous_memory = false,
-      DataType flat_data_type = DataType::VECTOR_FP32, bool symphony_qg = false)
+      DataType flat_data_type = DataType::VECTOR_FP32, bool symphony_qg = false,
+      std::string quantized_graph_codec = "")
       : VectorIndexParams(IndexType::HNSW, metric_type, quantize_type,
                           quantizer_param),
         m_(m),
@@ -237,7 +238,8 @@ class ZVEC_API HnswIndexParams : public VectorIndexParams {
         flat_data_type_(flat_data_type == DataType::UNDEFINED
                             ? DataType::VECTOR_FP32
                             : flat_data_type),
-        symphony_qg_(symphony_qg) {}
+        symphony_qg_(symphony_qg),
+        quantized_graph_codec_(std::move(quantized_graph_codec)) {}
 
   using OPtr = std::shared_ptr<HnswIndexParams>;
 
@@ -246,7 +248,7 @@ class ZVEC_API HnswIndexParams : public VectorIndexParams {
     return std::make_shared<HnswIndexParams>(
         metric_type_, m_, ef_construction_, quantize_type_,
         use_contiguous_memory_, quantizer_param_, use_flat_contiguous_memory_,
-        flat_data_type_, symphony_qg_);
+        flat_data_type_, symphony_qg_, quantized_graph_codec_);
   }
 
   std::string to_string() const override {
@@ -259,13 +261,17 @@ class ZVEC_API HnswIndexParams : public VectorIndexParams {
         << ",use_flat_contiguous_memory:"
         << (use_flat_contiguous_memory_ ? "true" : "false")
         << ",flat_data_type:" << static_cast<uint32_t>(flat_data_type_)
-        << ",symphony_qg:" << symphony_qg_ << ",enable_rotate:"
+        << ",symphony_qg:" << symphony_qg_
+        << ",quantized_graph_codec:" << quantized_graph_codec_
+        << ",enable_rotate:"
         << (quantizer_param_.enable_rotate() ? "true" : "false") << "}";
     return oss.str();
   }
 
   bool operator==(const IndexParams &other) const override {
     return type() == other.type() &&
+           quantized_graph_codec_ == static_cast<const HnswIndexParams &>(other)
+                                         .quantized_graph_codec_ &&
            symphony_qg_ ==
                static_cast<const HnswIndexParams &>(other).symphony_qg_ &&
            metric_type() ==
@@ -321,6 +327,13 @@ class ZVEC_API HnswIndexParams : public VectorIndexParams {
     return flat_data_type_;
   }
 
+  const std::string &quantized_graph_codec() const {
+    return quantized_graph_codec_;
+  }
+  void set_quantized_graph_codec(const std::string &codec) {
+    quantized_graph_codec_ = codec;
+  }
+
   bool symphony_qg() const {
     return symphony_qg_;
   }
@@ -339,6 +352,7 @@ class ZVEC_API HnswIndexParams : public VectorIndexParams {
   bool use_flat_contiguous_memory_{false};
   DataType flat_data_type_{DataType::VECTOR_FP32};
   bool symphony_qg_{false};
+  std::string quantized_graph_codec_;
 };
 
 class ZVEC_API HnswRabitqIndexParams : public VectorIndexParams {

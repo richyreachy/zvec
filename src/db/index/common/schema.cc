@@ -153,19 +153,28 @@ Status FieldSchema::validate() const {
       }
 
       if (auto qg = std::dynamic_pointer_cast<HnswIndexParams>(index_params_);
-          qg && qg->symphony_qg()) {
+          qg && (qg->symphony_qg() || !qg->quantized_graph_codec().empty())) {
+        const auto &codec = qg->quantized_graph_codec();
+        if ((!codec.empty() && codec != "symphony_qg" && codec != "sq8") ||
+            (qg->symphony_qg() && !codec.empty() && codec != "symphony_qg")) {
+          return Status::InvalidArgument(
+              "Invalid or conflicting quantized graph codec");
+        }
         if (data_type_ != DataType::VECTOR_FP32 ||
             (qg->metric_type() != MetricType::L2 &&
              qg->metric_type() != MetricType::COSINE) ||
             qg->quantize_type() != QuantizeType::UNDEFINED || dimension_ == 0 ||
             dimension_ > 4096) {
           return Status::InvalidArgument(
-              "SymphonyQG requires unquantized FP32 L2 or cosine vectors with "
+              "QuantizedGraph/SymphonyQG requires unquantized FP32 L2 or "
+              "cosine vectors with "
               "dimension in [1, 4096]");
         }
 #if !RABITQ_SUPPORTED
-        return Status::InvalidArgument(
-            "SymphonyQG requires a RaBitQ-enabled build");
+        if (codec != "sq8") {
+          return Status::InvalidArgument(
+              "SymphonyQG requires a RaBitQ-enabled build");
+        }
 #endif
       }
       if (index_params_->type() == IndexType::HNSW_RABITQ ||

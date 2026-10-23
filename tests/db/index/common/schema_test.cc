@@ -1380,3 +1380,21 @@ TEST(FieldSchemaTest, SymphonyQGAcceptsL2AndCosineWhenSupported) {
 #endif
   }
 }
+
+TEST(FieldSchemaTest, QuantizedGraphCodecValidation) {
+  for (auto metric : {MetricType::L2, MetricType::COSINE}) {
+    auto params = std::make_shared<HnswIndexParams>(metric);
+    params->set_quantized_graph_codec("sq8");
+    FieldSchema field("qg", DataType::VECTOR_FP32, 128, false, params);
+    EXPECT_TRUE(field.validate().ok());
+    params->set_symphony_qg(true);
+    EXPECT_EQ(StatusCode::INVALID_ARGUMENT, field.validate().code());
+    params->set_symphony_qg(false);
+    params->set_quantized_graph_codec("unknown");
+    EXPECT_EQ(StatusCode::INVALID_ARGUMENT, field.validate().code());
+  }
+  auto params = std::make_shared<HnswIndexParams>(MetricType::IP);
+  params->set_quantized_graph_codec("sq8");
+  FieldSchema field("qg", DataType::VECTOR_FP32, 128, false, params);
+  EXPECT_EQ(StatusCode::INVALID_ARGUMENT, field.validate().code());
+}

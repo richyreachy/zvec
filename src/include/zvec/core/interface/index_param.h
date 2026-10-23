@@ -408,6 +408,8 @@ struct ZVEC_CORE_API IVFIndexParam : public BaseIndexParam {
 
 struct ZVEC_CORE_API HNSWIndexParam : public BaseIndexParam {
   bool symphony_qg = false;
+  // Empty disables QG; supported codecs: symphony_qg, sq8.
+  std::string quantized_graph_codec;
   using Pointer = std::shared_ptr<HNSWIndexParam>;
   int m = kDefaultHnswNeighborCnt;
   int ef_construction = kDefaultHnswEfConstruction;

@@ -267,10 +267,11 @@ class HnswStreamer : public IndexStreamer {
     }
   };
 
-  bool symphony_qg_enabled_{false};
-  uint32_t symphony_qg_degree_{32};
-  std::shared_ptr<HnswSymphonyQG> symphony_qg_;
-  mutable std::shared_mutex symphony_qg_mutex_;
+  std::string quantized_graph_codec_;
+  bool quantized_graph_enabled_{false};
+  uint32_t quantized_graph_degree_{32};
+  std::shared_ptr<HnswQuantizedGraph> quantized_graph_;
+  mutable std::shared_mutex quantized_graph_mutex_;
   std::unique_ptr<HnswStreamerEntity> entity_;
   HnswAlgorithmBase::UPointer alg_;
   IndexMeta meta_{};

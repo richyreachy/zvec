@@ -13,6 +13,7 @@
 # limitations under the License.
 from __future__ import annotations
 
+import pickle
 import platform
 import sys
 
@@ -20,10 +21,6 @@ import pytest
 import math
 import zvec
 
-pytestmark = pytest.mark.skipif(
-    not (sys.platform == "linux" and platform.machine() in ("x86_64", "AMD64")),
-    reason="SymphonyQG only supported on Linux x86_64",
-)
 from zvec import (
     Collection,
     CollectionOption,
@@ -38,9 +35,23 @@ from zvec import (
 )
 
 
+symphony_only = pytest.mark.skipif(
+    not (sys.platform == "linux" and platform.machine() in ("x86_64", "AMD64")),
+    reason="SymphonyQG only supported on Linux x86_64",
+)
+codec_cases = [
+    "sq8",
+    pytest.param("symphony_qg", marks=symphony_only),
+    pytest.param("legacy", marks=symphony_only),
+]
+
+
+@pytest.mark.parametrize("codec", codec_cases)
 @pytest.mark.parametrize("enable_mmap", [True, False])
 @pytest.mark.parametrize("use_contiguous_memory", [True, False])
-def test_symphony_qg_optimize_reopen(tmp_path, enable_mmap, use_contiguous_memory):
+def test_symphony_qg_optimize_reopen(
+    tmp_path, enable_mmap, use_contiguous_memory, codec
+):
     schema = zvec.CollectionSchema(
         name="symphony_qg",
         vectors=[
@@ -51,7 +62,8 @@ def test_symphony_qg_optimize_reopen(tmp_path, enable_mmap, use_contiguous_memor
                 index_param=HnswIndexParam(
                     metric_type=MetricType.L2,
                     m=17,
-                    symphony_qg=True,
+                    symphony_qg=codec == "legacy",
+                    quantized_graph_codec="" if codec == "legacy" else codec,
                     use_contiguous_memory=use_contiguous_memory,
                 ),
             )
@@ -81,7 +93,9 @@ def test_symphony_qg_optimize_reopen(tmp_path, enable_mmap, use_contiguous_memor
     del collection
     reopened = zvec.open(path=path, option=option)
     try:
-        assert reopened.schema.vector("embedding").index_param.symphony_qg
+        params = reopened.schema.vector("embedding").index_param
+        assert params.symphony_qg == (codec == "legacy")
+        assert params.quantized_graph_codec == ("" if codec == "legacy" else codec)
         after = reopened.query(query, topk=5)
         assert after[0].id == "142"
         assert {doc.id for doc in before} == {doc.id for doc in after}
@@ -89,10 +103,11 @@ def test_symphony_qg_optimize_reopen(tmp_path, enable_mmap, use_contiguous_memor
         reopened.destroy()
 
 
+@pytest.mark.parametrize("codec", codec_cases)
 @pytest.mark.parametrize("enable_mmap", [True, False])
 @pytest.mark.parametrize("use_contiguous_memory", [True, False])
 def test_symphony_qg_cosine_optimize_reopen(
-    tmp_path, enable_mmap, use_contiguous_memory
+    tmp_path, enable_mmap, use_contiguous_memory, codec
 ):
     dimension = 128
     schema = zvec.CollectionSchema(
@@ -105,7 +120,8 @@ def test_symphony_qg_cosine_optimize_reopen(
                 dimension=dimension,
                 index_param=HnswIndexParam(
                     metric_type=MetricType.COSINE,
-                    symphony_qg=True,
+                    symphony_qg=codec == "legacy",
+                    quantized_graph_codec="" if codec == "legacy" else codec,
                     m=17,
                     use_contiguous_memory=use_contiguous_memory,
                 ),
@@ -182,9 +198,19 @@ def test_symphony_qg_cosine_optimize_reopen(
         collection = None
         collection = zvec.open(path=path, option=option)
         params = collection.schema.vector("embedding").index_param
-        assert params.symphony_qg
+        assert params.symphony_qg == (codec == "legacy")
+        assert params.quantized_graph_codec == ("" if codec == "legacy" else codec)
         assert params.metric_type == MetricType.COSINE
         assert verify(collection) == before
     finally:
         if collection is not None:
             collection.destroy()
+
+
+@pytest.mark.parametrize("codec", ["", "sq8", "symphony_qg"])
+def test_quantized_graph_codec_parameter_roundtrip(codec):
+    params = HnswIndexParam(metric_type=MetricType.L2, quantized_graph_codec=codec)
+    assert params.to_dict()["quantized_graph_codec"] == codec
+    restored = pickle.loads(pickle.dumps(params))
+    assert restored.quantized_graph_codec == codec
+    assert not restored.symphony_qg

@@ -1168,3 +1168,31 @@ TEST(ManifestCodecGolden, SymphonyQGOptInRoundTripAndClone) {
   EXPECT_TRUE(restored->symphony_qg());
   EXPECT_EQ(*enabled, *restored);
 }
+
+TEST(ManifestCodecGolden, QuantizedGraphCodecRoundTripAndClone) {
+  for (const std::string codec : {"sq8", "symphony_qg"}) {
+    ManifestData data;
+    ASSERT_TRUE(
+        ManifestCodec::Decode(Golden(kGoldenAllIndexTypes), &data).ok());
+    auto field = data.schema->get_field("f_hnsw");
+    auto params =
+        std::dynamic_pointer_cast<HnswIndexParams>(field->index_params());
+    ASSERT_NE(nullptr, params);
+    EXPECT_TRUE(params->quantized_graph_codec().empty());
+    auto enabled = std::dynamic_pointer_cast<HnswIndexParams>(params->clone());
+    enabled->set_quantized_graph_codec(codec);
+    EXPECT_FALSE(*enabled == *params);
+    auto clone = std::dynamic_pointer_cast<HnswIndexParams>(enabled->clone());
+    EXPECT_EQ(codec, clone->quantized_graph_codec());
+    field->set_index_params(clone);
+    std::string encoded;
+    ASSERT_TRUE(ManifestCodec::Encode(data, &encoded).ok());
+    auto decoded = ExpectStableRoundTrip(encoded, "QuantizedGraph");
+    auto restored = std::dynamic_pointer_cast<HnswIndexParams>(
+        decoded.schema->get_field("f_hnsw")->index_params());
+    ASSERT_NE(nullptr, restored);
+    EXPECT_EQ(codec, restored->quantized_graph_codec());
+    EXPECT_FALSE(restored->symphony_qg());
+    EXPECT_EQ(*enabled, *restored);
+  }
+}

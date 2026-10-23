@@ -165,6 +165,10 @@ class IVFIndexParamBuilder
 class HNSWIndexParamBuilder
     : public BaseIndexParamBuilder<HNSWIndexParamBuilder, HNSWIndexParam> {
  public:
+  HNSWIndexParamBuilder &with_quantized_graph_codec(const std::string &codec) {
+    param->quantized_graph_codec = codec;
+    return *this;
+  }
   HNSWIndexParamBuilder &with_symphony_qg(bool enabled) {
     param->symphony_qg = enabled;
     return *this;

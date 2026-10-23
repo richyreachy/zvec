@@ -13,30 +13,8 @@
 // limitations under the License.
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-#include <memory>
+#include "hnsw_quantized_graph.h"
 
 namespace zvec::core {
-class HnswEntity;
-class HnswContext;
-
-// Adapts ordinary HNSW level zero to QuantizedGraph<SymphonyQGCodec>.
-// The streamer owns synchronization and invalidates the cache on mutation.
-class HnswSymphonyQG {
- public:
-  // dimension counts coordinates only; stored_dimension additionally includes
-  // any trailing norm. The streamer resolves legacy and Turbo metadata.
-  HnswSymphonyQG(size_t dimension, size_t max_neighbors = 32,
-                 bool cosine = false, size_t stored_dimension = 0);
-  ~HnswSymphonyQG();
-  int search(uint32_t entry, HnswContext &ctx) const;
-  void clear();
-  int prebuild(const HnswEntity &entity, size_t doc_cnt, size_t threads);
-  uint32_t entry() const;
-
- private:
-  struct Impl;
-  std::unique_ptr<Impl> impl_;
-};
+using HnswSymphonyQG = HnswQuantizedGraph;
 }  // namespace zvec::core

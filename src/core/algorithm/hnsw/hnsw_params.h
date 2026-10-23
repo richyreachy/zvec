@@ -18,6 +18,10 @@
 namespace zvec {
 namespace core {
 
+const std::string PARAM_HNSW_QUANTIZED_GRAPH_CODEC =
+    "proxima.hnsw.quantized_graph.codec";
+const std::string PARAM_HNSW_QUANTIZED_GRAPH_DEGREE =
+    "proxima.hnsw.quantized_graph.degree";
 const std::string PARAM_HNSW_SYMPHONY_QG = "proxima.hnsw.symphony_qg";
 const std::string PARAM_HNSW_SYMPHONY_QG_DEGREE =
     "proxima.hnsw.symphony_qg.degree";

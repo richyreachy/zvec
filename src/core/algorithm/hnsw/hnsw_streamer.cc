@@ -80,17 +80,29 @@ void HnswStreamer::merge_trained_meta(const IndexMeta &trained_meta) {
 }
 
 int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
-  symphony_qg_enabled_ = false;
-  symphony_qg_degree_ = 32;
-  params.get(PARAM_HNSW_SYMPHONY_QG, &symphony_qg_enabled_);
-  params.get(PARAM_HNSW_SYMPHONY_QG_DEGREE, &symphony_qg_degree_);
+  quantized_graph_enabled_ = false;
+  quantized_graph_degree_ = 32;
+  bool legacy_qg = false;
+  params.get(PARAM_HNSW_SYMPHONY_QG, &legacy_qg);
+  quantized_graph_codec_.clear();
+  params.get(PARAM_HNSW_QUANTIZED_GRAPH_CODEC, &quantized_graph_codec_);
+  if (legacy_qg && !quantized_graph_codec_.empty() &&
+      quantized_graph_codec_ != "symphony_qg") {
+    LOG_ERROR("symphony_qg conflicts with quantized_graph_codec");
+    return IndexError_Unsupported;
+  }
+  if (legacy_qg) quantized_graph_codec_ = "symphony_qg";
+  quantized_graph_enabled_ = !quantized_graph_codec_.empty();
+  params.get(PARAM_HNSW_SYMPHONY_QG_DEGREE, &quantized_graph_degree_);
+  params.get(PARAM_HNSW_QUANTIZED_GRAPH_DEGREE, &quantized_graph_degree_);
   bool external = false;
   params.get(PARAM_HNSW_STREAMER_USE_EXTERNAL_VECTOR, &external);
-  if (symphony_qg_enabled_) {
-#if !RABITQ_SUPPORTED
-    LOG_ERROR("SymphonyQG requires a RaBitQ-enabled build");
-    return IndexError_Unsupported;
-#else
+  if (quantized_graph_enabled_) {
+    if (!HnswQuantizedGraph::supported(quantized_graph_codec_)) {
+      LOG_ERROR("Unsupported quantized graph codec: %s",
+                quantized_graph_codec_.c_str());
+      return IndexError_Unsupported;
+    }
     const bool cosine = imeta.metric_name() == "Cosine";
     // Legacy cosine counts the norm in dimension; Turbo puts it in extras.
     const bool turbo = quantizer_ != nullptr;
@@ -107,8 +119,7 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
                     quantizer_->quantized_query_vector_length() ==
                         imeta.element_size()
               : imeta.quantizer_name().empty();
-    if ((!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core()) ||
-        external || !supported_quantizer ||
+    if (external || !supported_quantizer ||
         imeta.extra_meta_size() != expected_extras ||
         imeta.unit_size() != sizeof(float) ||
         imeta.data_type() != IndexMeta::DataType::DT_FP32 ||
@@ -116,11 +127,10 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
         imeta.dimension() <= extra_dimension ||
         imeta.dimension() > 4096 + extra_dimension) {
       LOG_ERROR(
-          "SymphonyQG requires AVX2/FMA or AVX512 and inline FP32 L2 or cosine "
+          "QuantizedGraph requires inline FP32 L2 or cosine "
           "vectors (1..4096D)");
       return IndexError_Unsupported;
     }
-#endif
   }
   meta_ = imeta;
   meta_.set_streamer("HnswStreamer", HnswEntity::kRevision, params);
@@ -287,8 +297,8 @@ int HnswStreamer::cleanup() {
 
   LOG_INFO("HnswStreamer cleanup");
 
-  symphony_qg_.reset();
-  symphony_qg_enabled_ = false;
+  quantized_graph_.reset();
+  quantized_graph_enabled_ = false;
   meta_.clear();
   metric_.reset();
   quantizer_.reset();
@@ -624,24 +634,24 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
     return ret;
   }
 
-  if (symphony_qg_enabled_) {
+  if (quantized_graph_enabled_) {
     const bool cosine = meta_.metric_name() == "Cosine";
     const size_t dimension =
         meta_.dimension() - (cosine && !quantizer_ ? 1 : 0);
-    symphony_qg_ =
-        std::make_shared<HnswSymphonyQG>(dimension, symphony_qg_degree_, cosine,
-                                         meta_.element_size() / sizeof(float));
+    quantized_graph_ = std::make_shared<HnswQuantizedGraph>(
+        dimension, quantized_graph_degree_, cosine,
+        meta_.element_size() / sizeof(float), quantized_graph_codec_);
     const auto prebuild_start = std::chrono::steady_clock::now();
-    ret = symphony_qg_->prebuild(*entity_, entity_->doc_cnt(), 8);
+    ret = quantized_graph_->prebuild(*entity_, entity_->doc_cnt(), 8);
     if (ret != 0) {
       return ret;
     }
     LOG_INFO(
-        "HnswStreamer symphony_qg prebuild done, cost_ms=%d",
+        "HnswStreamer quantized_graph prebuild done, cost_ms=%d",
         static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
                              std::chrono::steady_clock::now() - prebuild_start)
                              .count()));
-    alg_->set_symphony_qg(symphony_qg_);
+    alg_->set_quantized_graph(quantized_graph_);
   }
   state_ = STATE_OPENED;
   magic_ = IndexContext::GenerateMagic();
@@ -651,9 +661,9 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
 
 int HnswStreamer::close() {
   LOG_INFO("HnswStreamer close");
-  std::unique_lock<std::shared_mutex> qg_lock(symphony_qg_mutex_);
-  if (alg_) alg_->set_symphony_qg(nullptr);
-  symphony_qg_.reset();
+  std::unique_lock<std::shared_mutex> qg_lock(quantized_graph_mutex_);
+  if (alg_) alg_->set_quantized_graph(nullptr);
+  quantized_graph_.reset();
 
   stats_.clear();
   if (metric_) {
@@ -825,11 +835,11 @@ int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
   }
   AILEGO_DEFER([&]() { shared_mutex_.unlock_shared(); });
 
-  std::unique_lock<std::shared_mutex> qg_lock(symphony_qg_mutex_,
+  std::unique_lock<std::shared_mutex> qg_lock(quantized_graph_mutex_,
                                               std::defer_lock);
-  if (symphony_qg_enabled_) {
+  if (quantized_graph_enabled_) {
     qg_lock.lock();
-    symphony_qg_->clear();
+    quantized_graph_->clear();
   }
   ctx->clear();
   bind_add_dist_space(ctx);
@@ -933,11 +943,11 @@ int HnswStreamer::add_impl(uint64_t pkey, const void *query,
   }
   AILEGO_DEFER([&]() { shared_mutex_.unlock_shared(); });
 
-  std::unique_lock<std::shared_mutex> qg_lock(symphony_qg_mutex_,
+  std::unique_lock<std::shared_mutex> qg_lock(quantized_graph_mutex_,
                                               std::defer_lock);
-  if (symphony_qg_enabled_) {
+  if (quantized_graph_enabled_) {
     qg_lock.lock();
-    symphony_qg_->clear();
+    quantized_graph_->clear();
   }
   ctx->clear();
   bind_add_dist_space(ctx);
@@ -1020,9 +1030,9 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
     return IndexError_Cast;
   }
 
-  std::shared_lock<std::shared_mutex> qg_lock(symphony_qg_mutex_,
+  std::shared_lock<std::shared_mutex> qg_lock(quantized_graph_mutex_,
                                               std::defer_lock);
-  if (symphony_qg_enabled_) qg_lock.lock();
+  if (quantized_graph_enabled_) qg_lock.lock();
   if (entity_->doc_cnt() <= ctx->get_bruteforce_threshold()) {
     return search_bf_impl(query, qmeta, count, context);
   }
@@ -1078,9 +1088,9 @@ int HnswStreamer::search_candidates_impl(
     return IndexRunner::search_candidates_impl(query, qmeta, keys, context);
   }
 
-  std::shared_lock<std::shared_mutex> qg_lock(symphony_qg_mutex_,
+  std::shared_lock<std::shared_mutex> qg_lock(quantized_graph_mutex_,
                                               std::defer_lock);
-  if (symphony_qg_enabled_) qg_lock.lock();
+  if (quantized_graph_enabled_) qg_lock.lock();
 
   if (ctx->magic() != magic_) {
     ret = update_context(ctx);

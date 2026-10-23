@@ -1,10 +1,53 @@
-# SymphonyQG scanning on ordinary HNSW
+# Quantized graph scanning on ordinary HNSW
 
 Enable this experimental mode with `HnswIndexParam(metric_type=MetricType.L2,
 symphony_qg=True)` in Python, `HnswIndexParams::set_symphony_qg(true)` in the
 database C++ API, or `HNSWIndexParamBuilder::with_symphony_qg(true)` in the core
 API. The low-level streamer parameter is `proxima.hnsw.symphony_qg`.
 It defaults to false. The index type and persistent graph format remain HNSW.
+
+## Codec selection
+
+```python
+HnswIndexParam(metric_type=MetricType.L2, quantized_graph_codec="sq8")
+HnswIndexParam(metric_type=MetricType.COSINE, quantized_graph_codec="symphony_qg")
+```
+
+`quantized_graph_codec` defaults to the empty string (disabled). The DB C++
+setter is `set_quantized_graph_codec()`, the core builder method is
+`with_quantized_graph_codec()`, and the streamer key is
+`proxima.hnsw.quantized_graph.codec`. The selection is preserved by schema
+cloning, manifests, core parameter JSON, and Python pickling. Old manifests
+without this field retain their behavior. `symphony_qg=True` still selects
+SymphonyQG; combining it with `sq8` is rejected, as are unknown codec names.
+The low-level `proxima.hnsw.quantized_graph.degree` overrides the legacy
+`proxima.hnsw.symphony_qg.degree`; both default to 32.
+
+`HnswQuantizedGraph` selects a templated implementation once at construction.
+Virtual dispatch occurs at the search/prebuild boundary, never per neighbor.
+`HnswSymphonyQG` remains a source-compatible alias with SymphonyQG as its default.
+
+The portable `SQ8GraphCodec` uses symmetric signed 8-bit values with one FP32
+scale per neighbor (`max(abs(x)) / 127`), in batches of 16. It calibrates each
+vector independently and needs no global training or RaBitQ build. Each full
+batch stores `16 * (dimension + 4)` bytes of codes and scales, in addition to
+neighbor IDs, cached FP32 centers, headers, and padding. Zero vectors stay zero.
+For cosine, the existing vector pipeline supplies normalized coordinates;
+original-norm metadata is retained for exact scoring/fetch but never quantized.
+SQ8 estimates steer the beam; final scores still come from FP32 distances.
+This scalar implementation validates the extension interface; no SIMD speedup
+or performance parity with SymphonyQG is claimed.
+
+Both codecs currently require inline FP32 L2/cosine vectors with 1..4096
+coordinates and no main-vector compression. Only SymphonyQG requires the
+RaBitQ build and supported x86 SIMD. Codes remain a derived in-memory cache,
+rebuilt on open and invalidated by mutation; codec payloads are not serialized.
+
+To add a fixed-batch codec, implement the contract below and register its model
+in `HnswQuantizedGraph::supported()` and its constructor, then extend public
+schema validation. Search and caching do not need to change. Training/model
+persistence, variable-length codes, and shared global code storage are not
+part of this interface yet.
 
 ## Quantized graph framework
 
@@ -46,7 +89,7 @@ FP32 metadata in cached centers without using it in centroid selection, pruning,
 or encoding. It defaults to `dimension`. The graph and context are borrowed
 for each call, not retained by the engine.
 
-[`hnsw_symphony_qg.cc`](hnsw_symphony_qg.cc) is the thin HNSW adapter. It maps
+[`hnsw_quantized_graph.cc`](hnsw_quantized_graph.cc) is the thin HNSW adapter. It maps
 level-zero adjacency and `HnswContext` to those contracts.
 [`SymphonyQGCodec`](../quantized_graph/symphony_qg_codec.h) implements the first
 production codec: node-centered one-bit RaBitQ, batches of 32, deterministic
@@ -97,9 +140,9 @@ queries share immutable cached blocks and use their own query state. There is
 no eviction policy. Cached centers retain the stored vectors, including any
 auxiliary norm; codes are derived.
 
-The flag is stored in optional HNSW manifest field 7; old manifests default to
-false. The public parameters, persistence format, and unsupported-platform
-behavior are unchanged. This implementation has no established speedup or
+The legacy flag is stored in optional HNSW manifest field 7; the new codec
+name uses optional field 8. Old manifests default to false and an empty codec.
+Existing HNSW graph/vector storage remains compatible. This implementation has no established speedup or
 recall improvement; benchmark it on the intended corpus and hardware.
 
 ## Cosine distance

@@ -264,6 +264,10 @@ ailego::JsonObject HNSWIndexParam::serialize_to_json_object(
     json_obj.set("use_contiguous_memory",
                  ailego::JsonValue(use_contiguous_memory));
   }
+  if (!omit_empty_value || !quantized_graph_codec.empty()) {
+    json_obj.set("quantized_graph_codec",
+                 ailego::JsonValue(quantized_graph_codec));
+  }
   if (!omit_empty_value || symphony_qg) {
     json_obj.set("symphony_qg", ailego::JsonValue(symphony_qg));
   }
@@ -340,6 +344,7 @@ bool HNSWIndexParam::deserialize_from_json_object(
   DESERIALIZE_VALUE_FIELD(json_obj, use_contiguous_memory);
 
   DESERIALIZE_VALUE_FIELD(json_obj, symphony_qg);
+  DESERIALIZE_VALUE_FIELD(json_obj, quantized_graph_codec);
   return true;
 }
 
