@@ -1207,18 +1207,27 @@ TEST(FieldSchemaTest, IvfRabitqIndexValidationMetricTypes) {
   }
 }
 
-TEST(FieldSchemaTest, IvfIndexRejectsRabitqQuantization) {
-  auto index_params = std::make_shared<IVFIndexParams>(
-      MetricType::L2, 1024, 10, false, QuantizeType::RABITQ);
-  FieldSchema field("vector_field", DataType::VECTOR_FP32, 128, false,
-                    index_params);
-
-  auto status = field.validate();
-  EXPECT_FALSE(status.ok());
-  EXPECT_NE(status.message().find("use the dedicated IVF_RABITQ index"),
-            std::string::npos)
-      << "Error message should direct users to IVF_RABITQ, got: "
-      << status.message();
+TEST(FieldSchemaTest, IvfIndexSupportsRabitqQuantization) {
+  auto params = std::make_shared<IVFIndexParams>(MetricType::L2, 16, 5, false,
+                                                 QuantizeType::RABITQ);
+  FieldSchema field("vector_field", DataType::VECTOR_FP32, 128, false, params);
+  EXPECT_TRUE(field.validate().ok());
+  params->set_total_bits(0);
+  EXPECT_FALSE(field.validate().ok());
+  params->set_total_bits(10);
+  EXPECT_FALSE(field.validate().ok());
+  params->set_total_bits(7);
+  params->set_sample_count(-1);
+  EXPECT_FALSE(field.validate().ok());
+  params->set_sample_count(0);
+  params->set_n_list(0);
+  EXPECT_FALSE(field.validate().ok());
+  params->set_n_list(16);
+  params->set_n_iters(0);
+  EXPECT_FALSE(field.validate().ok());
+  params->set_n_iters(5);
+  params->set_use_soar(true);
+  EXPECT_FALSE(field.validate().ok());
 }
 
 TEST(FieldSchemaTest, IvfRabitqIndexValidationDimensionAndDataTypes) {
@@ -1354,5 +1363,25 @@ TEST(FieldSchemaTest, HnswRabitqIndexValidation_UnsupportedDataTypes) {
         std::string::npos)
         << "Error message should mention sparse vector index support, got: "
         << status.message();
+  }
+}
+
+TEST(FieldSchemaTest, RejectsRabitqOnUnsupportedIndexes) {
+  for (auto metric : {MetricType::L2, MetricType::IP, MetricType::COSINE}) {
+    for (bool vamana : {false, true}) {
+      std::shared_ptr<VectorIndexParams> params;
+      if (vamana)
+        params = std::make_shared<VamanaIndexParams>(metric);
+      else
+        params = std::make_shared<FlatIndexParams>(metric);
+      params->set_quantize_type(QuantizeType::RABITQ);
+      FieldSchema field("vector", DataType::VECTOR_FP32, 128, false, params);
+      const auto status = field.validate();
+      EXPECT_EQ(StatusCode::INVALID_ARGUMENT, status.code());
+      EXPECT_NE(std::string::npos, status.message().find("RABITQ"));
+      params->set_quantize_type(QuantizeType::UNDEFINED);
+      field.set_index_params(params);
+      EXPECT_TRUE(field.validate().ok());
+    }
   }
 }
