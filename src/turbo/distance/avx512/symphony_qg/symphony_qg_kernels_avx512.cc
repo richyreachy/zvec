@@ -15,17 +15,17 @@
 // This translation unit hosts the AVX512-accelerated kernels for the
 // SymphonyQG query path. The build system compiles this .cc with an
 // AVX512-capable -march when the toolchain/host supports it (see
-// src/core/CMakeLists.txt). Every entry point runtime-gates on CpuFeatures
+// src/turbo/CMakeLists.txt). Every entry point runtime-gates on CpuFeatures
 // because a binary built on an AVX512 host may run on a lower-arch machine.
 
 #include <ailego/internal/cpu_features.h>
+#include <turbo/distance/common/symphony_qg_kernels.h>
 #include <zvec/ailego/internal/platform.h>
-#include "symphony_qg_kernels.h"
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 #include <immintrin.h>
 
-namespace zvec::core {
+namespace zvec::turbo {
 namespace {
 
 bool symqg_avx512_available() {
@@ -148,11 +148,11 @@ bool symqg_mul(const float *factors, float *v, size_t n) {
   return true;
 }
 
-}  // namespace zvec::core
+}  // namespace zvec::turbo
 
 #else
 
-namespace zvec::core {
+namespace zvec::turbo {
 
 bool symqg_lut_build(const float *, size_t, uint8_t *, float *, float *,
                      float *) {
@@ -167,6 +167,6 @@ bool symqg_mul(const float *, float *, size_t) {
   return false;
 }
 
-}  // namespace zvec::core
+}  // namespace zvec::turbo
 
 #endif  // __AVX512F__ && __AVX512BW__

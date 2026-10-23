@@ -155,7 +155,8 @@ Status FieldSchema::validate() const {
       if (auto qg = std::dynamic_pointer_cast<HnswIndexParams>(index_params_);
           qg && (qg->symphony_qg() || !qg->quantized_graph_codec().empty())) {
         const auto &codec = qg->quantized_graph_codec();
-        if ((!codec.empty() && codec != "symphony_qg" && codec != "sq8") ||
+        if ((!codec.empty() && codec != "symphony_qg" && codec != "sq8" &&
+             codec != "pq" && codec != "pq_residual") ||
             (qg->symphony_qg() && !codec.empty() && codec != "symphony_qg")) {
           return Status::InvalidArgument(
               "Invalid or conflicting quantized graph codec");
@@ -171,7 +172,7 @@ Status FieldSchema::validate() const {
               "dimension in [1, 4096]");
         }
 #if !RABITQ_SUPPORTED
-        if (codec != "sq8") {
+        if (codec != "sq8" && codec != "pq" && codec != "pq_residual") {
           return Status::InvalidArgument(
               "SymphonyQG requires a RaBitQ-enabled build");
         }

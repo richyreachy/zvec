@@ -161,14 +161,15 @@ cc_library(
     ${ZVEC_TURBO_LIBRARY_OPTIONS}
     SRCS ${ALL_SRCS}
     DEFS ${ZVEC_TURBO_DEFS}
-    LIBS zvec_ailego
+    LIBS zvec_ailego rabitqlib
     INCS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/distance ${PROJECT_ROOT_DIR}/src/include
 )
 
 # Eigen (header-only, shipped inside the RaBitQ third-party tree) backs the OPQ
-# rotator only. It must be a SYSTEM include: INCS above maps to a plain
+# rotator. It must be a SYSTEM include: INCS above maps to a plain
 # target_include_directories, and STRICT turns Eigen's own warnings into errors.
-# Only the headers are consumed -- rabitqlib/rabitqlib_runtime is NOT linked.
+# SymphonyQG also exposes RaBitQ headers and links its runtime on supported
+# platforms through the rabitqlib dependency above.
 set(TURBO_EIGEN_INC
     ${PROJECT_ROOT_DIR}/thirdparty/RaBitQ-Library/RaBitQ-Library-0.1/include)
 foreach(_turbo_tgt zvec_turbo zvec_turbo_objects zvec_turbo_export_objects)

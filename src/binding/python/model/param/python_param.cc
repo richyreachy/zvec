@@ -553,8 +553,11 @@ Attributes:
         disable quantization.
     use_flat_contiguous_memory (bool): Whether the Flat reference index used
         for refine should use contiguous vector memory.
-    quantized_graph_codec (str): Empty disables QG; "symphony_qg" or "sq8"
-        selects the neighbor codec. Cannot combine "sq8" with symphony_qg=True.
+    quantized_graph_codec (str): Empty disables QG; "symphony_qg", "sq8",
+        "pq", or "pq_residual" selects the neighbor codec. "pq" uses PQ4 FastScan and retains FP32
+        vectors for exact scoring. "pq_residual" encodes node-centered residuals
+        for L2/cosine. Cannot combine "sq8", "pq", or "pq_residual" with
+        symphony_qg=True.
     symphony_qg (bool): Enable experimental node-centered RaBitQ scanning for
         unquantized FP32 L2 HNSW. Requires a RaBitQ-enabled build. Default False.
     flat_data_type (DataType): Physical data type stored by the Flat reference

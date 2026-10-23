@@ -34,6 +34,9 @@ class HnswQuantizedGraph {
   static bool supported(const std::string &codec);
   ~HnswQuantizedGraph();
   int search(uint32_t entry, HnswContext &ctx) const;
+  // Streamer contexts may retain an older entity metadata snapshot. Pass the
+  // live count when a codec may need to train after insertions.
+  int search(uint32_t entry, HnswContext &ctx, size_t doc_cnt) const;
   void clear();
   int prebuild(const HnswEntity &entity, size_t doc_cnt, size_t threads);
   uint32_t entry() const;
@@ -42,6 +45,8 @@ class HnswQuantizedGraph {
   struct Impl;
   template <class Codec>
   struct Model;
+  template <class Codec>
+  struct TrainedModel;
   std::unique_ptr<Impl> impl_;
 };
 }  // namespace zvec::core

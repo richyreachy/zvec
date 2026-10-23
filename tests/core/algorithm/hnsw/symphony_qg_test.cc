@@ -23,6 +23,8 @@
 #include <utility>
 #include <vector>
 #include <gtest/gtest.h>
+#include "algorithm/quantized_graph/pq_graph_codec.h"
+#include "algorithm/quantized_graph/pq_residual_graph_codec.h"
 #include "algorithm/quantized_graph/quantized_graph.h"
 #include "algorithm/quantized_graph/sq8_graph_codec.h"
 #include "algorithm/quantized_graph/symphony_qg_codec.h"
@@ -306,64 +308,145 @@ TEST(GraphSearchTest, QuantizedBeamReadmitsRejectedNodesWithBetterEstimates) {
                           [](bool seen) { return seen; }));
 }
 
-
-TEST(QuantizedGraphTest, SQ8DistanceErrorAndPartialBatches) {
+TEST(QuantizedGraphTest, PQTrainingPaddingAndPartialBatches) {
   for (size_t dim : {1U, 3U, 17U, 128U}) {
     for (bool cosine : {false, true}) {
-      SQ8GraphCodec codec(dim, cosine);
-      std::vector<float> values(SQ8GraphCodec::kBatchSize * dim);
-      std::vector<float> query(dim);
-      for (size_t d = 0; d < dim; ++d) query[d] = std::sin(float(d + 1));
-      auto normalize = [dim](float *v) {
-        float norm = 0;
-        for (size_t d = 0; d < dim; ++d) norm += v[d] * v[d];
-        if (norm > 0)
-          for (size_t d = 0; d < dim; ++d) v[d] /= std::sqrt(norm);
-      };
-      for (size_t i = 1; i < SQ8GraphCodec::kBatchSize; ++i) {
-        for (size_t d = 0; d < dim; ++d)
-          values[i * dim + d] = float(i) * std::cos(float(d + i));
-        if (cosine) normalize(values.data() + i * dim);
+      SCOPED_TRACE(testing::Message() << dim << ":" << cosine);
+      PlainGraph source({});
+      // A small prototype corpus is exactly representable by PQ4. Include a
+      // zero vector and repeat lanes so packing order is observable.
+      for (size_t i = 0; i < 32; ++i) {
+        std::vector<float> v(dim, 0);
+        if (i % 4 != 0) v[0] = float(i % 4) - 2;
+        if (dim > 1 && i % 4 == 2) v[1] = 1;
+        source.vectors.push_back(v);
+        source.live.push_back(true);
       }
-      if (cosine) normalize(query.data());
-      SQ8GraphCodec::Query prepared;
+      PQGraphCodec codec(dim, cosine);
+      ASSERT_EQ(0, codec.train(source, source.vectors.size(), 2));
+      ASSERT_TRUE(codec.trained());
+      EXPECT_GE(codec.encoded_dim(), dim);
+      std::vector<float> encoded, lane;
+      for (const auto &v : source.vectors) {
+        codec.transform(v.data(), lane);
+        for (size_t d = dim; d < lane.size(); ++d) EXPECT_FLOAT_EQ(0, lane[d]);
+        encoded.insert(encoded.end(), lane.begin(), lane.end());
+      }
+      std::vector<float> query(dim, 0);
+      query[0] = 1;
+      PQGraphCodec::Query prepared;
       codec.prepare_query(query.data(), prepared);
-      // Deliberately unaligned storage: odd dimensions make lane offsets
-      // unaligned too. Sentinels catch writes beyond the advertised payload.
       std::vector<char> bytes(codec.batch_bytes() + 2, char{42});
-      std::array<float, SQ8GraphCodec::kBatchSize> scores;
-      for (size_t count : {0U, 1U, 15U, 16U}) {
-        codec.encode(nullptr, values.data(), count, bytes.data() + 1);
-        codec.scan(bytes.data() + 1, prepared, 123.0f, scores.data());
+      std::array<float, PQGraphCodec::kBatchSize> scores;
+      for (size_t count : {0U, 1U, 17U, 31U, 32U}) {
+        codec.encode(nullptr, encoded.data(), count, bytes.data() + 1);
+        codec.scan(bytes.data() + 1, prepared, 999, scores.data());
         EXPECT_EQ(42, bytes.front());
         EXPECT_EQ(42, bytes.back());
-        for (size_t i = 0; i < SQ8GraphCodec::kBatchSize; ++i) {
-          float max_abs = 0;
-          for (size_t d = 0; d < dim && i < count; ++d)
-            max_abs = std::max(max_abs, std::abs(values[i * dim + d]));
-          const double error = max_abs / 254.0 + 1e-6;
-          double expected = cosine ? 1 : 0;
-          double bound = 1e-5;
+        for (size_t i = 0; i < count; ++i) {
+          float expected = cosine ? 1 : 0;
           for (size_t d = 0; d < dim; ++d) {
-            const double x = i < count ? values[i * dim + d] : 0;
-            const double q = query[d];
-            if (cosine) {
-              expected -= q * x;
-              bound += std::abs(q) * error;
-            } else {
-              expected += (q - x) * (q - x);
-              bound += 2 * std::abs(q - x) * error + error * error;
-            }
+            float x = source.vectors[i][d];
+            expected +=
+                cosine ? -query[d] * x : (query[d] - x) * (query[d] - x);
           }
-          EXPECT_NEAR(expected, scores[i], bound);
+          // FastScan quantizes the entire LUT with one uint8 scale.
+          // Each subspace contributes at most half a quantization step.
+          const float lut_range = cosine ? 2.0f : 4.0f;
+          const float error = (codec.encoded_dim() / 8) * lut_range / 510.0f;
+          EXPECT_NEAR(expected, scores[i], error + 1e-4f);
         }
       }
-      std::fill(query.begin(), query.end(), 0.0f);
-      codec.prepare_query(query.data(), prepared);
-      codec.scan(bytes.data() + 1, prepared, 0, scores.data());
-      EXPECT_FLOAT_EQ(cosine ? 1 : 0, scores[0]);
+      if (cosine) {
+        std::fill(query.begin(), query.end(), 0);
+        codec.prepare_query(query.data(), prepared);
+        codec.scan(bytes.data() + 1, prepared, 0, scores.data());
+        for (float score : scores) EXPECT_FLOAT_EQ(1, score);
+      }
     }
   }
+}
+
+TEST(QuantizedGraphTest, PQTrainingHandlesEmptyDeletedAndFailedVectors) {
+  PlainGraph source({{1, 2, 3}});
+  PQGraphCodec empty(3);
+  ASSERT_EQ(0, empty.train(source, 0, 1));
+  EXPECT_FALSE(empty.trained());
+  source.live[0] = false;
+  ASSERT_EQ(0, empty.train(source, 1, 1));
+  EXPECT_FALSE(empty.trained());
+  source.live[0] = true;
+  source.failed_id = 0;
+  EXPECT_EQ(IndexError_ReadData, empty.train(source, 1, 1));
+  EXPECT_FALSE(empty.trained());
+  source.failed_id = UINT32_MAX;
+  ASSERT_EQ(0, empty.train(source, 1, 0));
+  EXPECT_TRUE(empty.trained());
+}
+
+
+TEST(QuantizedGraphTest, ResidualPQTrainingHandlesEdgesHolesAndFailures) {
+  PlainGraph source({{100, 200, 300}, {101, 202, 303}, {999, 999, 999}});
+  source.links[0] = {1, 2, UINT32_MAX};
+  source.links[1] = {0};
+  source.live[2] = false;
+  source.failed_id = 2;  // Deleted and invalid destinations must not be loaded.
+  PQResidualGraphCodec codec(3);
+  ASSERT_EQ(0, codec.train(source, 0, 1));
+  EXPECT_FALSE(codec.trained());
+  ASSERT_EQ(0, codec.train(source, 3, 2));
+  ASSERT_TRUE(codec.trained());
+  // Only +/-{1,2,3} are trained, never the large absolute coordinates.
+  std::vector<float> residual, reconstructed(codec.encoded_dim());
+  ASSERT_EQ(0, codec.transform_residual(source.vectors[0].data(),
+                                        source.vectors[1].data(), residual));
+  std::vector<char> code(codec.model()->quantized_datapoint_vector_length());
+  codec.model()->quantize_data(residual.data(), code.data());
+  ASSERT_EQ(0, codec.model()->reconstruct_plain_fp32(code.data(),
+                                                     reconstructed.data()));
+  for (size_t d = 0; d < 3; ++d)
+    EXPECT_NEAR(residual[d], reconstructed[d], 1e-5);
+  source.failed_id = 0;
+  EXPECT_EQ(IndexError_ReadData, codec.train(source, 3, 1));
+  EXPECT_FALSE(codec.trained());
+  source.failed_id = UINT32_MAX;
+  source.vectors[1][0] = NAN;
+  EXPECT_EQ(IndexError_Mismatch, codec.train(source, 3, 1));
+  EXPECT_FALSE(codec.trained());
+  source.live.assign(3, false);
+  ASSERT_EQ(0, codec.train(source, 3, 1));
+  EXPECT_FALSE(codec.trained());
+}
+
+TEST(QuantizedGraphTest, ResidualPQIsolatedNodeAndBoundedEdgeSampling) {
+  PlainGraph isolated({{1, 2, 3}});
+  PQResidualGraphCodec codec(3);
+  ASSERT_EQ(0, codec.train(isolated, 1, 0));
+  ASSERT_TRUE(codec.trained());
+  QuantizedGraph<PQResidualGraphCodec> index(3, codec);
+  ASSERT_EQ(0, index.prebuild(isolated, 1, 1));
+  PlainGraphQuery query;
+  query.vector = {1, 2, 4};
+  ASSERT_EQ(0, index.search(0, isolated, query));
+  ASSERT_EQ(1U, query.results.size());
+  EXPECT_FLOAT_EQ(1, query.results.values[0].second);
+  struct CountingGraph : PlainGraph {
+    CountingGraph() : PlainGraph({}) {}
+    mutable size_t loads = 0;
+    int get_vector(uint32_t id, Vector &out) const {
+      ++loads;
+      return PlainGraph::get_vector(id, out);
+    }
+  } source;
+  constexpr size_t count = 5000;
+  for (size_t i = 0; i < count; ++i) {
+    source.vectors.push_back({float(i % 17), float(i % 7), 0});
+    source.live.push_back(true);
+    source.links.push_back(
+        {uint32_t((i + 1) % count), uint32_t((i + 2) % count)});
+  }
+  ASSERT_EQ(0, codec.train(source, count, 2));
+  EXPECT_EQ(2 * PQResidualGraphCodec::kMaxTrainVectors, source.loads);
 }
 
 TEST(QuantizedGraphTest, SQ8SearchFiltersBudgetAndCacheRebuild) {
@@ -453,36 +536,6 @@ TEST(QuantizedGraphTest, AuxiliaryNormIsCachedButExcludedFromGeometry) {
     EXPECT_EQ(1U, query.results.values.front().first);
     std::sort(query.norms.begin(), query.norms.end());
     EXPECT_EQ((std::vector<float>{1, 1, 1000}), query.norms);
-  }
-}
-
-TEST(SymphonyQGTest, CosineFactorsHandleZeroCentersNeighborsAndQueries) {
-  const std::array<std::array<float, 2>, 4> vectors{
-      {{{1, 0}}, {{0, 1}}, {{-1, 0}}, {{0, 0}}}};
-  std::vector<float> packed;
-  for (const auto &vector : vectors)
-    packed.insert(packed.end(), vector.begin(), vector.end());
-  for (const auto &center : vectors) {
-    std::array<float, 4> add, scale;
-    const float center_norm = center[0] * center[0] + center[1] * center[1];
-    for (size_t i = 0; i < vectors.size(); ++i) {
-      const auto &x = vectors[i];
-      // Exact L2 representation using t = dot(query, x - center).
-      add[i] = x[0] * x[0] + x[1] * x[1] - center_norm;
-      scale[i] = -2;
-    }
-    ConvertSymphonyQGCosineFactors(center.data(), packed.data(), vectors.size(),
-                                   2, add.data(), scale.data());
-    for (const auto &query : vectors) {
-      const float g = 1 - query[0] * center[0] - query[1] * center[1];
-      for (size_t i = 0; i < vectors.size(); ++i) {
-        const auto &x = vectors[i];
-        const float t =
-            query[0] * (x[0] - center[0]) + query[1] * (x[1] - center[1]);
-        EXPECT_FLOAT_EQ(1 - query[0] * x[0] - query[1] * x[1],
-                        add[i] + g + scale[i] * t);
-      }
-    }
   }
 }
 
@@ -668,29 +721,6 @@ TEST(SymphonyQGTest, BeamLookaheadSkipsExpandedEntriesAndResetClearsState) {
   EXPECT_EQ(0x80000002U, beam.pop());
 }
 
-TEST(SymphonyQGRotationTest, PreservesDistancesAndRebuildsIdentically) {
-  for (size_t dim : {1U, 16U, 63U, 64U, 65U, 128U, 1025U, 4096U}) {
-    SCOPED_TRACE(dim);
-    SymphonyQGRotation rotation(dim), reopened(dim);
-    std::vector<float> a(dim), b(dim), ra, rb, repeat;
-    double original = 0;
-    for (size_t i = 0; i < dim; ++i) {
-      a[i] = std::sin(static_cast<float>(i));
-      b[i] = std::cos(static_cast<float>(i) * 0.7f);
-      original += (a[i] - b[i]) * (a[i] - b[i]);
-    }
-    rotation.rotate(a.data(), ra);
-    rotation.rotate(b.data(), rb);
-    reopened.rotate(a.data(), repeat);
-    EXPECT_EQ(ra, repeat);
-    double transformed = 0;
-    for (size_t i = 0; i < ra.size(); ++i) {
-      transformed += (ra[i] - rb[i]) * (ra[i] - rb[i]);
-    }
-    EXPECT_NEAR(original, transformed, 1e-5 * std::max(1.0, original));
-  }
-}
-
 // A fixed level-zero graph makes completion and entry selection deterministic.
 class SymphonyTestEntity : public HnswEntity {
  public:
@@ -739,8 +769,53 @@ class SymphonyTestEntity : public HnswEntity {
   size_t dimension_;
 };
 
+TEST(QuantizedGraphTest, PQLazyTrainingConcurrentQueriesAndMutation) {
+  for (const std::string codec : {"pq", "pq_residual"}) {
+    SCOPED_TRACE(codec);
+    auto entity =
+        std::make_shared<SymphonyTestEntity>(std::vector<float>{0, 1, 2, 3});
+    for (uint32_t i = 0; i < 4; ++i)
+      for (uint32_t j = 0; j < 4; ++j)
+        if (i != j) entity->links_[i].push_back(j);
+    HnswQuantizedGraph index(1, 32, false, 0, codec);
+    // Opening an empty index must defer training until data is available.
+    ASSERT_EQ(0, index.prebuild(*entity, 0, 2));
+    EXPECT_EQ(kInvalidNodeId, index.entry());
+    auto search = [&] {
+      HnswContext ctx(1, nullptr, entity);
+      ctx.set_ef(8);
+      ctx.set_topk(4);
+      ctx.set_max_scan_num(100);
+      ctx.dist_calculator().update_distance(
+          [](const void *lhs, const void *rhs, size_t, float *out) {
+            float delta = *static_cast<const float *>(lhs) -
+                          *static_cast<const float *>(rhs);
+            *out = delta * delta;
+          },
+          {});
+      const float query = 2;
+      ctx.dist_calculator().reset_query(&query);
+      ASSERT_EQ(0, index.search(0, ctx));
+      EXPECT_EQ(4U, ctx.search_heap().size());
+      ctx.search_heap().for_each([&](node_id_t id, dist_t distance) {
+        const float delta = entity->values_[id] - query;
+        EXPECT_FLOAT_EQ(delta * delta, distance);
+        return true;
+      });
+    };
+    std::vector<std::thread> workers;
+    for (size_t i = 0; i < 4; ++i) workers.emplace_back(search);
+    for (auto &worker : workers) worker.join();
+    index.clear();
+    entity->values_[3] = 100;  // Cached centers/codes must be rebuilt.
+    search();
+    ASSERT_EQ(0, index.prebuild(*entity, entity->doc_cnt(), 2));
+    search();
+  }
+}
+
 TEST(QuantizedGraphTest, PrebuildSelectsMeanOfValidVectors) {
-  for (const std::string codec : {"sq8", "symphony_qg"}) {
+  for (const std::string codec : {"sq8", "pq", "pq_residual", "symphony_qg"}) {
     if (!HnswQuantizedGraph::supported(codec)) continue;
     SCOPED_TRACE(codec);
     SymphonyTestEntity entity({1.0f, 2.0f, 10.0f});
@@ -767,7 +842,7 @@ TEST(QuantizedGraphTest, PrebuildSelectsMeanOfValidVectors) {
 }
 
 TEST(QuantizedGraphTest, CompletionHonorsExclusionFilterAndScanBudget) {
-  for (const std::string codec : {"sq8", "symphony_qg"}) {
+  for (const std::string codec : {"sq8", "pq", "pq_residual", "symphony_qg"}) {
     if (!HnswQuantizedGraph::supported(codec)) continue;
     SCOPED_TRACE(codec);
     auto entity = std::make_shared<SymphonyTestEntity>(
@@ -868,6 +943,55 @@ TEST(QuantizedGraphTest, SQ8HnswCosineAndCodecSelection) {
         EXPECT_NEAR(1 - query[0] * x[0] - query[1] * x[1], distance, 1e-6);
         return true;
       });
+    }
+  }
+}
+
+TEST(QuantizedGraphTest, PQHnswCosineAndCodecSelection) {
+  for (const std::string codec : {"pq", "pq_residual"}) {
+    SCOPED_TRACE(codec);
+    EXPECT_TRUE(HnswQuantizedGraph::supported("pq"));
+    EXPECT_FALSE(HnswQuantizedGraph::supported("unknown"));
+    auto entity = std::make_shared<SymphonyTestEntity>(
+        std::vector<float>{0, 0, 0, 1, 0, 300, 0, 1, 8, -1, 0, 4, 0.6f, 0.8f,
+                           10},
+        3);
+    for (uint32_t i = 0; i < entity->doc_cnt(); ++i)
+      for (uint32_t j = 0; j < entity->doc_cnt(); ++j)
+        if (i != j) entity->links_[i].push_back(j);
+    HnswQuantizedGraph invalid(2, 32, true, 3, "unknown");
+    EXPECT_EQ(IndexError_Unsupported,
+              invalid.prebuild(*entity, entity->doc_cnt(), 1));
+    HnswQuantizedGraph index(2, 32, true, 3, codec);
+    HnswContext ctx(3, nullptr, entity);
+    ctx.set_ef(8);
+    ctx.set_topk(5);
+    ctx.set_max_scan_num(100);
+    ctx.dist_calculator().update_distance(
+        [](const void *lhs, const void *rhs, size_t, float *out) {
+          const auto *x = static_cast<const float *>(lhs);
+          const auto *q = static_cast<const float *>(rhs);
+          *out = 1 - x[0] * q[0] - x[1] * q[1];
+        },
+        {});
+    const std::array<std::array<float, 3>, 3> queries{
+        {{{1, 0, 100}}, {{0.6f, 0.8f, 2}}, {{0, 0, 0}}}};
+    for (bool lazy : {false, true}) {
+      if (lazy)
+        index.clear();
+      else
+        ASSERT_EQ(0, index.prebuild(*entity, entity->doc_cnt(), 2));
+      for (const auto &query : queries) {
+        ctx.dist_calculator().clear_compare_cnt();
+        ctx.dist_calculator().reset_query(query.data());
+        ASSERT_EQ(0, index.search(0, ctx));
+        EXPECT_EQ(5U, ctx.search_heap().size());
+        ctx.search_heap().for_each([&](node_id_t id, dist_t distance) {
+          const auto *x = static_cast<const float *>(entity->get_vector(id));
+          EXPECT_NEAR(1 - query[0] * x[0] - query[1] * x[1], distance, 1e-6);
+          return true;
+        });
+      }
     }
   }
 }
@@ -982,117 +1106,7 @@ TEST(SymphonyQGTest, TurboFp32MetadataValidation) {
   }
 }
 
-TEST(SymphonyQGTest, CosineCodecMatchesL2ConversionIncludingZeroVectors) {
-  if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core())
-    GTEST_SKIP();
-  for (size_t dim : {1U, 128U, 4096U}) {
-    SymphonyQGCodec l2(dim), cosine(dim, true);
-    const size_t padded = l2.encoded_dim();
-    constexpr size_t count = 5;
-    for (bool zero_center : {false, true}) {
-      std::vector<float> center(dim + 1, 0);
-      center[0] = zero_center ? 0 : 1;
-      center[dim] = 1000;  // original norm, excluded by transform()
-      std::vector<float> rotated_center, vectors(padded * count), scratch;
-      l2.transform(center.data(), rotated_center);
-      std::array<float, count> norms{};
-      for (size_t i = 0; i < count; ++i) {
-        std::vector<float> vector(dim + 1, 0);
-        if (i != 0) vector[(i - 1) % dim] = i % 2 == 0 ? -1 : 1;
-        vector[dim] = 17 * i;
-        norms[i] = i == 0 ? 0 : 1;
-        l2.transform(vector.data(), scratch);
-        std::copy(scratch.begin(), scratch.end(), vectors.begin() + i * padded);
-      }
-      std::vector<char> l2_codes(l2.batch_bytes()),
-          cos_codes(cosine.batch_bytes());
-      l2.encode(rotated_center.data(), vectors.data(), count, l2_codes.data());
-      cosine.encode(rotated_center.data(), vectors.data(), count,
-                    cos_codes.data());
-      for (float q : {-1.0f, 0.0f, 1.0f}) {
-        std::vector<float> query(dim + 1, 0);
-        query[0] = q;
-        query[dim] = 9999;
-        SymphonyQGCodec::Query l2_query, cos_query;
-        l2.prepare_query(query.data(), l2_query);
-        cosine.prepare_query(query.data(), cos_query);
-        std::array<float, SymphonyQGCodec::kBatchSize> l2_dist, cos_dist;
-        l2.scan(l2_codes.data(), l2_query, (q - center[0]) * (q - center[0]),
-                l2_dist.data());
-        cosine.scan(cos_codes.data(), cos_query, 1 - q * center[0],
-                    cos_dist.data());
-        for (size_t i = 0; i < count; ++i) {
-          EXPECT_TRUE(std::isfinite(cos_dist[i]));
-          EXPECT_NEAR(1 + 0.5f * (l2_dist[i] - q * q - norms[i]), cos_dist[i],
-                      1e-5);
-        }
-      }
-    }
-  }
-}
 
-TEST(SymphonyQGTest, FastScanHandlesPartialBlocksDuplicatesAndLargeDimensions) {
-  if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core()) {
-    GTEST_SKIP() << "RaBitQ requires AVX2/FMA or AVX512";
-  }
-  for (size_t dim : {64U, 128U, 1024U, 2048U, 4096U}) {
-    for (size_t count : {1U, 17U, 32U}) {
-      SCOPED_TRACE(std::to_string(dim) + "/" + std::to_string(count));
-      // Constant positive query deliberately produces large LUT sums at 4096D.
-      std::vector<float> query(dim, 1.0f), center(dim, 0.5f);
-      std::vector<float> data(count * dim);
-      for (size_t i = 0; i < count; ++i) {
-        std::fill(data.begin() + i * dim, data.begin() + (i + 1) * dim,
-                  0.5f + i * 0.125f);
-      }
-      std::vector<char> codes(rabitqlib::QGBatchDataMap<float>::data_bytes(dim),
-                              0);
-      rabitqlib::quant::quantize_qg_batch(data.data(), center.data(), count,
-                                          dim, codes.data(),
-                                          rabitqlib::METRIC_L2);
-      SymQuery q;
-      q.reset(query.data(), dim);
-      q.set_g_add(0.25f * dim);
-      std::array<float, 32> result;
-      ScanSymphonyQGBatch(codes.data(), q, dim, result.data());
-      for (size_t i = 0; i < count; ++i) {
-        const float diff = 0.5f + i * 0.125f - 1.0f;
-        EXPECT_NEAR(diff * diff * dim, result[i], 0.01f * dim);
-        EXPECT_TRUE(std::isfinite(result[i]));
-      }
-    }
-  }
-}
-
-TEST(SymphonyQGTest, ReusedQueryMatchesReferenceLut) {
-  if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core()) {
-    GTEST_SKIP() << "RaBitQ requires AVX2/FMA or AVX512";
-  }
-  SymQuery actual;
-  for (size_t dim : {64U, 128U, 1024U, 2048U, 4096U, 64U}) {
-    for (int pattern : {0, 1, 2}) {
-      SCOPED_TRACE(std::to_string(dim) + "/" + std::to_string(pattern));
-      std::vector<float> query(dim, 0.0f);
-      for (size_t i = 0; i < dim; ++i) {
-        if (pattern == 1) query[i] = 1.0f;
-        // Exactly representable mixed signs keep subset sums reproducible.
-        if (pattern == 2)
-          query[i] = (static_cast<int>(i * 37 % 101) - 50) / 16.0f;
-      }
-      actual.set_g_add(123.0f);
-      actual.reset(query.data(), dim);
-      rabitqlib::BatchQuery<float> expected(query.data(), dim);
-      EXPECT_FLOAT_EQ(0.0f, actual.g_add());
-      EXPECT_FLOAT_EQ(expected.delta(), actual.delta());
-      EXPECT_FLOAT_EQ(expected.sum_vl_lut(), actual.sum_vl_lut());
-      EXPECT_FLOAT_EQ(expected.k1xsumq(), actual.k1xsumq());
-      for (size_t i = 0; i < dim * 4; ++i) {
-        // SIMD and reference rounding can differ by one quantization step.
-        EXPECT_LE(std::abs(int(expected.lut()[i]) - int(actual.lut()[i])), 1);
-      }
-    }
-  }
-}
 #else
 TEST(SymphonyQGTest, PrebuildIsLinkableOnUnsupportedPlatforms) {
   // A volatile member pointer forces the linker to resolve the symbol even

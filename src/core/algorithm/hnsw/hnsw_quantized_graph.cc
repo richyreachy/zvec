@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "hnsw_quantized_graph.h"
+#include "algorithm/quantized_graph/pq_graph_codec.h"
+#include "algorithm/quantized_graph/pq_residual_graph_codec.h"
 #include "algorithm/quantized_graph/quantized_graph.h"
 #include "algorithm/quantized_graph/sq8_graph_codec.h"
 #include "hnsw_context.h"
@@ -66,7 +68,7 @@ struct HnswQueryAdapter {
 struct HnswQuantizedGraph::Impl {
   virtual ~Impl() = default;
   virtual int prebuild(const HnswEntity &, size_t, size_t) = 0;
-  virtual int search(uint32_t, HnswContext &) const = 0;
+  virtual int search(uint32_t, HnswContext &, size_t) const = 0;
   virtual void clear() = 0;
   virtual uint32_t entry() const = 0;
 };
@@ -83,7 +85,7 @@ struct HnswQuantizedGraph::Model final : Impl {
                size_t threads) override {
     return graph.prebuild(HnswGraphAdapter{entity}, count, threads);
   }
-  int search(uint32_t entry_id, HnswContext &ctx) const override {
+  int search(uint32_t entry_id, HnswContext &ctx, size_t) const override {
     HnswQueryAdapter query{ctx};
     return graph.search(entry_id, HnswGraphAdapter{ctx.get_entity()}, query);
   }
@@ -96,8 +98,76 @@ struct HnswQuantizedGraph::Model final : Impl {
   QuantizedGraph<Codec> graph;
 };
 
+// A trained codec needs a corpus before its graph can be constructed. Empty
+// streamers defer training until the first search after insertion. The streamer
+// excludes mutation/prebuild/clear from searches; this mutex only serializes
+// initial lazy publication against other searches and entry() reads.
+template <class Codec>
+struct HnswQuantizedGraph::TrainedModel final : Impl {
+  TrainedModel(size_t dimension, size_t max_neighbors, bool cosine,
+               size_t stored_dimension)
+      : dimension(dimension),
+        max_neighbors(max_neighbors),
+        cosine(cosine),
+        stored_dimension(stored_dimension) {}
+
+  int initialize(const HnswEntity &entity, size_t count, size_t threads) const {
+    Codec codec(dimension, cosine);
+    int ret = codec.train(HnswGraphAdapter{entity}, count, threads);
+    if (ret != 0 || !codec.trained()) return ret;
+    graph = std::make_unique<QuantizedGraph<Codec>>(
+        dimension, std::move(codec), max_neighbors, stored_dimension);
+    return 0;
+  }
+  int prebuild(const HnswEntity &entity, size_t count,
+               size_t threads) override {
+    std::lock_guard<std::mutex> lock(mutex);
+    graph.reset();
+    int ret = initialize(entity, count, threads);
+    if (ret != 0 || !graph) return ret;
+    ret = graph->prebuild(HnswGraphAdapter{entity}, count, threads);
+    if (ret != 0) graph.reset();
+    return ret;
+  }
+  int search(uint32_t entry_id, HnswContext &ctx, size_t count) const override {
+    QuantizedGraph<Codec> *ready;
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      if (!graph) {
+        const auto &entity = ctx.get_entity();
+        int ret = initialize(entity, count, 1);
+        if (ret != 0) return ret;
+      }
+      ready = graph.get();
+    }
+    HnswQueryAdapter query{ctx};
+    if (!ready) {
+      query.reset_results().clear();
+      return 0;
+    }
+    return ready->search(entry_id, HnswGraphAdapter{ctx.get_entity()}, query);
+  }
+  void clear() override {
+    std::lock_guard<std::mutex> lock(mutex);
+    // Keep the immutable codebook across insertions; only neighbor blocks and
+    // the centroid entry become stale. Explicit prebuild/open trains anew.
+    if (graph) graph->clear();
+  }
+  uint32_t entry() const override {
+    std::lock_guard<std::mutex> lock(mutex);
+    return graph ? graph->entry() : UINT32_MAX;
+  }
+
+  size_t dimension;
+  size_t max_neighbors;
+  bool cosine;
+  size_t stored_dimension;
+  mutable std::mutex mutex;
+  mutable std::unique_ptr<QuantizedGraph<Codec>> graph;
+};
+
 bool HnswQuantizedGraph::supported(const std::string &codec) {
-  if (codec == "sq8") return true;
+  if (codec == "sq8" || codec == "pq" || codec == "pq_residual") return true;
 #if RABITQ_SUPPORTED
   if (codec == "symphony_qg") {
     return rabitqlib::cpu::has_avx2() || rabitqlib::cpu::has_avx512_core();
@@ -110,7 +180,13 @@ HnswQuantizedGraph::HnswQuantizedGraph(size_t dimension, size_t max_neighbors,
                                        bool cosine, size_t stored_dimension,
                                        const std::string &codec) {
   if (!supported(codec)) return;
-  if (codec == "sq8") {
+  if (codec == "pq") {
+    impl_ = std::make_unique<TrainedModel<PQGraphCodec>>(
+        dimension, max_neighbors, cosine, stored_dimension);
+  } else if (codec == "pq_residual") {
+    impl_ = std::make_unique<TrainedModel<PQResidualGraphCodec>>(
+        dimension, max_neighbors, cosine, stored_dimension);
+  } else if (codec == "sq8") {
     impl_ = std::make_unique<Model<SQ8GraphCodec>>(dimension, max_neighbors,
                                                    cosine, stored_dimension);
   }
@@ -127,7 +203,11 @@ int HnswQuantizedGraph::prebuild(const HnswEntity &entity, size_t count,
                : IndexError_Unsupported;
 }
 int HnswQuantizedGraph::search(uint32_t entry_id, HnswContext &ctx) const {
-  return impl_ ? impl_->search(entry_id, ctx) : IndexError_Unsupported;
+  return search(entry_id, ctx, ctx.get_entity().doc_cnt());
+}
+int HnswQuantizedGraph::search(uint32_t entry_id, HnswContext &ctx,
+                               size_t doc_cnt) const {
+  return impl_ ? impl_->search(entry_id, ctx, doc_cnt) : IndexError_Unsupported;
 }
 void HnswQuantizedGraph::clear() {
   if (impl_) impl_->clear();

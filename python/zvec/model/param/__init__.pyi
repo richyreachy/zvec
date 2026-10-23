@@ -382,7 +382,8 @@ class HnswIndexParam(VectorIndexParam):
         """
 
     @property
-    def quantized_graph_codec(self) -> str: ...
+    def quantized_graph_codec(self) -> str:
+        """Neighbor codec: empty (disabled), symphony_qg, sq8, pq, or pq_residual (PQ4 FastScan)."""
     @property
     def symphony_qg(self) -> bool:
         """Enable experimental RaBitQ neighbor scanning on FP32 L2 or cosine HNSW."""

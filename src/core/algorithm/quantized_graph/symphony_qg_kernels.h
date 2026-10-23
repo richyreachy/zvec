@@ -13,28 +13,10 @@
 // limitations under the License.
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
+#include <turbo/distance/common/symphony_qg_kernels.h>
 
 namespace zvec::core {
-
-// Runtime-dispatched AVX512 kernels for the SymphonyQG query path. The build
-// compiles symphony_qg_kernels_avx512.cc with an AVX512-capable -march; each
-// entry point returns false when AVX512 is unavailable at runtime or the
-// arguments do not meet the kernel's constraints, leaving outputs untouched
-// so callers can fall back to the reference scalar path.
-
-// Fused equivalent of rabitqlib's Lut::reset plus BatchQuery's correction
-// terms: fills the 8-bit fastscan LUT (padded_dim * 4 bytes) and writes
-// delta, sum_vl and k1xsumq. Requires padded_dim % 16 == 0.
-bool symqg_lut_build(const float *rotated_query, size_t padded_dim,
-                     uint8_t *lut, float *delta, float *sum_vl, float *k1xsumq);
-
-// In-place Fast Hadamard Transform on a power-of-two length array; requires
-// padded_dim % 16 == 0. Bit-identical to the scalar butterfly loop.
-bool symqg_hadamard(float *v, size_t padded_dim);
-
-// Element-wise multiply v[i] *= factors[i].
-bool symqg_mul(const float *factors, float *v, size_t n);
-
+using turbo::symqg_hadamard;
+using turbo::symqg_lut_build;
+using turbo::symqg_mul;
 }  // namespace zvec::core

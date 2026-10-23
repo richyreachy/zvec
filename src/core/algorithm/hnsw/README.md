@@ -10,6 +10,8 @@ It defaults to false. The index type and persistent graph format remain HNSW.
 
 ```python
 HnswIndexParam(metric_type=MetricType.L2, quantized_graph_codec="sq8")
+HnswIndexParam(metric_type=MetricType.L2, quantized_graph_codec="pq")
+HnswIndexParam(metric_type=MetricType.COSINE, quantized_graph_codec="pq_residual")
 HnswIndexParam(metric_type=MetricType.COSINE, quantized_graph_codec="symphony_qg")
 ```
 
@@ -19,7 +21,7 @@ setter is `set_quantized_graph_codec()`, the core builder method is
 `proxima.hnsw.quantized_graph.codec`. The selection is preserved by schema
 cloning, manifests, core parameter JSON, and Python pickling. Old manifests
 without this field retain their behavior. `symphony_qg=True` still selects
-SymphonyQG; combining it with `sq8` is rejected, as are unknown codec names.
+SymphonyQG; combining it with `sq8`, `pq`, or `pq_residual` is rejected, as are unknown codec names.
 The low-level `proxima.hnsw.quantized_graph.degree` overrides the legacy
 `proxima.hnsw.symphony_qg.degree`; both default to 32.
 
@@ -38,16 +40,83 @@ SQ8 estimates steer the beam; final scores still come from FP32 distances.
 This scalar implementation validates the extension interface; no SIMD speedup
 or performance parity with SymphonyQG is claimed.
 
-Both codecs currently require inline FP32 L2/cosine vectors with 1..4096
+`PQGraphCodec` (`quantized_graph_codec="pq"`) uses the existing Turbo
+`PqFastQuantizer`: 4-bit product quantization, 16 centroids per subspace, eight
+coordinates per subspace, and 32-vector FastScan blocks. Coordinates are zero
+padded to a multiple of eight, so dimensions 1..4096 are supported. A full
+neighbor block occupies `32 * ceil(ceil(dimension / 8) / 2)` code bytes,
+excluding IDs, FP32 centers, headers, padding, and the shared codebook.
+
+Opening/prebuilding trains on up to 4096 live vectors selected by reservoir
+sampling. Corpora smaller than 16 repeat samples; an empty corpus defers
+training until the first search after insertion. Codebooks and codes are
+derived in-memory caches, rebuilt from FP32 storage on reopen, with an added
+training cost. Insertions invalidate blocks but retain the codebook; explicit
+prebuild/reopen retrains it. Sampling has a fixed seed; KMeans initialization
+may still produce different approximate traversal orders across rebuilds.
+Concurrent first queries synchronize model publication, then share an immutable
+model with separate query LUTs. Training memory is bounded by the sample cap.
+
+For cosine, the existing HNSW pipeline supplies normalized coordinates. PQ
+uses an inner-product LUT and returns `1 - dot(query, reconstructed_neighbor)`;
+it does not assume reconstructed centroids have unit norm. Zero queries retain
+distance 1. Final results still use exact FP32 scores, so an external refiner
+is unnecessary for the same vectors and metric. PQ compresses neighbor scan
+codes, not the stored FP32 vectors. No speed or recall improvement is claimed
+without corpus-specific benchmarks.
+
+`PQResidualGraphCodec` (`quantized_graph_codec="pq_residual"`) is an opt-in
+node-centered PQ4 variant. It does not change `pq`. Training samples up to 4096
+live directed graph edges with a fixed-seed reservoir, loads both endpoints,
+and trains one shared codebook on `v - u`. Invalid/deleted endpoints are skipped;
+read failures and non-finite sampled residuals fail training. Small samples are
+repeated to reach 16 vectors. An isolated live corpus trains a zero-residual
+codebook so exact search still works; a completely empty corpus defers training.
+The model/cache lifetime is the same as `pq`, including retaining the codebook
+across insertions and retraining on explicit prebuild/reopen. Edge enumeration
+cost is O(E); the number of loaded training pairs is bounded by the sample cap.
+
+All residual arithmetic lives in Turbo's
+[`PQResidualBlockQuantizer`](../../../turbo/quantizer/pq_residual_block_quantizer/pq_residual_block_quantizer.h).
+It uses an InnerProduct-search PQ4 model for both metrics (encoding and training
+still minimize L2 reconstruction error). Residuals are not normalized, and
+centering/OPQ are disabled. One query LUT of `-dot(q, residual_centroid)` is
+reused across all expanded nodes. For reconstructed residual `r_hat`:
+
+- L2: `d(q,u) + (||r_hat||^2 + 2*dot(u,r_hat)) - 2*dot(q,r_hat)`.
+  The center distance is exact. The middle term is computed at encoding time,
+  accumulated in double and stored as one FP32 correction per lane. Block layout
+  is `[existing packed PQ4 codes][32 FP32 corrections]`: 128 extra bytes per
+  full block, including a padded partial block. The final addition uses double
+  before returning FP32; large offsets can still magnify LUT/correction error.
+- Cosine: `d_cos(q,u) - dot(q,r_hat)`, on already normalized input coordinates.
+  Zero vectors follow `1 - dot` semantics. Blocks use the existing PQ4 packed
+  layout without a correction tail. No reconstruction renormalization is done.
+
+Approximate scores guide traversal; results retain exact FP32 scores. Negative
+approximate distances are not clamped. The reconstruction helper on
+`PqFastQuantizer` is restricted to trained, plain FP32 L2/IP codebooks and does
+not change its generic dequantization or SDC support. Residual codebooks are
+trained randomly as before; neither identical rebuilt codes nor better recall
+or QPS on every dataset is guaranteed.
+
+The opt-in `pq_graph_benchmark` executable compares both codecs on the same
+fixed synthetic graph and exact top-10 ground truth. It reports independent
+training trials, recall/ef curves, latency percentiles, training/prebuild cost,
+and code payload/arena-size estimates. See the checked-in benchmark results
+under `tests/core/algorithm/hnsw/benchmarks/` for the measured environment and
+limitations; these are graph-engine measurements, not end-to-end DB throughput.
+
+All four codecs currently require inline FP32 L2/cosine vectors with 1..4096
 coordinates and no main-vector compression. Only SymphonyQG requires the
 RaBitQ build and supported x86 SIMD. Codes remain a derived in-memory cache,
 rebuilt on open and invalidated by mutation; codec payloads are not serialized.
 
 To add a fixed-batch codec, implement the contract below and register its model
 in `HnswQuantizedGraph::supported()` and its constructor, then extend public
-schema validation. Search and caching do not need to change. Training/model
+schema validation. Search and caching do not need to change. The PQ adapter manages training before publishing its graph. Model
 persistence, variable-length codes, and shared global code storage are not
-part of this interface yet.
+part of the generic codec interface.
 
 ## Quantized graph framework
 
@@ -91,12 +160,25 @@ for each call, not retained by the engine.
 
 [`hnsw_quantized_graph.cc`](hnsw_quantized_graph.cc) is the thin HNSW adapter. It maps
 level-zero adjacency and `HnswContext` to those contracts.
-[`SymphonyQGCodec`](../quantized_graph/symphony_qg_codec.h) implements the first
-production codec: node-centered one-bit RaBitQ, batches of 32, deterministic
-single-pass normalized Hadamard rotation, and per-query LUT scanning. It
-supports both uint16 and int32 RaBitQ accumulation APIs, using slices of at
-most 1024 dimensions to avoid overflow with the older API. AVX512 kernels are
-codec details with runtime dispatch and portable/reference fallbacks.
+The core codec headers are thin adapters to Turbo's block quantizers:
+[`SQ8BlockQuantizer`](../../../turbo/quantizer/sq8_block_quantizer/sq8_block_quantizer.h),
+[`PQBlockQuantizer`](../../../turbo/quantizer/pq_block_quantizer/pq_block_quantizer.h), and
+[`SymphonyQGBlockQuantizer`](../../../turbo/quantizer/symphony_qg_quantizer/symphony_qg_quantizer.h).
+Turbo owns transforms, encoding, query LUTs, distance scanning, and SIMD dispatch.
+Core retains graph traversal, caches, PQ reservoir sampling and vector loading,
+and model publication/retraining on reopen. No on-disk graph format changes.
+
+The formats and arithmetic are preserved: SQ8 stores `[float scale][D int8]`
+per lane in batches of 16; PQ uses eight coordinates per subquantizer and PQ4
+FastScan batches of 32; SymphonyQG uses node-centered one-bit RaBitQ batches of
+32 with a fixed-seed, single-pass, zero-padded normalized Hadamard rotation.
+This rotation is separate from Turbo's existing FHT rotator, and SQ8's symmetric
+layout is separate from its existing affine Int8Quantizer. SymphonyQG supports
+both uint16 and int32 RaBitQ accumulation APIs, using slices of at most 1024
+dimensions to avoid overflow with the older API. Its AVX512 translation unit is
+compiled by Turbo's per-ISA build rules and retains runtime checks and reference
+fallbacks. Cosine norm corrections, zero-vector handling, and exact FP32 result
+scoring are unchanged.
 
 ## Shared traversal experiment
 

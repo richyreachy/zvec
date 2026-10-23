@@ -131,6 +131,12 @@ class PqFastQuantizer : public Quantizer,
   DistanceImpl sym_distance(const void *query,
                             const IndexQueryMeta &qmeta) const;
 
+  //! Reconstruct a plain nibble code in untransformed FP32 codebook space.
+  //! Used to precompute graph residual corrections, outside the scan hot path.
+  //! Requires a trained FP32 L2/IP model without centering or OPQ; this does
+  //! not enable the unsupported generic dequantize/SDC interfaces.
+  int reconstruct_plain_fp32(const void *code, float *out) const;
+
   //! Precomputed residual distance table support (see
   //! PrecomputeTableQuantizer).  The merged per-list LUT is affine-quantized
   //! internally, so the output keeps the packed-u8 FastScan query format

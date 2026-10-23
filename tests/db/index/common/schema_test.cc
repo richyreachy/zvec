@@ -1387,6 +1387,10 @@ TEST(FieldSchemaTest, QuantizedGraphCodecValidation) {
     params->set_quantized_graph_codec("sq8");
     FieldSchema field("qg", DataType::VECTOR_FP32, 128, false, params);
     EXPECT_TRUE(field.validate().ok());
+    params->set_quantized_graph_codec("pq");
+    EXPECT_TRUE(field.validate().ok());
+    params->set_quantized_graph_codec("pq_residual");
+    EXPECT_TRUE(field.validate().ok());
     params->set_symphony_qg(true);
     EXPECT_EQ(StatusCode::INVALID_ARGUMENT, field.validate().code());
     params->set_symphony_qg(false);

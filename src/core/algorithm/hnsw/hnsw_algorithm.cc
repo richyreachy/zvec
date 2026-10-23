@@ -85,7 +85,7 @@ int HnswAlgorithm<EntityType>::search(HnswContext *ctx) const {
     if (qg_entry != kInvalidNodeId) {
       // Upstream SymphonyQG searches a single level from the node nearest
       // the corpus centroid; skip the upper-level descent entirely.
-      return quantized_graph_->search(qg_entry, *ctx);
+      return quantized_graph_->search(qg_entry, *ctx, entity_.doc_cnt());
     }
     if (ailego_unlikely(ctx->has_extra_values())) {
       dist_t dist = ctx->dist_calculator().dist(entry_point);
@@ -123,7 +123,7 @@ int HnswAlgorithm<EntityType>::search(HnswContext *ctx) const {
         }
       }
     }
-    return quantized_graph_->search(entry_point, *ctx);
+    return quantized_graph_->search(entry_point, *ctx, entity_.doc_cnt());
   }
 
   dist_t dist = ctx->dist_calculator().dist(entry_point);

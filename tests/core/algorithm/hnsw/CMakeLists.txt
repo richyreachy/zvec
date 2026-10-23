@@ -12,3 +12,10 @@ foreach(CC_SRCS ${ALL_TEST_SRCS})
       INCS . ${PROJECT_ROOT_DIR}/src/core ${PROJECT_ROOT_DIR}/src/core/algorithm/hnsw
     )
 endforeach()
+# Explicit opt-in executable; performance comparisons are not unit-test gates.
+cc_binary(
+    NAME pq_graph_benchmark
+    SRCS pq_graph_benchmark.cc
+    LIBS core_quantized_graph core_metric core_quantizer
+    INCS ${PROJECT_ROOT_DIR}/src/core
+)

@@ -41,6 +41,8 @@ symphony_only = pytest.mark.skipif(
 )
 codec_cases = [
     "sq8",
+    "pq",
+    "pq_residual",
     pytest.param("symphony_qg", marks=symphony_only),
     pytest.param("legacy", marks=symphony_only),
 ]
@@ -207,7 +209,7 @@ def test_symphony_qg_cosine_optimize_reopen(
             collection.destroy()
 
 
-@pytest.mark.parametrize("codec", ["", "sq8", "symphony_qg"])
+@pytest.mark.parametrize("codec", ["", "sq8", "pq", "pq_residual", "symphony_qg"])
 def test_quantized_graph_codec_parameter_roundtrip(codec):
     params = HnswIndexParam(metric_type=MetricType.L2, quantized_graph_codec=codec)
     assert params.to_dict()["quantized_graph_codec"] == codec

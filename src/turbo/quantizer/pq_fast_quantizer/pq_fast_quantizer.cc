@@ -489,6 +489,24 @@ void PqFastQuantizer::quantize_data(const void *input, void *output) const {
   }
 }
 
+int PqFastQuantizer::reconstruct_plain_fp32(const void *code,
+                                            float *out) const {
+  if (!code || !out || !initialized_ || input_data_type_ != DataType::kFp32 ||
+      use_zero_mean_ || opq_.enabled() ||
+      (meta_.metric_name() != "SquaredEuclidean" &&
+       meta_.metric_name() != "InnerProduct") ||
+      centroid_ptrs_cache_.size() != num_chunk_) {
+    return kErrUnsupported;
+  }
+  const auto *bytes = static_cast<const uint8_t *>(code);
+  for (size_t m = 0; m < num_chunk_; ++m) {
+    const size_t index = (bytes[m / 2] >> (4 * (m & 1))) & 15;
+    std::memcpy(out + m * sub_dim_, centroid_ptrs_cache_[m][index],
+                sub_dim_ * sizeof(float));
+  }
+  return 0;
+}
+
 void PqFastQuantizer::compute_float_lut(const void *input, float *lut) const {
   const uint32_t elem_size = element_size();
 
