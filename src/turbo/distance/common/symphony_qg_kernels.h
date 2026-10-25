@@ -37,4 +37,11 @@ bool symqg_hadamard(float *v, size_t padded_dim);
 // Element-wise multiply v[i] *= factors[i].
 bool symqg_mul(const float *factors, float *v, size_t n);
 
+// Fused FastScan accumulation, unsigned widening and score conversion for 32
+// neighbors. Widen every 1024 dimensions to prevent uint16 overflow; retain
+// the scalar scoring expression's rounding boundaries.
+bool symqg_scan(const uint8_t *codes, const uint8_t *lut, size_t padded_dim,
+                const float *add, const float *scale, float center_distance,
+                float delta, float sum_vl, float k1xsumq, float *distances);
+
 }  // namespace zvec::turbo

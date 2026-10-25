@@ -19,4 +19,5 @@ namespace zvec::core {
 using turbo::symqg_hadamard;
 using turbo::symqg_lut_build;
 using turbo::symqg_mul;
+using turbo::symqg_scan;
 }  // namespace zvec::core

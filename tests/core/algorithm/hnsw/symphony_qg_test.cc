@@ -694,6 +694,25 @@ TEST(SymphonyQGTest, BeamCapacityAndEqualEstimates) {
   EXPECT_FALSE(beam.has_next());
 }
 
+TEST(SymphonyQGTest, BeamFullWidthTransitionPreservesExpansionFlags) {
+  QuantizedGraphBeam beam(4);
+  beam.insert(1, -3);
+  beam.insert(2, -1);
+  EXPECT_EQ(1U, beam.pop());
+  beam.insert(0xFFFFFFFEU, -4);
+  EXPECT_EQ(0xFFFFFFFEU, beam.next_id_at(0));
+  EXPECT_EQ(2U, beam.next_id_at(1));
+  EXPECT_EQ(0xFFFFFFFEU, beam.pop());
+  EXPECT_EQ(2U, beam.pop());
+  EXPECT_FALSE(beam.has_next());
+  beam.reset(8);
+  beam.insert(3, 1);
+  EXPECT_EQ(3U, beam.pop());
+  beam.insert(0x80000000U, 0);
+  EXPECT_EQ(0x80000000U, beam.pop());
+  EXPECT_FALSE(beam.has_next());
+}
+
 TEST(SymphonyQGTest, BeamLookaheadSkipsExpandedEntriesAndResetClearsState) {
   QuantizedGraphBeam beam(4);
   beam.insert(0x80000001U, 1);

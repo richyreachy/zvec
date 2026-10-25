@@ -85,6 +85,14 @@ endif()
 
 file(GLOB_RECURSE ALL_SRCS *.cc *.c *.h)
 
+# Preserve the reference scanner's rounding boundaries in the fused scorer.
+# These options supplement the per-source SIMD architecture flags below.
+if(NOT MSVC)
+  set_property(SOURCE
+    distance/avx512/symphony_qg/symphony_qg_kernels_avx512.cc
+    APPEND PROPERTY COMPILE_OPTIONS -ffp-contract=off)
+endif()
+
 # Set per-file compile flags for SIMD sources.
 # set_source_files_properties is directory-scoped, so it must be called in the
 # same directory that adds the sources to a target (i.e. here, not in a

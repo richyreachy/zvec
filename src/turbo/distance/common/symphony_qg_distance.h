@@ -60,10 +60,13 @@ class SymQuery {
  public:
   void reset(const float *rotated_query, size_t padded_dim) {
     g_add_ = 0;
-    lut_storage_.resize(padded_dim << 2);
-    if (symqg_lut_build(rotated_query, padded_dim, lut_storage_.data(), &delta_,
+    lut_storage_.resize((padded_dim << 2) + 63);
+    auto *aligned_lut = reinterpret_cast<uint8_t *>(
+        (reinterpret_cast<uintptr_t>(lut_storage_.data()) + 63) &
+        ~uintptr_t{63});
+    if (symqg_lut_build(rotated_query, padded_dim, aligned_lut, &delta_,
                         &sum_vl_, &k1xsumq_)) {
-      lut_ = lut_storage_.data();
+      lut_ = aligned_lut;
       return;
     }
     ref_lut_.reset(rotated_query, padded_dim);
@@ -112,6 +115,11 @@ inline void ScanSymphonyQGBatch(const char *codes, const SymQuery &query,
                                 size_t padded_dim, float *distances) {
   constexpr size_t batch_size = rabitqlib::fastscan::kBatchSize;
   rabitqlib::ConstQGBatchDataMap<float> batch(codes, padded_dim);
+  if (symqg_scan(batch.bin_code(), query.lut(), padded_dim, batch.f_add(),
+                 batch.f_rescale(), query.g_add(), query.delta(),
+                 query.sum_vl_lut(), query.k1xsumq(), distances)) {
+    return;
+  }
   std::array<uint32_t, batch_size> sums{};
   // Match the installed FastScan API while retaining bounded slices for 0.1.
   using Accumulator = std::conditional_t<

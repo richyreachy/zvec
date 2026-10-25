@@ -466,6 +466,69 @@ TEST(TurboSymphonyQGTest,
   }
 }
 
+TEST(TurboSymphonyQGTest,
+     FusedScanMatchesReferenceAcrossSlicesAndUnalignedInputs) {
+  if (!rabitqlib::cpu::has_avx512_core()) GTEST_SKIP();
+  for (size_t dim : {16U, 64U, 1024U, 1040U, 2048U, 4096U}) {
+    for (bool maximum_lut : {false, true}) {
+      SCOPED_TRACE(std::to_string(dim) + "/" + std::to_string(maximum_lut));
+      // Deliberately misalign both byte inputs. A maximal LUT exercises
+      // unsigned 16-bit sums and widening beyond the first 1024-D slice.
+      std::vector<uint8_t> codes(dim * 4 + 1), lut(dim * 4 + 1);
+      for (size_t i = 1; i < codes.size(); ++i) {
+        codes[i] = static_cast<uint8_t>(i * 79 + 13);
+        lut[i] = maximum_lut ? 255 : static_cast<uint8_t>(i * 37 + 5);
+      }
+      std::array<uint32_t, 32> sums{};
+      using Accumulator = std::conditional_t<
+          std::is_invocable_v<decltype(&rabitqlib::fastscan::accumulate),
+                              const uint8_t *, const uint8_t *, int32_t *,
+                              size_t>,
+          int32_t, uint16_t>;
+      std::array<Accumulator, 32> partial;
+      for (size_t offset = 0; offset < dim; offset += 1024) {
+        rabitqlib::fastscan::accumulate(
+            codes.data() + 1 + offset * 4, lut.data() + 1 + offset * 4,
+            partial.data(), std::min(size_t{1024}, dim - offset));
+        for (size_t i = 0; i < 32; ++i) sums[i] += partial[i];
+      }
+      std::array<float, 33> add, scale, actual;
+      for (size_t i = 0; i < 33; ++i) {
+        add[i] = static_cast<float>(i) * 0.713f - 7.91f;
+        scale[i] = 0.331f - static_cast<float>(i) * 0.087f;
+        actual[i] = -123.0f;
+      }
+      if (!symqg_scan(codes.data() + 1, lut.data() + 1, dim, add.data() + 1,
+                      scale.data() + 1, 3.13f, 0.0173f, -1.237f, 2.731f,
+                      actual.data() + 1)) {
+        GTEST_SKIP() << "SIMD kernels were not compiled for this platform";
+      }
+      EXPECT_EQ(-123.0f, actual[0]);
+      for (size_t i = 0; i < 32; ++i) {
+        // Explicit rounding boundaries make this independent of the test
+        // compiler's FMA settings and protect the generic path's semantics.
+        volatile float product = 0.0173f * sums[i];
+        volatile float shifted = product - 1.237f;
+        volatile float corrected = shifted + 2.731f;
+        volatile float scaled = scale[i + 1] * corrected;
+        volatile float base = add[i + 1] + 3.13f;
+        EXPECT_EQ(base + scaled, actual[i + 1]);
+      }
+    }
+  }
+}
+
+TEST(TurboSymphonyQGTest, FusedScanRejectsUnsupportedLengthsWithoutWriting) {
+  std::array<uint8_t, 64> bytes{};
+  std::array<float, 32> factors{}, output;
+  output.fill(123.0f);
+  for (size_t dim : {0U, 1U, 15U, 17U}) {
+    EXPECT_FALSE(symqg_scan(bytes.data(), bytes.data(), dim, factors.data(),
+                            factors.data(), 0, 0, 0, 0, output.data()));
+    for (float value : output) EXPECT_EQ(123.0f, value);
+  }
+}
+
 TEST(TurboSymphonyQGTest, ReusedQueryMatchesReferenceLut) {
   if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core()) {
     GTEST_SKIP() << "RaBitQ requires AVX2/FMA or AVX512";
