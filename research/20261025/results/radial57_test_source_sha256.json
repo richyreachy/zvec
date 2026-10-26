@@ -1,0 +1,7 @@
+{
+  "bench_test_sources": {
+    "radial57_test.cc": "5149fa99161d8fdbe3e1e928fffb4f2bc52cf6ac270d443ec0a978d08a91f8ed",
+    "radial57_edgecases_test.cc": "8361ae349f31528d99e20f2188508455a0a5ccc0c7f7d75724bc2672bf289c78"
+  },
+  "note": "Repository test copies are separately formatted; original compiled sources remain in bench/scripts."
+}

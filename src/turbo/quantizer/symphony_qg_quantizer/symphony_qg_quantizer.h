@@ -27,6 +27,15 @@
 #endif
 #endif
 
+#if defined(QG_RADIAL_CALIBRATION)
+#include <immintrin.h>
+#if defined(QG_LOWRANK) || defined(QG_PROJECT_DIM) || \
+    defined(QG_RESIDUAL_TWO_STAGE) || defined(QG_GEOM_BIAS)
+#error Radial calibration requires the native full-dimensional one-bit codec
+#endif
+#include "radial_calibration.h"
+#endif
+
 namespace zvec::turbo {
 #if RABITQ_SUPPORTED
 // Node-centered RaBitQ blocks with the SymphonyQG rotation and FastScan layout.
@@ -175,6 +184,38 @@ class SymphonyQGBlockQuantizer {
       ConvertSymphonyQGCosineFactors(center, vectors, count, encoded_dim(),
                                      batch.f_add(), batch.f_rescale());
     }
+#if defined(QG_RADIAL_CALIBRATION)
+    if (cosine_) {
+      rabitqlib::QGBatchDataMap<float> batch(codes, encoded_dim());
+      double cc = 0;
+      for (size_t j = 0; j < encoded_dim(); ++j)
+        cc += double(center[j]) * center[j];
+#if defined(QG_RADIAL_STATS)
+      std::array<uint64_t, 4> counts{};
+#endif
+      for (size_t i = 0; i < count; ++i) {
+        const float amplitude = -.5f * batch.f_rescale()[i];
+        double rr = 0, cr = 0, ch = 0, rh = 0;
+        for (size_t j = 0; j < encoded_dim(); ++j) {
+          const double r = double(vectors[i * encoded_dim() + j]) - center[j];
+          const double h = r > 0 ? amplitude : -amplitude;
+          rr += r * r;
+          cr += double(center[j]) * r;
+          ch += double(center[j]) * h;
+          rh += r * h;
+        }
+        const auto factors = RadialCalibration::fit(rr, cc, cr, ch, rh);
+        batch.f_add()[i] = float(-factors.b);
+        batch.f_rescale()[i] = float(double(batch.f_rescale()[i]) * factors.a);
+#if defined(QG_RADIAL_STATS)
+        ++counts[factors.kind];
+#endif
+      }
+#if defined(QG_RADIAL_STATS)
+      RadialCalibration::record(counts);
+#endif
+    }
+#endif
 #if defined(QG_LOWRANK)
     // e=h-r, h=(||r||^2/||r||_1) sign(r). Remove the projection of
     // (center-query)^T e; remaining ideal error lies in the orthogonal
@@ -239,6 +280,9 @@ class SymphonyQGBlockQuantizer {
             float *distances) const {
     query.lookup.set_g_add(center_distance);
     ScanSymphonyQGBatch(codes, query.lookup, quantized_dim(), distances);
+#if defined(QG_RADIAL_CALIBRATION)
+    if (cosine_) apply_radial(codes, center_distance, distances);
+#endif
 #if defined(QG_LOWRANK)
     apply_correction(codes, query, distances);
 #endif
@@ -253,6 +297,18 @@ class SymphonyQGBlockQuantizer {
   }
 
  private:
+#if defined(QG_RADIAL_CALIBRATION)
+  __attribute__((target("avx512f,fma"))) void apply_radial(
+      const char *codes, float center_distance, float *distances) const {
+    rabitqlib::ConstQGBatchDataMap<float> batch(codes, encoded_dim());
+    const __m512 center = _mm512_set1_ps(center_distance);
+    for (size_t i = 0; i < kBatchSize; i += 16)
+      _mm512_storeu_ps(
+          distances + i,
+          _mm512_fnmadd_ps(_mm512_loadu_ps(batch.f_add() + i), center,
+                           _mm512_loadu_ps(distances + i)));
+  }
+#endif
 #if defined(QG_LOWRANK)
   __attribute__((target("avx512f,fma"))) static float dot(const float *a,
                                                           const float *b,

@@ -1,0 +1,14 @@
+{
+  "queries": 1000,
+  "id_score_rows": 10000,
+  "performance_vs_audit_exact_match": true,
+  "audit_vs_full_exact_match": true,
+  "margin": 0.025,
+  "ef_label": 25000,
+  "geometry": {
+    "regular": 31978305,
+    "zero_residual": 167,
+    "zero_center": 0,
+    "radial_fallback": 0
+  }
+}

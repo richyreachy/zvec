@@ -1,0 +1,92 @@
+[
+  {
+    "experiment": "screen57_cohere_control_post",
+    "threads": 1,
+    "ef_label": 800,
+    "recall": 0.9032,
+    "qps_median": 32460.949205,
+    "rounds": 2,
+    "rss_gib_median": 9.52617073059082
+  },
+  {
+    "experiment": "screen57_cohere_control_post",
+    "threads": 8,
+    "ef_label": 800,
+    "recall": 0.9032,
+    "qps_median": 236612.17645,
+    "rounds": 2,
+    "rss_gib_median": 9.533620834350586
+  },
+  {
+    "experiment": "screen57_cohere_control_pre",
+    "threads": 1,
+    "ef_label": 800,
+    "recall": 0.9032,
+    "qps_median": 32310.91452,
+    "rounds": 2,
+    "rss_gib_median": 9.526342391967773
+  },
+  {
+    "experiment": "screen57_cohere_control_pre",
+    "threads": 8,
+    "ef_label": 800,
+    "recall": 0.9032,
+    "qps_median": 237795.0287,
+    "rounds": 2,
+    "rss_gib_median": 9.53384017944336
+  },
+  {
+    "experiment": "screen57_cohere_integer_control",
+    "threads": 1,
+    "ef_label": 800,
+    "recall": 0.9036,
+    "qps_median": 34137.05837,
+    "rounds": 2,
+    "rss_gib_median": 7.320219039916992
+  },
+  {
+    "experiment": "screen57_cohere_integer_control",
+    "threads": 8,
+    "ef_label": 800,
+    "recall": 0.9036,
+    "qps_median": 253205.72545,
+    "rounds": 2,
+    "rss_gib_median": 7.326570510864258
+  },
+  {
+    "experiment": "screen57_cohere_rad57_integer",
+    "threads": 1,
+    "ef_label": 25000,
+    "recall": 0.9082,
+    "qps_median": 32927.97662,
+    "rounds": 1,
+    "rss_gib_median": 7.331592559814453
+  },
+  {
+    "experiment": "screen57_cohere_rad57_integer",
+    "threads": 8,
+    "ef_label": 25000,
+    "recall": 0.9082,
+    "qps_median": 245305.9978,
+    "rounds": 1,
+    "rss_gib_median": 7.331615447998047
+  },
+  {
+    "experiment": "screen57_cohere_rad57_native",
+    "threads": 1,
+    "ef_label": 25000,
+    "recall": 0.9083,
+    "qps_median": 30540.40059,
+    "rounds": 1,
+    "rss_gib_median": 9.53628158569336
+  },
+  {
+    "experiment": "screen57_cohere_rad57_native",
+    "threads": 8,
+    "ef_label": 25000,
+    "recall": 0.9083,
+    "qps_median": 225724.0958,
+    "rounds": 1,
+    "rss_gib_median": 9.536312103271484
+  }
+]
