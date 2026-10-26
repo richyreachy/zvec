@@ -135,5 +135,13 @@
     "title": "test(qg): reject directional shrink after recall-matched search tests",
     "validation": "3 modes:3072 factor,24576 LUT,6084 endpoint checks;1024 beta1 byte-identical blocks;3072 unchanged L2 blocks;8 compile guards;28 default tests;7000 diagnostic-query equivalence checks plus4000 round comparisons;12 source manifests;156 timing rows and78000 complete query evaluations",
     "conclusion": "Trained beta reaches90.42% at30671.22 QPS with FP32 centers and90.04% at32854.96 with integer centers,below respective contemporary controls. Per-edge MSE reaches only82.48%/82.73% within cap64. Two-parameter offline probe gives no credible ranking gain;stop calibration grid."
+  },
+  {
+    "stage": "20",
+    "commit": "17f36ae451ff674912b0c1ffb74f4eb982980bbb",
+    "title": "test(qg): prepare full graph candidates and validate completion geometry",
+    "validation": "Full1M-node coordinate/key mapping;200M legal unique nonself candidate pairs;819200 pilot and204800 additional FP64 distance checks;4096-query prefix and export-disabled byte equality;5376 exporter coordinates and14 rejection assertions;28 default tests;4 source manifests;1500 exhaustive geometry cases",
+    "conclusion": "Full database-only candidate generation completed in41.18s search time with8 threads;offline cost,not Top10 QPS. Nonmonotone sequential angular-pruning counterexample verified;farthest-first coverage guarantee scoped locally. New refined graph and retrieval tests pending phase65.",
+    "failure_preserved": "Initial unbounded bucket without adaptive stopping explicitly terminated after source diagnosis;new bounded-beam variant completed;failure artifacts retained."
   }
 ]

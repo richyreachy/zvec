@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T14:12:38.546034+08:00",
+  "updated_at": "2026-10-26T14:45:36.355583+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -113,16 +113,26 @@
     "directional62_round_comparisons": 4000,
     "directional62_screen_query_evaluations": 78000,
     "directional62_timing_rows": 156,
-    "directional62_source_manifests": 12
+    "directional62_source_manifests": 12,
+    "graph64_full_coordinate_vectors": 1000000,
+    "graph64_valid_candidate_pairs": 200000000,
+    "graph64_pilot_fp64_pairs": 819200,
+    "graph64_additional_fp64_pairs": 204800,
+    "graph64_export_disabled_queries": 4096,
+    "graph64_default_tests": 28,
+    "graph64_export_unit_coordinates": 5376,
+    "graph64_export_rejection_assertions": 14,
+    "graph64_exhaustive_geometry_cases": 1500,
+    "graph64_source_manifests": 4
   },
-  "latest_source_change": "Stage19 default-off directional factors with fixed-beta/per-edge-MSE modes; no extra code bytes or query arithmetic; incompatible estimator combinations rejected. All tested variants fail to improve recall-matched QPS.",
+  "latest_source_change": "Stage20 adds default-off final-graph and internal-ID raw-vector exporter;bounded-beam database-only full candidate generation verified. No new graph import or search algorithm yet.",
   "next_actions": [
-    "Implement notes/graph_refinement64_plan.md as a controlled graph-construction study,not a novelty claim. First export frozen final adjacency and internalID/externalkey mapping.",
-    "Run a bounded database-only candidate-search pilot with top200/ef400 and no Top10-specific early stopping; measure cost and check mapping/self-exclusion before full generation.",
-    "Compare candidate pruning and angle-based degree completion at fixed32-edge budget,then identical search kernels and contemporary frozen/integer controls.",
-    "Do not integrate affine63:local flip difference interval crosseszero and endpoint bias remains. Stop broadening scalar-factor grids.",
-    "Only combine clearly beneficial graph changes with proj60_384;repeat timing and extra-query acceptance remain mandatory before claiming25%breakthrough.",
-    "Continue stage commits;original user repo and historical frozen variants remain unchanged."
+    "Use notes/graph_refinement65_plan.md and already verified models64/full_graph.bin,full_vectors.f32,full_candidates.bin;do not regenerate or overwrite.",
+    "Build query-ID row lookup,merge200 candidates with original neighbors,prune deterministic NSG seeds,collect reverse edges,cap merged pools at750.",
+    "Compare nearest completion with fixed-seed farthest-first angular chord completion at32 edges;pilot4096 rows then full construction;handle zero residuals separately.",
+    "Do not assume sequential greedy angle-pruning cardinality is monotone:counterexample verified in graph64_geometry.md. Coverage2-approx is not navigation guarantee.",
+    "Implement strict default-off graph importer;validate keys/IDs/row shape,disabled equivalence and28 default tests;then paired whole-search tests at fixed kernel/entry/degree/cap.",
+    "Only after clear graph gains combine proj60_384 and run repeated timing/extra-query acceptance;retain25%goal and phase commits."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "",
@@ -131,9 +141,9 @@
   "primary_measurement_rows": 1224,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "b7d92b4cf29113e9ff930fac331bd207b0ac4298",
-  "stage_commit_count": 19,
-  "extra_document_index_commits": 11,
+  "head": "17f36ae451ff674912b0c1ffb74f4eb982980bbb",
+  "stage_commit_count": 20,
+  "extra_document_index_commits": 12,
   "working_tree_status": "",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
@@ -142,7 +152,8 @@
     51,
     58,
     61,
-    63
+    63,
+    64
   ],
   "diagnostic58": "complete:17 configurations, no timing rows;full-dimensional scans and5 extra exact distances explicitly accounted;entry headroom supports low-cost router investigation",
   "router59_model": {
@@ -177,5 +188,11 @@
     "whole_search_gain": false
   },
   "diagnostic63": "Complete database-only two-parameter probe:6.02% local MSE gain;75 flips improve,70 worsen,paired interval crosseszero;unit endpoint bias coefficient0.05728 persists;not integrated.",
-  "latest_phase_result": "directional62 negative:trained FP32 30671.22/90.42%,integer32854.96/90.04%;MSE variants max82.48%/82.73% atcap64;current best remainsproj60_384 and no25%breakthrough."
+  "latest_phase_result": "No new retrieval QPS rows;total remains1224. Full graph candidate inputs validated;next phase65 constructs/imports graphs. Best remainsproj60_384 and no25%breakthrough.",
+  "diagnostic64": "Complete candidate preparation only:1M database queries,200M candidate pairs;8-thread search time41.1757s;new refined graph not built or searched. Failed unbounded-bucket configuration preserved,not counted as performance.",
+  "graph64_inputs": {
+    "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
+    "models64/full_vectors.f32": "5c9d8196d5c46d617c5cb3d9eedae5f9b8bf1677e370f210c5b84b08cdd66d24",
+    "models64/full_candidates.bin": "6c55553e87dae59c6c67babe4a5c65b1f92fedef4c83b0702a00f2ac4f61c830"
+  }
 }
