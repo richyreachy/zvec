@@ -85,5 +85,12 @@
     "title": "test(qg): validate bounded integer center estimates with VNNI",
     "validation": "8500 integer/formula,16000 interval,8000 query error checks;2000-query audit/full/performance equivalence;28 default tests;7 build manifests verified",
     "conclusion": "Small candidate advantage; no stable25% gain verified"
+  },
+  {
+    "stage": "13",
+    "commit": "c01d3ab1a27d558878008c534675a4e187d71f30",
+    "title": "test(qg): record integer prefetch ablations and output equivalence",
+    "validation": "Three 3-second rounds per thread count;12000 query /120000 ID-score row equivalence;source unchanged",
+    "conclusion": "Three prefetch/table combinations fail to improve integer control;no25%breakthrough"
   }
 ]
