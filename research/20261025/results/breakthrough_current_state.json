@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T16:08:58.047979+08:00",
+  "updated_at": "2026-10-26T16:47:58.988920+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -26,7 +26,8 @@
     59,
     60,
     62,
-    65
+    65,
+    69
   ],
   "queued_sequence": [],
   "validation_completed": {
@@ -152,28 +153,39 @@
     "trace68_default_tests": 28,
     "trace68_source_manifests": 2,
     "trace68_formatted_geometry_prefix": 128,
-    "trace68_formatted_query_array_sets": 2
+    "trace68_formatted_query_array_sets": 2,
+    "fusion69_database_equivalent_queries": 4096,
+    "fusion69_primary_repeat_equivalent_queries": 10000,
+    "fusion69_result_distance_checks": 50960,
+    "fusion69_half_patterns": 65536,
+    "fusion69_disabled_queue_events": 200000,
+    "fusion69_enabled_queue_pops": 40000,
+    "fusion69_actual_geometry_edges": 8192,
+    "fusion69_synthetic_geometry_cases": 4096,
+    "fusion69_compile_configurations": 12,
+    "fusion69_default_tests": 28,
+    "fusion69_source_manifests": 3,
+    "fusion69_postformat_reports_identical": true
   },
-  "latest_source_change": "Stage23 adds default-off single-query-thread multi-estimate event trace forFP32 Cohere768;online scores and queue unchanged.",
+  "latest_source_change": "Stage24 default-off QG_FUSION addsFP16 edge error norms,bounded2048-slot cache,and versioned bucket;FP32/cosine768/degree32 only;disabled outputs preserve frozen baseline.",
   "next_actions": [
-    "Implement full prototype per notes/multianchor69_plan.md:FP16 E^2 peredge,first-two estimates,frozen lambda0.5903141882326695,original graph/entry/bucket/cap first.",
-    "Must invalidate old queued estimates and discard stale entries before stop checks;simply adding fused estimates cannot realize the score policy.",
-    "Bounded query cache must preserve version records until query end;overflow retains original multi-estimate behavior for new targets;test collisions/stale/samebucket/stop/zero scores.",
-    "Ablate frozen baseline,metadata/cache-without-fusion overhead control,and actualfusion;verify disabled bit identity,defaults,then complete1/8thread pairedQPS/recall.",
-    "Actual-path snapshot results are promising but not causal/new-recall evidence;primaryalreadytuned,lambdaunchanged,no primaryGT training;extra queries remain unused.",
-    "Only after clear complete-search improvement combine integercenters/proj60_384/angular65;25%stable gain and extraquerycriteria remain."
+    "Do not expand current all-candidate first-two fusion or combine with router/integer centers:full paired tests show37%/33% QPS loss and only1.49% fewer primary expansions.",
+    "Shift the mathematical objective from global estimate MSE toward conditional candidate decision quality and traversal progress per measured cost;classical inverse-variance fusion is not a novelty claim.",
+    "Use the existing,not-yet-run phase66 exact-neighbor diagnostics on original/refined graphs to separate topology opportunity from quantization opportunity;these are diagnostics,not deployable QPS or lower-bound claims.",
+    "Before another online fusion variant,require substantial database-proxy path/work evidence under a bounded conditional policy and explicit cost budget;no primary-query lambda fitting or unbounded parameter sweep.",
+    "Keep historical proj60_384 as candidate best,not an accepted25% breakthrough;preserve extra queries for validation after a clear complete-search win."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "",
   "diagnostic47": "complete: no timing claims; original scalar full precision oracle lowest passing tested mean expansion27.268 vs30.763 baseline; fine-grid needed before strict optimality conclusions",
   "additional_queries_status": "Self-excluded database-query GT prepared, no graph results evaluated. External normalized query overlap0 atcos>0.999; max0.927826, model provenance still unverified.",
-  "primary_measurement_rows": 1224,
+  "primary_measurement_rows": 1310,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "948533ad38661fb738417f0c2e02a01f950ce9ca",
-  "stage_commit_count": 23,
-  "extra_document_index_commits": 15,
-  "working_tree_status": "",
+  "head": "bf2b818cd69b460b2ddaf1404a6b809617ca0fd3",
+  "stage_commit_count": 24,
+  "extra_document_index_commits": 16,
+  "working_tree_status": "clean after stage24 commit;documentation index update follows",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -184,7 +196,8 @@
     63,
     64,
     67,
-    68
+    68,
+    69
   ],
   "diagnostic58": "complete:17 configurations, no timing rows;full-dimensional scans and5 extra exact distances explicitly accounted;entry headroom supports low-cost router investigation",
   "router59_model": {
@@ -219,7 +232,7 @@
     "whole_search_gain": false
   },
   "diagnostic63": "Complete database-only two-parameter probe:6.02% local MSE gain;75 flips improve,70 worsen,paired interval crosseszero;unit endpoint bias coefficient0.05728 persists;not integrated.",
-  "latest_phase_result": "Phase68 actual-path diagnostics:35.51%primary expanded nodes have second estimates;FP16-scale fixedlambda improves local threshold errors207->161/1106->936. No onlinefusion or newtiming rows;1288total,breakthroughunverified.",
+  "latest_phase_result": "Phase69 full two-estimate fusion:90.14% recall,20267.14/158846.30 QPS,37.00%/32.69% below contemporaneous frozen baseline;disabled cost control also loses31.36%/27.31%;expansions30.763->30.304. Stop this implementation;1310 cumulative timing rows,no breakthrough.",
   "diagnostic64": "Complete candidate preparation only:1M database queries,200M candidate pairs;8-thread search time41.1757s;new refined graph not built or searched. Failed unbounded-bucket configuration preserved,not counted as performance.",
   "graph64_inputs": {
     "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
@@ -446,5 +459,297 @@
       },
       "no_online_policy_or_qps_claim": true
     }
+  },
+  "measurement_count_note": "Reconciled previously stale1224 state field:phase65 added64->1288;phase69 adds22->1310.",
+  "fusion69_result": {
+    "phase": 69,
+    "primary_queries_already_tuned": true,
+    "lambda_fixed": 0.5903141882326695,
+    "extra_queries_unused": true,
+    "breakthrough_verified": false,
+    "screen": [
+      {
+        "algorithm": "fusion69_native",
+        "topk": "10",
+        "degree": "32",
+        "round": "0",
+        "ef": "16000",
+        "threads": "1",
+        "queries": "21111",
+        "seconds": "1.000022029",
+        "qps": "21110.53496",
+        "mean_us": "47.22682208",
+        "p50_us": "43.059",
+        "p95_us": "83.647",
+        "p99_us": "104.204",
+        "recall": "0.8939",
+        "rss_kib": "10044884",
+        "peak_rss_kib": "10044044",
+        "minor_faults": "260",
+        "major_faults": "0"
+      },
+      {
+        "algorithm": "fusion69_native",
+        "topk": "10",
+        "degree": "32",
+        "round": "0",
+        "ef": "20000",
+        "threads": "1",
+        "queries": "20313",
+        "seconds": "1.000031566",
+        "qps": "20312.35882",
+        "mean_us": "49.08570822",
+        "p50_us": "44.66",
+        "p95_us": "87.315",
+        "p99_us": "106.355",
+        "recall": "0.9014",
+        "rss_kib": "10044884",
+        "peak_rss_kib": "10044044",
+        "minor_faults": "0",
+        "major_faults": "0"
+      },
+      {
+        "algorithm": "fusion69_native",
+        "topk": "10",
+        "degree": "32",
+        "round": "0",
+        "ef": "24000",
+        "threads": "1",
+        "queries": "19699",
+        "seconds": "1.000035309",
+        "qps": "19698.30447",
+        "mean_us": "50.62097279",
+        "p50_us": "46.156",
+        "p95_us": "90.592",
+        "p99_us": "106.45",
+        "recall": "0.9056",
+        "rss_kib": "10044884",
+        "peak_rss_kib": "10044044",
+        "minor_faults": "0",
+        "major_faults": "0"
+      },
+      {
+        "algorithm": "fusion69_native",
+        "topk": "10",
+        "degree": "32",
+        "round": "0",
+        "ef": "28000",
+        "threads": "1",
+        "queries": "18870",
+        "seconds": "1.000054364",
+        "qps": "18868.97421",
+        "mean_us": "52.85083201",
+        "p50_us": "48.059",
+        "p95_us": "95.343",
+        "p99_us": "109.959",
+        "recall": "0.9109",
+        "rss_kib": "10044884",
+        "peak_rss_kib": "10044044",
+        "minor_faults": "0",
+        "major_faults": "0"
+      },
+      {
+        "algorithm": "fusion69_native",
+        "topk": "10",
+        "degree": "32",
+        "round": "0",
+        "ef": "32000",
+        "threads": "1",
+        "queries": "18270",
+        "seconds": "1.000005291",
+        "qps": "18269.90333",
+        "mean_us": "54.58853612",
+        "p50_us": "49.39",
+        "p95_us": "100.802",
+        "p99_us": "114.51",
+        "recall": "0.916",
+        "rss_kib": "10044888",
+        "peak_rss_kib": "10044044",
+        "minor_faults": "1",
+        "major_faults": "0"
+      },
+      {
+        "algorithm": "fusion69_native",
+        "topk": "10",
+        "degree": "32",
+        "round": "0",
+        "ef": "40000",
+        "threads": "1",
+        "queries": "17015",
+        "seconds": "1.000021164",
+        "qps": "17014.6399",
+        "mean_us": "58.62327699",
+        "p50_us": "52.825",
+        "p95_us": "103.803",
+        "p99_us": "118.137",
+        "recall": "0.9249",
+        "rss_kib": "10044888",
+        "peak_rss_kib": "10044044",
+        "minor_faults": "0",
+        "major_faults": "0"
+      }
+    ],
+    "selected_margin": 0.02,
+    "timings": {
+      "baseline": {
+        "1": {
+          "rounds": 4,
+          "qps_median": 32170.998805,
+          "qps_min": 32069.77071,
+          "qps_max": 32301.48274,
+          "recall": [
+            0.9032
+          ],
+          "rss_gib_median": 9.528417587280273
+        },
+        "8": {
+          "rounds": 4,
+          "qps_median": 235981.16259999998,
+          "qps_min": 234237.5775,
+          "qps_max": 237510.2918,
+          "recall": [
+            0.9032
+          ],
+          "rss_gib_median": 9.537792205810547
+        }
+      },
+      "disabled": {
+        "1": {
+          "rounds": 2,
+          "qps_median": 22082.966635,
+          "qps_min": 21967.64718,
+          "qps_max": 22198.28609,
+          "recall": [
+            0.9032
+          ],
+          "rss_gib_median": 9.58791732788086,
+          "qps_change_vs_baseline": -0.3135753487526822
+        },
+        "8": {
+          "rounds": 2,
+          "qps_median": 171534.82975,
+          "qps_min": 171517.9417,
+          "qps_max": 171551.7178,
+          "recall": [
+            0.9032
+          ],
+          "rss_gib_median": 9.596212387084961,
+          "qps_change_vs_baseline": -0.2730994802294443
+        }
+      },
+      "enabled": {
+        "1": {
+          "rounds": 2,
+          "qps_median": 20267.13726,
+          "qps_min": 20238.63596,
+          "qps_max": 20295.63856,
+          "recall": [
+            0.9014
+          ],
+          "rss_gib_median": 9.585874557495117,
+          "qps_change_vs_baseline": -0.3700184012673523,
+          "qps_change_vs_disabled": -0.0822276012554416
+        },
+        "8": {
+          "rounds": 2,
+          "qps_median": 158846.30095,
+          "qps_min": 158119.4729,
+          "qps_max": 159573.129,
+          "recall": [
+            0.9014
+          ],
+          "rss_gib_median": 9.593334197998047,
+          "qps_change_vs_baseline": -0.32686872460556304,
+          "qps_change_vs_disabled": -0.07397056806767843
+        }
+      }
+    },
+    "primary_repeat_equivalent_queries": 10000,
+    "database_refine_check": {
+      "queries": 4096,
+      "distance_checks": 40960,
+      "max_fp64_error": 2.980300612964726e-07,
+      "result_set_changed_queries": 169,
+      "self_hits_enabled": 3961,
+      "self_hits_reference": 3963
+    },
+    "primary_refine_check": {
+      "distance_checks": 10000,
+      "max_fp64_error": 2.7529603707776573e-07
+    },
+    "audit": {
+      "database": {
+        "queries": 4096,
+        "means": {
+          "first": 733.488525390625,
+          "second": 82.29736328125,
+          "fused": 82.279541015625,
+          "later": 49.0234375,
+          "overflow": 4.732177734375,
+          "fallback": 0.017822265625,
+          "stale": 0.74853515625,
+          "expanded": 28.723876953125
+        },
+        "totals": {
+          "first": 3004369,
+          "second": 337090,
+          "fused": 337017,
+          "later": 200800,
+          "overflow": 19383,
+          "fallback": 73,
+          "stale": 3066,
+          "expanded": 117653
+        }
+      },
+      "primary": {
+        "queries": 1000,
+        "means": {
+          "first": 777.773,
+          "second": 85.973,
+          "fused": 85.966,
+          "later": 48.585,
+          "overflow": 6.524,
+          "fallback": 0.007,
+          "stale": 0.884,
+          "expanded": 30.304
+        },
+        "totals": {
+          "first": 777773,
+          "second": 85973,
+          "fused": 85966,
+          "later": 48585,
+          "overflow": 6524,
+          "fallback": 7,
+          "stale": 884,
+          "expanded": 30304
+        }
+      }
+    },
+    "geometry": {
+      "actual_edges": 8192,
+      "half_vs_independent_direct_reconstruction_identical": true,
+      "max_half_error": 0.00012058433822104142,
+      "max_native_factor_error": 9.508707360383895e-08
+    },
+    "source_manifests": {
+      "fusion69_native": 20,
+      "fusion69_audit": 20,
+      "stage69_default": 20
+    },
+    "default_tests": 28,
+    "half_patterns_tested": 65536,
+    "disabled_queue_events": 200000,
+    "enabled_queue_pops": 40000,
+    "synthetic_geometry_cases": 4096,
+    "new_timing_rows": 22,
+    "cumulative_timing_rows": 1310,
+    "stride_bytes_baseline": 6656,
+    "stride_bytes_fusion": 6720,
+    "stride_note": "From fixed Block layout and rounded stride formula; RSS measured independently.",
+    "cache_slots": 2048,
+    "cache_max_probes": 8,
+    "cache_record_bytes": 20,
+    "metadata_bytes_per_edge": 2,
+    "fixed_graph_entry_degree_cap_ef": true
   }
 }

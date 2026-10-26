@@ -166,5 +166,13 @@
     "validation": "4096 database queries enabled/disabled/frozen identical plus1000 primary queries;149143 expansion blocks and4772334 scored edges verified;64656 pair geometry/FP64 checks;28 default tests;writer unit;2x19 source manifests;postformat128 geometry prefix and full analysis/arrays identical",
     "conclusion": "Primary35.51% expanded nodes and36.18% returned nodes receive second preexpansion estimate. Fixed stage67 lambda with FP16 edge-scale approximation reduces snapshot false rejects207->161 and false accepts1106->936. No changed search path,online fusion,QPS or recall gain yet.",
     "analysis_failures_preserved": "System Python lacked NumPy;used established venv. Primary vectors include trailing semicolon;strict parser corrected. Original logs retained."
+  },
+  {
+    "stage": "24",
+    "commit": "bf2b818cd69b460b2ddaf1404a6b809617ca0fd3",
+    "title": "test(qg): reject full two-estimate fusion after paired search benchmarks",
+    "validation": "4096 database disabled/frozen and enabled/audit equality;10000 primary repeat/diagnostic query comparisons;50960 FP64 result distances;65536 half patterns;200000 disabled queue events and40000 enabled pops;4096 synthetic and8192 actual edge scales;12 compile configurations;28 default tests;3x20 source manifests;formatted unit/geometry/analysis/Markdown identity",
+    "conclusion": "Fixed-lambda full fusion90.14% recall:20267.14/158846.30 QPS(1/8threads),37.00%/32.69% below contemporaneous frozen baseline. Disabled metadata/cache control loses31.36%/27.31%;mean expansions only30.763->30.304. Stop expanding this implementation;22 new timing rows,1310 cumulative;no breakthrough or extra-query acceptance.",
+    "failures_preserved": "Auxiliary unit RNG argument and geometry mixed floating type compilation errors fixed;failure evidence retained;no failed search result used."
   }
 ]
