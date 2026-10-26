@@ -49,6 +49,16 @@ inline float QuantizedGraphRelativeRadius(float target2, float edge2,
   }
   return std::max(0.f, radius / std::sqrt(target2));
 }
+// Fractional squared-distance decrease, unlike a radius that can remain
+// large even when an edge makes vanishing progress toward a proxy target.
+inline float QuantizedGraphRelativeProgress(float target2, float edge2,
+                                            float true_dot, float estimate_dot,
+                                            bool quantized) {
+  if (!(target2 > 0 && edge2 > 0)) return 0;
+  float decrease = 2 * true_dot - edge2;
+  if (quantized) decrease = std::min(decrease, 2 * estimate_dot - edge2);
+  return std::clamp(decrease / target2, 0.f, 1.f);
+}
 __attribute__((target("avx512f,fma"))) inline std::array<float, 2>
 QuantizedGraphCoverDots(const float *query, const float *r, const float *h,
                         size_t n) {

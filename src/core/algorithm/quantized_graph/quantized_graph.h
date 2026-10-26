@@ -622,9 +622,18 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
         const auto dots = QuantizedGraphCoverDots(
             residual.data() + target * dim, residual.data() + edge * dim,
             reconstructed.data() + edge * dim, dim);
+#if QG_COVER_PRUNE >= 3
+        gain[s * targets + t] = QuantizedGraphRelativeProgress(
+            rr[target], rr[edge], dots[0], dots[1], QG_COVER_PRUNE == 4);
+#if defined(QG_COVER_SATURATION)
+        gain[s * targets + t] =
+            std::min(gain[s * targets + t], float(QG_COVER_SATURATION));
+#endif
+#else
         gain[s * targets + t] =
             QuantizedGraphRelativeRadius(rr[target], rr[edge], hh[edge],
                                          dots[0], dots[1], QG_COVER_PRUNE == 2);
+#endif
       }
     }
     for (uint32_t pos :
