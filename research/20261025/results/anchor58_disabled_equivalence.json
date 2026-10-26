@@ -1,0 +1,5 @@
+{
+  "queries": 1000,
+  "id_score_rows": 10000,
+  "exact_match": true
+}

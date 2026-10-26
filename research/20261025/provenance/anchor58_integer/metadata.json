@@ -1,0 +1,30 @@
+{
+  "name": "anchor58_integer",
+  "defines": [
+    "QG_BUCKET=1",
+    "QG_BUCKET_WIDTH=.016f",
+    "QG_ADAPTIVE=1",
+    "QG_RUNTIME_ADAPTIVE=1",
+    "QG_STOP_MIN=10",
+    "QG_STOP_PATIENCE=0",
+    "QG_STOP_MARGIN=.02f",
+    "QG_ROTATION_768=1",
+    "QG_AUGMENT=3",
+    "QG_CENTER_SQ8=1",
+    "QG_DEFERRED_COSINE=1",
+    "QG_DEFERRED_ADAPTIVE=1",
+    "QG_REANCHOR=1",
+    "QG_CENTER_SHIFT=1",
+    "QG_REFINE_BATCH=4",
+    "QG_DEFERRED_ESTIMATE_STOP=1",
+    "QG_INTEGER_CENTER=1",
+    "QG_INTEGER_ORIGINAL_ANCHOR=1",
+    "QG_PROJECTION_ROUTER=1",
+    "QG_ROUTER_MAX_ANCHORS=65536",
+    "QG_CENTER_STATS=1"
+  ],
+  "baseline": "5a1c8a9852acd34c16114940b4cfc41e157dd9b7",
+  "patch_sha256": "e05b40582c1bafb8a2b30cd3c0da39543c940ee4d48f1370c259262f914e06be",
+  "immutable_build_source": "/home/xingrui/bench/quantized_graph/research_20261025/variants/anchor58_integer/build_source",
+  "research_head": "8f31536e0e72f202310163d26a846d6701190fe5"
+}

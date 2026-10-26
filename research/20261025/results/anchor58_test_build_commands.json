@@ -1,0 +1,23 @@
+[
+  [
+    "g++",
+    "-O2",
+    "-std=c++17",
+    "-UNDEBUG",
+    "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src/core",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/router33_test.cc",
+    "-o",
+    "/home/xingrui/bench/quantized_graph/research_20261025/router58_legacy_test"
+  ],
+  [
+    "g++",
+    "-O2",
+    "-std=c++17",
+    "-UNDEBUG",
+    "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src/core",
+    "-DQG_ROUTER_MAX_ANCHORS=65536",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/anchor58_test.cc",
+    "-o",
+    "/home/xingrui/bench/quantized_graph/research_20261025/router58_large_test"
+  ]
+]

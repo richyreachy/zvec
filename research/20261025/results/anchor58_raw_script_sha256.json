@@ -1,0 +1,7 @@
+{
+  "scripts/diagnostic58.py": "090fa502a745494775f69ae6c0391bd97a21be3a537b2e04e4343de8e7f35afe",
+  "scripts/validate_stage58_default.py": "857077696d4d8ae52f8de835c24466d0f5a725dc0493d94c7d499f40a93464a4",
+  "scripts/finalize_anchor58.py": "1330a514c6ee485c5a4ee665b0f7eeb7d2e7ddc711f4775456b94db64955402a",
+  "scripts/anchor58_test.cc": "f20058281407c1b5625b53bbf169abcc4b0713238ac8f81746a88ad5aca32279",
+  "scripts/router33_test.cc": "b632d90f1f3ff45325bf600c645166742a18cff8db17c8f6247cd9af3c077026"
+}

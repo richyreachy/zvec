@@ -6,6 +6,9 @@
 #include <cstdint>
 #include <limits>
 #include <vector>
+#if defined(QG_ROUTER_MAX_ANCHORS)
+#include <unordered_set>
+#endif
 namespace zvec::core {
 // Experimental query-independent anchor sampler. The projection is supplied
 // by the codec's existing linear transform; no query or GT trains this router.
@@ -22,11 +25,23 @@ class QuantizedGraphRouter {
             const std::vector<double> &centroid, size_t count, size_t dim) {
     clear();
     if (!count) return 0;
-    for (size_t i = 0; i < std::min(size_t{1024}, count); ++i) {
+#if defined(QG_ROUTER_MAX_ANCHORS)
+    const size_t limit = std::min(size_t{QG_ROUTER_MAX_ANCHORS}, count);
+    std::unordered_set<uint32_t> seen;
+    seen.reserve(limit);
+#else
+    const size_t limit = std::min(size_t{1024}, count);
+#endif
+    for (size_t i = 0; i < limit; ++i) {
       const uint32_t id =
           uint32_t((uint64_t(i) * 2654435761ULL + 7193) % count);
       if (entity.valid(id) &&
-          std::find(ids.begin(), ids.end(), id) == ids.end())
+#if defined(QG_ROUTER_MAX_ANCHORS)
+          seen.insert(id).second
+#else
+          std::find(ids.begin(), ids.end(), id) == ids.end()
+#endif
+      )
         ids.push_back(id);
     }
     std::vector<float> center(centroid.begin(), centroid.end()), rotated;
@@ -53,6 +68,9 @@ class QuantizedGraphRouter {
   }
   bool empty() const {
     return ids.empty();
+  }
+  size_t anchor_count() const {
+    return ids.size();
   }
   template <class Query>
   static auto rotated(const Query &q, int) -> decltype(q.rotated.data()) {
@@ -88,7 +106,10 @@ class QuantizedGraphRouter {
   template <class Context, class Graph>
   int choose(Context &ctx, const Graph &entity, const float *rotated_query,
              uint32_t &entry, size_t dimensions, size_t count, size_t shortlist,
-             std::vector<float> &scores) const {
+             std::vector<float> &scores,
+             float *original_distance = nullptr) const {
+    if (original_distance)
+      *original_distance = std::numeric_limits<float>::quiet_NaN();
     count = std::min(count, ids.size());
     dimensions = std::min(dimensions, mean.size());
     shortlist = std::min({shortlist, count, size_t{16}});
@@ -110,6 +131,7 @@ class QuantizedGraphRouter {
     if (rc) return rc;
     if (!raw.data()) return -1;
     float best = ctx.distance(raw.data());
+    if (original_distance) *original_distance = best;
     for (size_t i = 0; i < shortlist; ++i) {
       const uint32_t candidate = ids[top[i].second];
       rc = entity.get_vector(candidate, raw);
