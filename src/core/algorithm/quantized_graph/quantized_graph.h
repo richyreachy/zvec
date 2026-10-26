@@ -74,7 +74,8 @@
 #include <cstdio>
 #include <cstdlib>
 #endif
-#if defined(QG_PROJECTION_ROUTER) || defined(QG_ROTATED_CENTER)
+#if defined(QG_PROJECTION_ROUTER) || defined(QG_ROTATED_CENTER) || \
+    defined(QG_ROUTER_PROJECTED)
 #include <cstdlib>
 #include "quantized_graph_router.h"
 #endif
@@ -272,6 +273,9 @@ class QuantizedGraph {
     typename Codec::Query query;
 #if defined(QG_INTEGER_CENTER)
     IntegerCenter::Query integer_query;
+#if defined(QG_ROUTER_PROJECTED)
+    IntegerCenter::Query projected_route_query;
+#endif
 #endif
 #if defined(QG_PROJECTION_ROUTER)
     std::vector<float> route_scores, route_query;
@@ -902,6 +906,10 @@ template <class Codec>
 template <class Graph>
 int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
                                     size_t threads) {
+#if defined(QG_ROUTER_PROJECTED)
+  // Reject incompatible layouts before touching the projected mean or graph.
+  if (!compressed_center_ || dimension_ != 768) return IndexError_Mismatch;
+#endif
 #if defined(QG_INTEGER_CENTER)
   if (compressed_center_ &&
       (dimension_ != 768 || !__builtin_cpu_supports("avx512vnni")))
@@ -1065,9 +1073,19 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
     return IndexError_Mismatch;
 #endif
 #if defined(QG_INTEGER_ROUTER)
+#if defined(QG_ROUTER_PROJECTED)
+  std::vector<float> route_mean;
+  codec_.transform(center_shift_.data(), route_mean);
+  if (dimension_ != 768 || route_mean.size() != 768) return IndexError_Mismatch;
+#endif
   if (!compressed_center_ ||
       !integer_router_.load(std::getenv("QG_INTEGER_ROUTER_FILE"),
-                            center_shift_, entity, doc_cnt))
+                            center_shift_, entity, doc_cnt
+#if defined(QG_ROUTER_PROJECTED)
+                            ,
+                            &route_mean
+#endif
+                            ))
     return IndexError_Mismatch;
 #endif
   lazy_blocks_.clear();
@@ -1327,8 +1345,17 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
         std::getenv("QG_INTEGER_ROUTER_BEAM")
             ? std::strtoul(std::getenv("QG_INTEGER_ROUTER_BEAM"), nullptr, 10)
             : 1;
+#if defined(QG_ROUTER_PROJECTED)
+    if (!integer_router_.prepare_projected(
+            QuantizedGraphRouter::rotated(batch_query, 0),
+            state.projected_route_query))
+      return IndexError_Mismatch;
+    const NodeId chosen =
+        integer_router_.choose(state.projected_route_query, route_beam);
+#else
     const NodeId chosen =
         integer_router_.choose(state.integer_query, route_beam);
+#endif
     if (chosen == kInvalidNodeId) return IndexError_Mismatch;
     if (std::getenv("QG_ROUTE_KEEP_SCALE") &&
         std::strtol(std::getenv("QG_ROUTE_KEEP_SCALE"), nullptr, 10)) {

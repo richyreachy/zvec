@@ -1,0 +1,31 @@
+{
+  "name": "proj60_384_audit",
+  "defines": [
+    "QG_BUCKET=1",
+    "QG_BUCKET_WIDTH=.016f",
+    "QG_ADAPTIVE=1",
+    "QG_RUNTIME_ADAPTIVE=1",
+    "QG_STOP_MIN=10",
+    "QG_STOP_PATIENCE=0",
+    "QG_STOP_MARGIN=.02f",
+    "QG_ROTATION_768=1",
+    "QG_AUGMENT=3",
+    "QG_CENTER_SQ8=1",
+    "QG_DEFERRED_COSINE=1",
+    "QG_DEFERRED_ADAPTIVE=1",
+    "QG_REANCHOR=1",
+    "QG_CENTER_SHIFT=1",
+    "QG_REFINE_BATCH=4",
+    "QG_DEFERRED_ESTIMATE_STOP=1",
+    "QG_INTEGER_CENTER=1",
+    "QG_INTEGER_ORIGINAL_ANCHOR=1",
+    "QG_INTEGER_ROUTER=1",
+    "QG_ROUTER_PROJECTED=384",
+    "QG_CENTER_STATS=1",
+    "QG_CENTER_AUDIT=1"
+  ],
+  "baseline": "5a1c8a9852acd34c16114940b4cfc41e157dd9b7",
+  "patch_sha256": "6aafecb91a88130e9b15a5a2a4f560893e6e926ba25997e8a1715a76ca281e1b",
+  "immutable_build_source": "/home/xingrui/bench/quantized_graph/research_20261025/variants/proj60_384_audit/build_source",
+  "research_head": "ab28880729e587b51573e5e4d9022664a146cf51"
+}

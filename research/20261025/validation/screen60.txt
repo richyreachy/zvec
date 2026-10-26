@@ -1,0 +1,17 @@
+START screen60_cohere_control_pre
+DONE screen60_cohere_control_pre
+START screen60_cohere_integer_control
+DONE screen60_cohere_integer_control
+START screen60_cohere_original_router
+DONE screen60_cohere_original_router
+START screen60_cohere_disabled
+DONE screen60_cohere_disabled
+START screen60_cohere_proj768
+DONE screen60_cohere_proj768
+START screen60_cohere_proj384
+DONE screen60_cohere_proj384
+START screen60_cohere_proj256
+DONE screen60_cohere_proj256
+START screen60_cohere_control_post
+DONE screen60_cohere_control_post
+SCREEN60 COMPLETE

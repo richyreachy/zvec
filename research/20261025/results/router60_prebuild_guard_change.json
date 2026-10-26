@@ -1,0 +1,7 @@
+{
+  "file": "src/core/algorithm/quantized_graph/quantized_graph.h",
+  "before_sha256": "63ba512a9e61c60dfdfd6fd6b6ae4b18c67226cd32d2fc31836526e8eb3c1a75",
+  "after_sha256": "35177ba4ac2a8913d8f657fe020ee44d54e7c4457e8350f6d7e6f45a02574f9b",
+  "added_code": "#if defined(QG_ROUTER_PROJECTED)\n  // Reject incompatible layouts before touching the projected mean or graph.\n  if (!compressed_center_ || dimension_ != 768) return IndexError_Mismatch;\n#endif\n",
+  "scope": "prebuild only; timed performance snapshots remain original; subsequent audit/full/default builds include this guard; no online search code changes"
+}

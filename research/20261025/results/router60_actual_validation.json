@@ -1,0 +1,26 @@
+[
+  {
+    "dimension": 768,
+    "queries": 1000,
+    "id_score_rows_per_mode": 10000,
+    "audit_full_performance_equal": true,
+    "mean_expanded": 24.351,
+    "mean_refined": 13.49
+  },
+  {
+    "dimension": 384,
+    "queries": 1000,
+    "id_score_rows_per_mode": 10000,
+    "audit_full_performance_equal": true,
+    "mean_expanded": 24.671,
+    "mean_refined": 13.527
+  },
+  {
+    "dimension": 256,
+    "queries": 1000,
+    "id_score_rows_per_mode": 10000,
+    "audit_full_performance_equal": true,
+    "mean_expanded": 25.361,
+    "mean_refined": 13.509
+  }
+]

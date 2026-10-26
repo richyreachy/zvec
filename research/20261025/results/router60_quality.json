@@ -1,0 +1,68 @@
+{
+  "diagnostic_only": true,
+  "primary_queries": 1000,
+  "trained_tree_unchanged": true,
+  "float32_ranking_not_exact_oracle": true,
+  "dimensions": {
+    "768": {
+      "rank": {
+        "mean": 49.115,
+        "median": 6.0,
+        "p95": 220.0
+      },
+      "distance": {
+        "mean": 0.16432535415887833,
+        "median": 0.16169610619544983,
+        "p95": 0.24563615918159484
+      },
+      "gap_to_closest": {
+        "mean": 0.026513530910015105,
+        "median": 0.020824164152145386,
+        "p95": 0.07783267796039578
+      },
+      "rank1_fraction": 0.227,
+      "leaf_match_unrotated768": 0.978,
+      "leaf_match_rotated768": 1.0
+    },
+    "384": {
+      "rank": {
+        "mean": 128.593,
+        "median": 9.0,
+        "p95": 661.05
+      },
+      "distance": {
+        "mean": 0.17057201451063156,
+        "median": 0.16686412692070007,
+        "p95": 0.25374504327774045
+      },
+      "gap_to_closest": {
+        "mean": 0.032760191261768344,
+        "median": 0.027245312929153442,
+        "p95": 0.09015123546123502
+      },
+      "rank1_fraction": 0.169,
+      "leaf_match_unrotated768": 0.422,
+      "leaf_match_rotated768": 0.425
+    },
+    "256": {
+      "rank": {
+        "mean": 188.255,
+        "median": 16.0,
+        "p95": 794.2499999999989
+      },
+      "distance": {
+        "mean": 0.17512448984384538,
+        "median": 0.17318707704544067,
+        "p95": 0.2590715646743774
+      },
+      "gap_to_closest": {
+        "mean": 0.03731266659498215,
+        "median": 0.031657248735427856,
+        "p95": 0.09860910177230835
+      },
+      "rank1_fraction": 0.139,
+      "leaf_match_unrotated768": 0.279,
+      "leaf_match_rotated768": 0.283
+    }
+  }
+}

@@ -1,0 +1,1 @@
+dimension=384 query_codes=192000 integer_dots=8000 fp64_formulas=2875 scalar_routes=300 rotation_dots=500 zero_residual_and_loader_checks=5 passed

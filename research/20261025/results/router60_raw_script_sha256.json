@@ -1,0 +1,13 @@
+{
+  "scripts/prepare60.py": "f3698492a1dbc4a5108064da773a2d7c6a43507317d80d0e00bdf4fd4b0ad0b3",
+  "scripts/screen60.py": "9a07162346708e45f0a47acbed37c8ec00edd71007f984fe070c5c37b0317094",
+  "scripts/quality60.py": "438870418e93934ad5eaddf71a9a64fb046ff17cb3579e238535d6a7361ae87d",
+  "scripts/apply_router60_guard.py": "f585f9ef0899e92efaed348ee050070f3e57f1c482833d609b90c792a0f8a22e",
+  "scripts/validate60.py": "45c7d2747e1fa9610fab3734b7efd29653144c14466b4323d63b340c5f812687",
+  "scripts/validate_stage60_default.py": "b9620a39f8cbd9258cac013ccbd01721bda398b1c27572c5923ba52c7432e40d",
+  "scripts/finalize60.py": "39b58b53988d02b4d4f777e076ebedc17ed0088ce8b05ae88b2907b1b9df8b22",
+  "scripts/convert_router60.cc": "4dbd6f93b1f79436e3b40c97e387cecfca88a45b95d07ecca84d3eb9dcee72ab",
+  "scripts/projected_router60_test.cc": "b7ed40c647c437df3c2ba23a7a4ab6cb489601952dfd782bafff41ca2f8fe2d7",
+  "scripts/router60_micro.cc": "452843630936fb4437430212324a54e01b9f0388e2fb936641f0dd9d05afd130",
+  "scripts/router60_prebuild_guard_test.cc": "020c243b0ff451a02ddbaf6f70834e8890d5a93842f5c7f1c34ab2a5d1261e2f"
+}

@@ -1,0 +1,1 @@
+CONVERT60 COMPLETE groups=13435;fixed tree, no query inputs
