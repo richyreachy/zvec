@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T12:32:28.157395+08:00",
+  "updated_at": "2026-10-26T12:52:24.933475+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -22,7 +22,8 @@
     54,
     55,
     56,
-    57
+    57,
+    59
   ],
   "queued_sequence": [],
   "validation_completed": {
@@ -71,32 +72,48 @@
     "anchor58_default_tests": 28,
     "anchor58_disabled_equivalence_queries": 1000,
     "anchor58_complete_query_evaluations": 17000,
-    "anchor58_complete_id_score_rows": 170000
+    "anchor58_complete_id_score_rows": 170000,
+    "router59_integer_products": 16000,
+    "router59_encoded_formulas": 8468,
+    "router59_loader_checks": 13,
+    "router59_scalar_route_checks": 750,
+    "router59_default_tests": 28,
+    "router59_disabled_queries": 1000,
+    "router59_audit_full_performance_queries": 1000,
+    "router59_screen_query_evaluations": 31000,
+    "router59_timing_rows": 60
   },
-  "latest_source_change": "Stage15 large-anchor routing diagnostic committed, default off;optional retained integer bucket scale;no deployable QPS claim",
+  "latest_source_change": "Stage16 default-off integer hierarchy with anchor export,model validation,batched16 VNNI scores and retained-scale ablation",
   "next_actions": [
-    "Implement graph-internal anchor export with internalID/externalkey mapping, without reading queries or GT.",
-    "Prototype hierarchical spherical clustering and batched16 VNNI router reusing integer query encoding;validate model/score/disabled behavior.",
-    "Measure whole online routing+graph+refine cost against concurrent-condition frozen controls;no expansion-to-QPS extrapolation.",
-    "Continue stage commits after validation;freeze successful configs before extra-query validation."
+    "Implement controlled projected router from notes/projected_router60_plan.md,keeping trained tree and graph fixed.",
+    "Reuse existing Symphony rotation with separate lightweight projected query codes;check dimension/mean/transform identity and factor d/m only on residual dot.",
+    "Compare384/256 dimensional route scores with768 control,unit scoring,actual audit/full,whole online timing and memory;do not infer speed from expansion counts.",
+    "If no clear improvement,stop tuning this hierarchy;keep extra queries unused until a repeated successful config is frozen;commit each validated stage."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "",
   "diagnostic47": "complete: no timing claims; original scalar full precision oracle lowest passing tested mean expansion27.268 vs30.763 baseline; fine-grid needed before strict optimality conclusions",
   "additional_queries_status": "Self-excluded database-query GT prepared, no graph results evaluated. External normalized query overlap0 atcos>0.999; max0.927826, model provenance still unverified.",
-  "primary_measurement_rows": 944,
+  "primary_measurement_rows": 1004,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "a6be3689ae1fb9ee0cad9f57b9d29e0a4313bc53",
-  "stage_commit_count": 15,
-  "extra_document_index_commits": 6,
-  "working_tree_status": "Documentation index update pending",
+  "head": "21554c98e16e2b2d038dfea8a45e9dba862c3568",
+  "stage_commit_count": 16,
+  "extra_document_index_commits": 8,
+  "working_tree_status": "Snapshot at stage16 source commit;index documentation follows",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
-  "last_results": "4096 retained-scale:recall90.37%,expanded26.121 vs control90.36%/30.778;65536 new-scale:90.72%/21.361;router adds5 exact calls plus full scan;no QPS measured",
+  "last_results": "hier59 b1 keep0:32,593.81 QPS/90.66%,expanded24.344,refined13.488;integer control34,044.82/90.36%;beam2/4 slower;no breakthrough",
   "completed_diagnostics": [
     47,
     51,
     58
   ],
-  "diagnostic58": "complete:17 configurations, no timing rows;full-dimensional scans and5 extra exact distances explicitly accounted;entry headroom supports low-cost router investigation"
+  "diagnostic58": "complete:17 configurations, no timing rows;full-dimensional scans and5 extra exact distances explicitly accounted;entry headroom supports low-cost router investigation",
+  "router59_model": {
+    "path": "/home/xingrui/bench/quantized_graph/research_20261025/models59/router.bin",
+    "sha256": "2342eaa1e816ea1f7e6c788637b12acdcbf61e8f6bd5edc55d732b277d6d5236",
+    "bytes": 168585472,
+    "training_queries_used": false,
+    "primary_queries_used_for_evaluation": true
+  }
 }

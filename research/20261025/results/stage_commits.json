@@ -106,5 +106,12 @@
     "title": "test(qg): quantify entry routing headroom with full cost accounting",
     "validation": "9000 legacy router checks;600 large/retained-distance/disabled checks;28 default tests;1000-query disabled-output equivalence;17000 query evaluations complete;2 source manifests verified",
     "conclusion": "Routing reduces expansions at passing recall points, but adds full-dimensional scans and5 exact distances;no QPS measurement or performance claim"
+  },
+  {
+    "stage": "16",
+    "commit": "21554c98e16e2b2d038dfea8a45e9dba862c3568",
+    "title": "test(qg): evaluate database-trained integer entry hierarchy",
+    "validation": "16000 integer products;8468 encoded formula checks;13 loader checks;750 actual-model scalar comparisons;28 default tests;1000-query disabled equivalence and1000-query performance/audit/full equivalence;60 timing rows;database-only model training and ID mapping verified",
+    "conclusion": "Best routing32,593.81 QPS at90.66% below concurrent integer control34,044.82 at90.36%;expansions reduced24.344 vs30.778 but route cost erases benefit;no25%breakthrough"
   }
 ]
