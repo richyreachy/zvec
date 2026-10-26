@@ -1,0 +1,18 @@
+{
+  "purpose": "query-only geometric overlap check; no search outcomes or GT read",
+  "external_queries": 5000,
+  "primary_queries": 1000,
+  "nearest_primary_cosine_quantiles": [
+    0.6956026554107666,
+    0.8007579147815704,
+    0.8232643902301788,
+    0.8437514305114746,
+    0.869765293598175,
+    0.9278261065483093
+  ],
+  "external_near_duplicate_primary_count_1e_minus5": 0,
+  "external_near_duplicate_primary_count_1e_minus3": 0,
+  "max_cosine": 0.9278261065483093,
+  "near_duplicate_pairs": [],
+  "interpretation": "Positive rescaling is irrelevant to cosine; different raw norms alone do not demonstrate different embedding models. Model compatibility remains unverified without provenance or stronger evidence."
+}

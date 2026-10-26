@@ -53,6 +53,9 @@
 #include <zvec/core/framework/index_error.h>
 #include "utility/graph_search.h"
 #include "quantized_graph_beam.h"
+#if defined(QG_COVER_PRUNE)
+#include "quantized_graph_cover.h"
+#endif
 #if defined(QG_PROFILE)
 #include <chrono>
 #include <cstdio>
@@ -584,6 +587,46 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
     };
     std::vector<uint32_t> selected;
     selected.reserve(kMaxBlockNeighbors);
+#if defined(QG_COVER_PRUNE)
+    // Targets and edge candidates are database-derived only. Greedy optimizes
+    // local coverage radius; this is not a global navigability guarantee.
+    std::vector<float> residual(cnt * dim), reconstructed(cnt * dim), rr(cnt),
+        hh(cnt), rotated_center, rotated;
+    codec_.transform(center, rotated_center);
+    for (size_t i = 0; i < cnt; ++i) {
+      codec_.transform(cache + i * dimension_, rotated);
+      double norm = 0, l1 = 0;
+      for (size_t j = 0; j < dim; ++j) {
+        const float r = rotated[j] - rotated_center[j];
+        residual[i * dim + j] = r;
+        norm += double(r) * r;
+        l1 += std::abs(double(r));
+      }
+      rr[i] = float(norm);
+      const float amplitude = l1 > 0 ? float(norm / l1) : 0.f;
+      hh[i] = float(dim) * amplitude * amplitude;
+      for (size_t j = 0; j < dim; ++j)
+        reconstructed[i * dim + j] =
+            residual[i * dim + j] > 0 ? amplitude : -amplitude;
+    }
+    const size_t targets = std::min(size_t{64}, cnt);
+    std::vector<float> gain(cnt * targets);
+    for (size_t s = 0; s < cnt; ++s) {
+      const uint32_t edge = order[s];
+      for (size_t t = 0; t < targets; ++t) {
+        const uint32_t target = order[t * cnt / targets];
+        const auto dots = QuantizedGraphCoverDots(
+            residual.data() + target * dim, residual.data() + edge * dim,
+            reconstructed.data() + edge * dim, dim);
+        gain[s * targets + t] =
+            QuantizedGraphRelativeRadius(rr[target], rr[edge], hh[edge],
+                                         dots[0], dots[1], QG_COVER_PRUNE == 2);
+      }
+    }
+    for (uint32_t pos :
+         QuantizedGraphGreedyCover(gain, cnt, targets, kMaxBlockNeighbors))
+      selected.push_back(order[pos]);
+#else
 #if defined(QG_FORCED_NEAR)
     // Reserve a small dense local neighborhood, then spend remaining slots
     // on diverse navigation edges. Construction uses database vectors only.
@@ -629,6 +672,7 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
       }
       if (diverse) selected.push_back(idx);
     }
+#endif
     if (selected.size() < kMaxBlockNeighbors) {
       std::vector<char> taken(cnt, 0);
       for (uint32_t idx : selected) taken[idx] = 1;
