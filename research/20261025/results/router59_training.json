@@ -1,0 +1,32 @@
+{
+  "seed": 202610261259,
+  "iterations_per_split": 10,
+  "fanout": 16,
+  "anchors": 65536,
+  "dimension": 768,
+  "docs": 1000000,
+  "groups": 13435,
+  "max_group_depth": 7,
+  "degenerate_split_fallbacks": 0,
+  "leaf_count": 65536,
+  "all_anchor_ids_once": true,
+  "normalized_error_max": 2.5580640838906987e-07,
+  "external_key_base_max_abs_error": 1.1920928955078125e-07,
+  "internal_id_equals_external_key_fraction": 1.0,
+  "training_seconds": 8.064413023996167,
+  "model_bytes": 168585472,
+  "query_or_gt_inputs": [],
+  "hashes": {
+    "models59/anchors.bin": "52f16316aa92d883853b05fe202437b93f2ad1c2afce5a5b1ca65e123336d2c6",
+    "models59/router.bin": "2342eaa1e816ea1f7e6c788637b12acdcbf61e8f6bd5edc55d732b277d6d5236",
+    "models59/centers.f32": "0e52754c20cd36fd96766756d6f71c27276511c5c74ecef766cfde7a0b92f95d",
+    "models59/targets.i32": "4a0f8b75fe6090ad1d90608c4805ae75b1413ee3ac6555a8b4fd689b7da1f806",
+    "models59/counts.u32": "33fcffe565e6af9dd4745fd532e159d8faa9410c4a3ab40fbd75138e238d3f47",
+    "mean54/mean.f32": "5c809161a66a66829822b04904b8ae44305c60e9b59b20f085fa46bf8d81c0e2",
+    "scripts/train_router59.py": "e5d20ca2513ec1d64f2e92436597b5af1d9064d355fb85612e8f714f6e9f05d0"
+  },
+  "threads": {
+    "OPENBLAS_NUM_THREADS": "8",
+    "OMP_NUM_THREADS": "8"
+  }
+}

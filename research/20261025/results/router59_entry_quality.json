@@ -1,0 +1,64 @@
+{
+  "diagnostic_only": true,
+  "model_training_unchanged": true,
+  "primary_queries": 1000,
+  "anchor_count": 65536,
+  "ranking_precision": "float32 matrix products;not mathematical exact oracle",
+  "mean_closest_anchor_distance": 0.1378118232488632,
+  "beams": {
+    "1": {
+      "rank": {
+        "mean": 49.965,
+        "median": 6.0,
+        "p95": 220.0
+      },
+      "distance": {
+        "mean": 0.16444095760583877,
+        "median": 0.16186198592185974,
+        "p95": 0.2454476088285446
+      },
+      "gap_to_best": {
+        "mean": 0.026629134356975556,
+        "median": 0.020824164152145386,
+        "p95": 0.07783267796039578
+      },
+      "rank1_fraction": 0.222
+    },
+    "2": {
+      "rank": {
+        "mean": 10.828,
+        "median": 3.0,
+        "p95": 39.049999999999955
+      },
+      "distance": {
+        "mean": 0.1545723261833191,
+        "median": 0.15244171023368835,
+        "p95": 0.23167203962802885
+      },
+      "gap_to_best": {
+        "mean": 0.01676050293445587,
+        "median": 0.009738773107528687,
+        "p95": 0.06289569735527038
+      },
+      "rank1_fraction": 0.345
+    },
+    "4": {
+      "rank": {
+        "mean": 3.929,
+        "median": 2.0,
+        "p95": 14.0
+      },
+      "distance": {
+        "mean": 0.14793878054618836,
+        "median": 0.14481228590011597,
+        "p95": 0.2192634761333465
+      },
+      "gap_to_best": {
+        "mean": 0.010126957297325134,
+        "median": 0.0003375709056854248,
+        "p95": 0.04321329593658447
+      },
+      "rank1_fraction": 0.493
+    }
+  }
+}

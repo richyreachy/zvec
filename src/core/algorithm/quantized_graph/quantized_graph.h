@@ -57,6 +57,15 @@
 #include <zvec/core/framework/index_error.h>
 #include "utility/graph_search.h"
 #include "quantized_graph_beam.h"
+#if defined(QG_INTEGER_ROUTER)
+#if !defined(QG_INTEGER_CENTER) || defined(QG_PROJECTION_ROUTER)
+#error Integer router requires integer centers and excludes projection router
+#endif
+#include "quantized_graph_integer_router.h"
+#endif
+#if defined(QG_ANCHOR_EXPORT)
+#include "quantized_graph_anchor_export.h"
+#endif
 #if defined(QG_COVER_PRUNE)
 #include "quantized_graph_cover.h"
 #endif
@@ -393,6 +402,9 @@ class QuantizedGraph {
 #if defined(QG_PROJECTION_ROUTER)
   QuantizedGraphRouter router_;
 #endif
+#if defined(QG_INTEGER_ROUTER)
+  QuantizedGraphIntegerRouter integer_router_;
+#endif
   // Immutable after prebuild and before the next clear(); read lock-free.
   std::unique_ptr<char[], ArenaDeleter> arena_;
   NodeId arena_count_{0};
@@ -454,6 +466,9 @@ void QuantizedGraph<Codec>::clear() {
   entry_ = kInvalidNodeId;
 #if defined(QG_PROJECTION_ROUTER)
   router_.clear();
+#endif
+#if defined(QG_INTEGER_ROUTER)
+  integer_router_.clear();
 #endif
   std::lock_guard<std::mutex> lock(mutex_);
   lazy_blocks_.clear();
@@ -1044,6 +1059,17 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
       router_.build(entity, codec_, centroid, doc_cnt, dimension_);
   if (route_rc) return route_rc;
 #endif
+#if defined(QG_ANCHOR_EXPORT)
+  if (!QuantizedGraphAnchorExport::write(entity, doc_cnt, dimension_,
+                                         std::getenv("QG_ANCHOR_EXPORT_FILE")))
+    return IndexError_Mismatch;
+#endif
+#if defined(QG_INTEGER_ROUTER)
+  if (!compressed_center_ ||
+      !integer_router_.load(std::getenv("QG_INTEGER_ROUTER_FILE"),
+                            center_shift_, entity, doc_cnt))
+    return IndexError_Mismatch;
+#endif
   lazy_blocks_.clear();
   arena_ = std::move(arena);
   arena_count_ = static_cast<NodeId>(doc_cnt);
@@ -1202,8 +1228,10 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   if (compressed_center_ && !QuantizedGraphRouter::rotated(batch_query, 0))
     return IndexError_Mismatch;
 #endif
-#if defined(QG_PROJECTION_ROUTER)
+#if defined(QG_PROJECTION_ROUTER) || defined(QG_INTEGER_ROUTER)
   float route_bucket_scale = std::numeric_limits<float>::quiet_NaN();
+#endif
+#if defined(QG_PROJECTION_ROUTER)
   if (!router_.empty()) {
     const float *rotated = QuantizedGraphRouter::rotated(batch_query, 0);
     if (!rotated) {
@@ -1293,6 +1321,30 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
   auto &expanded = state.expanded;
   expanded.clear();
+#if defined(QG_INTEGER_ROUTER)
+  if (!integer_router_.empty()) {
+    const size_t route_beam =
+        std::getenv("QG_INTEGER_ROUTER_BEAM")
+            ? std::strtoul(std::getenv("QG_INTEGER_ROUTER_BEAM"), nullptr, 10)
+            : 1;
+    const NodeId chosen =
+        integer_router_.choose(state.integer_query, route_beam);
+    if (chosen == kInvalidNodeId) return IndexError_Mismatch;
+    if (std::getenv("QG_ROUTE_KEEP_SCALE") &&
+        std::strtol(std::getenv("QG_ROUTE_KEEP_SCALE"), nullptr, 10)) {
+      const Block *original = get_block(entity, entry);
+      if (!original) return IndexError_Mismatch;
+      route_bucket_scale = IntegerCenter::distance(
+          state.integer_query,
+          reinterpret_cast<const uint8_t *>(original->center()), dimension_,
+          original->center_offset, original->center_scale,
+          original->center_mean_dot, center_shift_norm2_);
+    }
+    entry = chosen;
+    beam.reset(std::max(size_t{1}, results.limit()));
+    beam.insert(entry, std::numeric_limits<float>::max());
+  }
+#endif
 #if defined(QG_DEFERRED_COSINE)
   state.refine_candidates.clear();
   state.refine_best.clear();
@@ -1448,7 +1500,7 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     const IntegerCenter::Query &integer_query;
 #endif
     std::vector<NodeId> &expanded;
-#if defined(QG_PROJECTION_ROUTER)
+#if defined(QG_PROJECTION_ROUTER) || defined(QG_INTEGER_ROUTER)
     float route_bucket_scale;
 #endif
 #if defined(QG_DEFERRED_COSINE)
@@ -1657,7 +1709,7 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #if defined(QG_BUCKET)
       if (expanded.size() == 1)
         bucket->set_scale(
-#if defined(QG_PROJECTION_ROUTER)
+#if defined(QG_PROJECTION_ROUTER) || defined(QG_INTEGER_ROUTER)
             std::isfinite(route_bucket_scale) ? route_bucket_scale :
 #endif
                                               exact);
@@ -1770,7 +1822,7 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
          state.integer_query,
 #endif
          expanded
-#if defined(QG_PROJECTION_ROUTER)
+#if defined(QG_PROJECTION_ROUTER) || defined(QG_INTEGER_ROUTER)
          ,
          route_bucket_scale
 #endif

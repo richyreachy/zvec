@@ -1,0 +1,24 @@
+{
+  "unit_build": [
+    "g++",
+    "-O3",
+    "-std=c++17",
+    "-UNDEBUG",
+    "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src/core",
+    "scripts/integer_router59_test.cc",
+    "-o",
+    "integer_router59_test"
+  ],
+  "unit_run": [
+    "./integer_router59_test",
+    "models59/router.bin",
+    "models59/test_invalid_model.tmp"
+  ],
+  "training": [
+    "OPENBLAS_NUM_THREADS=8",
+    "OMP_NUM_THREADS=8",
+    "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+    "scripts/train_router59.py"
+  ],
+  "cwd": "/home/xingrui/bench/quantized_graph/research_20261025"
+}
