@@ -36,6 +36,22 @@
 #include "radial_calibration.h"
 #endif
 
+#if defined(QG_DIRECTION_BETA) || defined(QG_DIRECTION_MSE)
+#if defined(QG_RADIAL_CALIBRATION) || defined(QG_LOWRANK) ||     \
+    defined(QG_PROJECT_DIM) || defined(QG_RESIDUAL_TWO_STAGE) || \
+    defined(QG_GEOM_BIAS)
+#error Directional calibration requires the native full-dimensional one-bit codec
+#endif
+#if defined(QG_DIRECTION_BETA) && defined(QG_DIRECTION_MSE)
+#error Choose one directional calibration objective
+#endif
+#if defined(QG_DIRECTION_BETA)
+static_assert(QG_DIRECTION_BETA >= .5 && QG_DIRECTION_BETA <= 1.,
+              "Directional beta must be in [0.5,1]");
+#endif
+#include "directional_calibration.h"
+#endif
+
 namespace zvec::turbo {
 #if RABITQ_SUPPORTED
 // Node-centered RaBitQ blocks with the SymphonyQG rotation and FastScan layout.
@@ -184,6 +200,21 @@ class SymphonyQGBlockQuantizer {
       ConvertSymphonyQGCosineFactors(center, vectors, count, encoded_dim(),
                                      batch.f_add(), batch.f_rescale());
     }
+#if defined(QG_DIRECTION_BETA) || defined(QG_DIRECTION_MSE)
+    if (cosine_) {
+      rabitqlib::QGBatchDataMap<float> batch(codes, encoded_dim());
+#if defined(QG_DIRECTION_BETA)
+      constexpr double beta = QG_DIRECTION_BETA;
+      constexpr bool per_edge_mse = false;
+#else
+      constexpr double beta = 1.;
+      constexpr bool per_edge_mse = true;
+#endif
+      DirectionalCalibration::apply(center, vectors, count, encoded_dim(), beta,
+                                    per_edge_mse, batch.f_add(),
+                                    batch.f_rescale());
+    }
+#endif
 #if defined(QG_RADIAL_CALIBRATION)
     if (cosine_) {
       rabitqlib::QGBatchDataMap<float> batch(codes, encoded_dim());

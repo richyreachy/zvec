@@ -1,0 +1,34 @@
+{
+  "dir62_native_trained": {
+    "experiment": "recover62_cohere_dir62_native_trained",
+    "label": 70000,
+    "passing": true,
+    "recall": 0.9042,
+    "qps_single_median": 30671.217375,
+    "qps_eight_median": 225295.4914
+  },
+  "dir62_native_mse": {
+    "experiment": "recover62_cohere_dir62_native_mse",
+    "label": 800000,
+    "passing": false,
+    "recall": 0.8248,
+    "qps_single_median": 16812.016075,
+    "qps_eight_median": 130703.1265
+  },
+  "dir62_integer_trained": {
+    "experiment": "recover62_cohere_dir62_integer_trained",
+    "label": 65000,
+    "passing": true,
+    "recall": 0.9004,
+    "qps_single_median": 32854.95845,
+    "qps_eight_median": 241833.2353
+  },
+  "dir62_integer_mse": {
+    "experiment": "recover62_cohere_dir62_integer_mse",
+    "label": 800000,
+    "passing": false,
+    "recall": 0.8273,
+    "qps_single_median": 19187.111445000002,
+    "qps_eight_median": 149999.00905
+  }
+}

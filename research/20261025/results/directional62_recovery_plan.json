@@ -1,0 +1,32 @@
+{
+  "reason": "Initial trained-native margin0.06 reaches88.98%; directional shrink changes absolute neighbor scores and triggers earlier stopping. Extend stopping margin to compare at passing recall. This is explicit primary-query development, not held-out evaluation.",
+  "labels": {
+    "dir62_native_trained": [
+      65000,
+      70000,
+      80000
+    ],
+    "dir62_native_mse": [
+      200000,
+      400000,
+      800000
+    ],
+    "dir62_integer_trained": [
+      65000,
+      70000,
+      80000
+    ],
+    "dir62_integer_mse": [
+      200000,
+      400000,
+      800000
+    ]
+  },
+  "rounds": 2,
+  "duration_seconds": 3,
+  "threads": [
+    1,
+    8
+  ],
+  "model_beta_unchanged": true
+}

@@ -1,0 +1,162 @@
+{
+  "selected": {
+    "dir62_native_trained": {
+      "experiment": "recover62_cohere_dir62_native_trained",
+      "label": 70000,
+      "passing": true,
+      "recall": 0.9042,
+      "qps_single_median": 30671.217375,
+      "qps_eight_median": 225295.4914
+    },
+    "dir62_native_mse": {
+      "experiment": "recover62_cohere_dir62_native_mse",
+      "label": 800000,
+      "passing": false,
+      "recall": 0.8248,
+      "qps_single_median": 16812.016075,
+      "qps_eight_median": 130703.1265
+    },
+    "dir62_integer_trained": {
+      "experiment": "recover62_cohere_dir62_integer_trained",
+      "label": 65000,
+      "passing": true,
+      "recall": 0.9004,
+      "qps_single_median": 32854.95845,
+      "qps_eight_median": 241833.2353
+    },
+    "dir62_integer_mse": {
+      "experiment": "recover62_cohere_dir62_integer_mse",
+      "label": 800000,
+      "passing": false,
+      "recall": 0.8273,
+      "qps_single_median": 19187.111445000002,
+      "qps_eight_median": 149999.00905
+    }
+  },
+  "controls": [
+    {
+      "experiment": "screen62_cohere_control_post",
+      "recall": 0.9032,
+      "qps_single_median": 31983.231695,
+      "qps_eight_median": 234237.56315
+    },
+    {
+      "experiment": "screen62_cohere_control_pre",
+      "recall": 0.9032,
+      "qps_single_median": 32085.735374999997,
+      "qps_eight_median": 236147.08285
+    },
+    {
+      "experiment": "screen62_cohere_integer_post",
+      "recall": 0.9036,
+      "qps_single_median": 33920.28766,
+      "qps_eight_median": 249474.96605
+    },
+    {
+      "experiment": "screen62_cohere_integer_pre",
+      "recall": 0.9036,
+      "qps_single_median": 33880.61885499999,
+      "qps_eight_median": 250453.03475
+    },
+    {
+      "experiment": "recover62_cohere_control_post",
+      "recall": 0.9032,
+      "qps_single_median": 32043.125185,
+      "qps_eight_median": 235144.8444
+    },
+    {
+      "experiment": "recover62_cohere_control_pre",
+      "recall": 0.9032,
+      "qps_single_median": 32049.086710000003,
+      "qps_eight_median": 235400.19905
+    },
+    {
+      "experiment": "recover62_cohere_integer_control",
+      "recall": 0.9036,
+      "qps_single_median": 34047.254745,
+      "qps_eight_median": 251804.58915
+    }
+  ],
+  "timing_rows": 156,
+  "screen_query_evaluations": 78000,
+  "screen_id_score_rows": 780000,
+  "unit_modes": 3,
+  "factor_checks": 3072,
+  "lut_checks": 24576,
+  "endpoint_checks": 6084,
+  "unchanged_l2_blocks": 3072,
+  "beta1_bit_identical_blocks": 1024,
+  "compile_guard_cases": 8,
+  "actual_validation": {
+    "results": [
+      {
+        "variant": "dir62_native_trained",
+        "queries": 1000,
+        "id_score_rows_per_mode": 10000,
+        "matching_modes": [
+          "audit"
+        ],
+        "rounds_identical": true,
+        "mean_expanded": 32.797,
+        "mean_refined": 32.797
+      },
+      {
+        "variant": "dir62_native_mse",
+        "queries": 1000,
+        "id_score_rows_per_mode": 10000,
+        "matching_modes": [
+          "audit"
+        ],
+        "rounds_identical": true,
+        "mean_expanded": 63.961,
+        "mean_refined": 63.961
+      },
+      {
+        "variant": "dir62_integer_trained",
+        "queries": 1000,
+        "id_score_rows_per_mode": 10000,
+        "matching_modes": [
+          "audit",
+          "full"
+        ],
+        "rounds_identical": true,
+        "mean_expanded": 31.647,
+        "mean_refined": 13.595
+      },
+      {
+        "variant": "dir62_integer_mse",
+        "queries": 1000,
+        "id_score_rows_per_mode": 10000,
+        "matching_modes": [
+          "audit",
+          "full"
+        ],
+        "rounds_identical": true,
+        "mean_expanded": 63.961,
+        "mean_refined": 14.025
+      }
+    ],
+    "identity_queries": 1000,
+    "identity_id_score_rows": 10000,
+    "identity_equal": true,
+    "default_tests": 28,
+    "source_manifests_verified": {
+      "dir62_native_trained": 16,
+      "dir62_native_mse": 16,
+      "dir62_integer_trained": 16,
+      "dir62_integer_mse": 16,
+      "dir62_native_trained_audit": 16,
+      "dir62_native_mse_audit": 16,
+      "dir62_integer_trained_audit": 16,
+      "dir62_integer_trained_full": 16,
+      "dir62_integer_mse_audit": 16,
+      "dir62_integer_mse_full": 16,
+      "dir62_integer_identity": 16,
+      "stage62_default": 16
+    },
+    "breakthrough_verified": false,
+    "extra_queries_not_evaluated": true
+  },
+  "breakthrough_verified": false,
+  "conclusion": "Trained shrink loses QPS after recovering recall; per-edge MSE shrink fails90% within tested64-expansion budget even with loose stopping margins. Do not combine this candidate with projected router."
+}

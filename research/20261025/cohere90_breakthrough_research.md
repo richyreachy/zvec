@@ -10,7 +10,7 @@
 
 本轮探索点通常仅1–2轮，最快的单次达标点不能与历史中位数直接解释为稳定提升。FP16减少精排次数、低秩误差修正、64边图及量化感知剪边均尚未达到25%目标。
 
-已汇总 1068 条计时记录（每个算法/参数/线程/轮次计一条）；完整数字见下表和JSON。
+已汇总 1224 条计时记录（每个算法/参数/线程/轮次计一条）；完整数字见下表和JSON。
 
 ## 已探索的方向
 
@@ -254,9 +254,29 @@
 | screen60_cohere_proj384 | 8 | 20000 | 90.42% | 258918 | 7.42 | 2 | 是 |
 | screen60_cohere_proj768 | 1 | 20000 | 90.61% | 34539 | 7.49 | 2 | 是 |
 | screen60_cohere_proj768 | 8 | 20000 | 90.61% | 249157 | 7.49 | 2 | 是 |
+| recover62_cohere_control_post | 1 | 20000 | 90.32% | 32043 | 9.53 | 2 | 是 |
+| recover62_cohere_control_post | 8 | 20000 | 90.32% | 235145 | 9.54 | 2 | 是 |
+| recover62_cohere_control_pre | 1 | 20000 | 90.32% | 32049 | 9.53 | 2 | 是 |
+| recover62_cohere_control_pre | 8 | 20000 | 90.32% | 235400 | 9.54 | 2 | 是 |
+| recover62_cohere_dir62_integer_trained | 1 | 65000 | 90.04% | 32855 | 7.32 | 2 | 是 |
+| recover62_cohere_dir62_integer_trained | 8 | 65000 | 90.04% | 241833 | 7.33 | 2 | 是 |
+| recover62_cohere_dir62_native_trained | 1 | 70000 | 90.42% | 30671 | 9.54 | 2 | 是 |
+| recover62_cohere_dir62_native_trained | 8 | 70000 | 90.42% | 225295 | 9.54 | 2 | 是 |
+| recover62_cohere_integer_control | 1 | 20000 | 90.36% | 34047 | 7.32 | 2 | 是 |
+| recover62_cohere_integer_control | 8 | 20000 | 90.36% | 251805 | 7.33 | 2 | 是 |
+| screen62_cohere_control_post | 1 | 20000 | 90.32% | 31983 | 9.53 | 2 | 是 |
+| screen62_cohere_control_post | 8 | 20000 | 90.32% | 234238 | 9.54 | 2 | 是 |
+| screen62_cohere_control_pre | 1 | 20000 | 90.32% | 32086 | 9.53 | 2 | 是 |
+| screen62_cohere_control_pre | 8 | 20000 | 90.32% | 236147 | 9.54 | 2 | 是 |
+| screen62_cohere_integer_post | 1 | 20000 | 90.36% | 33920 | 7.32 | 2 | 是 |
+| screen62_cohere_integer_post | 8 | 20000 | 90.36% | 249475 | 7.33 | 2 | 是 |
+| screen62_cohere_integer_pre | 1 | 20000 | 90.36% | 33881 | 7.32 | 2 | 是 |
+| screen62_cohere_integer_pre | 8 | 20000 | 90.36% | 250453 | 7.33 | 2 | 是 |
 
 未出现达标点的已测组（未完成组仍可能变化）：
 
+- recover62_cohere_dir62_integer_mse：最高已测 Recall@10 82.73%。
+- recover62_cohere_dir62_native_mse：最高已测 Recall@10 82.48%。
 - screen40_cohere_expand_batch8：最高已测 Recall@10 85.19%。
 - screen43_cohere_tail_bucket_batch：最高已测 Recall@10 83.88%。
 - screen43_cohere_tail_bucket_fast：最高已测 Recall@10 83.88%。
@@ -265,6 +285,10 @@
 - screen52_cohere_progress52_quantized：最高已测 Recall@10 86.26%。
 - screen52_cohere_progress52_saturated：最高已测 Recall@10 88.08%。
 - screen52_cohere_progress52_true：最高已测 Recall@10 86.30%。
+- screen62_cohere_dir62_integer_mse：最高已测 Recall@10 36.52%。
+- screen62_cohere_dir62_integer_trained：最高已测 Recall@10 89.19%。
+- screen62_cohere_dir62_native_mse：最高已测 Recall@10 36.82%。
+- screen62_cohere_dir62_native_trained：最高已测 Recall@10 88.98%。
 
 标签在 STOP_GRID 模式下编码 margin/patience，实际 ef=800；各实验 `config.json` 保存完整命令和环境变量。
 
@@ -311,7 +335,7 @@
 
 上述数字属于各自参数下的探索点，不能视为精确90%工作点或稳定收益。研究目标仍未完成。公共均值中心化SQ8的后续实测见阶段54结论。
 
-已按阶段保存18个研究提交，见[提交索引](stage_commits.md)。后续每个完成验证且有实质进展的阶段继续单独提交。
+已按阶段保存19个研究提交，见[提交索引](stage_commits.md)。后续每个完成验证且有实质进展的阶段继续单独提交。
 
 ## 阶段54：均值中心化与一维误差修正
 
@@ -369,4 +393,12 @@
 
 120项梯度检查、重建恒等式、768,000个SIMD/标量坐标对照、1,000恒等变换及范数检查、511项导出对应检查和默认28项回归通过。热模型增量变换约104纳秒。详见[负结果与适用边界](notes/learned_rotation61.md)。
 
-下一步[方向因子校准](notes/directional_shrink62_plan.md)已有离线闭式探针，局部间隔MSE下降5.42%但翻转率没有改善证据；编码器和完整搜索尚未实现。已有浮点因子可承载该校准，仍需完整QPS/召回验证。
+下一步[方向因子校准](notes/directional_shrink62_plan.md)已有离线闭式探针，局部间隔MSE下降5.42%但翻转率没有改善证据；编码器和完整搜索已在阶段62验证，结果见下文。
+
+## 阶段62：方向收缩的完整搜索负结果
+
+固定训练系数在恢复召回后，FP32中心30,671.22 QPS/90.42%，整数中心32,854.96 QPS/90.04%，低于对应同期对照；逐边MSE系数在cap64及最高margin0.8下仍只有82.48%/82.73%召回。停止扩大该方向。
+
+156条计时、78,000次查询评估完整；7,000诊断查询与计时/全量精排输出一致，beta1完整搜索兼容，默认28回归及8类编译保护通过。局部MSE降低没有保证停止分数尺度正确，详见[公式、工作量与完整报告](notes/directional62.md)。
+
+阶段63的二参数离线径向校准只将MSE收益从5.42%提高到6.02%，排序差异区间跨零，未集成搜索。下一步转向[完整图细化控制实验](notes/graph_refinement64_plan.md)，既有构图算法的复现不作为原创贡献。重大突破仍未验证。
