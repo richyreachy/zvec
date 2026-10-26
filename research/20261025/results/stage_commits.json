@@ -92,5 +92,12 @@
     "title": "test(qg): record integer prefetch ablations and output equivalence",
     "validation": "Three 3-second rounds per thread count;12000 query /120000 ID-score row equivalence;source unchanged",
     "conclusion": "Three prefetch/table combinations fail to improve integer control;no25%breakthrough"
+  },
+  {
+    "stage": "14",
+    "commit": "7e743f6d01e515505e426037ebc6da23d733a220",
+    "title": "test(qg): evaluate sphere-calibrated factors without extra code bytes",
+    "validation": "2000 constraints;8000 great-circle and8000 LUT checks;32 codec edge cases;28 default tests;whole-graph fallback counts;2000 performance/diagnostic query comparisons and1000 interval/full-refine comparisons",
+    "conclusion": "No observed performance advantage;local geometric exactness does not ensure lower global error or higher QPS"
   }
 ]
