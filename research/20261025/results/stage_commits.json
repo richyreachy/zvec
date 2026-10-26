@@ -218,5 +218,12 @@
     "title": "test(qg): validate coupled codes with sixteen-percent heldout error reduction",
     "validation": "2048 fresh centers;16 build/16 heldout proxies;524097 monotone finite flips;all histories/scales/budgets checked;6291456 actual scores;196608 independent scalar LUT/FMA bit identities;original-sign precision control;full formatted sampling/training/codec replay all model files byte-identical,metrics identical except elapsed seconds;input/library/source hashes verified",
     "conclusion": "Actual heldout block Top1 errors7526->6318/32768,relative reduction16.05%,paired center95%CI[14.46%,17.65%];passes10%offline gate. Precision control no heldout gain. Block common score-error squared rises7.46%;independent objective ablation and same-query cross-block validation required before fullgraph. No new QPS/Recall or25%breakthrough;1310 timing rows."
+  },
+  {
+    "stage": "31",
+    "commit": "726717e984b01a234e7307e77b5a45e9d0a5a623",
+    "title": "test(qg): validate independent sign codes across blocks and select fullgraph candidate",
+    "validation": "2048 fresh centers;1024 center pairs;independent/coupled objectives same budget;11424 finite-flip checks;1048195 accepted updates;12582912 actual codec scores;393216 independent scalar LUT/FMA bit identities;both first-seen duplicate orders;full formatted data/training/codec/analysis replay52 files byte-identical;metrics identical except elapsed;input/source/library hashes verified",
+    "conclusion": "Both pass local and both cross-block10% error reduction gates. Independent chosen by frozen total cross-error rule7208 vs coupled7281 vs native8465;single relative improvement17.85%,cross14.92%/14.78%. Independent-vs-coupled difference CIs cross zero. No fullsearch QPS/Recall or25%breakthrough;1310 timing rows."
   }
 ]
