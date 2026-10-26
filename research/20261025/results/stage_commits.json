@@ -128,5 +128,12 @@
     "title": "test(qg): validate graph-trained rotation and directional factor probe",
     "validation": "65536 actual graph centers, database-only train/validation split;120 finite-difference gradient probes;511 exporter checks;768000 SIMD/scalar coordinates;1000 identity and1000 norm cases;28 default tests;2 source manifests verified",
     "conclusion": "Three learned rotations improve validation reconstruction error only0.17%-0.21%, below prespecified5% gate; no integration or search QPS claim. Separate directional-factor probe reduces local gap MSE5.42% without demonstrated ordering gain; online validation pending."
+  },
+  {
+    "stage": "19",
+    "commit": "b7d92b4cf29113e9ff930fac331bd207b0ac4298",
+    "title": "test(qg): reject directional shrink after recall-matched search tests",
+    "validation": "3 modes:3072 factor,24576 LUT,6084 endpoint checks;1024 beta1 byte-identical blocks;3072 unchanged L2 blocks;8 compile guards;28 default tests;7000 diagnostic-query equivalence checks plus4000 round comparisons;12 source manifests;156 timing rows and78000 complete query evaluations",
+    "conclusion": "Trained beta reaches90.42% at30671.22 QPS with FP32 centers and90.04% at32854.96 with integer centers,below respective contemporary controls. Per-edge MSE reaches only82.48%/82.73% within cap64. Two-parameter offline probe gives no credible ranking gain;stop calibration grid."
   }
 ]
