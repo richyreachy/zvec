@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T19:21:36.516434+08:00",
+  "updated_at": "2026-10-26T19:37:13.594076+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -219,17 +219,22 @@
     "coupled75_actual_codec_scores": 12582912,
     "coupled75_scalar_lut_fma_bit_identical_scores": 393216,
     "coupled75_all_histories_scales_budgets_checked": true,
-    "coupled75_full_formatted_training_replay_byte_identical": true
+    "coupled75_full_formatted_training_replay_byte_identical": true,
+    "independent76_finite_delta_checks": 5694,
+    "independent76_exact_real_model_centers": 2048,
+    "independent76_exact_accepted_moves": 524119,
+    "independent76_byte_identical_actual_scores": 2097152,
+    "independent76_thread_determinism_and_full_formatted_replay": true
   },
   "latest_source_change": "Stage24 default-off QG_FUSION addsFP16 edge error norms,bounded2048-slot cache,and versioned bucket;FP32/cosine768/degree32 only;disabled outputs preserve frozen baseline.",
   "next_actions": [
-    "Execute frozen notes/independent_code76_plan.md;preserve selected objective,lambda,scale,proxy count and flip acceptance rules.",
-    "Implement new C++ independent builder with cached low-rank projections;verify synthetic finite deltas and all2048 models75 centers against selected Python signs/accepted positions/order;document FP64 rounding in alpha/objectives.",
-    "Check saved actual code blocks and scan scores;then measure2048-center offline build time and peak RSS at1/8 threads with fixed affinity and deterministic outputs. No query QPS claim.",
-    "Only after correctness and resource gates freeze fullgraph format/input hashes;original models64 graph/vectors/candidate pools;seed7602 proxy table generated in internal-ID order;degree32 learned,short blocks native;report all counts.",
-    "After complete model validation implement a default-off loader in research tree with center/neighbor key-order matching. Original user repository untouched.",
-    "Run complete Cohere Top10 at Recall>=90%,paired repeated QPS measurements and extra-query acceptance. No inference from local Top1 to recall or from build throughput to query throughput.",
-    "Mathematical follow-up in notes/mathematical_direction_after75.md derives radial-orthogonality-aware ellipsoid error bound;standard algebra,not a proven novel contribution or tested pruning policy;does not change frozen phase76."
+    "Execute frozen notes/independent_code77_plan.md;keep selected stage75 objective and all parameters.",
+    "Verify frozen models64 inputs;generate deterministic internal-ID ordered PCG64 seed7602 full proxy table,16 per full-degree center,short blocks originalcodec.",
+    "Rotate all1M vectors with originalSymphony768 transform;verify norms and identical stage75 coordinates;no learned rotation or query/GT input.",
+    "Build versioned4096-header/3600-byte-record model with center/neighbor keys and3328 codes;pilot first8192 centers,thread determinism and independent Python sample before fullbuild.",
+    "After fullbuild verify all records,short-block native identity and fixed seed7701 sample2048 full-degree Python/codec equivalents;archive complete timing/RSS/hashes/audits.",
+    "Only after complete model acceptance implement default-off production loader with key/order/shape rejection and default baseline equivalence.",
+    "Then complete Cohere Top10 Recall>=90% repeated QPS and extra-query acceptance;1310 timing rows currently unchanged;best prior proj60_384 still no accepted25%breakthrough."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "",
@@ -238,10 +243,10 @@
   "primary_measurement_rows": 1310,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "726717e984b01a234e7307e77b5a45e9d0a5a623",
-  "stage_commit_count": 31,
-  "extra_document_index_commits": 23,
-  "working_tree_status": "stage31 committed;documentation index and mathematical explanation follow",
+  "head": "4aae9b54dbffbcb80b83086ea0f7dce03359b4e8",
+  "stage_commit_count": 32,
+  "extra_document_index_commits": 24,
+  "working_tree_status": "stage32 committed;documentation index follows",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -260,7 +265,8 @@
     72,
     73,
     74,
-    75
+    75,
+    76
   ],
   "diagnostic58": "complete:17 configurations, no timing rows;full-dimensional scans and5 extra exact distances explicitly accounted;entry headroom supports low-cost router investigation",
   "router59_model": {
@@ -295,7 +301,7 @@
     "whole_search_gain": false
   },
   "diagnostic63": "Complete database-only two-parameter probe:6.02% local MSE gain;75 flips improve,70 worsen,paired interval crosseszero;unit endpoint bias coefficient0.05728 persists;not integrated.",
-  "latest_phase_result": "Phase75:independent local errors7666->6298/32768,relative17.85%;cross A4237->3605,B4228->3603/16384,relative14.92%/14.78%,all pairedCI lower>0. Coupled also passes;direct differences CIs cross zero. Frozen rule selects independent7208 combined errors vs coupled7281. No fullsearch QPS/Recall;1310 timing rows.",
+  "latest_phase_result": "Phase76:C++ signs/moves match Python on all2048 centers;actual codes/scores identical;offline build2048 median elapsed11.0865s/1.4307s at1/8threads;all outputs deterministic. No fullgraph model yet,no new retrieval QPS/Recall,1310 rows.",
   "diagnostic64": "Complete candidate preparation only:1M database queries,200M candidate pairs;8-thread search time41.1757s;new refined graph not built or searched. Failed unbounded-bucket configuration preserved,not counted as performance.",
   "graph64_inputs": {
     "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
@@ -815,7 +821,7 @@
     "metadata_bytes_per_edge": 2,
     "fixed_graph_entry_degree_cap_ef": true
   },
-  "latest_research_stage": "Stage31:independent/coupled sign codes pass single and both cross-block gates;independent selected by frozen total error rule;no production source changes.",
+  "latest_research_stage": "Stage32:C++ independent builder reproduces all2048 signs and524119 moves;actual codec byte-identical;offline build cost/resource gate passes;fullgraph still pending.",
   "graph66_result": {
     "phase": 66,
     "executed_after_phase69": true,
@@ -3644,5 +3650,212 @@
     "no_retrieval_qps_or_recall_claim": true,
     "new_retrieval_timing_rows": 0,
     "cumulative_retrieval_timing_rows": 1310
+  },
+  "independent76_build_measurement": {
+    "scope": "2048-center offline build only;not query QPS or measured fullgraph build time",
+    "warmup_rounds": 1,
+    "measured_rounds": 3,
+    "fit_sha256": "d097a9c202885eb5b93ce02dd85d28852f4476bc50e529de8bff9b8bbbe3647a",
+    "commands": [
+      [
+        "taskset",
+        "-c",
+        "0",
+        "./builder76",
+        "models75/fit.f32",
+        "models76_t1_r0",
+        "1"
+      ],
+      [
+        "taskset",
+        "-c",
+        "0,2,4,6,8,10,12,14",
+        "./builder76",
+        "models75/fit.f32",
+        "models76_t8_r0",
+        "8"
+      ],
+      [
+        "taskset",
+        "-c",
+        "0,2,4,6,8,10,12,14",
+        "./builder76",
+        "models75/fit.f32",
+        "models76_t8_r1",
+        "8"
+      ],
+      [
+        "taskset",
+        "-c",
+        "0",
+        "./builder76",
+        "models75/fit.f32",
+        "models76_t1_r1",
+        "1"
+      ],
+      [
+        "taskset",
+        "-c",
+        "0",
+        "./builder76",
+        "models75/fit.f32",
+        "models76_t1_r2",
+        "1"
+      ],
+      [
+        "taskset",
+        "-c",
+        "0,2,4,6,8,10,12,14",
+        "./builder76",
+        "models75/fit.f32",
+        "models76_t8_r2",
+        "8"
+      ],
+      [
+        "taskset",
+        "-c",
+        "0,2,4,6,8,10,12,14",
+        "./builder76",
+        "models75/fit.f32",
+        "models76_t8_r3",
+        "8"
+      ],
+      [
+        "taskset",
+        "-c",
+        "0",
+        "./builder76",
+        "models75/fit.f32",
+        "models76_t1_r3",
+        "1"
+      ]
+    ],
+    "runs": [
+      {
+        "centers": 2048,
+        "threads": 1,
+        "updates": 524119,
+        "compute_seconds": 11.053524573,
+        "elapsed_seconds": 11.09561816,
+        "peak_rss_kib": 366080,
+        "no_retrieval_qps_claim": true,
+        "round": 0,
+        "warmup": true,
+        "affinity": "0",
+        "output": "models76_t1_r0",
+        "all_six_outputs_byte_identical": true
+      },
+      {
+        "centers": 2048,
+        "threads": 8,
+        "updates": 524119,
+        "compute_seconds": 1.39044958,
+        "elapsed_seconds": 1.431840008,
+        "peak_rss_kib": 373632,
+        "no_retrieval_qps_claim": true,
+        "round": 0,
+        "warmup": true,
+        "affinity": "0,2,4,6,8,10,12,14",
+        "output": "models76_t8_r0",
+        "all_six_outputs_byte_identical": true
+      },
+      {
+        "centers": 2048,
+        "threads": 8,
+        "updates": 524119,
+        "compute_seconds": 1.388314326,
+        "elapsed_seconds": 1.429806879,
+        "peak_rss_kib": 373760,
+        "no_retrieval_qps_claim": true,
+        "round": 1,
+        "warmup": false,
+        "affinity": "0,2,4,6,8,10,12,14",
+        "output": "models76_t8_r1",
+        "all_six_outputs_byte_identical": true
+      },
+      {
+        "centers": 2048,
+        "threads": 1,
+        "updates": 524119,
+        "compute_seconds": 11.04492532,
+        "elapsed_seconds": 11.086532126,
+        "peak_rss_kib": 366080,
+        "no_retrieval_qps_claim": true,
+        "round": 1,
+        "warmup": false,
+        "affinity": "0",
+        "output": "models76_t1_r1",
+        "all_six_outputs_byte_identical": true
+      },
+      {
+        "centers": 2048,
+        "threads": 1,
+        "updates": 524119,
+        "compute_seconds": 11.030211307,
+        "elapsed_seconds": 11.07185535,
+        "peak_rss_kib": 366080,
+        "no_retrieval_qps_claim": true,
+        "round": 2,
+        "warmup": false,
+        "affinity": "0",
+        "output": "models76_t1_r2",
+        "all_six_outputs_byte_identical": true
+      },
+      {
+        "centers": 2048,
+        "threads": 8,
+        "updates": 524119,
+        "compute_seconds": 1.38918323,
+        "elapsed_seconds": 1.43065437,
+        "peak_rss_kib": 373888,
+        "no_retrieval_qps_claim": true,
+        "round": 2,
+        "warmup": false,
+        "affinity": "0,2,4,6,8,10,12,14",
+        "output": "models76_t8_r2",
+        "all_six_outputs_byte_identical": true
+      },
+      {
+        "centers": 2048,
+        "threads": 8,
+        "updates": 524119,
+        "compute_seconds": 1.390256263,
+        "elapsed_seconds": 1.432638782,
+        "peak_rss_kib": 373760,
+        "no_retrieval_qps_claim": true,
+        "round": 3,
+        "warmup": false,
+        "affinity": "0,2,4,6,8,10,12,14",
+        "output": "models76_t8_r3",
+        "all_six_outputs_byte_identical": true
+      },
+      {
+        "centers": 2048,
+        "threads": 1,
+        "updates": 524119,
+        "compute_seconds": 11.066753486,
+        "elapsed_seconds": 11.108576169,
+        "peak_rss_kib": 366080,
+        "no_retrieval_qps_claim": true,
+        "round": 3,
+        "warmup": false,
+        "affinity": "0",
+        "output": "models76_t1_r3",
+        "all_six_outputs_byte_identical": true
+      }
+    ],
+    "summary": {
+      "1": {
+        "median_compute_seconds": 11.04492532,
+        "median_elapsed_seconds": 11.086532126,
+        "max_peak_rss_kib": 366080
+      },
+      "8": {
+        "median_compute_seconds": 1.38918323,
+        "median_elapsed_seconds": 1.43065437,
+        "max_peak_rss_kib": 373888
+      }
+    },
+    "binary_sha256": "5cde1dae21e61a161b161a8785f7cee758df532e1cd8023e50d34975b7601333"
   }
 }

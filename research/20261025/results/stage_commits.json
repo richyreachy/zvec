@@ -225,5 +225,12 @@
     "title": "test(qg): validate independent sign codes across blocks and select fullgraph candidate",
     "validation": "2048 fresh centers;1024 center pairs;independent/coupled objectives same budget;11424 finite-flip checks;1048195 accepted updates;12582912 actual codec scores;393216 independent scalar LUT/FMA bit identities;both first-seen duplicate orders;full formatted data/training/codec/analysis replay52 files byte-identical;metrics identical except elapsed;input/source/library hashes verified",
     "conclusion": "Both pass local and both cross-block10% error reduction gates. Independent chosen by frozen total cross-error rule7208 vs coupled7281 vs native8465;single relative improvement17.85%,cross14.92%/14.78%. Independent-vs-coupled difference CIs cross zero. No fullsearch QPS/Recall or25%breakthrough;1310 timing rows."
+  },
+  {
+    "stage": "32",
+    "commit": "4aae9b54dbffbcb80b83086ea0f7dce03359b4e8",
+    "title": "test(qg): validate deterministic C++ sign optimizer and offline build cost",
+    "validation": "5694 finite deltas vs direct objective;60 synthetic trajectories;all2048 centers final signs and524119 moves/order exactly Python;actual2048 codeblocks and2097152 scores byte-identical;65536 scalar LUT/FMA bit checks;1/8 thread1warmup+3round outputs byte-identical;formatted rebuild and full1/8thread/codec replay;input/source hashes unchanged",
+    "conclusion": "2048-center offline build median elapsed11.0865s single,1.4307s eight threads;peak<=365.125MiB. Passes implementation/resource gate;full1M build still pending. No new query QPS/Recall or25%breakthrough;1310 timing rows."
   }
 ]
