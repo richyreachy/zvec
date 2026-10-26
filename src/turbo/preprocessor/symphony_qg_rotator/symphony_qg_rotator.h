@@ -14,6 +14,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <random>
 #include <vector>
@@ -33,6 +34,9 @@ class SymphonyQGRotation {
   explicit SymphonyQGRotation(size_t dimension) : dimension_(dimension) {
     padded_ = 64;
     while (padded_ < dimension) padded_ *= 2;
+#if defined(QG_ROTATION_768)
+    if (dimension == 768) padded_ = 768;
+#endif
     const float scale = 1.0f / std::sqrt(static_cast<float>(padded_));
     std::mt19937 rng(0x535147U);
     signs_.resize(kPasses * padded_);
@@ -50,6 +54,49 @@ class SymphonyQGRotation {
       if (!symqg_mul(signs, out.data(), padded_)) {
         for (size_t i = 0; i < padded_; ++i) out[i] *= signs[i];
       }
+#if defined(QG_ROTATION_768)
+      if (padded_ == 768) {
+        // Paley H12 tensor Sylvester H64: H H^T = 768 I.
+        // The normalization is already included in signs_. No zero padding.
+        for (size_t block = 0; block < 12; ++block) {
+          float *v = out.data() + block * 64;
+          if (!symqg_hadamard(v, 64)) {
+            for (size_t stride = 1; stride < 64; stride *= 2)
+              for (size_t offset = 0; offset < 64; offset += 2 * stride)
+                for (size_t k = 0; k < stride; ++k) {
+                  const float a = v[offset + k], b = v[offset + k + stride];
+                  v[offset + k] = a + b;
+                  v[offset + k + stride] = a - b;
+                }
+          }
+        }
+        static constexpr int8_t h[12][12] = {
+            {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, -1, -1, 1, -1, -1, -1, 1, 1, 1, -1, 1},
+            {1, 1, -1, -1, 1, -1, -1, -1, 1, 1, 1, -1},
+            {1, -1, 1, -1, -1, 1, -1, -1, -1, 1, 1, 1},
+            {1, 1, -1, 1, -1, -1, 1, -1, -1, -1, 1, 1},
+            {1, 1, 1, -1, 1, -1, -1, 1, -1, -1, -1, 1},
+            {1, 1, 1, 1, -1, 1, -1, -1, 1, -1, -1, -1},
+            {1, -1, 1, 1, 1, -1, 1, -1, -1, 1, -1, -1},
+            {1, -1, -1, 1, 1, 1, -1, 1, -1, -1, 1, -1},
+            {1, -1, -1, -1, 1, 1, 1, -1, 1, -1, -1, 1},
+            {1, 1, -1, -1, -1, 1, 1, 1, -1, 1, -1, -1},
+            {1, -1, 1, -1, -1, -1, 1, 1, 1, -1, 1, -1}};
+        std::array<float, 768> mixed{};
+        for (size_t i = 0; i < 12; ++i)
+          for (size_t j = 0; j < 12; ++j) {
+            if (h[i][j] > 0)
+              for (size_t k = 0; k < 64; ++k)
+                mixed[i * 64 + k] += out[j * 64 + k];
+            else
+              for (size_t k = 0; k < 64; ++k)
+                mixed[i * 64 + k] -= out[j * 64 + k];
+          }
+        std::copy(mixed.begin(), mixed.end(), out.begin());
+        continue;
+      }
+#endif
       if (!symqg_hadamard(out.data(), padded_)) {
         for (size_t stride = 1; stride < padded_; stride *= 2) {
           for (size_t offset = 0; offset < padded_; offset += 2 * stride) {

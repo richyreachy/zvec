@@ -33,6 +33,9 @@ struct HnswGraphAdapter {
   int get_vector(uint32_t id, Vector &vector) const {
     return entity.get_vector(id, vector);
   }
+  uint64_t key(uint32_t id) const {
+    return entity.get_key(id);
+  }
   Neighbors neighbors(uint32_t id) const {
     return entity.get_neighbors(0, id);
   }
@@ -52,6 +55,11 @@ struct HnswQueryAdapter {
   float distance(const void *vector) {
     return ctx.dist_calculator().dist(vector);
   }
+  // Research oracle: preserve the production expansion scan budget while
+  // separately counting diagnostic neighbor-distance evaluations.
+  float reference_distance(const void *vector) {
+    return ctx.dist_calculator().dist(vector, ctx.dist_calculator().query());
+  }
   bool excluded(uint32_t id) const {
     return ctx.filter().is_valid() &&
            ctx.filter()(ctx.get_entity().get_key(id));
@@ -63,6 +71,56 @@ struct HnswQueryAdapter {
     if (ctx.debugging()) ++(*ctx.mutable_stats_get_neighbors());
   }
 };
+#if defined(QG_HIERARCHICAL)
+// Compact the reachable level-1 graph. Its IDs are separate from level-0 IDs.
+struct UpperGraphAdapter {
+  using Vector = IndexStorage::MemoryBlock;
+  const HnswEntity &entity;
+  const std::vector<uint32_t> &original;
+  const std::vector<std::vector<uint32_t>> &edges;
+  bool valid(uint32_t id) const {
+    return id < original.size() && entity.get_key(original[id]) != kInvalidKey;
+  }
+  int get_vector(uint32_t id, Vector &v) const {
+    return entity.get_vector(original[id], v);
+  }
+  uint64_t key(uint32_t id) const {
+    return entity.get_key(original[id]);
+  }
+  const std::vector<uint32_t> &neighbors(uint32_t id) const {
+    return edges[id];
+  }
+};
+struct UpperQueryAdapter {
+  HnswQueryAdapter &base;
+  TopkHeap &heap;
+  TopkHeap &reset_results() {
+    heap.clear();
+    return heap;
+  }
+  uint32_t topk() const {
+    return 1;
+  }
+  const void *query() const {
+    return base.query();
+  }
+  float distance(const void *v) {
+    return base.distance(v);
+  }
+  float reference_distance(const void *v) {
+    return base.reference_distance(v);
+  }
+  bool excluded(uint32_t) const {
+    return false;
+  }
+  bool reach_scan_limit() const {
+    return base.reach_scan_limit();
+  }
+  void on_expand() {
+    base.on_expand();
+  }
+};
+#endif
 }  // namespace
 
 struct HnswQuantizedGraph::Impl {
@@ -80,22 +138,84 @@ struct HnswQuantizedGraph::Model final : Impl {
   Model(size_t dimension, size_t max_neighbors, bool cosine,
         size_t stored_dimension)
       : graph(dimension, Codec(dimension, cosine), max_neighbors,
-              stored_dimension) {}
+              stored_dimension, cosine)
+#if defined(QG_HIERARCHICAL)
+        ,
+        upper(dimension, Codec(dimension, cosine), max_neighbors,
+              stored_dimension, cosine)
+#endif
+  {
+  }
   int prebuild(const HnswEntity &entity, size_t count,
                size_t threads) override {
-    return graph.prebuild(HnswGraphAdapter{entity}, count, threads);
+    int ret = graph.prebuild(HnswGraphAdapter{entity}, count, threads);
+#if defined(QG_HIERARCHICAL)
+    originals.clear();
+    edges.clear();
+    if (ret == 0 && entity.cur_max_level() >= 1) {
+      std::unordered_map<uint32_t, uint32_t> local;
+      originals.push_back(entity.entry_point());
+      local[originals[0]] = 0;
+      for (size_t i = 0; i < originals.size(); ++i) {
+        const auto adjacent = entity.get_neighbors(1, originals[i]);
+        std::vector<uint32_t> row;
+        for (size_t j = 0; j < adjacent.size(); ++j) {
+          const auto id = adjacent[j];
+          if (entity.get_key(id) == kInvalidKey) continue;
+          auto item = local.emplace(id, uint32_t(originals.size()));
+          if (item.second) originals.push_back(id);
+          row.push_back(item.first->second);
+        }
+        edges.push_back(std::move(row));
+      }
+      ret = upper.prebuild(UpperGraphAdapter{entity, originals, edges},
+                           originals.size(), threads);
+      LOG_INFO("Research upper quantized graph nodes=%zu", originals.size());
+    }
+#endif
+    return ret;
   }
   int search(uint32_t entry_id, HnswContext &ctx, size_t) const override {
     HnswQueryAdapter query{ctx};
+#if defined(QG_HIERARCHICAL)
+    if (!originals.empty()) {
+      const size_t upper_ef =
+          std::getenv("QG_UPPER_EF")
+              ? std::strtoul(std::getenv("QG_UPPER_EF"), nullptr, 10)
+              : 1;
+      TopkHeap heap(std::max(size_t{1}, upper_ef));
+      UpperQueryAdapter uq{query, heap};
+      const int rc = upper.search(
+          upper.entry(), UpperGraphAdapter{ctx.get_entity(), originals, edges},
+          uq);
+      if (rc != 0) return rc;
+      if (!heap.empty()) {
+        const auto best = std::min_element(
+            heap.begin(), heap.end(),
+            [](const auto &a, const auto &b) { return a.second < b.second; });
+        entry_id = originals[best->first];
+      }
+    }
+#endif
     return graph.search(entry_id, HnswGraphAdapter{ctx.get_entity()}, query);
   }
   void clear() override {
     graph.clear();
+#if defined(QG_HIERARCHICAL)
+    upper.clear();
+    originals.clear();
+    edges.clear();
+#endif
   }
   uint32_t entry() const override {
     return graph.entry();
   }
   QuantizedGraph<Codec> graph;
+#if defined(QG_HIERARCHICAL)
+  QuantizedGraph<Codec> upper;
+  std::vector<uint32_t> originals;
+  std::vector<std::vector<uint32_t>> edges;
+#endif
 };
 
 // A trained codec needs a corpus before its graph can be constructed. Empty
@@ -116,7 +236,7 @@ struct HnswQuantizedGraph::TrainedModel final : Impl {
     int ret = codec.train(HnswGraphAdapter{entity}, count, threads);
     if (ret != 0 || !codec.trained()) return ret;
     graph = std::make_unique<QuantizedGraph<Codec>>(
-        dimension, std::move(codec), max_neighbors, stored_dimension);
+        dimension, std::move(codec), max_neighbors, stored_dimension, cosine);
     return 0;
   }
   int prebuild(const HnswEntity &entity, size_t count,

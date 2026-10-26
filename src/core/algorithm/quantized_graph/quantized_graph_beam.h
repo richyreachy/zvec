@@ -68,6 +68,24 @@ class QuantizedGraphBeam {
     cursor_ = lo < cursor_ ? lo : cursor_;
   }
 
+  // Experimental beam over unique vertices; repeated edge estimates can
+  // improve a candidate's key, but cannot consume multiple beam slots.
+  void insert_unique(uint32_t id, float distance) {
+    for (size_t i = 0; i < size_; ++i) {
+      if (node_id(i) != id) continue;
+      if (entries_[i].distance <= distance) return;
+      std::memmove(&entries_[i], &entries_[i + 1],
+                   (size_ - i - 1) * sizeof(Entry));
+      if (full_width_)
+        std::memmove(&expanded_[i], &expanded_[i + 1], size_ - i - 1);
+      --size_;
+      if (i < cursor_) --cursor_;
+      while (cursor_ < size_ && expanded(cursor_)) ++cursor_;
+      break;
+    }
+    insert(id, distance);
+  }
+
   bool has_next() const {
     return cursor_ < size_;
   }
@@ -91,6 +109,10 @@ class QuantizedGraphBeam {
     }
     while (i < size_ && expanded(i)) ++i;
     return node_id(i < size_ ? i : size_ - 1);
+  }
+
+  float next_distance() const {
+    return entries_[cursor_].distance;
   }
 
   uint32_t pop() {

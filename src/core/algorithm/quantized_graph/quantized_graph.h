@@ -13,7 +13,28 @@
 // limitations under the License.
 #pragma once
 
+#if defined(QG_CENTER_FP16) || defined(QG_CENTER_SQ8)
+#define QG_CENTER_QUANTIZED 1
+#endif
 #include <algorithm>
+#if defined(QG_BUCKET)
+#include "quantized_graph_bucket.h"
+#endif
+#ifndef QG_EXPERIMENT
+#define QG_EXPERIMENT 0
+#endif
+#ifndef QG_PRUNE_ALPHA
+#define QG_PRUNE_ALPHA 1.0f
+#endif
+#ifndef QG_DIAG
+#define QG_DIAG 0
+#endif
+#if QG_DIAG || defined(QG_PATH_TRACE) || defined(QG_QUEUE_STATS) || \
+    defined(QG_RUNTIME_ADAPTIVE) || defined(QG_CENTER_STATS) ||     \
+    defined(QG_TAIL_REFINE) || defined(QG_LOCAL_COMPLETION)
+#include <cstdio>
+#include <cstdlib>
+#endif
 #include <array>
 #include <atomic>
 #include <cmath>
@@ -32,6 +53,16 @@
 #include <zvec/core/framework/index_error.h>
 #include "utility/graph_search.h"
 #include "quantized_graph_beam.h"
+#if defined(QG_CENTER_QUANTIZED)
+#include "quantized_graph_half_center.h"
+#if !defined(QG_ADAPTIVE) && !defined(QG_DEFERRED_COSINE)
+#error Half center experiment requires an exact Top-K stopping state
+#endif
+#if defined(QG_DEFERRED_COSINE) && \
+    (!defined(QG_CENTER_SQ8) || !defined(QG_REANCHOR) || defined(QG_ADAPTIVE))
+#error Deferred cosine requires SQ8, reanchoring, and non-adaptive navigation
+#endif
+#endif
 #if defined(__linux__)
 #include <sys/mman.h>
 #endif
@@ -64,7 +95,7 @@ class QuantizedGraph {
   // stored_dimension defaults to dimension; larger values preserve auxiliary
   // fields following the coordinates (e.g. cosine storage's original norm).
   QuantizedGraph(size_t dimension, Codec codec, size_t max_neighbors = 32,
-                 size_t stored_dimension = 0);
+                 size_t stored_dimension = 0, bool cosine = false);
   void clear();
   template <class Graph>
   int prebuild(const Graph &graph, size_t doc_cnt, size_t threads);
@@ -123,12 +154,67 @@ class QuantizedGraph {
 
   // Resolve TLS once at the query boundary. In particular, probing the visit
   // table must not call __tls_get_addr for every candidate in a shared build.
+#if defined(QG_HEAP)
+  struct AdaptiveHeap {
+    struct Entry {
+      float distance;
+      NodeId id;
+    };
+    struct Greater {
+      bool operator()(const Entry &a, const Entry &b) const {
+        return a.distance > b.distance;
+      }
+    };
+    std::vector<Entry> data;
+    void reset(size_t) {
+      data.clear();
+    }
+    void insert(NodeId id, float d) {
+      data.push_back({d, id});
+      std::push_heap(data.begin(), data.end(), Greater{});
+    }
+    bool has_next() const {
+      return !data.empty();
+    }
+    NodeId next_id_at(size_t) const {
+      return data.front().id;
+    }
+    float next_distance() const {
+      return data.front().distance;
+    }
+    NodeId pop() {
+      std::pop_heap(data.begin(), data.end(), Greater{});
+      NodeId id = data.back().id;
+      data.pop_back();
+      return id;
+    }
+    bool is_full(float) const {
+      return false;
+    }
+  };
+#endif
   struct SearchState {
     LocalVisitSet visited;
+#if defined(QG_FIRST_ESTIMATE)
+    LocalVisitSet discovered;
+#endif
+#if defined(QG_BUCKET)
+    QuantizedGraphBucket beam;
+#elif defined(QG_HEAP)
+    AdaptiveHeap beam;
+#else
     QuantizedGraphBeam beam{1};
+#endif
     typename Codec::Query query;
     std::vector<NodeId> expanded;
+#if defined(QG_DEFERRED_COSINE)
+    std::vector<std::pair<float, NodeId>> refine_candidates;
+    std::vector<float> refine_best;
+#endif
     GraphSearchScratch scratch;
+#if defined(QG_ADAPTIVE)
+    std::vector<float> best_exact;
+#endif
   };
 
   // A call boundary prevents the compiler from rematerializing the TLS
@@ -150,7 +236,11 @@ class QuantizedGraph {
   // arithmetic (base + id * stride) and keeps the index in one contiguous
   // mapping. Trivially destructible; the arena is freed wholesale.
   struct Block {
+#if defined(QG_LOCAL_COMPLETION)
+    static constexpr size_t kCenterOffset = 192;
+#else
     static constexpr size_t kCenterOffset = 64;
+#endif
 
     uint32_t neighbor_cnt;
     uint32_t center_floats;
@@ -158,6 +248,16 @@ class QuantizedGraph {
     // Rounded-up capacity of the neighbor region so the codes offset does
     // not depend on the actual degree.
     uint32_t neighbor_bytes;
+#if defined(QG_LOCAL_COMPLETION)
+    uint32_t local_count;
+    NodeId local_neighbors[32];
+#endif
+#if defined(QG_CENTER_QUANTIZED)
+    float center_error, center_norm2;
+#if defined(QG_CENTER_SQ8)
+    float center_offset, center_scale;
+#endif
+#endif
 
     const float *center() const {
       return reinterpret_cast<const float *>(
@@ -212,6 +312,9 @@ class QuantizedGraph {
 
   size_t dimension_;
   size_t stored_dimension_;
+  size_t stored_center_bytes_;
+  bool compressed_center_{false};
+  bool cosine_{false};
   size_t max_neighbors_{32};
   size_t neighbor_bytes_{0};
   Codec codec_;
@@ -227,10 +330,27 @@ class QuantizedGraph {
 template <class Codec>
 QuantizedGraph<Codec>::QuantizedGraph(size_t dimension, Codec codec,
                                       size_t max_neighbors,
-                                      size_t stored_dimension)
+                                      size_t stored_dimension, bool cosine)
     : dimension_(dimension),
       stored_dimension_(std::max(dimension, stored_dimension)),
       codec_(std::move(codec)) {
+  cosine_ = cosine;
+  stored_center_bytes_ = stored_dimension_ * sizeof(float);
+#if defined(QG_CENTER_QUANTIZED)
+  compressed_center_ = !cosine;
+#if defined(QG_DEFERRED_COSINE)
+  compressed_center_ = cosine;
+#endif
+  if (compressed_center_) {
+#if defined(QG_CENTER_SQ8)
+    stored_center_bytes_ = (dimension_ + 63) & ~size_t{63};
+#else
+    stored_center_bytes_ = (dimension_ * sizeof(uint16_t) + 63) & ~size_t{63};
+#endif
+  }
+#else
+  (void)cosine;
+#endif
   static_assert(Codec::kBatchSize > 0, "Codec batch size must be positive");
   constexpr size_t batch_size = Codec::kBatchSize;
   max_neighbors_ =
@@ -238,8 +358,8 @@ QuantizedGraph<Codec>::QuantizedGraph(size_t dimension, Codec codec,
   neighbor_bytes_ = (max_neighbors_ * sizeof(NodeId) + 63) & ~size_t{63};
   const size_t code_bytes =
       (max_neighbors_ / batch_size) * codec_.batch_bytes();
-  stride_ = (Block::kCenterOffset + stored_dimension_ * sizeof(float) +
-             neighbor_bytes_ + code_bytes + 63) &
+  stride_ = (Block::kCenterOffset + stored_center_bytes_ + neighbor_bytes_ +
+             code_bytes + 63) &
             ~size_t{63};
 }
 
@@ -270,6 +390,77 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
       scratch.neighbors.push_back(neighbors[i]);
     }
   }
+#if defined(QG_LOCAL_COMPLETION)
+  // Query-independent local result edges, separate from diverse navigation.
+  std::vector<NodeId> local_ids = scratch.neighbors;
+  const size_t seed_count = std::min(size_t{8}, scratch.neighbors.size());
+  for (size_t i = 0; i < seed_count; ++i) {
+    const auto children = entity.neighbors(
+        scratch.neighbors[i * scratch.neighbors.size() / seed_count]);
+    const size_t samples = std::min(size_t{16}, size_t(children.size()));
+    for (size_t j = 0; j < samples; ++j)
+      local_ids.push_back(children[j * children.size() / samples]);
+  }
+  std::sort(local_ids.begin(), local_ids.end());
+  local_ids.erase(std::unique(local_ids.begin(), local_ids.end()),
+                  local_ids.end());
+  std::vector<std::pair<float, NodeId>> local_rank;
+  for (NodeId candidate : local_ids) {
+    if (candidate == id || !entity.valid(candidate)) continue;
+    typename Graph::Vector raw;
+    const int ret = entity.get_vector(candidate, raw);
+    if (ret != 0) {
+      error = ret;
+      return false;
+    }
+    if (raw.data() == nullptr) {
+      error = IndexError_Mismatch;
+      return false;
+    }
+    const float *v = static_cast<const float *>(raw.data()),
+                *u = static_cast<const float *>(center_ptr);
+    float d = 0;
+    for (size_t j = 0; j < dimension_; ++j) {
+      float x = v[j] - u[j];
+      d += x * x;
+    }
+    local_rank.emplace_back(d, candidate);
+  }
+  const size_t local_count = std::min(size_t{32}, local_rank.size());
+  std::partial_sort(local_rank.begin(), local_rank.begin() + local_count,
+                    local_rank.end());
+#endif
+#if defined(QG_AUGMENT)
+  const size_t original_neighbor_count = scratch.neighbors.size();
+  // Offline two-hop candidate repair. Fixed row capacity and the exact same
+  // query kernel are retained. No query or GT is used during construction.
+  if (QG_AUGMENT == 2 || scratch.neighbors.size() < max_neighbors_) {
+    const size_t original = scratch.neighbors.size();
+    std::array<NodeId, 512> seen;
+    seen.fill(kInvalidNodeId);
+    auto add = [&](NodeId v) {
+      if (v == id || !entity.valid(v)) return;
+      size_t h = (uint64_t(v) * 2654435761U) & 511U;
+      while (seen[h] != kInvalidNodeId && seen[h] != v) h = (h + 1) & 511U;
+      if (seen[h] == v) return;
+      seen[h] = v;
+      scratch.neighbors.push_back(v);
+    };
+    for (NodeId v : scratch.neighbors) {
+      size_t h = (uint64_t(v) * 2654435761U) & 511U;
+      while (seen[h] != kInvalidNodeId && seen[h] != v) h = (h + 1) & 511U;
+      seen[h] = v;
+    }
+    const size_t seeds = std::min(original, size_t{8});
+    for (size_t j = 0; j < seeds && scratch.neighbors.size() < 256; ++j) {
+      const NodeId seed = scratch.neighbors[j * original / seeds];
+      const auto children = entity.neighbors(seed);
+      const size_t samples = std::min(size_t(children.size()), size_t{16});
+      for (size_t k = 0; k < samples && scratch.neighbors.size() < 256; ++k)
+        add(children[k * children.size() / samples]);
+    }
+  }
+#endif
   // Trim to the block's degree bound like upstream SymphonyQG's fixed
   // degree_bound_, but with the HNSW diversity heuristic so the truncated
   // graph keeps short and long-range links and stays navigable: plain
@@ -320,11 +511,24 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
     };
     std::vector<uint32_t> selected;
     selected.reserve(kMaxBlockNeighbors);
+#if defined(QG_AUGMENT) && QG_AUGMENT >= 3
+    if (original_neighbor_count < kMaxBlockNeighbors)
+      for (uint32_t i = 0; i < original_neighbor_count; ++i)
+        selected.push_back(i);
+#endif
     for (uint32_t idx : order) {
       if (selected.size() == kMaxBlockNeighbors) break;
+#if defined(QG_AUGMENT) && QG_AUGMENT >= 3
+      if (original_neighbor_count < kMaxBlockNeighbors &&
+          idx < original_neighbor_count)
+        continue;
+#endif
       bool diverse = true;
       for (uint32_t s : selected) {
-        if (sq_dist(idx, s) < dists[idx]) {
+#if defined(QG_AUGMENT) && QG_AUGMENT == 4
+        if (original_neighbor_count < kMaxBlockNeighbors) break;
+#endif
+        if (QG_PRUNE_ALPHA * sq_dist(idx, s) < dists[idx]) {
           diverse = false;
           break;
         }
@@ -348,13 +552,41 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
   const size_t code_bytes =
       ((neighbor_cnt + batch_size - 1) / batch_size) * batch_bytes;
   auto *block = new (slot) Block{};
+#if defined(QG_LOCAL_COMPLETION)
+  block->local_count = local_count;
+  for (size_t i = 0; i < local_count; ++i)
+    block->local_neighbors[i] = local_rank[i].second;
+#endif
   const auto *center = static_cast<const float *>(center_ptr);
   block->neighbor_cnt = static_cast<uint32_t>(neighbor_cnt);
-  block->center_floats = static_cast<uint32_t>(stored_dimension_);
+  block->center_floats =
+      static_cast<uint32_t>(stored_center_bytes_ / sizeof(float));
   block->code_bytes = static_cast<uint32_t>(code_bytes);
   block->neighbor_bytes = static_cast<uint32_t>(neighbor_bytes_);
-  std::copy(center, center + stored_dimension_,
-            const_cast<float *>(block->center()));
+#if defined(QG_CENTER_QUANTIZED)
+  if (compressed_center_) {
+#if defined(QG_CENTER_SQ8)
+    if (!SQ8Center::encode(
+            center, dimension_,
+            reinterpret_cast<uint8_t *>(const_cast<float *>(block->center())),
+            block->center_error, block->center_norm2, block->center_offset,
+            block->center_scale)) {
+      error = IndexError_Mismatch;
+      return false;
+    }
+#else
+    if (!HalfCenter::encode(
+            center, dimension_,
+            reinterpret_cast<uint16_t *>(const_cast<float *>(block->center())),
+            block->center_error, block->center_norm2)) {
+      error = IndexError_Mismatch;
+      return false;
+    }
+#endif
+  } else
+#endif
+    std::copy(center, center + stored_dimension_,
+              const_cast<float *>(block->center()));
   std::copy(scratch.neighbors.begin(), scratch.neighbors.end(),
             const_cast<NodeId *>(block->neighbors()));
 
@@ -363,7 +595,23 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
     return true;
   }
 
-  codec_.transform(center_ptr, scratch.encoded_center);
+  const void *encoding_center = center_ptr;
+#if defined(QG_REANCHOR) && defined(QG_CENTER_QUANTIZED)
+  std::vector<float> reconstructed_center;
+  if (compressed_center_) {
+    reconstructed_center.resize(dimension_);
+#if defined(QG_CENTER_SQ8)
+    SQ8Center::decode(reinterpret_cast<const uint8_t *>(block->center()),
+                      dimension_, reconstructed_center.data(),
+                      block->center_offset, block->center_scale);
+#else
+    HalfCenter::decode(reinterpret_cast<const uint16_t *>(block->center()),
+                       dimension_, reconstructed_center.data());
+#endif
+    encoding_center = reconstructed_center.data();
+  }
+#endif
+  codec_.transform(encoding_center, scratch.encoded_center);
   scratch.encoded.assign(batch_size * dim, 0.0f);
   for (size_t offset = 0; offset < neighbor_cnt; offset += batch_size) {
     const size_t count = std::min(batch_size, neighbor_cnt - offset);
@@ -427,10 +675,11 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
         // Deleted ids never become expandable (blocks only store valid keys),
         // but leave their slots as defined empty blocks instead of garbage.
         auto *empty = new (slot) Block{};
-        empty->center_floats = static_cast<uint32_t>(stored_dimension_);
+        empty->center_floats =
+            static_cast<uint32_t>(stored_center_bytes_ / sizeof(float));
         empty->neighbor_bytes = static_cast<uint32_t>(neighbor_bytes_);
-        std::fill_n(const_cast<float *>(empty->center()), stored_dimension_,
-                    0.0f);
+        std::fill_n(const_cast<float *>(empty->center()),
+                    stored_center_bytes_ / sizeof(float), 0.0f);
         continue;
       }
       typename Graph::Vector raw;
@@ -572,13 +821,113 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   auto &state = search_state();
   auto &visited = state.visited;
   visited.reset(results.limit());
+#if defined(QG_FIRST_ESTIMATE)
+  state.discovered.reset(std::max(size_t{64}, results.limit() * 4));
+  state.discovered.set_visited(entry);
+#endif
   auto &beam = state.beam;
   beam.reset(std::max(size_t{1}, results.limit()));
   beam.insert(entry, std::numeric_limits<float>::max());
   auto &batch_query = state.query;
   codec_.prepare_query(ctx.query(), batch_query);
+#if defined(QG_CENTER_QUANTIZED)
+  double query_norm2_double = 0;
+  const float *query_values = static_cast<const float *>(ctx.query());
+  for (size_t d = 0; d < dimension_; ++d)
+    query_norm2_double += double(query_values[d]) * query_values[d];
+  const float query_norm2 = std::nextafter(
+      float(query_norm2_double), std::numeric_limits<float>::infinity());
+#endif
   auto &expanded = state.expanded;
   expanded.clear();
+#if defined(QG_DEFERRED_COSINE)
+  state.refine_candidates.clear();
+  state.refine_best.clear();
+#endif
+#if defined(QG_TAIL_REFINE)
+  const size_t expansion_cap =
+      std::getenv("QG_EXPANSIONS")
+          ? std::strtoul(std::getenv("QG_EXPANSIONS"), nullptr, 10)
+          : 1000000;
+  const size_t tail_budget =
+      std::getenv("QG_REFINE")
+          ? std::strtoul(std::getenv("QG_REFINE"), nullptr, 10)
+          : 0;
+#endif
+#if defined(QG_ADAPTIVE)
+  struct StopState {
+    std::vector<float> &best;
+    size_t k, stale = 0, expanded = 0;
+#if defined(QG_RUNTIME_ADAPTIVE)
+    size_t patience =
+        std::getenv("QG_PATIENCE")
+            ? std::strtoul(std::getenv("QG_PATIENCE"), nullptr, 10)
+            : QG_STOP_PATIENCE;
+    float margin = std::getenv("QG_MARGIN")
+                       ? std::strtof(std::getenv("QG_MARGIN"), nullptr)
+                       : QG_STOP_MARGIN;
+    size_t cap = std::getenv("QG_CAP")
+                     ? std::strtoul(std::getenv("QG_CAP"), nullptr, 10)
+                     : 1000000;
+#endif
+    void observe(float d, bool eligible) {
+      ++expanded;
+      if (eligible && (best.size() < k || d < best.back())) {
+        best.insert(std::lower_bound(best.begin(), best.end(), d), d);
+        if (best.size() > k) best.pop_back();
+        stale = 0;
+      } else
+        ++stale;
+    }
+#if defined(QG_WINDOW)
+    bool admit(float lower) const {
+#if defined(QG_RUNTIME_ADAPTIVE)
+      const size_t p = patience;
+      const float m = margin;
+#else
+      const size_t p = QG_STOP_PATIENCE;
+      const float m = QG_STOP_MARGIN;
+#endif
+      return p != 0 || best.size() != k || expanded < QG_STOP_MIN ||
+             lower - best.back() < m * std::max(best.back(), 1e-6f);
+    }
+#endif
+    bool stop(float next) const {
+#if defined(QG_RUNTIME_ADAPTIVE)
+      return best.size() == k && expanded >= QG_STOP_MIN &&
+             (expanded >= cap ||
+              (stale >= patience &&
+               next - best.back() >= margin * std::max(best.back(), 1e-6f)));
+#else
+      return best.size() == k && expanded >= QG_STOP_MIN &&
+             stale >= QG_STOP_PATIENCE &&
+             next - best.back() >=
+                 QG_STOP_MARGIN * std::max(best.back(), 1e-6f);
+#endif
+    }
+  };
+  state.best_exact.clear();
+  StopState stopping{state.best_exact, ctx.topk()};
+#endif
+#if defined(QG_PATH_TRACE)
+  struct PathTrace {
+    FILE *file;
+    uint64_t serial;
+    float estimate = 0;
+  };
+  static thread_local uint64_t path_serial = 0;
+  static thread_local FILE *path_file = []() {
+    const char *p = std::getenv("QG_PATH_FILE");
+    return p ? std::fopen(p, "w") : nullptr;
+  }();
+  PathTrace path{path_file, path_serial++};
+#endif
+#if QG_DIAG
+  struct Diagnostics {
+    size_t popped = 0, pushes = 0, scored = 0, batches = 0, top1 = 0;
+    double se = 0, bias = 0;
+  } diag;
+#endif
   struct Scan {
     enum { kVisitOnExpansion = true };
     const QuantizedGraph &index;
@@ -587,16 +936,41 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     decltype(results) output;
     typename Codec::Query &query;
     std::vector<NodeId> &expanded;
+#if defined(QG_DEFERRED_COSINE)
+    std::vector<std::pair<float, NodeId>> &refine_candidates;
+#endif
+#if defined(QG_CENTER_QUANTIZED)
+    float query_norm2;
+#endif
+#if defined(QG_BUCKET)
+    QuantizedGraphBucket *bucket;
+#endif
+#if defined(QG_ADAPTIVE)
+    StopState *stopping;
+#endif
+#if defined(QG_PATH_TRACE)
+    PathTrace *path;
+#endif
+#if QG_DIAG
+    Diagnostics *diag;
+#endif
     const Block *block = nullptr;
     const NodeId *neighbors = nullptr;
     const char *codes = nullptr;
     float exact = 0;
+#if defined(QG_CENTER_STATS)
+    size_t refined_count = 0;
+#endif
+#if defined(QG_REANCHOR) && defined(QG_CENTER_QUANTIZED)
+    float navigation_center = 0;
+#endif
     int begin(NodeId id) {
       expanded.push_back(id);
       block = index.get_block(entity, id);
       if (block == nullptr) return IndexError_Mismatch;
-      neighbors = reinterpret_cast<const NodeId *>(block->center() +
-                                                   index.stored_dimension_);
+      neighbors = reinterpret_cast<const NodeId *>(
+          reinterpret_cast<const char *>(block->center()) +
+          index.stored_center_bytes_);
       codes = reinterpret_cast<const char *>(neighbors) + index.neighbor_bytes_;
 #if defined(__GNUC__) || defined(__clang__)
       // Fetch the row header and the start of its packed codes while the
@@ -608,8 +982,83 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       for (size_t offset = 0; offset < bytes; offset += 64)
         __builtin_prefetch(codes + offset, 0, 2);
 #endif
-      exact = ctx.distance(block->center());
-      if (!ctx.excluded(id)) output.emplace(id, exact);
+      bool refined = true;
+#if defined(QG_CENTER_QUANTIZED)
+      if (index.compressed_center_) {
+#if defined(QG_CENTER_SQ8)
+#if defined(QG_DEFERRED_COSINE)
+        exact = SQ8Center::cosine_distance(
+            static_cast<const float *>(ctx.query()),
+            reinterpret_cast<const uint8_t *>(block->center()),
+            index.dimension_, block->center_offset, block->center_scale);
+#else
+        exact = SQ8Center::distance(
+            static_cast<const float *>(ctx.query()),
+            reinterpret_cast<const uint8_t *>(block->center()),
+            index.dimension_, block->center_offset, block->center_scale);
+#endif
+#else
+        exact = HalfCenter::distance(
+            static_cast<const float *>(ctx.query()),
+            reinterpret_cast<const uint16_t *>(block->center()),
+            index.dimension_);
+#endif
+#if defined(QG_REANCHOR)
+        navigation_center = exact;
+#endif
+#if defined(QG_DEFERRED_COSINE)
+        const float lower = SQ8Center::cosine_lower_bound(
+            exact, block->center_error, block->center_norm2, query_norm2,
+            index.dimension_);
+        refined = false;
+        if (!ctx.excluded(id)) refine_candidates.emplace_back(lower, id);
+#else
+        const float lower = HalfCenter::lower_bound(
+            exact, block->center_error, block->center_norm2, query_norm2,
+            index.dimension_);
+        refined = !ctx.excluded(id) && (stopping->best.size() < stopping->k ||
+                                        lower <= stopping->best.back());
+        if (refined) {
+          typename Graph::Vector raw;
+          int rc = entity.get_vector(id, raw);
+          if (rc != 0 || raw.data() == nullptr) return IndexError_Mismatch;
+          exact = ctx.distance(raw.data());
+        }
+#endif
+#if defined(QG_CENTER_AUDIT)
+        typename Graph::Vector audit_raw;
+        int audit_rc = entity.get_vector(id, audit_raw);
+        if (audit_rc != 0 || audit_raw.data() == nullptr)
+          return IndexError_Mismatch;
+        float truth = ctx.reference_distance(audit_raw.data());
+#if defined(QG_DEFERRED_COSINE)
+        if (lower > truth) std::abort();
+#else
+        if (lower > truth ||
+            (!refined && !ctx.excluded(id) && truth < stopping->best.back()))
+          std::abort();
+#endif
+#endif
+      } else
+#endif
+        exact = ctx.distance(block->center());
+#if defined(QG_BUCKET)
+      if (expanded.size() == 1) bucket->set_scale(exact);
+#endif
+#if defined(QG_PATH_TRACE)
+      if (path->file)
+        std::fprintf(path->file, "%llu,%zu,%zu,%llu,%.9g,%.9g\n",
+                     (unsigned long long)path->serial, output.limit(),
+                     expanded.size(), (unsigned long long)entity.key(id), exact,
+                     path->estimate);
+#endif
+#if defined(QG_ADAPTIVE)
+      stopping->observe(exact, refined && !ctx.excluded(id));
+#endif
+#if defined(QG_CENTER_STATS)
+      refined_count += refined;
+#endif
+      if (refined && !ctx.excluded(id)) output.emplace(id, exact);
       ctx.on_expand();
       return 0;
     }
@@ -624,29 +1073,144 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     }
     void prepare_batch(size_t) {}
     void stage(NodeId, size_t, size_t) {}
-    int score(size_t offset, const NodeId *, size_t, float *distances) {
+    int score(size_t offset, const NodeId *ids, size_t count,
+              float *distances) {
+      float center_score = exact;
+#if defined(QG_REANCHOR) && defined(QG_CENTER_QUANTIZED)
+      if (index.compressed_center_) center_score = navigation_center;
+#endif
       index.codec_.scan(
           codes + (offset / Codec::kBatchSize) * index.codec_.batch_bytes(),
-          query, exact, distances);
+          query, center_score, distances);
+#if QG_EXPERIMENT == 1 || QG_EXPERIMENT == 3 || QG_DIAG
+      std::array<float, Codec::kBatchSize> truth;
+      for (size_t i = 0; i < count; ++i) {
+        typename Graph::Vector raw;
+        const int rc = entity.get_vector(ids[i], raw);
+        if (rc != 0 || raw.data() == nullptr) return IndexError_Mismatch;
+        truth[i] = ctx.reference_distance(raw.data());
+#if QG_DIAG
+        const double err = double(distances[i]) - truth[i];
+        ++diag->scored;
+        diag->se += err * err;
+        diag->bias += err;
+#endif
+      }
+#if QG_DIAG
+      ++diag->batches;
+      const size_t estimated =
+          std::min_element(distances, distances + count) - distances;
+      const size_t real =
+          std::min_element(truth.begin(), truth.begin() + count) -
+          truth.begin();
+      diag->top1 += estimated == real;
+#endif
+#if QG_EXPERIMENT == 1 || QG_EXPERIMENT == 3
+      std::copy_n(truth.data(), count, distances);
+#endif
+#endif
       return 0;
     }
-  } scan{*this, entity, ctx, results, batch_query, expanded};
+  } scan{*this,
+         entity,
+         ctx,
+         results,
+         batch_query,
+         expanded
+#if defined(QG_DEFERRED_COSINE)
+         ,
+         state.refine_candidates
+#endif
+#if defined(QG_CENTER_QUANTIZED)
+         ,
+         query_norm2
+#endif
+#if defined(QG_BUCKET)
+         ,
+         &beam
+#endif
+#if defined(QG_ADAPTIVE)
+         ,
+         &stopping
+#endif
+#if defined(QG_PATH_TRACE)
+         ,
+         &path
+#endif
+#if QG_DIAG
+         ,
+         &diag
+#endif
+  };
   struct Frontier {
     const QuantizedGraph &index;
+#if defined(QG_BUCKET)
+    QuantizedGraphBucket &beam;
+#elif defined(QG_HEAP)
+    AdaptiveHeap &beam;
+#else
     QuantizedGraphBeam &beam;
+#endif
     Context &ctx;
+#if defined(QG_TAIL_REFINE)
+    const std::vector<NodeId> *expanded;
+    size_t expansion_cap;
+#endif
+#if defined(QG_FIRST_ESTIMATE)
+    LocalVisitSet *discovered;
+#endif
+#if defined(QG_ADAPTIVE)
+    StopState *stopping;
+    LocalVisitSet *visited;
+#endif
+#if defined(QG_PATH_TRACE)
+    PathTrace *path;
+#endif
+#if QG_DIAG
+    Diagnostics *diag;
+#endif
     NodeId prefetched = kInvalidNodeId;
     bool has_next() const {
+#if defined(QG_TAIL_REFINE)
+      if (expanded->size() >= expansion_cap) return false;
+#endif
+#if defined(QG_ADAPTIVE)
+      while (beam.has_next() && visited->visited(beam.next_id_at(0)))
+        beam.pop();
+      if (beam.has_next() && stopping->stop(beam.next_distance())) return false;
+#endif
       return beam.has_next() && !ctx.reach_scan_limit();
     }
     NodeId pop() {
+#if defined(QG_PATH_TRACE)
+      path->estimate = beam.next_distance();
+#endif
+#if QG_DIAG
+      ++diag->popped;
+#endif
       return beam.pop();
     }
     bool accepts(float distance) const {
+#if defined(QG_WINDOW)
+      if (!std::isfinite(distance) ||
+          !stopping->admit(beam.lower_bound(distance)))
+        return false;
+#endif
       return !beam.is_full(distance) && std::isfinite(distance);
     }
     void push(NodeId id, float distance) {
+#if defined(QG_FIRST_ESTIMATE)
+      if (discovered->visited(id)) return;
+      discovered->set_visited(id);
+#endif
+#if QG_DIAG
+      ++diag->pushes;
+#endif
+#if QG_EXPERIMENT == 2 || QG_EXPERIMENT == 3
+      beam.insert_unique(id, distance);
+#else
       beam.insert(id, distance);
+#endif
 #if defined(__GNUC__) || defined(__clang__)
       if (beam.has_next()) {
         const NodeId next = beam.next_id_at(0);
@@ -665,9 +1229,143 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       }
 #endif
     }
-  } frontier{*this, beam, ctx};
+  } frontier{*this,
+             beam,
+             ctx
+#if defined(QG_TAIL_REFINE)
+             ,
+             &expanded,
+             expansion_cap
+#endif
+#if defined(QG_FIRST_ESTIMATE)
+             ,
+             &state.discovered
+#endif
+#if defined(QG_ADAPTIVE)
+             ,
+             &stopping,
+             &visited
+#endif
+#if defined(QG_PATH_TRACE)
+             ,
+             &path
+#endif
+#if QG_DIAG
+             ,
+             &diag
+#endif
+  };
   const int search_ret = SearchGraph(scan, frontier, visited, state.scratch);
   if (search_ret != 0) return search_ret;
+#if defined(QG_LOCAL_COMPLETION)
+#if defined(QG_CENTER_QUANTIZED)
+#error Local completion prototype expects FP32 center rows
+#endif
+  const size_t local_seeds =
+      std::getenv("QG_LOCAL_SEEDS")
+          ? std::strtoul(std::getenv("QG_LOCAL_SEEDS"), nullptr, 10)
+          : 1;
+  const size_t local_neighbors =
+      std::getenv("QG_LOCAL_NEIGHBORS")
+          ? std::strtoul(std::getenv("QG_LOCAL_NEIGHBORS"), nullptr, 10)
+          : 16;
+  std::vector<std::pair<float, NodeId>> seeds;
+  for (const auto &item : results) seeds.emplace_back(item.second, item.first);
+  std::sort(seeds.begin(), seeds.end());
+  for (size_t i = 0; i < std::min(local_seeds, seeds.size()); ++i) {
+    const Block *seed = get_block(entity, seeds[i].second);
+    if (!seed) return IndexError_Mismatch;
+    for (size_t j = 0; j < std::min(local_neighbors, size_t(seed->local_count));
+         ++j) {
+      if (ctx.reach_scan_limit()) break;
+      const NodeId candidate = seed->local_neighbors[j];
+      if (visited.visited(candidate) || !entity.valid(candidate)) continue;
+      visited.set_visited(candidate);
+      if (ctx.excluded(candidate)) continue;
+      const Block *target = get_block(entity, candidate);
+      if (!target) return IndexError_Mismatch;
+      results.emplace(candidate, ctx.distance(target->center()));
+    }
+  }
+#endif
+#if defined(QG_DEFERRED_COSINE)
+  // Exact Top-K of the expanded set, via conservative interval ordering.
+  // Navigational estimates still use reconstructed-center coordinates.
+  auto &refine = state.refine_candidates;
+  auto &best = state.refine_best;
+  std::sort(refine.begin(), refine.end());
+  for (const auto &candidate : refine) {
+#if !defined(QG_DEFERRED_FULL)
+    if (best.size() == ctx.topk() && candidate.first > best.back()) break;
+#endif
+    if (ctx.reach_scan_limit()) break;
+    typename Graph::Vector raw;
+    const int ret = entity.get_vector(candidate.second, raw);
+    if (ret != 0) return ret;
+    if (raw.data() == nullptr) return IndexError_Mismatch;
+    const float exact = ctx.distance(raw.data());
+    results.emplace(candidate.second, exact);
+    best.insert(std::lower_bound(best.begin(), best.end(), exact), exact);
+    if (best.size() > ctx.topk()) best.pop_back();
+#if defined(QG_CENTER_STATS)
+    ++scan.refined_count;
+#endif
+  }
+#endif
+#if defined(QG_TAIL_REFINE)
+  // Separate navigation from result collection: after navigation stops,
+  // refine remaining frontier candidates without scanning their neighbors.
+  // For a fixed navigation trajectory this can only improve exact Top-K
+  // distances; it does not guarantee recall under a shorter trajectory.
+  size_t tail_count = 0;
+  while (beam.has_next() && tail_count < tail_budget &&
+         !ctx.reach_scan_limit()) {
+    const NodeId candidate = beam.pop();
+    if (visited.visited(candidate) || !entity.valid(candidate)) continue;
+    visited.set_visited(candidate);
+    if (ctx.excluded(candidate)) continue;
+    typename Graph::Vector raw;
+    const int ret = entity.get_vector(candidate, raw);
+    if (ret != 0) return ret;
+    if (raw.data() == nullptr) return IndexError_Mismatch;
+    results.emplace(candidate, ctx.distance(raw.data()));
+    ++tail_count;
+  }
+#endif
+#if defined(QG_CENTER_STATS)
+  static thread_local FILE *center_stats = []() {
+    const char *p = std::getenv("QG_CENTER_STATS_FILE");
+    return p ? std::fopen(p, "w") : nullptr;
+  }();
+  static thread_local size_t stats_serial = 0;
+  if (center_stats)
+    std::fprintf(center_stats, "%zu,%u,%zu,%zu,%zu,%zu,%zu\n", stats_serial++,
+                 ctx.topk(), results.limit(), expanded.size(),
+                 scan.refined_count, stored_center_bytes_, stride_);
+#endif
+#if defined(QG_QUEUE_STATS) && defined(QG_BUCKET)
+  static thread_local FILE *queue_stats = []() {
+    const char *p = std::getenv("QG_STATS_FILE");
+    return p ? std::fopen(p, "w") : nullptr;
+  }();
+  if (queue_stats)
+    std::fprintf(queue_stats, "%u,%zu,%zu,%zu,%zu\n", ctx.topk(),
+                 results.limit(), expanded.size(), beam.peak,
+                 beam.memory_bytes());
+#endif
+#if QG_DIAG
+  static thread_local FILE *trace = []() {
+    const char *p = std::getenv("QG_TRACE");
+    return p ? std::fopen(p, "a") : nullptr;
+  }();
+  if (trace) {
+    std::fprintf(
+        trace, "%d,%u,%zu,%zu,%zu,%zu,%zu,%.12g,%.12g,%zu,%zu\n", QG_EXPERIMENT,
+        ctx.topk(), results.limit(), expanded.size(), diag.popped, diag.pushes,
+        diag.scored, diag.scored ? std::sqrt(diag.se / diag.scored) : 0,
+        diag.scored ? diag.bias / diag.scored : 0, diag.top1, diag.batches);
+  }
+#endif
   // As in SymphonyQG's result completion step, score unvisited neighbors if
   // duplicate estimates or filters left fewer than k eligible results. Avoid
   // building additional cached blocks and respect the exact-distance budget.
