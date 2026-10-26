@@ -154,6 +154,18 @@ struct SQ8Center {
         float(double(approximate) - qnorm * error - arithmetic),
         -std::numeric_limits<float>::infinity());
   }
+  // Additional error for the 768D Paley-Hadamard forward transforms.
+  // Unit roundoff u; the normalized transform's operator error is <=64u
+  // for finite normalized inputs (six H64 stages and a 12-term H12 mix).
+  static float rotated_lower_bound(float lower, float error,
+                                   float rotated_norm2, float query_norm2) {
+    constexpr double eta = 32. * std::numeric_limits<float>::epsilon();
+    const double pad = std::sqrt(double(query_norm2)) *
+                       (eta * error + (2 * eta + eta * eta) / (1 - eta) *
+                                          std::sqrt(double(rotated_norm2)));
+    return std::nextafter(float(double(lower) - pad),
+                          -std::numeric_limits<float>::infinity());
+  }
   static bool encode(const float *x, size_t n, uint8_t *out, float &error,
                      float &norm2, float &offset, float &scale) {
     offset = *std::min_element(x, x + n);

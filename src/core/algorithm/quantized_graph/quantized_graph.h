@@ -65,7 +65,7 @@
 #include <cstdio>
 #include <cstdlib>
 #endif
-#if defined(QG_PROJECTION_ROUTER)
+#if defined(QG_PROJECTION_ROUTER) || defined(QG_ROTATED_CENTER)
 #include <cstdlib>
 #include "quantized_graph_router.h"
 #endif
@@ -81,6 +81,12 @@
 #if defined(QG_DEFERRED_ADAPTIVE) && \
     (!defined(QG_ADAPTIVE) || !defined(QG_DEFERRED_COSINE))
 #error Interval adaptive mode requires deferred cosine and adaptive navigation
+#endif
+#endif
+#if defined(QG_ROTATED_CENTER)
+#if !defined(QG_CENTER_SQ8) || !defined(QG_DEFERRED_COSINE) || \
+    !defined(QG_REANCHOR) || !defined(QG_ROTATION_768)
+#error Rotated center prototype requires SQ8, deferred cosine, reanchoring and the 768D rotation
 #endif
 #endif
 #if defined(__linux__)
@@ -717,8 +723,19 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
 #if defined(QG_CENTER_QUANTIZED)
   if (compressed_center_) {
 #if defined(QG_CENTER_SQ8)
+#if defined(QG_ROTATED_CENTER)
+    std::vector<float> rotated_storage;
+    codec_.transform(center, rotated_storage);
+    if (rotated_storage.size() != dimension_) {
+      error = IndexError_Mismatch;
+      return false;
+    }
+    const float *storage_values = rotated_storage.data();
+#else
+    const float *storage_values = center;
+#endif
     if (!SQ8Center::encode(
-            center, dimension_,
+            storage_values, dimension_,
             reinterpret_cast<uint8_t *>(const_cast<float *>(block->center())),
             block->center_error, block->center_norm2, block->center_offset,
             block->center_scale)) {
@@ -768,7 +785,12 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
     encoding_center = reconstructed_center.data();
   }
 #endif
-  codec_.transform(encoding_center, scratch.encoded_center);
+#if defined(QG_ROTATED_CENTER)
+  if (compressed_center_)
+    scratch.encoded_center = reconstructed_center;
+  else
+#endif
+    codec_.transform(encoding_center, scratch.encoded_center);
   scratch.encoded.assign(batch_size * dim, 0.0f);
   for (size_t offset = 0; offset < neighbor_cnt; offset += batch_size) {
     const size_t count = std::min(batch_size, neighbor_cnt - offset);
@@ -799,6 +821,10 @@ template <class Codec>
 template <class Graph>
 int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
                                     size_t threads) {
+#if defined(QG_ROTATED_CENTER)
+  if (compressed_center_ && (dimension_ != 768 || codec_.encoded_dim() != 768))
+    return IndexError_Mismatch;
+#endif
   const size_t nthreads =
       threads == 0 ? std::max(1u, std::thread::hardware_concurrency())
                    : threads;
@@ -1071,6 +1097,10 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
   auto &batch_query = state.query;
   codec_.prepare_query(ctx.query(), batch_query);
+#if defined(QG_ROTATED_CENTER)
+  if (compressed_center_ && !QuantizedGraphRouter::rotated(batch_query, 0))
+    return IndexError_Mismatch;
+#endif
 #if defined(QG_PROJECTION_ROUTER)
   if (!router_.empty()) {
     const float *rotated = QuantizedGraphRouter::rotated(batch_query, 0);
@@ -1348,7 +1378,11 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #if defined(QG_CENTER_SQ8)
 #if defined(QG_DEFERRED_COSINE)
         exact = SQ8Center::cosine_distance(
+#if defined(QG_ROTATED_CENTER)
+            QuantizedGraphRouter::rotated(query, 0),
+#else
             static_cast<const float *>(ctx.query()),
+#endif
             reinterpret_cast<const uint8_t *>(block->center()),
             index.dimension_, block->center_offset, block->center_scale);
 #else
@@ -1374,9 +1408,13 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
         navigation_center = exact;
 #endif
 #if defined(QG_DEFERRED_COSINE)
-        const float lower = SQ8Center::cosine_lower_bound(
+        float lower = SQ8Center::cosine_lower_bound(
             exact, block->center_error, block->center_norm2, query_norm2,
             index.dimension_);
+#if defined(QG_ROTATED_CENTER)
+        lower = SQ8Center::rotated_lower_bound(
+            lower, block->center_error, block->center_norm2, query_norm2);
+#endif
 #if defined(QG_DEFERRED_ADAPTIVE) && \
     (!defined(QG_DEFERRED_ESTIMATE_STOP) || defined(QG_CENTER_AUDIT))
         interval_upper =
