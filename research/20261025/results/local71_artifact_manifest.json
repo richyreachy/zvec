@@ -1,0 +1,159 @@
+{
+  "research_head": "ffbc18f41bddafe53186457d8b66953780f033b8",
+  "repository_headers": {
+    "src/turbo/quantizer/symphony_qg_quantizer/symphony_qg_quantizer.h": "9acdafd1192fb5eaadd0cf003f34d0416a44bfc417da4d62e862db2de9dc59cf",
+    "src/turbo/distance/common/symphony_qg_distance.h": "5410d89dd9d0a88653d0a7d58dcb03a9d649112255ae30f6c88d178b845e0199",
+    "src/turbo/distance/common/symphony_qg_kernels.h": "b8737892014456c3345d2979d9592292a3b75997694d004a3902220780376afa",
+    "src/turbo/preprocessor/symphony_qg_rotator/symphony_qg_rotator.h": "a4efd148aecca3a61709876571f9d9673c0a8c0e5feea51ee580e0e05bf0e105"
+  },
+  "inherited_phase70_artifacts_verified": {
+    "models70/coefficients_seed70.f32": {
+      "bytes": 9216,
+      "sha256": "1e28695d7edfe7ea2619160b5302acd60111d8736416f8d4eca637baa3e70d15"
+    },
+    "models70/coefficients_seed71.f32": {
+      "bytes": 9216,
+      "sha256": "91c08b3c90472e69e2b195a7c26f7cf7850e7adeada04ce4712883217b39ea2b"
+    },
+    "models70/coefficients_seed72.f32": {
+      "bytes": 9216,
+      "sha256": "9c7354b780cf2436bc461b4fdd87cddf92df74645f4dd9a145f159b426dddc0f"
+    },
+    "scripts/rotation61_kernel.h": {
+      "bytes": 1661,
+      "sha256": "451ed4d9d653c2b0486a1c3c348b41db0effdbca1bd0eafe12e947b7a7bf3500"
+    },
+    "scripts/graph65_refine.cc": {
+      "bytes": 9842,
+      "sha256": "981d68a7c84e24ea5a1b572dc41ad0af0d5229c3124ae484671421c06027c56e"
+    },
+    "lib/libzvec_turbo.a": {
+      "bytes": 2843054,
+      "sha256": "31224cffd76fa576f89bf640288659368cf495728e0435776632c4008997d308"
+    },
+    "lib/librabitqlib_runtime.a": {
+      "bytes": 98192,
+      "sha256": "e608ab56d94f374b6faaca2a8db398cf7e349a5874f640fd24a9c82dcc93f2d4"
+    },
+    "lib/libzvec_ailego.a": {
+      "bytes": 1316192,
+      "sha256": "1aea028a2c1d1ce570a40ae7c90550af80094892e8365e553736229689aded3f"
+    }
+  },
+  "bench_artifacts": {
+    "scripts/codec71.cc": {
+      "bytes": 2489,
+      "sha256": "4c30fedb282a6f20fe987780047c74422daa798da8426b70cc5225a39d37bde3"
+    },
+    "scripts/validate_data71.py": {
+      "bytes": 2728,
+      "sha256": "1ece19a838c304f8fffc2483577743d811a97243433ae4139f5dd2e806c19c40"
+    },
+    "scripts/run71.py": {
+      "bytes": 1542,
+      "sha256": "59dac7644682c1b4d01b94ed0d251409fce34bb5bcb049d1fb82b17bb1d4211a"
+    },
+    "scripts/prepare71.py": {
+      "bytes": 3354,
+      "sha256": "f0eb1ba50fc8fa88e22690c710d115d1d4bec8cfc8a91c8b50a8489c3d937b29"
+    },
+    "scripts/risk71_math.py": {
+      "bytes": 2894,
+      "sha256": "c0d212b540de18058df50ff647281569ddb7ddb7310e7e84bf286c0b2ae5ee78"
+    },
+    "scripts/rotate71.cc": {
+      "bytes": 1380,
+      "sha256": "d71cc3e35d7315e0eb2e416732659003f0854a4e6c7d40f40ec150c6fdbe5048"
+    },
+    "scripts/analyze71.py": {
+      "bytes": 3302,
+      "sha256": "dbd9398f54cf057f5b822cb03271bfa0234567bfe97ec0d9248578535fd607e3"
+    },
+    "models71/codec_scores_baseline.f32": {
+      "bytes": 8388608,
+      "sha256": "305e06acd620b8babb024569ac93b88e9b79f04eea0f95fcef15cfbce37b52c6"
+    },
+    "models71/validation_positions.u32": {
+      "bytes": 64,
+      "sha256": "c31852a29af1f5fff177bcf2056a67e93eadedd3b0b94e3cd4de8973d19e77c3"
+    },
+    "models71/codec_errors_71.npy": {
+      "bytes": 65664,
+      "sha256": "fcb73968a2d035e6f3bb70a68bb9fe50a131ee990cf57d56680d761ea15c0532"
+    },
+    "models71/selection_positions.u32": {
+      "bytes": 64,
+      "sha256": "de3dc006d56ba7721933149f40743bc048be4b8d6a5f5fae568889ad6c67dac4"
+    },
+    "models71/codec_scores_71.f32": {
+      "bytes": 8388608,
+      "sha256": "03bf800edd3895ab961713a1bea645578e782c71b9d05109073cc2e3dee10010"
+    },
+    "models71/ids.u32": {
+      "bytes": 532480,
+      "sha256": "7af0a8b5ff48d6d27dfe45aae0acf92c6d222488ca5f06a1a8c751c62e301a87"
+    },
+    "models71/offsets.f64": {
+      "bytes": 524288,
+      "sha256": "f6dc42371bf34286580de09fea0f442308cd27905e84e8aa337b98bc3e2ee0f3"
+    },
+    "models71/truth.f64": {
+      "bytes": 16777216,
+      "sha256": "5589c0e92105affe2418217e7107ffbbb6285dee051606171034e87ba78c8687"
+    },
+    "models71/positions.u32": {
+      "bytes": 262144,
+      "sha256": "288d9cbbbf624a2d51d637e0496749d2db170151509316559c5a2b82469eb853"
+    },
+    "models71/selected_frames.u32": {
+      "bytes": 8192,
+      "sha256": "72c2d1522a8f211c550d583d3be98f1989e583b1305a7e83269f3e48c2caf2e2"
+    },
+    "models71/rows.u32": {
+      "bytes": 8192,
+      "sha256": "cc76b029564c7257d6c27e130546ac40603f1e3ae5efc1106b2656294f599ec5"
+    },
+    "models71/codec_errors_72.npy": {
+      "bytes": 65664,
+      "sha256": "8e3ec782bfc7a9f5adbdf9fa6c8a43d01baada274d7521c17d4f8f29e0620da5"
+    },
+    "models71/codec_scores_72.f32": {
+      "bytes": 8388608,
+      "sha256": "11e3305573a18b799502b71cee4f1fe1f1f1cc8fa7cf8a3ce81d9e39e03a92a7"
+    },
+    "models71/selected_validation_errors.npy": {
+      "bytes": 32896,
+      "sha256": "c5ca024e665ed0423a6b01ebceb34c7d192cac6269cc08c1829f1c9b78255bbe"
+    },
+    "models71/codec_errors_70.npy": {
+      "bytes": 65664,
+      "sha256": "283497e6d553e711f65a444d1148fa9455368ba427be51e40cc256fdb01c93dd"
+    },
+    "models71/config.json": {
+      "bytes": 1335,
+      "sha256": "6a651cc08836e3d881461743aa4c7759376fb425f3bc0102b1bde4a2791bb4e7"
+    },
+    "models71/codec_scores_70.f32": {
+      "bytes": 8388608,
+      "sha256": "df9870ef73acb5a86e06e632777cdc17d241ba5b8e5e891d6567ce2189a37197"
+    },
+    "models71/rotated.f32": {
+      "bytes": 408944640,
+      "sha256": "7ea7e915e512adcae6e431a5b128050cf2d41504ed47ff1db647697d38c8dfbe"
+    },
+    "models71/codec_errors_baseline.npy": {
+      "bytes": 65664,
+      "sha256": "857e5ee9ac615cd7826820c1469591690912aefe70665bc889c730956a14ecc5"
+    },
+    "codec71": {
+      "bytes": 140408,
+      "sha256": "10ddfb3798cfb862cdd1d933a97203e0e730eb4b832dfd4f0489983ca97fafe3"
+    },
+    "rotate71": {
+      "bytes": 69784,
+      "sha256": "e1e739d09355eb4dcfa28e385bb31c3122be43817ca14a16df4a2f9065f5bcd0"
+    }
+  },
+  "models64_inputs_same_as_phase70": true,
+  "no_production_source_changes": true
+}

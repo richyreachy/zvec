@@ -1,0 +1,101 @@
+{
+  "config": {
+    "centers": 2048,
+    "neighbors": 32,
+    "queries_per_center": 32,
+    "selection_queries_per_center": 16,
+    "validation_queries_per_center": 16,
+    "center_seed": 7101,
+    "proxy_seed": 7102,
+    "models": [
+      "baseline",
+      "70",
+      "71",
+      "72"
+    ],
+    "ties": "baseline first then seed order; truth distance tolerance1e-7",
+    "candidate_position_bins": [
+      [
+        0,
+        49
+      ],
+      [
+        50,
+        99
+      ],
+      [
+        100,
+        149
+      ],
+      [
+        150,
+        199
+      ]
+    ],
+    "queries_per_bin": 8,
+    "selection_first_four_per_bin": true,
+    "minimum_eligible_queries_in_bin": 19,
+    "old_centers_excluded": 8192,
+    "new_centers_disjoint_from_phase70": true,
+    "selection_validation_queries_disjoint_within_center": true,
+    "unique_selection_query_ids": 26819,
+    "unique_validation_query_ids": 26898,
+    "shared_query_ids_across_center_folds": 3798,
+    "shared_any_vector_ids_with_phase70": 40106,
+    "primary_or_extra_query_files_read": false,
+    "gt_files_read": false,
+    "local_queries_not_iid": true,
+    "proxy_pool_is_approximate_not_exact_top200": true,
+    "fixed_models_no_training": true,
+    "gate": {
+      "relative_validation_top1_error_reduction": 0.1,
+      "paired_center_bootstrap95_lower_positive": true,
+      "bootstrap_seed": 7171,
+      "bootstrap_samples": 4000
+    },
+    "no_retrieval_qps_or_recall_claim": true
+  },
+  "selection_validation_label_isolation_checked": true,
+  "baseline_first_ties_checked": true,
+  "validation_queries": 32768,
+  "baseline_validation_errors": 7617,
+  "selected_validation_errors": 7595,
+  "baseline_validation_error_rate": 0.232452392578125,
+  "selected_validation_error_rate": 0.231781005859375,
+  "relative_error_reduction": 0.002888276224235263,
+  "paired_center_bootstrap95": [
+    -0.009036768666794946,
+    0.01471007265078342
+  ],
+  "quality_gate_passed": false,
+  "selected_frame_counts": [
+    957,
+    511,
+    337,
+    243
+  ],
+  "centers_better_equal_worse": [
+    405,
+    1269,
+    374
+  ],
+  "baseline_selection_error_rate": 0.22894287109375,
+  "selected_selection_error_rate": 0.177398681640625,
+  "fixed_model_validation_error_rates": {
+    "baseline": 0.232452392578125,
+    "70": 0.231689453125,
+    "71": 0.23529052734375,
+    "72": 0.232696533203125
+  },
+  "validation_per_center_oracle_error_rate_not_deployable": 0.177215576171875,
+  "selection_ties": 1035,
+  "truth_ties_selection": 0,
+  "truth_ties_validation": 0,
+  "not_iid_blind_external_query_validation": true,
+  "actual_codec_fp32_rotations_used": true,
+  "full_search_integration": false,
+  "new_retrieval_timing_rows": 0,
+  "cumulative_retrieval_timing_rows": 1310,
+  "no_qps_or_recall_claim": true
+}
+ANALYZE71 COMPLETE

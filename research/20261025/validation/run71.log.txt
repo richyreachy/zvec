@@ -1,0 +1,9 @@
+RUN rotate71_build
+RUN rotate71
+RUN validate_data71
+RUN codec71_build
+RUN codec71_baseline
+RUN codec71_70
+RUN codec71_71
+RUN codec71_72
+RUN71 COMPLETE

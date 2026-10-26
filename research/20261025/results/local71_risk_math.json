@@ -1,0 +1,304 @@
+{
+  "conditional_gaussian_pair_formula_cases": [
+    {
+      "case": 0,
+      "rho": 0.8209689809132743,
+      "mean_exact": -0.05258031788101397,
+      "mean_quantized": 0.2626203123654719,
+      "analytic_flip_probability": 0.20030561749116926,
+      "empirical_flip_probability": 0.19933,
+      "samples": 100000,
+      "absolute_error": 0.0009756174911692561,
+      "binomial_standard_error": 0.001265635323039977
+    },
+    {
+      "case": 1,
+      "rho": 0.7489123754368883,
+      "mean_exact": -0.524403550022253,
+      "mean_quantized": -0.4697104140168594,
+      "analytic_flip_probability": 0.22010819534829773,
+      "empirical_flip_probability": 0.21882,
+      "samples": 100000,
+      "absolute_error": 0.0012881953482977437,
+      "binomial_standard_error": 0.0013101930303921379
+    },
+    {
+      "case": 2,
+      "rho": 0.7524859620688741,
+      "mean_exact": -0.31651335640709727,
+      "mean_quantized": -0.425588147180221,
+      "analytic_flip_probability": 0.2220035941066446,
+      "empirical_flip_probability": 0.22021,
+      "samples": 100000,
+      "absolute_error": 0.0017935941066446193,
+      "binomial_standard_error": 0.0013142221970061866
+    },
+    {
+      "case": 3,
+      "rho": 0.7808531369292011,
+      "mean_exact": -0.16676172913643178,
+      "mean_quantized": -0.07596565133549,
+      "analytic_flip_probability": 0.21542590929641348,
+      "empirical_flip_probability": 0.21546,
+      "samples": 100000,
+      "absolute_error": 3.4090703586536764e-05,
+      "binomial_standard_error": 0.0013000676401642606
+    },
+    {
+      "case": 4,
+      "rho": 0.8340870354414226,
+      "mean_exact": 0.24997758233235504,
+      "mean_quantized": 0.27437439748714354,
+      "analytic_flip_probability": 0.18449116825860945,
+      "empirical_flip_probability": 0.18452,
+      "samples": 100000,
+      "absolute_error": 2.8831741390539234e-05,
+      "binomial_standard_error": 0.0012265976401949538
+    },
+    {
+      "case": 5,
+      "rho": 0.7429364627909322,
+      "mean_exact": 0.09202389767936886,
+      "mean_quantized": 0.05952608109899876,
+      "analytic_flip_probability": 0.23324073626446795,
+      "empirical_flip_probability": 0.23241,
+      "samples": 100000,
+      "absolute_error": 0.0008307362644679461,
+      "binomial_standard_error": 0.0013373088469432813
+    },
+    {
+      "case": 6,
+      "rho": 0.6655106365801557,
+      "mean_exact": -0.20829943546686194,
+      "mean_quantized": -0.32893254778089365,
+      "analytic_flip_probability": 0.26423431840427736,
+      "empirical_flip_probability": 0.26413,
+      "samples": 100000,
+      "absolute_error": 0.00010431840427738148,
+      "binomial_standard_error": 0.0013943261576177374
+    },
+    {
+      "case": 7,
+      "rho": 0.8346140540555758,
+      "mean_exact": -0.11602615058033805,
+      "mean_quantized": -0.10627641123485218,
+      "analytic_flip_probability": 0.185397424630228,
+      "empirical_flip_probability": 0.1869,
+      "samples": 100000,
+      "absolute_error": 0.0015025753697719968,
+      "binomial_standard_error": 0.0012289231854379953
+    },
+    {
+      "case": 8,
+      "rho": 0.8075942627665998,
+      "mean_exact": -0.24373210234636697,
+      "mean_quantized": -0.408431192033043,
+      "analytic_flip_probability": 0.1975789443203707,
+      "empirical_flip_probability": 0.19872,
+      "samples": 100000,
+      "absolute_error": 0.0011410556796292992,
+      "binomial_standard_error": 0.0012591326581485312
+    },
+    {
+      "case": 9,
+      "rho": 0.47844356633556967,
+      "mean_exact": -0.4321220530324238,
+      "mean_quantized": -0.5952460099085777,
+      "analytic_flip_probability": 0.31781129297921695,
+      "empirical_flip_probability": 0.31614,
+      "samples": 100000,
+      "absolute_error": 0.0016712929792169762,
+      "binomial_standard_error": 0.0014724376897991144
+    },
+    {
+      "case": 10,
+      "rho": 0.7343256918460316,
+      "mean_exact": -0.09255624271673149,
+      "mean_quantized": -0.0877835416652068,
+      "analytic_flip_probability": 0.23702053565735492,
+      "empirical_flip_probability": 0.23728,
+      "samples": 100000,
+      "absolute_error": 0.000259464342645066,
+      "binomial_standard_error": 0.00134477433547066
+    },
+    {
+      "case": 11,
+      "rho": 0.7596078021398321,
+      "mean_exact": 0.1799400486751465,
+      "mean_quantized": 0.4822258693075653,
+      "analytic_flip_probability": 0.22675124971583294,
+      "empirical_flip_probability": 0.22844,
+      "samples": 100000,
+      "absolute_error": 0.0016887502841670676,
+      "binomial_standard_error": 0.0013241416860296368
+    },
+    {
+      "case": 12,
+      "rho": 0.8223233014600569,
+      "mean_exact": 0.40670318798682203,
+      "mean_quantized": 0.20871402858224963,
+      "analytic_flip_probability": 0.1972198893063548,
+      "empirical_flip_probability": 0.19825,
+      "samples": 100000,
+      "absolute_error": 0.0010301106936451976,
+      "binomial_standard_error": 0.001258269464655103
+    },
+    {
+      "case": 13,
+      "rho": 0.8662475610165938,
+      "mean_exact": 0.04402369816131331,
+      "mean_quantized": 0.072240097728254,
+      "analytic_flip_probability": 0.1664588332848992,
+      "empirical_flip_probability": 0.16551,
+      "samples": 100000,
+      "absolute_error": 0.0009488332848991976,
+      "binomial_standard_error": 0.0011779231303711178
+    },
+    {
+      "case": 14,
+      "rho": 0.8413197477312109,
+      "mean_exact": 0.024168321274552235,
+      "mean_quantized": -0.033676234875481784,
+      "analytic_flip_probability": 0.1821234515282425,
+      "empirical_flip_probability": 0.17993,
+      "samples": 100000,
+      "absolute_error": 0.0021934515282424905,
+      "binomial_standard_error": 0.001220469171801084
+    },
+    {
+      "case": 15,
+      "rho": 0.8620268262016675,
+      "mean_exact": 0.04941720815027249,
+      "mean_quantized": -0.0076269443033797416,
+      "analytic_flip_probability": 0.16951575244530948,
+      "empirical_flip_probability": 0.16756,
+      "samples": 100000,
+      "absolute_error": 0.0019557524453094888,
+      "binomial_standard_error": 0.00118650816313336
+    },
+    {
+      "case": 16,
+      "rho": 0.8196226439778459,
+      "mean_exact": 0.033777971260850845,
+      "mean_quantized": 0.1783422057368899,
+      "analytic_flip_probability": 0.19498717962885626,
+      "empirical_flip_probability": 0.1937,
+      "samples": 100000,
+      "absolute_error": 0.0012871796288562443,
+      "binomial_standard_error": 0.00125286543335364
+    },
+    {
+      "case": 17,
+      "rho": 0.754867322770323,
+      "mean_exact": -0.2262409888167472,
+      "mean_quantized": -0.2300238899451355,
+      "analytic_flip_probability": 0.2242529867485874,
+      "empirical_flip_probability": 0.22398,
+      "samples": 100000,
+      "absolute_error": 0.00027298674858738936,
+      "binomial_standard_error": 0.0013189525567014351
+    },
+    {
+      "case": 18,
+      "rho": 0.6142071475123375,
+      "mean_exact": -0.1703697890054683,
+      "mean_quantized": -0.19854632136849926,
+      "analytic_flip_probability": 0.28663898422278966,
+      "empirical_flip_probability": 0.28675,
+      "samples": 100000,
+      "absolute_error": 0.00011101577721034372,
+      "binomial_standard_error": 0.0014299548137843973
+    },
+    {
+      "case": 19,
+      "rho": 0.8304614269076582,
+      "mean_exact": 0.020369798703571626,
+      "mean_quantized": -0.09673452983380063,
+      "analytic_flip_probability": 0.18878390872658368,
+      "empirical_flip_probability": 0.18701,
+      "samples": 100000,
+      "absolute_error": 0.0017739087265836728,
+      "binomial_standard_error": 0.0012375158363936059
+    },
+    {
+      "case": 20,
+      "rho": 0.7933018917396387,
+      "mean_exact": -0.3309954809632797,
+      "mean_quantized": -0.3649607434375818,
+      "analytic_flip_probability": 0.2024599332752821,
+      "empirical_flip_probability": 0.20196,
+      "samples": 100000,
+      "absolute_error": 0.0004999332752821106,
+      "binomial_standard_error": 0.0012707081045364055
+    },
+    {
+      "case": 21,
+      "rho": 0.8686872278599942,
+      "mean_exact": -0.24023987981194672,
+      "mean_quantized": 0.04530956095981395,
+      "analytic_flip_probability": 0.17407916548394642,
+      "empirical_flip_probability": 0.17514,
+      "samples": 100000,
+      "absolute_error": 0.0010608345160535715,
+      "binomial_standard_error": 0.0011990646756049452
+    },
+    {
+      "case": 22,
+      "rho": 0.7572163660593029,
+      "mean_exact": -0.11141188126357514,
+      "mean_quantized": -0.10148681026138492,
+      "analytic_flip_probability": 0.22579658963296145,
+      "empirical_flip_probability": 0.22529,
+      "samples": 100000,
+      "absolute_error": 0.0005065896329614628,
+      "binomial_standard_error": 0.0013221667434294567
+    },
+    {
+      "case": 23,
+      "rho": 0.7238266403593692,
+      "mean_exact": -0.00966669896761016,
+      "mean_quantized": 0.08335535518706505,
+      "analytic_flip_probability": 0.2428946284688649,
+      "empirical_flip_probability": 0.24399,
+      "samples": 100000,
+      "absolute_error": 0.0010953715311351198,
+      "binomial_standard_error": 0.0013560856460041047
+    }
+  ],
+  "zero_threshold_angular_cases": [
+    {
+      "rho": -0.95,
+      "numeric": 0.8989173758957283,
+      "acos": 0.8989173758957402
+    },
+    {
+      "rho": -0.5,
+      "numeric": 0.6666666666666581,
+      "acos": 0.6666666666666667
+    },
+    {
+      "rho": 0.0,
+      "numeric": 0.499999999999993,
+      "acos": 0.5
+    },
+    {
+      "rho": 0.5,
+      "numeric": 0.3333333333333277,
+      "acos": 0.33333333333333337
+    },
+    {
+      "rho": 0.95,
+      "numeric": 0.10108262410425772,
+      "acos": 0.10108262410425992
+    }
+  ],
+  "max_quadrature_256_512_difference": 6.439293542825908e-15,
+  "max_pair_and_cosine_identity_error": 3.552713678800501e-15,
+  "total_gaussian_queries": 2400000,
+  "covariance_positive_definite_by_construction": true,
+  "unequal_radius_and_nonzero_mean_cases": 24,
+  "degenerate_zero_variance_cases_excluded": true,
+  "actual_cohere_gaussian_assumption_tested": false,
+  "formula_not_claimed_novel": true,
+  "no_qps_or_recall_claim": true
+}
