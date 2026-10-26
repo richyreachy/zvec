@@ -158,5 +158,13 @@
     "validation": "8192 actual target/incoming-edge pairs,32768 database proxies;FP64 algebra,8192 norm minima,1000 dense-grid weights,32768 distance intervals;6144/2048 target split;1M Gaussian pairs;formatted128-target C++ byte identity and3 identical Python result hashes",
     "conclusion": "Geometry fusion reduces proxy MSE49.55% vs first estimate but loses minimum-score optimism. Training-calibrated margin yields30.72% validation MSE gain vs minimum,overestimate26.27% vs26.06%;synthetic threshold tails improve. No online cooccurrence,ranking,recall/QPS or novelty proof.",
     "failure_preserved": "Initial scalar calibration rejected one nonpositive distance;fixed explicit zero-scale mass handling retains every case;original failure log saved."
+  },
+  {
+    "stage": "23",
+    "commit": "948533ad38661fb738417f0c2e02a01f950ce9ca",
+    "title": "test(qg): validate multi-anchor opportunities on actual search paths",
+    "validation": "4096 database queries enabled/disabled/frozen identical plus1000 primary queries;149143 expansion blocks and4772334 scored edges verified;64656 pair geometry/FP64 checks;28 default tests;writer unit;2x19 source manifests;postformat128 geometry prefix and full analysis/arrays identical",
+    "conclusion": "Primary35.51% expanded nodes and36.18% returned nodes receive second preexpansion estimate. Fixed stage67 lambda with FP16 edge-scale approximation reduces snapshot false rejects207->161 and false accepts1106->936. No changed search path,online fusion,QPS or recall gain yet.",
+    "analysis_failures_preserved": "System Python lacked NumPy;used established venv. Primary vectors include trailing semicolon;strict parser corrected. Original logs retained."
   }
 ]
