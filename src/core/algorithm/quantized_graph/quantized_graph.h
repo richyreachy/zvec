@@ -17,6 +17,10 @@
 #define QG_CENTER_QUANTIZED 1
 #endif
 #include <algorithm>
+#if defined(QG_TOPOLOGY_STATS)
+#include <cstdio>
+#include <cstdlib>
+#endif
 #if defined(QG_BUCKET)
 #include "quantized_graph_bucket.h"
 #endif
@@ -914,6 +918,75 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
   lazy_blocks_.clear();
   arena_ = std::move(arena);
   arena_count_ = static_cast<NodeId>(doc_cnt);
+#if defined(QG_TOPOLOGY_STATS)
+  // Diagnostic only, before any query timing. Export a BFS tree for a possible
+  // later mandatory-backbone experiment; no query or GT is read here.
+  if (const char *path = std::getenv("QG_TOPOLOGY_FILE")) {
+    std::vector<uint32_t> indegree(doc_cnt, 0), depth(doc_cnt, UINT32_MAX),
+        parent(doc_cnt, UINT32_MAX), queue;
+    size_t edges = 0;
+    uint32_t max_indegree = 0, max_depth = 0;
+    for (NodeId id = 0; id < doc_cnt; ++id)
+      if (entity.valid(id)) {
+        const Block *b = slot(id);
+        for (size_t j = 0; j < b->neighbor_cnt; ++j) {
+          NodeId v = b->neighbors()[j];
+          if (v < doc_cnt) {
+            ++indegree[v];
+            ++edges;
+          }
+        }
+      }
+    if (entry_ < doc_cnt) {
+      depth[entry_] = 0;
+      queue.push_back(entry_);
+    }
+    for (size_t pos = 0; pos < queue.size(); ++pos) {
+      NodeId id = queue[pos];
+      const Block *b = slot(id);
+      for (size_t j = 0; j < b->neighbor_cnt; ++j) {
+        NodeId v = b->neighbors()[j];
+        if (v < doc_cnt && depth[v] == UINT32_MAX) {
+          depth[v] = depth[id] + 1;
+          parent[v] = id;
+          max_depth = std::max(max_depth, depth[v]);
+          queue.push_back(v);
+        }
+      }
+    }
+    size_t zero = 0;
+    for (NodeId id = 0; id < doc_cnt; ++id)
+      if (entity.valid(id)) {
+        zero += indegree[id] == 0;
+        max_indegree = std::max(max_indegree, indegree[id]);
+      }
+    FILE *f = std::fopen(path, "w");
+    if (!f) return IndexError_Mismatch;
+    std::fprintf(f,
+                 "{\"nodes\":%zu,\"valid_nodes\":%zu,\"edges\":%zu,\"entry_"
+                 "node_id\":%llu,\"reachable\":%zu,\"zero_indegree\":%zu,\"max_"
+                 "indegree\":%u,\"max_bfs_depth\":%u}\n",
+                 doc_cnt, valid_count, edges, (unsigned long long)entry_,
+                 queue.size(), zero, max_indegree, max_depth);
+    std::fclose(f);
+    if (const char *keys = std::getenv("QG_UNREACHABLE_KEYS_FILE")) {
+      f = std::fopen(keys, "w");
+      if (!f) return IndexError_Mismatch;
+      for (NodeId id = 0; id < doc_cnt; ++id)
+        if (entity.valid(id) && depth[id] == UINT32_MAX)
+          std::fprintf(f, "%llu\n", (unsigned long long)entity.key(id));
+      std::fclose(f);
+    }
+    if (const char *tree = std::getenv("QG_BFS_PARENT_FILE")) {
+      f = std::fopen(tree, "wb");
+      if (!f) return IndexError_Mismatch;
+      size_t written =
+          std::fwrite(parent.data(), sizeof(uint32_t), parent.size(), f);
+      std::fclose(f);
+      if (written != parent.size()) return IndexError_Mismatch;
+    }
+  }
+#endif
   return 0;
 }
 
