@@ -1,0 +1,90 @@
+{
+  "candidate_round_query_checks": 12000,
+  "control_query_checks": 8000,
+  "query_checks": [
+    {
+      "candidate": "native_nearest",
+      "label": 14000,
+      "queries_per_mode": 1000,
+      "id_score_rows_per_mode": 10000,
+      "rounds_identical": true,
+      "matches_diagnostic_at_margin_002": true,
+      "stats": {
+        "audit": {
+          "mean_expanded": 31.303,
+          "mean_refined": 31.303,
+          "stride": 6656
+        }
+      }
+    },
+    {
+      "candidate": "native_angular",
+      "label": 20000,
+      "queries_per_mode": 1000,
+      "id_score_rows_per_mode": 10000,
+      "rounds_identical": true,
+      "matches_diagnostic_at_margin_002": true,
+      "stats": {
+        "audit": {
+          "mean_expanded": 30.21,
+          "mean_refined": 30.21,
+          "stride": 6656
+        }
+      }
+    },
+    {
+      "candidate": "integer_nearest",
+      "label": 16000,
+      "queries_per_mode": 1000,
+      "id_score_rows_per_mode": 10000,
+      "rounds_identical": true,
+      "matches_diagnostic_at_margin_002": true,
+      "stats": {
+        "audit": {
+          "mean_expanded": 31.823,
+          "mean_refined": 13.759,
+          "stride": 4288
+        },
+        "full": {
+          "mean_expanded": 31.823,
+          "mean_refined": 31.823,
+          "stride": 4288
+        }
+      }
+    },
+    {
+      "candidate": "integer_angular",
+      "label": 20000,
+      "queries_per_mode": 1000,
+      "id_score_rows_per_mode": 10000,
+      "rounds_identical": true,
+      "matches_diagnostic_at_margin_002": true,
+      "stats": {
+        "audit": {
+          "mean_expanded": 30.288,
+          "mean_refined": 13.505,
+          "stride": 4288
+        },
+        "full": {
+          "mean_expanded": 30.288,
+          "mean_refined": 30.288,
+          "stride": 4288
+        }
+      }
+    }
+  ],
+  "default_tests": 28,
+  "source_manifests": {
+    "graph65_native": 18,
+    "graph65_integer": 18,
+    "graph65_exportcheck": 18,
+    "stage65_default": 18,
+    "graph65_native_audit": 18,
+    "graph65_integer_audit": 18,
+    "graph65_integer_full": 18
+  },
+  "new_graph_export_byte_identity": true,
+  "disabled_2000_queries_identical": true,
+  "extra_queries_not_evaluated": true,
+  "breakthrough_verified": false
+}

@@ -1,0 +1,20 @@
+{
+  "prefix": "/home/xingrui/bench/quantized_graph/research_20261025/models65/pilot",
+  "nodes": 4096,
+  "independently_reconstructed_first_and_final_rows": 64,
+  "independent_pairwise_geometry_values": 2774263,
+  "max_coverage_error": 1.2212453270876722e-15,
+  "first_degree_mean": 14.589599609375,
+  "final_seed_degree_mean": 14.58984375,
+  "reverse_edges": 59759,
+  "max_reverse_indegree": 5,
+  "truncated_nodes": 0,
+  "zero_residual_candidates": 1,
+  "coverage_sampled_nodes": 4096,
+  "nearest_coverage_mean": 1.0324912739229983,
+  "angular_coverage_mean": 0.9706388189392363,
+  "nearest_mean_edge_l2": 0.2909735484259681,
+  "angular_mean_edge_l2": 0.3227853850210006,
+  "all_row_invariants": true,
+  "pilot_reverse_edges_partial": true
+}

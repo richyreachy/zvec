@@ -1,0 +1,13 @@
+START diag65_disabled_native
+DONE diag65_disabled_native
+START diag65_disabled_integer
+DONE diag65_disabled_integer
+START diag65_native_nearest
+DONE diag65_native_nearest
+START diag65_integer_nearest
+DONE diag65_integer_nearest
+START diag65_native_angular
+DONE diag65_native_angular
+START diag65_integer_angular
+DONE diag65_integer_angular
+SCREEN65 COMPLETE

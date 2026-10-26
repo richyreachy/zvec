@@ -1,0 +1,17 @@
+[
+  [
+    "taskset",
+    "-c",
+    "0",
+    "/home/xingrui/bench/quantized_graph/research_20261025/graph65_refine",
+    "/home/xingrui/bench/quantized_graph/research_20261025/models64",
+    "/home/xingrui/bench/quantized_graph/research_20261025/models65/pilot_single",
+    "4096",
+    "1",
+    "1"
+  ],
+  [
+    "python3",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/validate65.py"
+  ]
+]

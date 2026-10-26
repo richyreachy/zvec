@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="28" failures="0" disabled="0" errors="0" time="0.03" timestamp="2026-10-26T14:59:43" name="AllTests">
+  <testsuite name="GraphSearchTest" tests="3" failures="0" disabled="0" errors="0" time="0" timestamp="2026-10-26T14:59:43">
+    <testcase name="ExactPoolScoresDiscoveriesOnceAndPreservesLaneOrder" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="GraphSearchTest" />
+    <testcase name="ScanFailuresStopWithoutPublishingUnscoredCandidates" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="GraphSearchTest" />
+    <testcase name="QuantizedBeamReadmitsRejectedNodesWithBetterEstimates" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="GraphSearchTest" />
+  </testsuite>
+  <testsuite name="QuantizedGraphTest" tests="19" failures="0" disabled="0" errors="0" time="0.03" timestamp="2026-10-26T14:59:43">
+    <testcase name="PQTrainingPaddingAndPartialBatches" status="run" result="completed" time="0.016" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="PQTrainingHandlesEmptyDeletedAndFailedVectors" status="run" result="completed" time="0.001" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="ResidualPQTrainingHandlesEdgesHolesAndFailures" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="ResidualPQIsolatedNodeAndBoundedEdgeSampling" status="run" result="completed" time="0.003" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="SQ8SearchFiltersBudgetAndCacheRebuild" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="IndependentBackendUsesMultipleAndPartialCodecBatches" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="AuxiliaryNormIsCachedButExcludedFromGeometry" status="run" result="completed" time="0.001" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="DegreeBoundUsesCodecBatchSize" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="QuantizedEstimatesDoNotReplaceExactScores" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="CompletionFiltersUnvisitedNodesAndHonorsBudget" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="RebuildAndClearReplaceCachedVectorsAndNeighbors" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="CentroidIgnoresHolesAndHandlesEmptyGraphs" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="FailedPrebuildDoesNotPublishPartialBlocks" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="ConcurrentLazySearchesUseSeparateQueryState" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="PQLazyTrainingConcurrentQueriesAndMutation" status="run" result="completed" time="0.002" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="PrebuildSelectsMeanOfValidVectors" status="run" result="completed" time="0.004" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="CompletionHonorsExclusionFilterAndScanBudget" status="run" result="completed" time="0.001" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="SQ8HnswCosineAndCodecSelection" status="run" result="completed" time="0.001" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+    <testcase name="PQHnswCosineAndCodecSelection" status="run" result="completed" time="0.001" timestamp="2026-10-26T14:59:43" classname="QuantizedGraphTest" />
+  </testsuite>
+  <testsuite name="SymphonyQGTest" tests="6" failures="0" disabled="0" errors="0" time="0" timestamp="2026-10-26T14:59:43">
+    <testcase name="BeamKeepsFullWidthIdsAndRevisitsBetterEstimates" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="SymphonyQGTest" />
+    <testcase name="BeamCapacityAndEqualEstimates" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="SymphonyQGTest" />
+    <testcase name="BeamFullWidthTransitionPreservesExpansionFlags" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="SymphonyQGTest" />
+    <testcase name="BeamLookaheadSkipsExpandedEntriesAndResetClearsState" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="SymphonyQGTest" />
+    <testcase name="CosineSearchUsesNormalizedCoordinatesAndExactScores" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="SymphonyQGTest" />
+    <testcase name="TurboFp32MetadataValidation" status="run" result="completed" time="0" timestamp="2026-10-26T14:59:43" classname="SymphonyQGTest" />
+  </testsuite>
+</testsuites>

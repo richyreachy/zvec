@@ -1,0 +1,35 @@
+{
+  "original": {
+    "reachable": 999486,
+    "unreachable_primary_top10_occurrences": 0,
+    "unreachable_primary_queries": 0,
+    "indegree_zero": 507,
+    "indegree_max": 1569,
+    "indegree_p99": 132.0,
+    "edges": 31978472,
+    "edges_shared_with_original": 31978472,
+    "mean_shared_per_node": 31.978472
+  },
+  "nearest": {
+    "reachable": 999423,
+    "unreachable_primary_top10_occurrences": 0,
+    "unreachable_primary_queries": 0,
+    "indegree_zero": 575,
+    "indegree_max": 2580,
+    "indegree_p99": 161.0,
+    "edges": 32000000,
+    "edges_shared_with_original": 17459937,
+    "mean_shared_per_node": 17.459937
+  },
+  "angular": {
+    "reachable": 999740,
+    "unreachable_primary_top10_occurrences": 0,
+    "unreachable_primary_queries": 0,
+    "indegree_zero": 259,
+    "indegree_max": 13100,
+    "indegree_p99": 82.0,
+    "edges": 32000000,
+    "edges_shared_with_original": 16730704,
+    "mean_shared_per_node": 16.730704
+  }
+}

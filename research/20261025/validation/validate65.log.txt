@@ -1,0 +1,13 @@
+START diag65_native_nearest_audit
+DONE diag65_native_nearest_audit
+START diag65_native_angular_audit
+DONE diag65_native_angular_audit
+START diag65_integer_nearest_audit
+DONE diag65_integer_nearest_audit
+START diag65_integer_nearest_full
+DONE diag65_integer_nearest_full
+START diag65_integer_angular_audit
+DONE diag65_integer_angular_audit
+START diag65_integer_angular_full
+DONE diag65_integer_angular_full
+VALIDATE65 COMPLETE

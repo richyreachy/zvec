@@ -1,0 +1,17 @@
+START time65_control_pre
+DONE time65_control_pre
+START time65_integer_pre
+DONE time65_integer_pre
+START time65_native_nearest
+DONE time65_native_nearest
+START time65_integer_nearest
+DONE time65_integer_nearest
+START time65_native_angular
+DONE time65_native_angular
+START time65_integer_angular
+DONE time65_integer_angular
+START time65_integer_post
+DONE time65_integer_post
+START time65_control_post
+DONE time65_control_post
+TIME65 COMPLETE

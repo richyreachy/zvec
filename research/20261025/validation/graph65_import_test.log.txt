@@ -1,0 +1,1 @@
+PASS 1280 neighbor checks, 21 rejection assertions, absent path clears override

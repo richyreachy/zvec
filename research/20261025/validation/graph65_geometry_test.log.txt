@@ -1,0 +1,1 @@
+PASS 1000 long-double distance checks, max error 9.0949470177292824e-13; zero/collinear cases

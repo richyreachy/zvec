@@ -57,6 +57,9 @@
 #include <zvec/core/framework/index_error.h>
 #include "utility/graph_search.h"
 #include "quantized_graph_beam.h"
+#if defined(QG_GRAPH_IMPORT)
+#include "quantized_graph_import.h"
+#endif
 #if defined(QG_GRAPH_EXPORT)
 #include "quantized_graph_export.h"
 #endif
@@ -409,6 +412,9 @@ class QuantizedGraph {
   size_t max_neighbors_{32};
   size_t neighbor_bytes_{0};
   Codec codec_;
+#if defined(QG_GRAPH_IMPORT)
+  QuantizedGraphImport imported_graph_;
+#endif
 #if defined(QG_PROJECTION_ROUTER)
   QuantizedGraphRouter router_;
 #endif
@@ -472,6 +478,9 @@ template <class Codec>
 void QuantizedGraph<Codec>::clear() {
   // Called under the caller's exclusive lock; no concurrent searches.
   arena_.reset();
+#if defined(QG_GRAPH_IMPORT)
+  imported_graph_.clear();
+#endif
   arena_count_ = 0;
   entry_ = kInvalidNodeId;
 #if defined(QG_PROJECTION_ROUTER)
@@ -501,6 +510,12 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
       scratch.neighbors.push_back(neighbors[i]);
     }
   }
+#if defined(QG_GRAPH_IMPORT)
+  if (!imported_graph_.rows.empty()) {
+    const auto &row = imported_graph_.rows.at(id);
+    scratch.neighbors.assign(row.begin(), row.end());
+  }
+#endif
 #if defined(QG_LOCAL_COMPLETION)
   // Query-independent local result edges, separate from diverse navigation.
   std::vector<NodeId> local_ids = scratch.neighbors;
@@ -545,7 +560,11 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
   const size_t original_neighbor_count = scratch.neighbors.size();
   // Offline two-hop candidate repair. Fixed row capacity and the exact same
   // query kernel are retained. No query or GT is used during construction.
-  if (QG_AUGMENT == 2 || scratch.neighbors.size() < max_neighbors_) {
+  if ((QG_AUGMENT == 2 || scratch.neighbors.size() < max_neighbors_)
+#if defined(QG_GRAPH_IMPORT)
+      && imported_graph_.rows.empty()
+#endif
+  ) {
     const size_t original = scratch.neighbors.size();
     std::array<NodeId, 512> seen;
     seen.fill(kInvalidNodeId);
@@ -912,6 +931,11 @@ template <class Codec>
 template <class Graph>
 int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
                                     size_t threads) {
+#if defined(QG_GRAPH_IMPORT)
+  if (!imported_graph_.load(std::getenv("QG_GRAPH_IMPORT_FILE"), entity,
+                            doc_cnt, dimension_, max_neighbors_))
+    return IndexError_Mismatch;
+#endif
 #if defined(QG_ROUTER_PROJECTED)
   // Reject incompatible layouts before touching the projected mean or graph.
   if (!compressed_center_ || dimension_ != 768) return IndexError_Mismatch;
@@ -1066,8 +1090,13 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
     }
   }
 
-  // Published under the caller's exclusive lock; searches only
-  // start afterwards, so reads need no synchronization.
+#if defined(QG_GRAPH_IMPORT)
+  if (!imported_graph_.rows.empty() && imported_graph_.entry != entry_)
+    return IndexError_Mismatch;
+#endif
+
+    // Published under the caller's exclusive lock; searches only
+    // start afterwards, so reads need no synchronization.
 #if defined(QG_PROJECTION_ROUTER)
   const int route_rc =
       router_.build(entity, codec_, centroid, doc_cnt, dimension_);

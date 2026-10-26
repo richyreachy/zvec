@@ -1,0 +1,8 @@
+{
+  "native_disabled_matches_historical_queries": 1000,
+  "integer_disabled_matches_historical_queries": 1000,
+  "nearest_imported_adjacency_sha256": "c637494fdd5b513c5b6b46fe72acd35f6ac962d7756b3fa35e6fc27f504f0b6a",
+  "nearest_exported_vectors_match_original": true,
+  "angular_imported_adjacency_sha256": "10ad2c28147f17369c41db4d409330db0e49f692a3cd57e5decc63e17e14a164",
+  "angular_exported_vectors_match_original": true
+}
