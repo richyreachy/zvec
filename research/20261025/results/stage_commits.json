@@ -71,5 +71,12 @@
     "commit": "e924a599253b2f4c9ff9463f03065b2b20cc7fbd",
     "title": "test(qg): evaluate rotated SQ8 centers with interval audits",
     "validation": "8,000 interval and 1,000 anchor checks; 1,000-query full-refine equivalence; negative performance"
+  },
+  {
+    "stage": "11",
+    "commit": "86fe2e910f73e3588c327f9773dfd04da28608f4",
+    "title": "test(qg): evaluate mean-centered SQ8 and projected error bounds",
+    "validation": "Two bound modes each:16000 interval,8000 identity,1000 anchor checks;3000 actual-query audit/full/performance equivalence;28 default regression tests;10 build source manifests verified",
+    "conclusion": "No verified stable25% QPS gain; error and refine-count reductions confirmed"
   }
 ]
