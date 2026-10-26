@@ -1,0 +1,98 @@
+[
+  {
+    "experiment": "screen56_cohere_control_post",
+    "threads": 1,
+    "recall": 0.9032,
+    "qps_median": 32266.00579,
+    "rounds": 3,
+    "rss_gib_median": 9.537330627441406
+  },
+  {
+    "experiment": "screen56_cohere_control_post",
+    "threads": 8,
+    "recall": 0.9032,
+    "qps_median": 236741.3463,
+    "rounds": 3,
+    "rss_gib_median": 9.538642883300781
+  },
+  {
+    "experiment": "screen56_cohere_control_pre",
+    "threads": 1,
+    "recall": 0.9032,
+    "qps_median": 32070.86349,
+    "rounds": 3,
+    "rss_gib_median": 9.534435272216797
+  },
+  {
+    "experiment": "screen56_cohere_control_pre",
+    "threads": 8,
+    "recall": 0.9032,
+    "qps_median": 236307.3349,
+    "rounds": 3,
+    "rss_gib_median": 9.534465789794922
+  },
+  {
+    "experiment": "screen56_cohere_int56_lean3072",
+    "threads": 1,
+    "recall": 0.9036,
+    "qps_median": 33880.57063,
+    "rounds": 3,
+    "rss_gib_median": 7.334297180175781
+  },
+  {
+    "experiment": "screen56_cohere_int56_lean3072",
+    "threads": 8,
+    "recall": 0.9036,
+    "qps_median": 246696.793,
+    "rounds": 3,
+    "rss_gib_median": 7.3349761962890625
+  },
+  {
+    "experiment": "screen56_cohere_int56_pref3072",
+    "threads": 1,
+    "recall": 0.9036,
+    "qps_median": 34384.58926,
+    "rounds": 3,
+    "rss_gib_median": 7.332572937011719
+  },
+  {
+    "experiment": "screen56_cohere_int56_pref3072",
+    "threads": 8,
+    "recall": 0.9036,
+    "qps_median": 248060.8643,
+    "rounds": 3,
+    "rss_gib_median": 7.335323333740234
+  },
+  {
+    "experiment": "screen56_cohere_int56_pref4224",
+    "threads": 1,
+    "recall": 0.9036,
+    "qps_median": 32964.17574,
+    "rounds": 3,
+    "rss_gib_median": 7.334312438964844
+  },
+  {
+    "experiment": "screen56_cohere_int56_pref4224",
+    "threads": 8,
+    "recall": 0.9036,
+    "qps_median": 242598.1806,
+    "rounds": 3,
+    "rss_gib_median": 7.334941864013672
+  },
+  {
+    "experiment": "screen56_cohere_integer_control",
+    "threads": 1,
+    "recall": 0.9036,
+    "qps_median": 34585.10852,
+    "rounds": 3,
+    "rss_gib_median": 7.333351135253906
+  },
+  {
+    "experiment": "screen56_cohere_integer_control",
+    "threads": 8,
+    "recall": 0.9036,
+    "qps_median": 251615.3719,
+    "rounds": 3,
+    "rss_gib_median": 7.3355255126953125
+  }
+]
