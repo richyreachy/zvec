@@ -1,0 +1,3 @@
+algorithm,topk,degree,round,ef,threads,queries,seconds,qps,mean_us,p50_us,p95_us,p99_us,recall,rss_kib,peak_rss_kib,minor_faults,major_faults
+bucket90_w16,10,32,1,800,1,63589,2.00001361,31794.28364,31.30462588,29.37,50.081,58.101,0.9032,9997452,9996616,0,0
+bucket90_w16,10,32,1,800,8,471004,2.000006062,235501.2862,33.73227096,31.6,53.314,63.161,0.9032,9997900,9997512,332,0

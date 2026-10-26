@@ -62,9 +62,67 @@ struct GraphSearchPoolFrontier {
 // The frontier owns stopping rules; estimated scores are never compared to an
 // exact result threshold by this common loop. Results/filtering/completion are
 // policy responsibilities, so excluded nodes can still serve as graph bridges.
+#if defined(QG_EXPAND_BATCH)
+// Experimental relaxed traversal: choose a small frontier batch before
+// expanding it, so independent node loads can overlap. This changes ordering.
+template <class Scan, class Frontier, class Visit>
+int SearchGraphExpansionBatch(Scan &scan, Frontier &frontier, Visit &visit,
+                              GraphSearchScratch &scratch) {
+  static_assert(QG_EXPAND_BATCH >= 1 && QG_EXPAND_BATCH <= 16);
+  while (frontier.has_next()) {
+    uint32_t chosen[QG_EXPAND_BATCH];
+    size_t selected = 0;
+    while (selected < QG_EXPAND_BATCH && frontier.has_next()) {
+      const uint32_t id = frontier.pop();
+      if (visit.visited(id)) continue;
+      visit.set_visited(id);
+      chosen[selected++] = id;
+      scan.prefetch_node(id);
+    }
+    for (size_t item = 0; item < selected; ++item) {
+      const int ret = scan.begin(chosen[item]);
+      if (ret) return ret;
+      const size_t size = scan.neighbor_count();
+      if (!size) continue;
+      const size_t capacity = scan.batch_size();
+      scratch.reserve_batch(capacity);
+      scan.prepare_batch(capacity);
+      for (size_t offset = 0; offset < size; offset += capacity) {
+        const size_t count = std::min(capacity, size - offset);
+        for (size_t i = 0; i < count; ++i) {
+          scratch.ids[i] = scan.neighbor(offset + i);
+          scan.stage(scratch.ids[i], offset + i, i);
+        }
+        const int error = scan.score(offset, scratch.ids.data(), count,
+                                     scratch.distances.data());
+        if (error) return error;
+#if defined(QG_PROFILE)
+        scan.profile_admission_begin();
+#endif
+        for (size_t i = 0; i < count; ++i)
+          if (frontier.accepts(scratch.distances[i]) &&
+              !visit.visited(scratch.ids[i]))
+            frontier.push(scratch.ids[i], scratch.distances[i]);
+#if defined(QG_PREFETCH_BATCH)
+        frontier.prefetch_next();
+#endif
+#if defined(QG_PROFILE)
+        scan.profile_admission_end();
+#endif
+      }
+    }
+  }
+  return 0;
+}
+#endif
+
 template <class Scan, class Frontier, class Visit>
 int SearchGraph(Scan &scan, Frontier &frontier, Visit &visit,
                 GraphSearchScratch &scratch) {
+#if defined(QG_EXPAND_BATCH)
+  if constexpr (Scan::kVisitOnExpansion)
+    return SearchGraphExpansionBatch(scan, frontier, visit, scratch);
+#endif
   while (frontier.has_next()) {
     const uint32_t id = frontier.pop();
     if constexpr (Scan::kVisitOnExpansion) {
@@ -109,6 +167,9 @@ int SearchGraph(Scan &scan, Frontier &frontier, Visit &visit,
           const uint32_t neighbor = scratch.ids[i];
           if (!visit.visited(neighbor)) frontier.push(neighbor, distance);
         }
+#if defined(QG_PREFETCH_BATCH)
+        frontier.prefetch_next();
+#endif
 #if defined(QG_PROFILE)
         scan.profile_admission_end();
 #endif

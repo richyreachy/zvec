@@ -41,13 +41,73 @@ class SymphonyQGBlockQuantizer {
 #endif
   }
   size_t batch_bytes() const {
-    return rabitqlib::QGBatchDataMap<float>::data_bytes(quantized_dim());
+    return rabitqlib::QGBatchDataMap<float>::data_bytes(quantized_dim())
+#if defined(QG_RESIDUAL_TWO_STAGE)
+           * 2
+#endif
+        ;
   }
   void transform(const void *vector, std::vector<float> &out) const {
     rotation_.rotate(vector, out);
   }
   void encode(const float *center, const float *vectors, size_t count,
               char *codes) const {
+#if defined(QG_RESIDUAL_TWO_STAGE)
+#if defined(QG_PROJECT_DIM)
+#error Two-stage prototype requires full transformed dimensions
+#endif
+    const size_t d = encoded_dim(),
+                 bytes = rabitqlib::QGBatchDataMap<float>::data_bytes(d);
+    std::vector<float> residual(count * d), error(count * d), zero(d, 0.f),
+        a1(count), a2(count), scale(count), norm2(count), cent_dot(count);
+    for (size_t i = 0; i < count; ++i) {
+      double l1 = 0;
+      for (size_t j = 0; j < d; ++j) {
+        float r = vectors[i * d + j] - center[j];
+        residual[i * d + j] = r;
+        l1 += std::abs(double(r));
+      }
+      a1[i] = float(l1 / d);
+      l1 = 0;
+      for (size_t j = 0; j < d; ++j) {
+        float r = residual[i * d + j];
+        float e = r - (r > 0 ? a1[i] : -a1[i]);
+        error[i * d + j] = e;
+        l1 += std::abs(double(e));
+      }
+      a2[i] = float(l1 / d);
+      double rr = 0, rh = 0;
+      for (size_t j = 0; j < d; ++j) {
+        double r = residual[i * d + j],
+               h = (r > 0 ? a1[i] : -a1[i]) +
+                   (error[i * d + j] > 0 ? a2[i] : -a2[i]);
+        rr += r * r;
+        rh += r * h;
+      }
+      scale[i] = rh > 0 ? float(rr / rh) : 0;
+      norm2[i] = float(rr);
+      double correction = 0;
+      for (size_t j = 0; j < d; ++j) {
+        double r = residual[i * d + j],
+               h = scale[i] * double((r > 0 ? a1[i] : -a1[i]) +
+                                     (error[i * d + j] > 0 ? a2[i] : -a2[i]));
+        correction += center[j] * (cosine_ ? h - r : 2 * h);
+      }
+      cent_dot[i] = float(correction);
+    }
+    rabitqlib::quant::quantize_qg_batch(residual.data(), zero.data(), count, d,
+                                        codes, rabitqlib::METRIC_L2);
+    rabitqlib::quant::quantize_qg_batch(error.data(), zero.data(), count, d,
+                                        codes + bytes, rabitqlib::METRIC_L2);
+    rabitqlib::QGBatchDataMap<float> first(codes, d), second(codes + bytes, d);
+    for (size_t i = 0; i < count; ++i) {
+      first.f_add()[i] = cent_dot[i] + (cosine_ ? 0.f : norm2[i]);
+      second.f_add()[i] = 0;
+      first.f_rescale()[i] = (cosine_ ? -2.f : -4.f) * scale[i] * a1[i];
+      second.f_rescale()[i] = (cosine_ ? -2.f : -4.f) * scale[i] * a2[i];
+    }
+    return;
+#endif
 #if defined(QG_PROJECT_DIM)
     const size_t qdim = quantized_dim();
     std::vector<float> compact(count * qdim);
@@ -112,6 +172,14 @@ class SymphonyQGBlockQuantizer {
             float *distances) const {
     query.lookup.set_g_add(center_distance);
     ScanSymphonyQGBatch(codes, query.lookup, quantized_dim(), distances);
+#if defined(QG_RESIDUAL_TWO_STAGE)
+    std::array<float, kBatchSize> correction;
+    query.lookup.set_g_add(0);
+    ScanSymphonyQGBatch(
+        codes + rabitqlib::QGBatchDataMap<float>::data_bytes(quantized_dim()),
+        query.lookup, quantized_dim(), correction.data());
+    for (size_t i = 0; i < kBatchSize; ++i) distances[i] += correction[i];
+#endif
   }
 
  private:

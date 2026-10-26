@@ -67,9 +67,13 @@
 #if !defined(QG_ADAPTIVE) && !defined(QG_DEFERRED_COSINE)
 #error Half center experiment requires an exact Top-K stopping state
 #endif
-#if defined(QG_DEFERRED_COSINE) && \
-    (!defined(QG_CENTER_SQ8) || !defined(QG_REANCHOR) || defined(QG_ADAPTIVE))
-#error Deferred cosine requires SQ8, reanchoring, and non-adaptive navigation
+#if defined(QG_DEFERRED_COSINE) && defined(QG_ADAPTIVE) && \
+    !defined(QG_DEFERRED_ADAPTIVE)
+#error Deferred adaptive navigation requires interval upper bounds
+#endif
+#if defined(QG_DEFERRED_ADAPTIVE) && \
+    (!defined(QG_ADAPTIVE) || !defined(QG_DEFERRED_COSINE))
+#error Interval adaptive mode requires deferred cosine and adaptive navigation
 #endif
 #endif
 #if defined(__linux__)
@@ -121,6 +125,9 @@ class QuantizedGraph {
   class LocalVisitSet {
    public:
     void reset(size_t expect) {
+#if defined(QG_VISIT_EXPECT)
+      expect = QG_VISIT_EXPECT;
+#endif
       size_t cap = 64;
       while (cap < expect * 8) cap *= 2;
       if (table_.size() != cap)
@@ -362,6 +369,14 @@ QuantizedGraph<Codec>::QuantizedGraph(size_t dimension, Codec codec,
       codec_(std::move(codec)) {
   cosine_ = cosine;
   stored_center_bytes_ = stored_dimension_ * sizeof(float);
+#if defined(QG_OMIT_COSINE_NORM)
+  // The normalized cosine kernel reads only dimension_ coordinates; its
+  // trailing original-norm field is not used by 1-dot(query, center).
+  if (cosine_) stored_center_bytes_ = dimension_ * sizeof(float);
+#endif
+#if defined(QG_ALIGN_CENTERS)
+  stored_center_bytes_ = (stored_center_bytes_ + 63) & ~size_t{63};
+#endif
 #if defined(QG_CENTER_QUANTIZED)
   compressed_center_ = !cosine;
 #if defined(QG_DEFERRED_COSINE)
@@ -523,6 +538,35 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
       }
       dists[i] = d;
     }
+#if defined(QG_QUANTIZED_PRUNE)
+    // Offline pruning in the score geometry used by one-bit navigation.
+    // rhat preserves r dot rhat = ||r||^2. No queries/GT enter construction.
+    std::vector<float> residuals(cnt * dim), reconstructed(cnt * dim),
+        rotated_center, rotated;
+    codec_.transform(center, rotated_center);
+    for (size_t i = 0; i < cnt; ++i) {
+      codec_.transform(scratch.selection_cache.data() + i * dimension_,
+                       rotated);
+      double norm = 0, l1 = 0;
+      for (size_t j = 0; j < dim; ++j) {
+        float r = rotated[j] - rotated_center[j];
+        residuals[i * dim + j] = r;
+        norm += double(r) * r;
+        l1 += std::abs(double(r));
+      }
+      const float amplitude = l1 > 0 ? float(norm / l1) : 0.f;
+      for (size_t j = 0; j < dim; ++j)
+        reconstructed[i * dim + j] =
+            residuals[i * dim + j] > 0 ? amplitude : -amplitude;
+    }
+    auto estimated_cross_distance = [&](uint32_t query, uint32_t target) {
+      const float *r = residuals.data() + query * dim,
+                  *h = reconstructed.data() + target * dim;
+      float dot = 0;
+      for (size_t j = 0; j < dim; ++j) dot += r[j] * h[j];
+      return dists[query] + dists[target] - 2 * dot;
+    };
+#endif
     std::vector<uint32_t> order(cnt);
     std::iota(order.begin(), order.end(), 0);
     std::sort(order.begin(), order.end(),
@@ -569,7 +613,16 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
 #if defined(QG_AUGMENT) && QG_AUGMENT == 4
         if (original_neighbor_count < kMaxBlockNeighbors) break;
 #endif
-        if (QG_PRUNE_ALPHA * sq_dist(idx, s) < dists[idx]) {
+        if (
+#if defined(QG_QUANTIZED_PRUNE)
+            QG_PRUNE_ALPHA * estimated_cross_distance(idx, s) < dists[idx]
+#if QG_QUANTIZED_PRUNE == 2
+            && QG_PRUNE_ALPHA * sq_dist(idx, s) < dists[idx]
+#endif
+#else
+            QG_PRUNE_ALPHA * sq_dist(idx, s) < dists[idx]
+#endif
+        ) {
           diverse = false;
           break;
         }
@@ -626,7 +679,13 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
 #endif
   } else
 #endif
-    std::copy(center, center + stored_dimension_,
+    std::copy(center,
+              center +
+#if defined(QG_OMIT_COSINE_NORM)
+                  (cosine_ ? dimension_ : stored_dimension_),
+#else
+                stored_dimension_,
+#endif
               const_cast<float *>(block->center()));
   std::copy(scratch.neighbors.begin(), scratch.neighbors.end(),
             const_cast<NodeId *>(block->neighbors()));
@@ -880,6 +939,10 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   auto &beam = state.beam;
   beam.reset(std::max(size_t{1}, results.limit()));
   beam.insert(entry, std::numeric_limits<float>::max());
+#if defined(QG_RESULT_TOPK)
+  // Navigation capacity was already initialized; only exported results shrink.
+  results.limit(ctx.topk());
+#endif
   auto &batch_query = state.query;
   codec_.prepare_query(ctx.query(), batch_query);
 #if defined(QG_PROJECTION_ROUTER)
@@ -1092,6 +1155,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     const NodeId *neighbors = nullptr;
     const char *codes = nullptr;
     float exact = 0;
+#if defined(QG_DEFERRED_ADAPTIVE)
+    float interval_upper = 0;
+#endif
 #if defined(QG_PROFILE)
     uint64_t profile_begin_ns = 0, profile_score_ns = 0, profile_admit_ns = 0,
              profile_edges = 0;
@@ -1112,6 +1178,15 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #if defined(QG_REANCHOR) && defined(QG_CENTER_QUANTIZED)
     float navigation_center = 0;
 #endif
+#if defined(QG_EXPAND_BATCH)
+    void prefetch_node(NodeId id) const {
+      if (id >= index.arena_count_) return;
+      const char *row = reinterpret_cast<const char *>(index.slot(id));
+      const size_t bytes = std::min(index.stride_, size_t{4096});
+      for (size_t offset = 0; offset < bytes; offset += 64)
+        __builtin_prefetch(row + offset, 0, 2);
+    }
+#endif
     int begin(NodeId id) {
 #if defined(QG_PROFILE)
       const auto profile_t = std::chrono::steady_clock::now();
@@ -1129,7 +1204,15 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       // both arena and lazy blocks, so this needs no dependent header load.
       __builtin_prefetch(block, 0, 2);
       const size_t code_offset = codes - reinterpret_cast<const char *>(block);
-      const size_t bytes = std::min(size_t{4096}, index.stride_ - code_offset);
+      const size_t bytes = std::min(
+          size_t{
+#if defined(QG_CODE_PREFETCH_BYTES)
+              QG_CODE_PREFETCH_BYTES
+#else
+              4096
+#endif
+          },
+          index.stride_ - code_offset);
       for (size_t offset = 0; offset < bytes; offset += 64)
         __builtin_prefetch(codes + offset, 0, 2);
 #endif
@@ -1149,10 +1232,17 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
             index.dimension_, block->center_offset, block->center_scale);
 #endif
 #else
+#if defined(QG_DEFERRED_COSINE)
+        exact = HalfCenter::cosine_distance(
+            static_cast<const float *>(ctx.query()),
+            reinterpret_cast<const uint16_t *>(block->center()),
+            index.dimension_);
+#else
         exact = HalfCenter::distance(
             static_cast<const float *>(ctx.query()),
             reinterpret_cast<const uint16_t *>(block->center()),
             index.dimension_);
+#endif
 #endif
 #if defined(QG_REANCHOR)
         navigation_center = exact;
@@ -1161,6 +1251,12 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
         const float lower = SQ8Center::cosine_lower_bound(
             exact, block->center_error, block->center_norm2, query_norm2,
             index.dimension_);
+#if defined(QG_DEFERRED_ADAPTIVE) && \
+    (!defined(QG_DEFERRED_ESTIMATE_STOP) || defined(QG_CENTER_AUDIT))
+        interval_upper =
+            std::nextafter(float(2. * double(exact) - double(lower)),
+                           std::numeric_limits<float>::infinity());
+#endif
         refined = false;
         if (!ctx.excluded(id)) refine_candidates.emplace_back(lower, id);
 #else
@@ -1184,6 +1280,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
         float truth = ctx.reference_distance(audit_raw.data());
 #if defined(QG_DEFERRED_COSINE)
         if (lower > truth) std::abort();
+#if defined(QG_DEFERRED_ADAPTIVE)
+        if (interval_upper < truth) std::abort();
+#endif
 #else
         if (lower > truth ||
             (!refined && !ctx.excluded(id) && truth < stopping->best.back()))
@@ -1204,12 +1303,31 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
                      path->estimate);
 #endif
 #if defined(QG_ADAPTIVE)
+#if defined(QG_DEFERRED_ADAPTIVE)
+#if defined(QG_DEFERRED_ESTIMATE_STOP)
+      // Heuristic navigation threshold; interval bounds still certify terminal
+      // Top-K over expanded nodes, not navigation/global recall.
+      stopping->observe(exact, !ctx.excluded(id));
+#else
+      stopping->observe(index.compressed_center_ ? interval_upper : exact,
+                        !ctx.excluded(id));
+#endif
+#else
       stopping->observe(exact, refined && !ctx.excluded(id));
+#endif
 #endif
 #if defined(QG_CENTER_STATS)
       refined_count += refined;
 #endif
-      if (refined && !ctx.excluded(id)) output.emplace(id, exact);
+      if (refined && !ctx.excluded(id)) {
+#if defined(QG_RESULT_GATE)
+        // StopState has observed this distance. Strictly worse values cannot
+        // belong to the exact Top-K of the expanded set.
+        if (stopping->best.size() < stopping->k ||
+            exact <= stopping->best.back())
+#endif
+          output.emplace(id, exact);
+      }
       ctx.on_expand();
 #if defined(QG_PROFILE)
       profile_begin_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -1407,6 +1525,11 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #else
       beam.insert(id, distance);
 #endif
+#if !defined(QG_PREFETCH_BATCH)
+      prefetch_next();
+#endif
+    }
+    void prefetch_next() {
 #if (defined(__GNUC__) || defined(__clang__)) && \
     !defined(QG_DISABLE_FRONTIER_PREFETCH)
       if (beam.has_next()) {
@@ -1417,8 +1540,15 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
           prefetched = next;
           const char *center =
               reinterpret_cast<const char *>(index.slot(next)->center());
-          const size_t bytes =
-              std::min(size_t{640}, index.stride_ - Block::kCenterOffset);
+          const size_t bytes = std::min(
+              size_t{
+#if defined(QG_PREFETCH_BYTES)
+                  QG_PREFETCH_BYTES
+#else
+                  640
+#endif
+              },
+              index.stride_ - Block::kCenterOffset);
           for (size_t offset = 0; offset < bytes; offset += 64) {
             __builtin_prefetch(center + offset, 0, 2);
           }
@@ -1501,6 +1631,43 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   auto &refine = state.refine_candidates;
   auto &best = state.refine_best;
   std::sort(refine.begin(), refine.end());
+#if defined(QG_REFINE_BATCH)
+  static_assert(QG_REFINE_BATCH >= 1 && QG_REFINE_BATCH <= 16);
+  for (size_t first = 0; first < refine.size(); first += QG_REFINE_BATCH) {
+#if !defined(QG_DEFERRED_FULL)
+    if (best.size() == ctx.topk() && refine[first].first > best.back()) break;
+#endif
+    if (ctx.reach_scan_limit()) break;
+    std::array<typename Graph::Vector, QG_REFINE_BATCH> raw;
+    size_t count = 0;
+    for (; count < QG_REFINE_BATCH && first + count < refine.size(); ++count) {
+      const auto &candidate = refine[first + count];
+#if !defined(QG_DEFERRED_FULL)
+      if (best.size() == ctx.topk() && candidate.first > best.back()) break;
+#endif
+      int ret = entity.get_vector(candidate.second, raw[count]);
+      if (ret) return ret;
+      if (raw[count].data() == nullptr) return IndexError_Mismatch;
+      const char *ptr = static_cast<const char *>(raw[count].data());
+      for (size_t off = 0; off < stored_dimension_ * sizeof(float); off += 64)
+        __builtin_prefetch(ptr + off, 0, 2);
+    }
+    for (size_t i = 0; i < count; ++i) {
+      const auto &candidate = refine[first + i];
+#if !defined(QG_DEFERRED_FULL)
+      if (best.size() == ctx.topk() && candidate.first > best.back()) break;
+#endif
+      if (ctx.reach_scan_limit()) break;
+      const float exact = ctx.distance(raw[i].data());
+      results.emplace(candidate.second, exact);
+      best.insert(std::lower_bound(best.begin(), best.end(), exact), exact);
+      if (best.size() > ctx.topk()) best.pop_back();
+#if defined(QG_CENTER_STATS)
+      ++scan.refined_count;
+#endif
+    }
+  }
+#else
   for (const auto &candidate : refine) {
 #if !defined(QG_DEFERRED_FULL)
     if (best.size() == ctx.topk() && candidate.first > best.back()) break;
@@ -1519,25 +1686,51 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
   }
 #endif
+#endif
 #if defined(QG_TAIL_REFINE)
   // Separate navigation from result collection: after navigation stops,
   // refine remaining frontier candidates without scanning their neighbors.
   // For a fixed navigation trajectory this can only improve exact Top-K
   // distances; it does not guarantee recall under a shorter trajectory.
   size_t tail_count = 0;
+#if defined(QG_TAIL_BATCH)
+#if defined(QG_CENTER_QUANTIZED)
+#error Tail cached-center batch requires FP32 stored centers
+#endif
+  std::vector<NodeId> tail_ids;
+  tail_ids.reserve(std::min(tail_budget, size_t{128}));
+#endif
   while (beam.has_next() && tail_count < tail_budget &&
          !ctx.reach_scan_limit()) {
     const NodeId candidate = beam.pop();
     if (visited.visited(candidate) || !entity.valid(candidate)) continue;
     visited.set_visited(candidate);
     if (ctx.excluded(candidate)) continue;
+#if defined(QG_TAIL_BATCH)
+    tail_ids.push_back(candidate);
+    if (candidate < arena_count_) {
+      const char *raw =
+          reinterpret_cast<const char *>(slot(candidate)->center());
+      for (size_t off = 0; off < stored_center_bytes_; off += 64)
+        __builtin_prefetch(raw + off, 0, 2);
+    }
+#else
     typename Graph::Vector raw;
     const int ret = entity.get_vector(candidate, raw);
     if (ret != 0) return ret;
     if (raw.data() == nullptr) return IndexError_Mismatch;
     results.emplace(candidate, ctx.distance(raw.data()));
+#endif
     ++tail_count;
   }
+#if defined(QG_TAIL_BATCH)
+  for (NodeId candidate : tail_ids) {
+    if (ctx.reach_scan_limit()) break;
+    const Block *node = get_block(entity, candidate);
+    if (!node) return IndexError_Mismatch;
+    results.emplace(candidate, ctx.distance(node->center()));
+  }
+#endif
 #endif
 #if defined(QG_CENTER_STATS)
   static thread_local FILE *center_stats = []() {

@@ -1,0 +1,3 @@
+algorithm,topk,degree,round,ef,threads,queries,seconds,qps,mean_us,p50_us,p95_us,p99_us,recall,rss_kib,peak_rss_kib,minor_faults,major_faults
+result_gate,10,32,0,800,1,58699,2.000019153,29349.21894,33.92616155,31.976,53.454,62.086,0.9032,9981568,9980864,368,0
+result_gate,10,32,0,800,8,453932,2.000003498,226965.603,35.01065084,32.767,55.219,66.354,0.9032,9995860,9995284,3793,0

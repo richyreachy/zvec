@@ -46,6 +46,24 @@ struct HalfCenter {
     }
     return result;
   }
+  __attribute__((target("avx512f,f16c,fma"))) static float cosine_distance(
+      const float *q, const uint16_t *h, size_t n) {
+    __m512 a[4] = {_mm512_setzero_ps(), _mm512_setzero_ps(),
+                   _mm512_setzero_ps(), _mm512_setzero_ps()};
+    size_t i = 0;
+    for (; i + 64 <= n; i += 64)
+      for (size_t lane = 0; lane < 4; ++lane) {
+        const size_t j = i + 16 * lane;
+        const __m256i raw =
+            _mm256_loadu_si256(reinterpret_cast<const __m256i *>(h + j));
+        a[lane] = _mm512_fmadd_ps(_mm512_loadu_ps(q + j), _mm512_cvtph_ps(raw),
+                                  a[lane]);
+      }
+    float dot = _mm512_reduce_add_ps(
+        _mm512_add_ps(_mm512_add_ps(a[0], a[1]), _mm512_add_ps(a[2], a[3])));
+    for (; i < n; ++i) dot += q[i] * _cvtsh_ss(h[i]);
+    return 1.f - dot;
+  }
   // Triangle-inequality interval with conservative floating arithmetic padding.
   // Research implementation assumes finite normal-range data and no overflow.
   static float lower_bound(float approximate, float error, float center_norm2,

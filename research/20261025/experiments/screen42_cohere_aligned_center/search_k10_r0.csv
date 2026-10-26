@@ -1,0 +1,3 @@
+algorithm,topk,degree,round,ef,threads,queries,seconds,qps,mean_us,p50_us,p95_us,p99_us,recall,rss_kib,peak_rss_kib,minor_faults,major_faults
+aligned_center,10,32,0,800,1,58083,2.000024221,29041.1483,34.28935635,32.222,54.32,63.177,0.9032,9981288,9980624,323,0
+aligned_center,10,32,0,800,8,455796,2.000003783,227897.5689,34.85492472,32.487,55.151,65.448,0.9032,9995692,9995144,3820,0

@@ -1,0 +1,3 @@
+algorithm,topk,degree,round,ef,threads,queries,seconds,qps,mean_us,p50_us,p95_us,p99_us,recall,rss_kib,peak_rss_kib,minor_faults,major_faults
+omit_norm,10,32,1,800,1,59349,2.000004672,29674.43068,33.55647526,31.57,53.027,61.806,0.9032,9934576,9933728,0,0
+omit_norm,10,32,1,800,8,465540,2.000019944,232767.6788,34.1313377,31.912,54.248,64.064,0.9032,9935016,9934624,330,0

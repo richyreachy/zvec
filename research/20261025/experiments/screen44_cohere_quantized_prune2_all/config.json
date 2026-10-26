@@ -1,0 +1,29 @@
+{
+  "command": [
+    "taskset",
+    "-c",
+    "0,2,4,6,8,10,12,14",
+    "/home/xingrui/bench/quantized_graph/research_20261025/research_benchmark_nav",
+    "search",
+    "/home/xingrui/bench/quantized_graph/research_20261025/indexes/cohere1m_m50_efc500.index",
+    "symphony_qg",
+    "0",
+    "2",
+    "/home/xingrui/bench/quantized_graph/research_20261025/experiments/screen44_cohere_quantized_prune2_all/search"
+  ],
+  "env": {
+    "LD_LIBRARY_PATH": "/home/xingrui/bench/quantized_graph/research_20261025/variants/quantized_prune2_all:/home/xingrui/bench/quantized_graph/research_20261025/lib",
+    "BENCH_N": "1000000",
+    "BENCH_DATA": "/home/xingrui/bench/dataset/cohere/1m/",
+    "BENCH_TOPK": "10",
+    "BENCH_DEGREE": "32",
+    "BENCH_ROUNDS": "1",
+    "BENCH_EFS": "-1000,0,1000,2000,3000,4000,6000",
+    "BENCH_THREADS": "1,8",
+    "BENCH_QUERY_BEGIN": "0",
+    "BENCH_QUERY_END": "1000",
+    "BENCH_LABEL": "quantized_prune2_all",
+    "BENCH_STOP_GRID": "1",
+    "QG_CAP": "64"
+  }
+}
