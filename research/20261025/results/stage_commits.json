@@ -78,5 +78,12 @@
     "title": "test(qg): evaluate mean-centered SQ8 and projected error bounds",
     "validation": "Two bound modes each:16000 interval,8000 identity,1000 anchor checks;3000 actual-query audit/full/performance equivalence;28 default regression tests;10 build source manifests verified",
     "conclusion": "No verified stable25% QPS gain; error and refine-count reductions confirmed"
+  },
+  {
+    "stage": "12",
+    "commit": "0ff6060b9114de2b0a287ff824ef547aa5d0561e",
+    "title": "test(qg): validate bounded integer center estimates with VNNI",
+    "validation": "8500 integer/formula,16000 interval,8000 query error checks;2000-query audit/full/performance equivalence;28 default tests;7 build manifests verified",
+    "conclusion": "Small candidate advantage; no stable25% gain verified"
   }
 ]
