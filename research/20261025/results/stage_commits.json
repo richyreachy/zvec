@@ -113,5 +113,13 @@
     "title": "test(qg): evaluate database-trained integer entry hierarchy",
     "validation": "16000 integer products;8468 encoded formula checks;13 loader checks;750 actual-model scalar comparisons;28 default tests;1000-query disabled equivalence and1000-query performance/audit/full equivalence;60 timing rows;database-only model training and ID mapping verified",
     "conclusion": "Best routing32,593.81 QPS at90.66% below concurrent integer control34,044.82 at90.36%;expansions reduced24.344 vs30.778 but route cost erases benefit;no25%breakthrough"
+  },
+  {
+    "stage": "17",
+    "commit": "cd64b8d660952a2fdc3ff5f1892019456098750c",
+    "title": "test(qg): compare fixed-tree projected entry routing costs",
+    "validation": "Three dimensions: query codes,8000 integer dots,2875 FP64 formulas,300 scalar routes,500 rotation inner products each;legacy checks;7 incompatible prebuild cases;28 default tests;3000-query audit/full/performance equality;1000-query disabled equality;64 timing rows",
+    "conclusion": "384-dimensional route35,725.54 QPS at90.42%;about11.35% above contemporary frozen controls,butnot25%;onlytwo rounds and no extra-query validation",
+    "provenance": "Timed source predates a prebuild-only compatibility guard;exact removable patch/hash recorded;all post-guard audit/full outputs equal timed outputs"
   }
 ]

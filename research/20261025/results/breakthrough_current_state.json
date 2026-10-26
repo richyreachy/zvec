@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T12:52:24.933475+08:00",
+  "updated_at": "2026-10-26T13:16:02.992110+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -23,7 +23,8 @@
     55,
     56,
     57,
-    59
+    59,
+    60
   ],
   "queued_sequence": [],
   "validation_completed": {
@@ -81,28 +82,40 @@
     "router59_disabled_queries": 1000,
     "router59_audit_full_performance_queries": 1000,
     "router59_screen_query_evaluations": 31000,
-    "router59_timing_rows": 60
+    "router59_timing_rows": 60,
+    "router60_projected_query_codes": 704000,
+    "router60_integer_products": 24000,
+    "router60_fp64_formulas": 8625,
+    "router60_scalar_route_checks": 900,
+    "router60_rotation_dot_checks": 1500,
+    "router60_prebuild_guard_checks": 7,
+    "router60_default_tests": 28,
+    "router60_disabled_queries": 1000,
+    "router60_audit_full_performance_queries": 3000,
+    "router60_screen_query_evaluations": 33000,
+    "router60_timing_rows": 64
   },
-  "latest_source_change": "Stage16 default-off integer hierarchy with anchor export,model validation,batched16 VNNI scores and retained-scale ablation",
+  "latest_source_change": "Stage17 projected integer router256/384/768 and version2 model validation;prebuild-only compatibility guard added after timed source snapshots,exact difference recorded",
   "next_actions": [
-    "Implement controlled projected router from notes/projected_router60_plan.md,keeping trained tree and graph fixed.",
-    "Reuse existing Symphony rotation with separate lightweight projected query codes;check dimension/mean/transform identity and factor d/m only on residual dot.",
-    "Compare384/256 dimensional route scores with768 control,unit scoring,actual audit/full,whole online timing and memory;do not infer speed from expansion counts.",
-    "If no clear improvement,stop tuning this hierarchy;keep extra queries unused until a repeated successful config is frozen;commit each validated stage."
+    "Use notes/learned_rotation61_plan.md: export actual32-edge graph residual training samples with internalID/externalkey/source vectors;no queries orGT for training.",
+    "Split by centerID into train/validation;first test low-cost structured orthogonal/Givens calibration against real graph residuals;check finite-difference gradients and reconstruction identity.",
+    "Only integrate if independent edge distortion improves enough and measured transform cost is small;MSE gains do not guarantee ranking or QPS.",
+    "Stop extending the same routing-tree grid;retain proj60_384 as a candidate,notbreakthrough;paired whole-search timing and extra-query gate remain required.",
+    "Continue committing each meaningful validated stage;learning rotations and butterflies already have prior work,so do not claim novelty without new evidence."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "",
   "diagnostic47": "complete: no timing claims; original scalar full precision oracle lowest passing tested mean expansion27.268 vs30.763 baseline; fine-grid needed before strict optimality conclusions",
   "additional_queries_status": "Self-excluded database-query GT prepared, no graph results evaluated. External normalized query overlap0 atcos>0.999; max0.927826, model provenance still unverified.",
-  "primary_measurement_rows": 1004,
+  "primary_measurement_rows": 1068,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "21554c98e16e2b2d038dfea8a45e9dba862c3568",
-  "stage_commit_count": 16,
-  "extra_document_index_commits": 8,
-  "working_tree_status": "Snapshot at stage16 source commit;index documentation follows",
+  "head": "cd64b8d660952a2fdc3ff5f1892019456098750c",
+  "stage_commit_count": 17,
+  "extra_document_index_commits": 9,
+  "working_tree_status": "Snapshot at stage17 source commit;documentation index follows",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
-  "last_results": "hier59 b1 keep0:32,593.81 QPS/90.66%,expanded24.344,refined13.488;integer control34,044.82/90.36%;beam2/4 slower;no breakthrough",
+  "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
     47,
     51,
@@ -115,5 +128,18 @@
     "bytes": 168585472,
     "training_queries_used": false,
     "primary_queries_used_for_evaluation": true
+  },
+  "latest_routing_candidate": {
+    "variant": "proj60_384",
+    "model": "/home/xingrui/bench/quantized_graph/research_20261025/models60/router384.bin",
+    "sha256": "4067c65c53982c8f6eb8c0ef0785804f643b045dbc774f70d150c58838f6c621",
+    "beam": 1,
+    "keep_scale": false,
+    "margin": 0.02,
+    "recall": 0.9042,
+    "qps_single_two_round_median": 35725.54225,
+    "qps_eight_two_round_median": 258918.37185,
+    "heldout_validated": false,
+    "source_provenance_exception": "results/router60_prebuild_guard_change.json"
   }
 }
