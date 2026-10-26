@@ -1,0 +1,45 @@
+{
+  "synthetic_only": true,
+  "normal_pair_samples": 1000000,
+  "seed": 6704,
+  "mse_minimum": 0.9995210107400827,
+  "mse_fused": 0.7280336580496516,
+  "tails": [
+    {
+      "gap": 0,
+      "minimum_observed": 0.75023,
+      "minimum_formula": 0.75,
+      "fused_observed": 0.7502,
+      "fused_formula": 0.75
+    },
+    {
+      "gap": 0.5,
+      "minimum_observed": 0.522079,
+      "minimum_formula": 0.5218796646488839,
+      "fused_observed": 0.486918,
+      "fused_formula": 0.4869899941449931
+    },
+    {
+      "gap": 1,
+      "minimum_observed": 0.292538,
+      "minimum_formula": 0.29213901826285904,
+      "fused_observed": 0.23026,
+      "fused_formula": 0.22973379815281225
+    },
+    {
+      "gap": 2,
+      "minimum_observed": 0.044765,
+      "minimum_formula": 0.044982695392698835,
+      "fused_observed": 0.015704,
+      "fused_formula": 0.01562254173435601
+    },
+    {
+      "gap": 3,
+      "minimum_observed": 0.002733,
+      "minimum_formula": 0.0026979738385644048,
+      "fused_observed": 0.000177,
+      "fused_formula": 0.00017975469775927122
+    }
+  ],
+  "not_a_model_validation_on_cohere": true
+}

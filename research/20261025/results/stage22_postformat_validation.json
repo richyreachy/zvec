@@ -1,0 +1,27 @@
+{
+  "compile": [
+    "c++",
+    "-O3",
+    "-std=c++17",
+    "-march=native",
+    "-pthread",
+    "-DQG_ROTATION_768=1",
+    "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/multianchor67_probe.cc",
+    "-o",
+    "/home/xingrui/bench/quantized_graph/research_20261025/multianchor67_probe_formatted"
+  ],
+  "run": [
+    "/home/xingrui/bench/quantized_graph/research_20261025/multianchor67_probe_formatted",
+    "/home/xingrui/bench/quantized_graph/research_20261025/models64/full_vectors.f32",
+    "/home/xingrui/bench/quantized_graph/research_20261025/models67/formatted/ids.u32",
+    "/home/xingrui/bench/quantized_graph/research_20261025/models67/formatted"
+  ],
+  "formatted_cpp_prefix_bit_identical_targets": 128,
+  "formatted_python_result_sha256_identical": {
+    "multianchor67_probe.json": "044e9cb33616d92e4bd0e345a2223d65d8b3a532cd6117fd3b5d2bb168e391be",
+    "multianchor67_calibrated.json": "b14893f27495a23f9aaf6bebd21b7f743905ff94e54194d162a2bd09db7b484b",
+    "multianchor67_gaussian_check.json": "9d3f47b974755eb4b29c56261df3326968de137127fe5771959dcd57d31baa8f"
+  },
+  "path_redirect_only_for_isolated_replay": true
+}

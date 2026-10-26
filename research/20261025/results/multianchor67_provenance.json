@@ -1,0 +1,49 @@
+{
+  "source_sha256": {
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/multianchor67_prepare.py": "ed8adf2defa768c30923f26202f58c9dd307dffded0c41049d51456953357a5d",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/multianchor67_probe.cc": "592f2176e70911a1d84a4a5cb0c810f6435ece8bbb1388acb975b51a4f64ff12",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/multianchor67_analyze.py": "b12d081aa780f6025c21619f7d11015d07a61d21332ac755c65afe911e8f9361",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/multianchor67_calibrate.py": "beb38738c12848b7b6f8a5c90e4ffd83a2e900515186306af2b33f52a6e8a4b3",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/multianchor67_gaussian_check.py": "5f649530bb698260c7b002df57aa2cd056c80547482349051264de66576de307",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/graph65_refine.cc": "981d68a7c84e24ea5a1b572dc41ad0af0d5229c3124ae484671421c06027c56e",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src/turbo/preprocessor/symphony_qg_rotator/symphony_qg_rotator.h": "a4efd148aecca3a61709876571f9d9673c0a8c0e5feea51ee580e0e05bf0e105",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src/turbo/distance/common/symphony_qg_kernels.h": "b8737892014456c3345d2979d9592292a3b75997694d004a3902220780376afa"
+  },
+  "binary_sha256": "93a0e9f1d6cf32b5c7a62ac65b526968578e9d17ce12c0282051ad68caacc093",
+  "compile": [
+    "c++",
+    "-O3",
+    "-std=c++17",
+    "-march=native",
+    "-pthread",
+    "-DQG_ROTATION_768=1",
+    "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+    "scripts/multianchor67_probe.cc",
+    "-o",
+    "multianchor67_probe"
+  ],
+  "run": [
+    "./multianchor67_probe",
+    "models64/full_vectors.f32",
+    "models67/ids.u32",
+    "models67"
+  ],
+  "data_sha256": {
+    "models67/moments.f64": "bd1e9ae595ced2319afc3e4f12f6250b01de2d2afcfa83f0a322efa072f1f85a",
+    "models67/ids.u32": "71e3e028cc2ec93843930ceb6fe5772b82c927331701c812d990e2479094e6b1",
+    "models67/split.npz": "d480e68bdc4bff177e82f679523366520ec7a3fe587bba275fc373f3a6207f1e",
+    "models67/error_vectors.f64": "45cbb6fabcfe82ab31cad9e853d685f906cb3b673622e7421348a21071305404",
+    "models67/config.json": "42cfaa029259fda329a53363bf53399237f931b823cf9f6f821f8f0f1f49fa40",
+    "models67/proxy_deltas.f64": "20133bad3299f967022350ba211e9384dd0815d7eb9beee0a5e8be6ba5d96fb8"
+  },
+  "python": "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+  "python_scripts": [
+    "multianchor67_prepare.py",
+    "multianchor67_analyze.py",
+    "multianchor67_calibrate.py",
+    "multianchor67_gaussian_check.py"
+  ],
+  "calibration_initial_failure": "one nonpositive distance/scale;initial log preserved;case retained and probability mass handled explicitly",
+  "primary_queries_or_gt_read": false,
+  "online_algorithm_unchanged": true
+}
