@@ -1,0 +1,48 @@
+{
+  "passed": true,
+  "phase": 81,
+  "stage": 38,
+  "source_directory": "/home/xingrui/bench/quantized_graph/research_20261025/path81_preflight_v1",
+  "replay_directory": "/home/xingrui/bench/quantized_graph/research_20261025/path81_formatted_preflight_v1",
+  "exact_outputs": {
+    "config.json": {
+      "byte_identical": true,
+      "sha256": "843c3a48cf8a371aeeb4fe26ff30ea09a87273fe4e4c8112aa3f320373f6f5fd"
+    },
+    "split.json": {
+      "byte_identical": true,
+      "sha256": "44c462ad9770344d67666a2402402974a0d908888fe1bdb12724b982d5789615"
+    },
+    "training_counts.json": {
+      "byte_identical": true,
+      "sha256": "9faae83d18a032d825725a1bcd4a3fed78d31fe73882c6faa1d14cd456f74c4f"
+    },
+    "centers.json": {
+      "byte_identical": true,
+      "sha256": "8c01f215bfe78acf3599bd0e227eff741f91a72f68a7269a321296ec25010f45"
+    },
+    "training_selected_states.json": {
+      "byte_identical": true,
+      "sha256": "e82d652918bd77b601a44ffe814f7b04dd95600e22c61b24458a62bdd62a2b4b"
+    },
+    "validation_selected_states.json": {
+      "byte_identical": true,
+      "sha256": "ea4c19b58ade5495899ca074c85d51eaeabf4639e0c97899b7b0fb7569121fb0"
+    }
+  },
+  "all_algorithm_and_numerical_result_fields_equal": true,
+  "manifest_only_allowed_changes": [
+    "script_path",
+    "script_sha256"
+  ],
+  "result_only_allowed_changes": [
+    "selection_frozen_manifest_sha256"
+  ],
+  "archived_script_path": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/prepare81_hot_centers.py",
+  "archived_script_sha256": "9ccd5517e94b9444f442c3e8eb06da1c2e8da5382d72fd0e86efd9669f1109f3",
+  "original_script_sha256": "0d0758235fe02042db3ab4905b062632fd16a3aff7209560390db843c2d7e624",
+  "raw_sources_and_evidence_unchanged": true,
+  "scores_GT_not_decoded": true,
+  "training_run": false,
+  "production_sources_modified": false
+}

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/prepare81_hot_centers.py",
+    "--root",
+    "/home/xingrui/bench/quantized_graph/research_20261025",
+    "--output",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_formatted_preflight_v1"
+  ],
+  "archived_source_sha256": "9ccd5517e94b9444f442c3e8eb06da1c2e8da5382d72fd0e86efd9669f1109f3",
+  "root_path_explicitly_supplied": true
+}

@@ -1,0 +1,87 @@
+{
+  "protocol": {
+    "phase": 81,
+    "purpose": "ID-only data availability, not model fitting or effect evaluation",
+    "query_count": 4096,
+    "rng": "numpy.default_rng / PCG64",
+    "seed": 8101,
+    "train_queries": 3072,
+    "validation_queries": 1024,
+    "max_expansion_step_inclusive": 8,
+    "exclude_if_query_id_equals_center_or_any_neighbor": true,
+    "minimum_distinct_train_queries": 64,
+    "maximum_centers": 32,
+    "rank_order": [
+      "distinct_training_query_count_descending",
+      "center_internal_id_ascending"
+    ],
+    "validation_may_change_selection": false,
+    "score_or_GT_read": false,
+    "training_run": false
+  },
+  "inputs": {
+    "trace": {
+      "path": "/home/xingrui/bench/quantized_graph/research_20261025/models68/events.bin",
+      "sha256": "03ed33a889c106748c87d870bdccc7dbfd367d44b8a6b3047dfe8b8ecc01f51b",
+      "bytes": 125133520
+    },
+    "mapping": {
+      "path": "/home/xingrui/bench/quantized_graph/research_20261025/models68/reference_results.bin",
+      "sha256": "0038285c11c0881a111f1330f705e993bae2012343b3503ee9ac629ca6e7c8a9",
+      "bytes": 344096
+    },
+    "graph": {
+      "path": "/home/xingrui/bench/quantized_graph/research_20261025/models64/full_graph.bin",
+      "sha256": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
+      "bytes": 140000032
+    }
+  },
+  "graph_header_u32": [
+    1363625828,
+    1,
+    1000000,
+    768,
+    32,
+    934115,
+    0,
+    0
+  ],
+  "query_mapping_header_u32": [
+    1363624808,
+    1,
+    1000000,
+    768,
+    4096,
+    10,
+    800,
+    6819
+  ],
+  "query_mapping_formula_verified": "(serial*2654435761+6819)%1000000",
+  "script_path": "/home/xingrui/bench/quantized_graph/research_20261025/scripts/prepare81_hot_centers.py",
+  "script_sha256": "0d0758235fe02042db3ab4905b062632fd16a3aff7209560390db843c2d7e624",
+  "frozen_file_sha256": {
+    "config.json": "843c3a48cf8a371aeeb4fe26ff30ea09a87273fe4e4c8112aa3f320373f6f5fd",
+    "split.json": "44c462ad9770344d67666a2402402974a0d908888fe1bdb12724b982d5789615",
+    "training_counts.json": "9faae83d18a032d825725a1bcd4a3fed78d31fe73882c6faa1d14cd456f74c4f",
+    "centers.json": "8c01f215bfe78acf3599bd0e227eff741f91a72f68a7269a321296ec25010f45",
+    "training_selected_states.json": "e82d652918bd77b601a44ffe814f7b04dd95600e22c61b24458a62bdd62a2b4b"
+  },
+  "validation_coverage_computed": false,
+  "score_handling": "No score fields decoded; whole-file SHA hashes only opaque bytes",
+  "trace_read_fields": [
+    "kind1.query",
+    "kind1.kind",
+    "kind1.step",
+    "kind1.source",
+    "kind3.prefix"
+  ],
+  "mapping_read_fields": [
+    "header",
+    "result_record.query_internal_id"
+  ],
+  "graph_read_fields": [
+    "header",
+    "degree",
+    "neighbor_internal_ids"
+  ]
+}

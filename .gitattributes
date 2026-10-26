@@ -13,3 +13,7 @@ research/20261025/results/path80_matched_artifacts/path80_matched_v1/analysis_v1
 research/20261025/results/path80_mechanism_b_queries_v1.csv whitespace=cr-at-eol
 # Captured hook output retains its original final blank line.
 research/20261025/results/path80_matched_artifacts/replay80_matched_formatted_v1/precommit.log whitespace=-blank-at-eof
+
+# Phase81 frozen source-diff context and captured hook-output terminator.
+research/20261025/results/stage38_prepare81_source.diff whitespace=-blank-at-eol,-blank-at-eof
+research/20261025/results/path81_artifacts/formatted_preflight_v1/stage38_precommit_round1.log whitespace=-blank-at-eof

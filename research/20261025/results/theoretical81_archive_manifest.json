@@ -1,0 +1,60 @@
+{
+  "archive_root": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025",
+  "artifacts": [
+    {
+      "archive_sha256": "6bd7de1105966d39a58bb6eabf0f9a649c210f771b80bde1e37f195d187f0e38",
+      "archive_size_bytes": 12462,
+      "bench_sha256": "6bd7de1105966d39a58bb6eabf0f9a649c210f771b80bde1e37f195d187f0e38",
+      "bench_size_bytes": 12462,
+      "relative_path": "notes/theory81_certified_design_review.md"
+    },
+    {
+      "archive_sha256": "d19a1c0a5ae391fd25199402ba5d9890233da1f2f21213a0a0d376373d379214",
+      "archive_size_bytes": 14693,
+      "bench_sha256": "5d70c89dcfc629fbdfe3704e3e62e6cc18af9310baa2fc5f27d6fe1a32018928",
+      "bench_size_bytes": 13751,
+      "relative_path": "scripts/theoretical81_dual_certificate_check.py"
+    },
+    {
+      "archive_sha256": "08d1c30d081b36a51834c5fee0e3453cd25f22e8495dee6c50292029f38f7e81",
+      "archive_size_bytes": 139673,
+      "bench_sha256": "08d1c30d081b36a51834c5fee0e3453cd25f22e8495dee6c50292029f38f7e81",
+      "bench_size_bytes": 139673,
+      "relative_path": "results/theoretical81_dual_certificate_check.json"
+    },
+    {
+      "archive_sha256": "dcb794c0e072b58c4a09381411002788c31acc365295fcea1e536eeb2979442e",
+      "archive_size_bytes": 139704,
+      "bench_sha256": "dcb794c0e072b58c4a09381411002788c31acc365295fcea1e536eeb2979442e",
+      "bench_size_bytes": 139704,
+      "relative_path": "results/theoretical81_dual_certificate_check_archived_replay.json"
+    },
+    {
+      "archive_sha256": "115b745df5d7340454214d388683786d0b3aded226cf0899a675a234013eec47",
+      "archive_size_bytes": 1493,
+      "bench_sha256": "115b745df5d7340454214d388683786d0b3aded226cf0899a675a234013eec47",
+      "bench_size_bytes": 1493,
+      "relative_path": "results/theoretical81_archive_inputs.json"
+    },
+    {
+      "archive_sha256": "c6e948ff5cc215f6df26204b62d4c67c040b580ed3d71a32a598d2f76465a0a6",
+      "archive_size_bytes": 5655,
+      "bench_sha256": "c6e948ff5cc215f6df26204b62d4c67c040b580ed3d71a32a598d2f76465a0a6",
+      "bench_size_bytes": 5655,
+      "relative_path": "results/theoretical81_archive_replay.json"
+    }
+  ],
+  "bench_root": "/home/xingrui/bench/quantized_graph/research_20261025",
+  "explicit_paths": [
+    "notes/theory81_certified_design_review.md",
+    "scripts/theoretical81_dual_certificate_check.py",
+    "results/theoretical81_dual_certificate_check.json",
+    "results/theoretical81_dual_certificate_check_archived_replay.json",
+    "results/theoretical81_archive_inputs.json",
+    "results/theoretical81_archive_replay.json",
+    "results/theoretical81_archive_manifest.json"
+  ],
+  "self_hash_omitted": true,
+  "stage_or_commit_performed": false,
+  "status": "sealed"
+}
