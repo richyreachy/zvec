@@ -204,5 +204,12 @@
     "title": "test(qg): validate conditional ranking risk against heldout proxies",
     "validation": "2048 fresh centers;16 fitting/16 heldout proxies;two fixed16-pair families;four actual codecs8388608 scores;262144 joint-gap distribution predictions;4194304 heldout binary events;256 independent CDF integrations,7 angular and9 degenerate checks;fit/heldout isolation;full formatted replay byte-identical;input/library/source hashes verified",
     "conclusion": "Gaussian Brier improves4.28%-4.49% over frequency/Jeffreys baselines with positive paired intervals,but all below prespecified5%gate;tail miscalibration and loose moment bound. Stop current small-sample Gaussian training target. No production changes,new QPS or recall;1310 rows;no breakthrough."
+  },
+  {
+    "stage": "29",
+    "commit": "20df8adf026f890a937b4fb79becd957cf4dcca7",
+    "title": "test(qg): verify coupled sign-code updates and fastscan compatibility",
+    "validation": "9591 finite-flip deltas;radial and centered/pair identities;122 monotone synthetic updates;25600 isotropic flip checks and100 unchanged optima;218112 native packed bits;21120 independent scalar LUT/FMA bit-identical scores;356 padded lanes;zero/invalid denominator cases;formatted replay reproduces both initial1ULP failures and final success;source/library hashes verified",
+    "conclusion": "Coupled offline sign-code objective and arbitrary-sign codec feasible in existing3328-byte layout. Initial scalar reference missed frozen kernel FMA contraction;corrected reference passes without changing production code. No Cohere training,new QPS/Recall or breakthrough;1310 timing rows. Phase74 fixed fresh-center actual ranking gate planned."
   }
 ]
