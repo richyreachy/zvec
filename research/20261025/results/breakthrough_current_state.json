@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T15:23:32.045805+08:00",
+  "updated_at": "2026-10-26T15:39:33.447521+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -134,15 +134,25 @@
     "graph65_control_query_checks": 8000,
     "graph65_audit_full_query_checks": 6000,
     "graph65_source_manifests": 7,
-    "graph65_formatted_pilot_bit_identical_rows": 4096
+    "graph65_formatted_pilot_bit_identical_rows": 4096,
+    "multianchor67_targets": 8192,
+    "multianchor67_database_proxy_queries": 32768,
+    "multianchor67_validation_targets": 2048,
+    "multianchor67_norm_optima": 8192,
+    "multianchor67_dense_grid_optima": 1000,
+    "multianchor67_distance_intervals": 32768,
+    "multianchor67_gaussian_pairs": 1000000,
+    "multianchor67_formatted_cpp_targets": 128,
+    "multianchor67_formatted_python_result_hashes": 3
   },
-  "latest_source_change": "Stage21 default-off strict adjacency importer;1M-node two-pass nearest/angular graphs and full paired search validated.",
+  "latest_source_change": "Production research source remains stage21 adjacency importer;stage22 adds offline mathematical probes only.",
   "next_actions": [
-    "User prioritizes mathematical contributions:derive shared-target multi-anchor error geometry and test covariance/fusion on database proxies;do not claim classical GLS or multiple estimates as novelty.",
-    "Original SymphonyQG already uses multiple estimates for optimistic exploration;lower MSE alone may harm recall/stopping,as stage62 showed.",
-    "Measure actual duplicate estimate availability before any online fusion;conditioned/adaptive selection and correlated errors invalidate naive independent trials.",
-    "Use graph_refinement66_plan.md if topology-vs-quantization diagnosis is needed;retain angular integer graph as small-gain candidate,stop nearest margin grid.",
-    "Do not declare25%breakthrough;repeat timing and extra-query acceptance remain required."
+    "Prioritize actual database-proxy search traces for multi-anchor estimates before expansion;measure availability/timing and conditional error correlation,not arbitrary incoming pairs.",
+    "Use original graph/bucket90_w16 initially,Top10/cap64/ef800/margin.02;trace is default-off and not timed;verify identical outputs disabled/enabled. No primary GT training.",
+    "Evaluate low-cost error-scale metadata and calibrated exploration score only if real repeat opportunities and ranking/tail evidence justify;exact offline Gram/error vectors are not free online.",
+    "Do not infer QPS from30.72%proxy MSE improvement;classical fusion/normal thresholds and original multiple-estimate scheme are prior art;novelty not established.",
+    "Phase66 topology oracle plan remains unexecuted;angular65 integer graph is small-gain candidate;proj60_384 remains historical best candidate,neither has25%acceptance.",
+    "Complete repeated timing,correctness,extra-query validation before any breakthrough claim;commit each validated stage."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "",
@@ -151,9 +161,9 @@
   "primary_measurement_rows": 1224,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "dccde959919edcd51b55d1cd9cd2f4dd405694d1",
-  "stage_commit_count": 21,
-  "extra_document_index_commits": 13,
+  "head": "a7ae7961ac089dffa49b358f7831eeb275a88a9d",
+  "stage_commit_count": 22,
+  "extra_document_index_commits": 14,
   "working_tree_status": "",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
@@ -163,7 +173,8 @@
     58,
     61,
     63,
-    64
+    64,
+    67
   ],
   "diagnostic58": "complete:17 configurations, no timing rows;full-dimensional scans and5 extra exact distances explicitly accounted;entry headroom supports low-cost router investigation",
   "router59_model": {
@@ -198,7 +209,7 @@
     "whole_search_gain": false
   },
   "diagnostic63": "Complete database-only two-parameter probe:6.02% local MSE gain;75 flips improve,70 worsen,paired interval crosseszero;unit endpoint bias coefficient0.05728 persists;not integrated.",
-  "latest_phase_result": "Phase65 adds64 timing rows,total1288. Angular integer graph35,254.85/256,623.57 QPS at90.10%,about9.68%/8.54% vs contemporary frozen baseline. No25%breakthrough;two rounds,no extraqueries. User steers toward mathematical basis.",
+  "latest_phase_result": "Mathematical branch67:calibrated fusion30.72%proxy MSE improvement vs minimum at similar marginal overestimate rate;no actual path or online retrieval test. Retrieval timing count remains1288;major breakthrough unverified.",
   "diagnostic64": "Complete candidate preparation only:1M database queries,200M candidate pairs;8-thread search time41.1757s;new refined graph not built or searched. Failed unbounded-bucket configuration preserved,not counted as performance.",
   "graph64_inputs": {
     "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
@@ -256,5 +267,93 @@
     "primary_tuned": true,
     "rounds_per_candidate": 2,
     "breakthrough_verified": false
-  }
+  },
+  "multianchor67_result": {
+    "nonpositive_estimated_distance_cases": 1,
+    "zero_scale_handling": "Keep original fused score;its error is nonpositive;include every case in validation and adjust training quantile mass.",
+    "training_targets": 6144,
+    "validation_targets": 2048,
+    "lambda_fitted_only_on_training_targets": 0.5903141882326695,
+    "training_minimum_overestimate_fraction": 0.2567952473958333,
+    "validation_minimum_overestimate_fraction": 0.2606201171875,
+    "validation_calibrated_overestimate_fraction": 0.2626953125,
+    "overestimate_rate_difference_cluster_bootstrap95": [
+      -0.0056854248046874995,
+      0.009527587890624994
+    ],
+    "validation_minimum_mse": 6.355317669015149e-05,
+    "validation_calibrated_mse": 4.402874749157499e-05,
+    "relative_validation_mse_gain_vs_minimum": 0.3072140562503479,
+    "relative_gain_target_bootstrap95": [
+      0.2877999896489512,
+      0.32593429416694514
+    ],
+    "validation_calibrated_bias": -0.0034445840189082926,
+    "synthetic_threshold_decisions": [
+      {
+        "gap_in_reference_sigma": 0,
+        "minimum_accept_fraction": 0.7393798828125,
+        "calibrated_accept_fraction": 0.7373046875
+      },
+      {
+        "gap_in_reference_sigma": 0.5,
+        "minimum_accept_fraction": 0.4908447265625,
+        "calibrated_accept_fraction": 0.4366455078125
+      },
+      {
+        "gap_in_reference_sigma": 1,
+        "minimum_accept_fraction": 0.2532958984375,
+        "calibrated_accept_fraction": 0.177001953125
+      },
+      {
+        "gap_in_reference_sigma": 2,
+        "minimum_accept_fraction": 0.0291748046875,
+        "calibrated_accept_fraction": 0.005615234375
+      },
+      {
+        "gap_in_reference_sigma": 3,
+        "minimum_accept_fraction": 0.001220703125,
+        "calibrated_accept_fraction": 0.0
+      }
+    ],
+    "independent_gaussian_model": {
+      "same_threshold_false_rejection_rate": 0.25,
+      "normal_quantile": 0.6744897501960817,
+      "mean_lcb_mse_over_sigma2": 0.7274682115597864,
+      "minimum_mse_over_sigma2": 1,
+      "gap_examples": [
+        {
+          "gap_sigma": 0,
+          "minimum_accept_probability": 0.75,
+          "mean_lcb_accept_probability": 0.75
+        },
+        {
+          "gap_sigma": 0.5,
+          "minimum_accept_probability": 0.5218796646488839,
+          "mean_lcb_accept_probability": 0.4869899941449931
+        },
+        {
+          "gap_sigma": 1,
+          "minimum_accept_probability": 0.29213901826285904,
+          "mean_lcb_accept_probability": 0.22973379815281225
+        },
+        {
+          "gap_sigma": 2,
+          "minimum_accept_probability": 0.044982695392698835,
+          "mean_lcb_accept_probability": 0.01562254173435601
+        },
+        {
+          "gap_sigma": 3,
+          "minimum_accept_probability": 0.0026979738385644048,
+          "mean_lcb_accept_probability": 0.00017975469775927122
+        }
+      ]
+    },
+    "no_online_cooccurrence_or_ranking_verification": true,
+    "no_anytime_or_conditional_risk_guarantee": true,
+    "geometry_coefficient_cost_not_implemented_online": true,
+    "proxy_not_external_query_distribution": true,
+    "no_qps_or_recall_claim": true
+  },
+  "phase66_status": "planned,not run;user prioritizes mathematical direction"
 }

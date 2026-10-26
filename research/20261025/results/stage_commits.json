@@ -150,5 +150,13 @@
     "title": "test(qg): compare full graph refinement with nearest and angular completion",
     "validation": "1M rows per graph;64 independently reconstructed rows per pilot/full;1000 scalar distance checks;1280 importer neighbors and21 rejection assertions;28 default tests;2000 disabled-query matches;two full export hashes;12000 candidate round and8000 control query matches;6000 audit/full query matches;7 source manifests;64 timing rows;postformat pilot bit identity",
     "conclusion": "Angular integer graph90.10% recall:35254.85/256623.57 QPS(1/8threads),about9.68%/8.54% above contemporary frozen FP32 control,not25%. Nearest completion loses. Two candidate rounds only,no extra-query acceptance."
+  },
+  {
+    "stage": "22",
+    "commit": "a7ae7961ac089dffa49b358f7831eeb275a88a9d",
+    "title": "test(qg): derive multi-anchor error geometry and calibrate exploration scores",
+    "validation": "8192 actual target/incoming-edge pairs,32768 database proxies;FP64 algebra,8192 norm minima,1000 dense-grid weights,32768 distance intervals;6144/2048 target split;1M Gaussian pairs;formatted128-target C++ byte identity and3 identical Python result hashes",
+    "conclusion": "Geometry fusion reduces proxy MSE49.55% vs first estimate but loses minimum-score optimism. Training-calibrated margin yields30.72% validation MSE gain vs minimum,overestimate26.27% vs26.06%;synthetic threshold tails improve. No online cooccurrence,ranking,recall/QPS or novelty proof.",
+    "failure_preserved": "Initial scalar calibration rejected one nonpositive distance;fixed explicit zero-scale mass handling retains every case;original failure log saved."
   }
 ]
