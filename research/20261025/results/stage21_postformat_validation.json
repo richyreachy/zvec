@@ -1,0 +1,65 @@
+{
+  "commands": [
+    [
+      "c++",
+      "-O3",
+      "-std=c++17",
+      "-march=native",
+      "-pthread",
+      "-UNDEBUG",
+      "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+      "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/graph65_import_test.cc",
+      "-o",
+      "/home/xingrui/bench/quantized_graph/research_20261025/graph65_import_test_formatted"
+    ],
+    [
+      "/home/xingrui/bench/quantized_graph/research_20261025/graph65_import_test_formatted"
+    ],
+    [
+      "c++",
+      "-O3",
+      "-std=c++17",
+      "-march=native",
+      "-pthread",
+      "-UNDEBUG",
+      "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+      "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/graph65_geometry_test.cc",
+      "-o",
+      "/home/xingrui/bench/quantized_graph/research_20261025/graph65_geometry_test_formatted"
+    ],
+    [
+      "/home/xingrui/bench/quantized_graph/research_20261025/graph65_geometry_test_formatted"
+    ],
+    [
+      "c++",
+      "-O3",
+      "-std=c++17",
+      "-march=native",
+      "-pthread",
+      "-UNDEBUG",
+      "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+      "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/graph65_refine.cc",
+      "-o",
+      "/home/xingrui/bench/quantized_graph/research_20261025/graph65_refine_formatted"
+    ],
+    [
+      "/home/xingrui/bench/quantized_graph/research_20261025/graph65_refine_formatted",
+      "/home/xingrui/bench/quantized_graph/research_20261025/models64",
+      "/home/xingrui/bench/quantized_graph/research_20261025/models65/pilot_formatted",
+      "4096",
+      "8",
+      "1"
+    ]
+  ],
+  "formatted_unit_checks_pass": true,
+  "formatted_pilot_matches_all_original_outputs": 4096,
+  "source_manifests_match": {
+    "graph65_native": 18,
+    "graph65_integer": 18,
+    "graph65_exportcheck": 18,
+    "stage65_default": 18,
+    "graph65_native_audit": 18,
+    "graph65_integer_audit": 18,
+    "graph65_integer_full": 18
+  }
+}

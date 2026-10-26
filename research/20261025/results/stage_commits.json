@@ -143,5 +143,12 @@
     "validation": "Full1M-node coordinate/key mapping;200M legal unique nonself candidate pairs;819200 pilot and204800 additional FP64 distance checks;4096-query prefix and export-disabled byte equality;5376 exporter coordinates and14 rejection assertions;28 default tests;4 source manifests;1500 exhaustive geometry cases",
     "conclusion": "Full database-only candidate generation completed in41.18s search time with8 threads;offline cost,not Top10 QPS. Nonmonotone sequential angular-pruning counterexample verified;farthest-first coverage guarantee scoped locally. New refined graph and retrieval tests pending phase65.",
     "failure_preserved": "Initial unbounded bucket without adaptive stopping explicitly terminated after source diagnosis;new bounded-beam variant completed;failure artifacts retained."
+  },
+  {
+    "stage": "21",
+    "commit": "dccde959919edcd51b55d1cd9cd2f4dd405694d1",
+    "title": "test(qg): compare full graph refinement with nearest and angular completion",
+    "validation": "1M rows per graph;64 independently reconstructed rows per pilot/full;1000 scalar distance checks;1280 importer neighbors and21 rejection assertions;28 default tests;2000 disabled-query matches;two full export hashes;12000 candidate round and8000 control query matches;6000 audit/full query matches;7 source manifests;64 timing rows;postformat pilot bit identity",
+    "conclusion": "Angular integer graph90.10% recall:35254.85/256623.57 QPS(1/8threads),about9.68%/8.54% above contemporary frozen FP32 control,not25%. Nearest completion loses. Two candidate rounds only,no extra-query acceptance."
   }
 ]
