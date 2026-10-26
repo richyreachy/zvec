@@ -1,0 +1,1 @@
+low-rank identity/span/LUT checks=3840 worst_identity=1.14312e-05 worst_lut=0.0409895 passed
