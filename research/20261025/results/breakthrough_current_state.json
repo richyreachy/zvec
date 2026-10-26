@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T17:50:09.584903+08:00",
+  "updated_at": "2026-10-26T18:01:14.948770+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -180,14 +180,24 @@
     "rank70_training_steps_total": 1800,
     "rank70_actual_codec_validation_queries_per_model": 8192,
     "rank70_simd_scalar_coordinates": 2304000,
-    "rank70_formatted_replay_identical": true
+    "rank70_formatted_replay_identical": true,
+    "local71_new_centers": 2048,
+    "local71_heldout_proxies": 32768,
+    "local71_actual_codec_scores": 8388608,
+    "local71_candidate_gap_checks": 2097152,
+    "local71_rotation_vectors": 133120,
+    "local71_label_isolation_checked": true,
+    "local71_gaussian_synthetic_queries": 2400000,
+    "local71_formatted_full_replay_identical": true
   },
   "latest_source_change": "Stage24 default-off QG_FUSION addsFP16 edge error norms,bounded2048-slot cache,and versioned bucket;FP32/cosine768/degree32 only;disabled outputs preserve frozen baseline.",
   "next_actions": [
-    "Execute frozen notes/local_rotation71_plan.md:2048 new centers, fixed four-model bank;16 selection and16 separate validation database proxies per center.",
-    "Require at least10%relative heldout actual batch-top1 error reduction with paired center95%lower positive;otherwise stop this local bank branch.",
-    "No primary/extraquery GT for frame selection. Report shared endpoints and posthoc origins;no IID or novelty claim.",
-    "Only after gate passes consider fullgraph selection and all four query-transform/LUT costs;historical proj60_384 remains best candidate,not accepted25%breakthrough."
+    "Stop fixed global/local rotation-bank expansion:phase70 fails5%gate and phase71 fails10%gate. No seed or proxy-position retuning.",
+    "Before further training,freeze a fresh-center diagnostic of conditional pairwise risk prediction:fit only selection proxies,assess calibration and heldout predictive error against empirical-rate baseline on separate proxies.",
+    "Candidate pairs must be fixed before seeing evaluated queries;otherwise e depends on query and fixed-pair covariance identity/bounds do not directly apply.",
+    "Test nonvacuity of distribution-free margin/second-moment bound and validity of Gaussian joint-gap approximation;account for actual LUT/FP32 residual and scarce/dependent local proxies. Do not treat formulas as proven Cohere models.",
+    "Only predictive improvements justify a new offline quantizer objective;include all online transforms/LUT costs if later integrated. No primary/extra-query GT for training or model choice.",
+    "A publication requires literature review beyond AVQ/LOPQ abstracts,algorithmic novelty,full-search ablations and multiple datasets. Historical proj60_384 remains best candidate,not accepted25%breakthrough."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "",
@@ -196,10 +206,10 @@
   "primary_measurement_rows": 1310,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "573be4f24fbe5f36feeb4b453f340771133ced07",
-  "stage_commit_count": 26,
-  "extra_document_index_commits": 18,
-  "working_tree_status": "stage26 committed;documentation index follows",
+  "head": "eaa242645f853a53d61aa67f9060a47c7f1dad5a",
+  "stage_commit_count": 27,
+  "extra_document_index_commits": 19,
+  "working_tree_status": "stage27 committed;documentation index follows",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -213,7 +223,8 @@
     68,
     69,
     66,
-    70
+    70,
+    71
   ],
   "diagnostic58": "complete:17 configurations, no timing rows;full-dimensional scans and5 extra exact distances explicitly accounted;entry headroom supports low-cost router investigation",
   "router59_model": {
@@ -248,7 +259,7 @@
     "whole_search_gain": false
   },
   "diagnostic63": "Complete database-only two-parameter probe:6.02% local MSE gain;75 flips improve,70 worsen,paired interval crosseszero;unit endpoint bias coefficient0.05728 persists;not integrated.",
-  "latest_phase_result": "Phase70:all three global rank-trained rotations fail gate;actual Top1 errors1853 baseline vs1879/1904/1898 out of8192. Posthoc local leave-one-out gain0.86%,CI crosses zero. Zero new retrieval timing rows;1310 cumulative.",
+  "latest_phase_result": "Phase71:local selection training proxies22.89%->17.74%,heldout23.2452%->23.1781%;relative0.29%,CI[-0.90%,1.47%];fails10%gate,branch stopped. Pairwise risk formulas verified under synthetic assumptions only. Zero new retrieval rows;1310 cumulative.",
   "diagnostic64": "Complete candidate preparation only:1M database queries,200M candidate pairs;8-thread search time41.1757s;new refined graph not built or searched. Failed unbounded-bucket configuration preserved,not counted as performance.",
   "graph64_inputs": {
     "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
@@ -768,7 +779,7 @@
     "metadata_bytes_per_edge": 2,
     "fixed_graph_entry_degree_cap_ef": true
   },
-  "latest_research_stage": "Stage26 rejects global ranking-trained rotations after actual-codec validation;no production source changes.",
+  "latest_research_stage": "Stage27 rejects local fixed bank on fresh centers;derives and verifies conditional pairwise ranking risk;no production source changes.",
   "graph66_result": {
     "phase": 66,
     "executed_after_phase69": true,
@@ -2364,5 +2375,111 @@
     "local_queries_not_independent": true,
     "oracles_not_deployable": true,
     "no_retrieval_qps_or_recall_claim": true
+  },
+  "local71_result": {
+    "config": {
+      "centers": 2048,
+      "neighbors": 32,
+      "queries_per_center": 32,
+      "selection_queries_per_center": 16,
+      "validation_queries_per_center": 16,
+      "center_seed": 7101,
+      "proxy_seed": 7102,
+      "models": [
+        "baseline",
+        "70",
+        "71",
+        "72"
+      ],
+      "ties": "baseline first then seed order; truth distance tolerance1e-7",
+      "candidate_position_bins": [
+        [
+          0,
+          49
+        ],
+        [
+          50,
+          99
+        ],
+        [
+          100,
+          149
+        ],
+        [
+          150,
+          199
+        ]
+      ],
+      "queries_per_bin": 8,
+      "selection_first_four_per_bin": true,
+      "minimum_eligible_queries_in_bin": 19,
+      "old_centers_excluded": 8192,
+      "new_centers_disjoint_from_phase70": true,
+      "selection_validation_queries_disjoint_within_center": true,
+      "unique_selection_query_ids": 26819,
+      "unique_validation_query_ids": 26898,
+      "shared_query_ids_across_center_folds": 3798,
+      "shared_any_vector_ids_with_phase70": 40106,
+      "primary_or_extra_query_files_read": false,
+      "gt_files_read": false,
+      "local_queries_not_iid": true,
+      "proxy_pool_is_approximate_not_exact_top200": true,
+      "fixed_models_no_training": true,
+      "gate": {
+        "relative_validation_top1_error_reduction": 0.1,
+        "paired_center_bootstrap95_lower_positive": true,
+        "bootstrap_seed": 7171,
+        "bootstrap_samples": 4000
+      },
+      "no_retrieval_qps_or_recall_claim": true
+    },
+    "selection_validation_label_isolation_checked": true,
+    "baseline_first_ties_checked": true,
+    "validation_queries": 32768,
+    "baseline_validation_errors": 7617,
+    "selected_validation_errors": 7595,
+    "baseline_validation_error_rate": 0.232452392578125,
+    "selected_validation_error_rate": 0.231781005859375,
+    "relative_error_reduction": 0.002888276224235263,
+    "paired_center_bootstrap95": [
+      -0.009036768666794946,
+      0.01471007265078342
+    ],
+    "quality_gate_passed": false,
+    "selected_frame_counts": [
+      957,
+      511,
+      337,
+      243
+    ],
+    "centers_better_equal_worse": [
+      405,
+      1269,
+      374
+    ],
+    "baseline_selection_error_rate": 0.22894287109375,
+    "selected_selection_error_rate": 0.177398681640625,
+    "fixed_model_validation_error_rates": {
+      "baseline": 0.232452392578125,
+      "70": 0.231689453125,
+      "71": 0.23529052734375,
+      "72": 0.232696533203125
+    },
+    "validation_per_center_oracle_error_rate_not_deployable": 0.177215576171875,
+    "selection_ties": 1035,
+    "truth_ties_selection": 0,
+    "truth_ties_validation": 0,
+    "not_iid_blind_external_query_validation": true,
+    "actual_codec_fp32_rotations_used": true,
+    "full_search_integration": false,
+    "new_retrieval_timing_rows": 0,
+    "cumulative_retrieval_timing_rows": 1310,
+    "no_qps_or_recall_claim": true
+  },
+  "local71_math_summary": {
+    "conditional_gaussian_cases": 24,
+    "gaussian_queries": 2400000,
+    "not_claimed_novel": true,
+    "cohere_gaussian_assumption_tested": false
   }
 }
