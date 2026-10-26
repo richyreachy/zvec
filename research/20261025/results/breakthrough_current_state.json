@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T18:29:15.392398+08:00",
+  "updated_at": "2026-10-26T18:47:46.432709+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -205,16 +205,24 @@
     "coupled73_native_packed_bits": 218112,
     "coupled73_scalar_lut_fma_bit_identical_scores": 21120,
     "coupled73_padding_lanes": 356,
-    "coupled73_formatted_failure_and_success_replay_identical": true
+    "coupled73_formatted_failure_and_success_replay_identical": true,
+    "coupled74_new_centers": 2048,
+    "coupled74_heldout_proxy_queries": 32768,
+    "coupled74_monotone_updates": 524097,
+    "coupled74_actual_codec_scores": 6291456,
+    "coupled74_scalar_lut_fma_bit_identical_scores": 196608,
+    "coupled74_all_histories_scales_budgets_checked": true,
+    "coupled74_full_formatted_training_replay_byte_identical": true
   },
   "latest_source_change": "Stage24 default-off QG_FUSION addsFP16 edge error norms,bounded2048-slot cache,and versioned bucket;FP32/cosine768/degree32 only;disabled outputs preserve frozen baseline.",
   "next_actions": [
-    "Execute frozen notes/coupled_code74_plan.md on2048 fresh centers excluding phase70/71/72:16 build and16 heldout proxies,original32 edges and original Symphony rotation.",
-    "One fixed optimizer:Q=build query residuals/sqrt16,lambda=trace(QTQ)/768,two sweeps,max4accepted flips per edge per sweep,alpha<=1.02baseline;actual recomputed objective must strictly descend. Preserve zero residuals and all samples.",
-    "Use actual native codec,FP64-factor original-sign precision control,and learned arbitrary-sign codec;no new query transform or code length. Require actual heldout block Top1 error at least10%lower than native baseline and center paired95%lower>0.",
-    "Save all signs,accepted lane/bit/objective histories,scale and cost;optimizer must not read heldout proxies or primary/extra query GT. Do not retune regularization,budget,scale on validation failure.",
-    "Only if gate passes perform fresh-center coupled-vs-independent ablation and cross-block score-bias checks;block common error cancels locally but can affect global queue. Fullgraph/search integration still unproven.",
-    "Keep failed rotation-bank and current Gaussian-risk training branches stopped. Historical proj60_384 remains best QPS candidate,not accepted25%breakthrough."
+    "Execute frozen notes/coupled_code75_plan.md before fullgraph integration;do not change phase74 optimizer parameters or reinterpret local Top1 as Recall@10/QPS.",
+    "First validate a new coupled75 math module:independent loss usesA=M+lambdaI,g=Ar;coupled path must exactly match frozen phase74;finite deltas vs direct objective on PSD/lowrank/degenerate cases.",
+    "Then2048 new centers excluding phase70/71/72/74(14336),seeds7501/7502;native,precision control,coupled and independent objectives;identical16build/16heldout proxies,lambda,budget andscale.",
+    "Pair centers geometrically into1024 disjoint pairs;sample16 new cross-block proxies per pair from union candidate pools excluding both centers,neighbors,and all local build/validation proxies,seed7503. No query labels for pairing/sampling.",
+    "Evaluate actual scores on same-query two-block candidate union,with duplicates keeping first-seen scores under both block orders. Each target must pass10%relative actual Top1 improvement with paired95%lower>0 for singleblock and both crossblock orders.",
+    "Only passing objectives eligible for fullgraph feasibility;choose lower combined crossblock errors,exact tie prefers independent. This is frozen model-selection diagnostic,not external blind validation. No primary/extra GT used.",
+    "If passing,measure offline build cost and integrate a default-off frozen model;full Cohere QPS/Recall repeated timing and extra-query acceptance remain required. Historical proj60_384 remains best QPS candidate,not accepted25%breakthrough."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "",
@@ -223,10 +231,10 @@
   "primary_measurement_rows": 1310,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "20df8adf026f890a937b4fb79becd957cf4dcca7",
-  "stage_commit_count": 29,
-  "extra_document_index_commits": 21,
-  "working_tree_status": "stage29 committed;documentation index follows",
+  "head": "5b81025a9a4572750d73035f3d3eb6d376884625",
+  "stage_commit_count": 30,
+  "extra_document_index_commits": 22,
+  "working_tree_status": "stage30 committed;documentation index follows",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -243,7 +251,8 @@
     70,
     71,
     72,
-    73
+    73,
+    74
   ],
   "diagnostic58": "complete:17 configurations, no timing rows;full-dimensional scans and5 extra exact distances explicitly accounted;entry headroom supports low-cost router investigation",
   "router59_model": {
@@ -278,7 +287,7 @@
     "whole_search_gain": false
   },
   "diagnostic63": "Complete database-only two-parameter probe:6.02% local MSE gain;75 flips improve,70 worsen,paired interval crosseszero;unit endpoint bias coefficient0.05728 persists;not integrated.",
-  "latest_phase_result": "Phase73:mathematical finite updates and same3328-byte actual-codec compatibility pass. Reference1ULP mismatch traced to frozen kernel FMA contraction;reference fixed,no production changes. No Cohere optimization,new QPS/Recall;1310 timing rows.",
+  "latest_phase_result": "Phase74:actual heldout block Top1 error22.9675%->19.2810%,relative16.05%,CI[14.46%,17.65%],passes10%offline gate;precision control unchanged. Common score error squared+7.46%,requires independent ablation and crossblock verification. No fullsearch QPS/Recall;1310 rows.",
   "diagnostic64": "Complete candidate preparation only:1M database queries,200M candidate pairs;8-thread search time41.1757s;new refined graph not built or searched. Failed unbounded-bucket configuration preserved,not counted as performance.",
   "graph64_inputs": {
     "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
@@ -798,7 +807,7 @@
     "metadata_bytes_per_edge": 2,
     "fixed_graph_entry_degree_cap_ef": true
   },
-  "latest_research_stage": "Stage29:finite coupled-code update and actual FastScan layout compatibility pass;no production source changes.",
+  "latest_research_stage": "Stage30:coupled sign codes pass fresh-center actual Top1 offline gate;cross-block bias still unproven;no production source changes.",
   "graph66_result": {
     "phase": 66,
     "executed_after_phase69": true,
@@ -2912,5 +2921,206 @@
     "max_lut_inclusive_ideal_score_error": 0.004300749408539861,
     "invalid_denominator_and_sign_rejected": true,
     "no_qps_claim": true
+  },
+  "coupled74_result": {
+    "config": {
+      "centers": 2048,
+      "neighbors": 32,
+      "queries_per_center": 32,
+      "build_queries_per_center": 16,
+      "validation_queries_per_center": 16,
+      "center_seed": 7401,
+      "proxy_seed": 7402,
+      "score_modes": [
+        "native",
+        "precision_control",
+        "learned"
+      ],
+      "truth_tie_tolerance": 1e-07,
+      "candidate_position_bins": [
+        [
+          0,
+          49
+        ],
+        [
+          50,
+          99
+        ],
+        [
+          100,
+          149
+        ],
+        [
+          150,
+          199
+        ]
+      ],
+      "queries_per_bin": 8,
+      "build_first_four_per_bin": true,
+      "minimum_eligible_queries_in_bin": 19,
+      "old_centers_excluded": 12288,
+      "new_centers_disjoint_from_phase70_71_72": true,
+      "build_validation_query_ids_disjoint_within_center": true,
+      "unique_build_query_ids": 27041,
+      "unique_validation_query_ids": 26971,
+      "shared_query_ids_across_center_folds": 3738,
+      "shared_any_vector_ids_with_phase70": 39644,
+      "shared_any_vector_ids_with_phase71": 23426,
+      "shared_any_vector_ids_with_phase72": 23878,
+      "primary_or_extra_query_files_read": false,
+      "gt_files_read": false,
+      "local_queries_not_iid": true,
+      "proxy_pool_is_approximate_not_exact_top200": true,
+      "original_symphony_rotation_only": true,
+      "optimizer": {
+        "objective": "sum_i(e_i-mean_e)^T Q^T Q(e_i-mean_e)+lambda sum_i norm(e_i)^2",
+        "Q": "16 build residual queries divided by sqrt16",
+        "lambda": "trace(Q^T Q)/768;zero keeps native signs",
+        "sweeps": 2,
+        "max_accepted_flips_per_edge_per_sweep": 4,
+        "max_alpha_ratio": 1.02,
+        "minimum_delta": "-1e-13*max(1,current_objective)",
+        "lane_order": "0..31",
+        "coordinate_ties": "lowest coordinate",
+        "actual_objective_must_strictly_decrease": true
+      },
+      "gate": {
+        "relative_heldout_actual_top1_error_reduction_against_native": 0.1,
+        "paired_center_bootstrap95_lower_positive": true,
+        "bootstrap_seed": 7474,
+        "bootstrap_samples": 4000
+      },
+      "no_retrieval_qps_or_recall_claim": true
+    },
+    "actual_codec_metrics": [
+      {
+        "mode": "native",
+        "build_top1_error_rate": 0.22802734375,
+        "heldout_queries": 32768,
+        "heldout_top1_errors": 7526,
+        "heldout_top1_error_rate": 0.22967529296875,
+        "heldout_relative_error_reduction_vs_native": 0.0,
+        "paired_center_bootstrap95": [
+          0.0,
+          0.0
+        ],
+        "quality_gate_passed": false,
+        "heldout_score_total_mse": 6.655790071614402e-05,
+        "heldout_score_block_mean_error_squared": 4.456745082318843e-06,
+        "heldout_score_centered_mse": 6.21011556338252e-05,
+        "center_counts_better_equal_worse": [
+          0,
+          2048,
+          0
+        ]
+      },
+      {
+        "mode": "precision_control",
+        "build_top1_error_rate": 0.227996826171875,
+        "heldout_queries": 32768,
+        "heldout_top1_errors": 7526,
+        "heldout_top1_error_rate": 0.22967529296875,
+        "heldout_relative_error_reduction_vs_native": 0.0,
+        "paired_center_bootstrap95": [
+          0.0,
+          0.0
+        ],
+        "quality_gate_passed": false,
+        "heldout_score_total_mse": 6.655787920561662e-05,
+        "heldout_score_block_mean_error_squared": 4.456731654342375e-06,
+        "heldout_score_centered_mse": 6.210114755127424e-05,
+        "center_counts_better_equal_worse": [
+          0,
+          2048,
+          0
+        ]
+      },
+      {
+        "mode": "learned",
+        "build_top1_error_rate": 0.09619140625,
+        "heldout_queries": 32768,
+        "heldout_top1_errors": 6318,
+        "heldout_top1_error_rate": 0.19281005859375,
+        "heldout_relative_error_reduction_vs_native": 0.16051023119851182,
+        "paired_center_bootstrap95": [
+          0.14459956406899216,
+          0.17648107615985525
+        ],
+        "quality_gate_passed": true,
+        "heldout_score_total_mse": 3.941955197881042e-05,
+        "heldout_score_block_mean_error_squared": 4.789286164297814e-06,
+        "heldout_score_centered_mse": 3.4630265814512605e-05,
+        "center_counts_better_equal_worse": [
+          1014,
+          607,
+          427
+        ]
+      }
+    ],
+    "ideal_block_ranking_metrics": {
+      "native": {
+        "build_error_rate": 0.228057861328125,
+        "heldout_error_rate": 0.22991943359375,
+        "heldout_errors": 7534
+      },
+      "learned": {
+        "build_error_rate": 0.09613037109375,
+        "heldout_error_rate": 0.192291259765625,
+        "heldout_errors": 6301
+      }
+    },
+    "offline_quality_gate_passed": true,
+    "all_history_rows_replayed_to_saved_signs": 2048,
+    "all_initial_final_objectives_recomputed": 2048,
+    "max_saved_alpha_difference": 0.0,
+    "max_radial_error": 1.1102230246251565e-16,
+    "max_initial_final_objective_difference": 0.0,
+    "build_file_verified_excludes_validation_vectors": true,
+    "all_update_histories_strictly_decrease": true,
+    "all_flip_counts_and_scale_caps_checked": true,
+    "training_summary": {
+      "total_accepted_updates": 524097,
+      "max_scale_ratio": 1.0199986128146288,
+      "elapsed_seconds": 191.04359815909993,
+      "zero_lambda_centers": 0
+    },
+    "mean_initial_objective": 0.00469705032521692,
+    "mean_final_objective": 0.003071139585845188,
+    "total_final_hamming_bits": 524077,
+    "codec_checks": {
+      "native": {
+        "mode": "native",
+        "centers": 2048,
+        "scores": 2097152,
+        "batch_bytes": 3328,
+        "scalar_lut_fma_bit_identical_scores": 65536,
+        "max_radial_error": 1.3483327765406727e-07,
+        "max_native_factor_difference": 0
+      },
+      "precision_control": {
+        "mode": "precision_control",
+        "centers": 2048,
+        "scores": 2097152,
+        "batch_bytes": 3328,
+        "scalar_lut_fma_bit_identical_scores": 65536,
+        "max_radial_error": 3.1974449976601704e-08,
+        "max_native_factor_difference": 1.1390075087547302e-06
+      },
+      "learned": {
+        "mode": "learned",
+        "centers": 2048,
+        "scores": 2097152,
+        "batch_bytes": 3328,
+        "scalar_lut_fma_bit_identical_scores": 65536,
+        "max_radial_error": 3.136588067054191e-08,
+        "max_native_factor_difference": 0
+      }
+    },
+    "truth_minimum_ties": 0,
+    "precision_control_result_choice_differences": 1,
+    "no_cross_block_queue_guarantee": true,
+    "no_retrieval_qps_or_recall_claim": true,
+    "new_retrieval_timing_rows": 0,
+    "cumulative_retrieval_timing_rows": 1310
   }
 }

@@ -211,5 +211,12 @@
     "title": "test(qg): verify coupled sign-code updates and fastscan compatibility",
     "validation": "9591 finite-flip deltas;radial and centered/pair identities;122 monotone synthetic updates;25600 isotropic flip checks and100 unchanged optima;218112 native packed bits;21120 independent scalar LUT/FMA bit-identical scores;356 padded lanes;zero/invalid denominator cases;formatted replay reproduces both initial1ULP failures and final success;source/library hashes verified",
     "conclusion": "Coupled offline sign-code objective and arbitrary-sign codec feasible in existing3328-byte layout. Initial scalar reference missed frozen kernel FMA contraction;corrected reference passes without changing production code. No Cohere training,new QPS/Recall or breakthrough;1310 timing rows. Phase74 fixed fresh-center actual ranking gate planned."
+  },
+  {
+    "stage": "30",
+    "commit": "5b81025a9a4572750d73035f3d3eb6d376884625",
+    "title": "test(qg): validate coupled codes with sixteen-percent heldout error reduction",
+    "validation": "2048 fresh centers;16 build/16 heldout proxies;524097 monotone finite flips;all histories/scales/budgets checked;6291456 actual scores;196608 independent scalar LUT/FMA bit identities;original-sign precision control;full formatted sampling/training/codec replay all model files byte-identical,metrics identical except elapsed seconds;input/library/source hashes verified",
+    "conclusion": "Actual heldout block Top1 errors7526->6318/32768,relative reduction16.05%,paired center95%CI[14.46%,17.65%];passes10%offline gate. Precision control no heldout gain. Block common score-error squared rises7.46%;independent objective ablation and same-query cross-block validation required before fullgraph. No new QPS/Recall or25%breakthrough;1310 timing rows."
   }
 ]
