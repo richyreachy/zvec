@@ -460,3 +460,9 @@
 2048新中心，固定两组候选对和四模型，16估计/16验证代理。二维高斯风险预测Brier优于频率/平滑基线约4.3%–4.5%，区间为正但未过预定5%；尾部校准不足，停止当前高斯目标训练分支。分布无关margin界较松。
 
 [完整报告](notes/conditional_risk72.md)；[预定计划](notes/conditional_risk72_plan.md)；[下一项先验数学/编码检查](notes/coupled_code73_plan.md)。无生产改动、新QPS或Recall，累计1310行。
+
+## 阶段73：联合符号码有限增量与实际FastScan兼容性通过
+
+9591次有限翻转增量、25600次欧氏最优性和100次不更新检查通过；任意可行符号码沿用3328字节块布局，21120个实际扫描分数与独立标量LUT/FMA逐bit一致。首版参考的1ULP差异定位为冻结内核FMA收缩，失败证据保留。
+
+[推导与验证报告](notes/coupled_code73.md)；[新中心实际排序验证计划](notes/coupled_code74_plan.md)。尚无Cohere训练或新QPS/Recall，生产源码不变，累计1310计时行。

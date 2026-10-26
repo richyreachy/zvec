@@ -1,0 +1,40 @@
+{
+  "math_checks_byte_identical": true,
+  "compiled_codec_replays": [
+    {
+      "binary": "codec73_test",
+      "successful": false,
+      "output_byte_identical": true
+    },
+    {
+      "binary": "codec73_debug",
+      "successful": false,
+      "output_byte_identical": true
+    },
+    {
+      "binary": "codec73_test_v2",
+      "successful": true,
+      "output_byte_identical": true
+    }
+  ],
+  "original_one_ulp_failure_reproduced": true,
+  "scalar_lut_fma_bit_identical_scores": 21120,
+  "source_header_hashes_verified": {
+    "src/turbo/quantizer/symphony_qg_quantizer/symphony_qg_quantizer.h": "9acdafd1192fb5eaadd0cf003f34d0416a44bfc417da4d62e862db2de9dc59cf",
+    "src/turbo/distance/common/symphony_qg_distance.h": "5410d89dd9d0a88653d0a7d58dcb03a9d649112255ae30f6c88d178b845e0199",
+    "src/turbo/distance/common/symphony_qg_kernels.h": "b8737892014456c3345d2979d9592292a3b75997694d004a3902220780376afa",
+    "src/turbo/preprocessor/symphony_qg_rotator/symphony_qg_rotator.h": "a4efd148aecca3a61709876571f9d9673c0a8c0e5feea51ee580e0e05bf0e105"
+  },
+  "inherited_libraries_helpers_models_hashes_verified": 8,
+  "formatted_script_hashes": {
+    "codec73_test_v2.cc": "487d506d3632b71f6eac87f5347a456340603740e3361902de2e3ea994df8577",
+    "coupled73_math.py": "b4cec80783a062d3bd51b3bdbb4c625e87ac5e8be8f5defc484ce3ced37d064b",
+    "check73.py": "f057000dd0a8868fccfda7300476c52cfa699dcc71a365ab68099ed6f77df392",
+    "codec73_debug.cc": "f23eb4e5dc1d13be206fc82d035db01e4cf357fb2c162517b619091f7ff99fa1",
+    "codec73_test.cc": "9fac674dfebbf234bcadfc3e8b1b6676a8c323f108613d41841a4a924691d97b",
+    "coupled73_codec.h": "acccc8deb1f07dcc3d505e0f268c38ab192f32cff670b26c205745c7dc61889c"
+  },
+  "no_production_source_changes": true,
+  "replay_directory": "/home/xingrui/bench/quantized_graph/research_20261025/replay73_formatted"
+}
+POSTFORMAT29 COMPLETE

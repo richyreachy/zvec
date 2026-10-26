@@ -1,0 +1,12 @@
+{
+  "finite_flip_direct_objective_checks": 9591,
+  "max_relative_objective_delta_error": 2.731533134576678e-15,
+  "max_radial_identity_error": 4.440892098500626e-16,
+  "max_pairwise_centered_identity_relative_error": 3.9782503683655314e-16,
+  "accepted_monotone_synthetic_updates": 122,
+  "isotropic_single_flip_checks": 25600,
+  "isotropic_optimizer_no_change_cases": 100,
+  "zero_negative_tiny_positive_denominators_checked": true,
+  "scale_cap_checked": true,
+  "no_cohere_or_qps_claim": true
+}

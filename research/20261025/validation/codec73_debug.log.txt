@@ -1,0 +1,2 @@
+MISMATCH trial=1 query=1 lane=0 total=21710 packed_total=21710 expected=0x1.ece7dep-1 actual=0x1.ece7ep-1 scale=-0x1.01fa7ap-3 add=-0x1.9ead0cp-7 delta=0x1.87a558p-10 vl=-0x1.f0a64cp+4 sq=-0x1.b7d6bp-1 center=0x1.0af46ap+0
+ERROR scalar LUT/scan bit identity
