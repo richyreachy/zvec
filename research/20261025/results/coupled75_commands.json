@@ -1,0 +1,219 @@
+{
+  "cwd": "/home/xingrui/bench/quantized_graph/research_20261025",
+  "environment": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1"
+  },
+  "commands": [
+    {
+      "name": "rotate75_build",
+      "argv": [
+        "c++",
+        "-O3",
+        "-std=c++17",
+        "-march=native",
+        "-pthread",
+        "-DQG_ROTATION_768=1",
+        "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+        "scripts/rotate75.cc",
+        "-o",
+        "rotate75"
+      ]
+    },
+    {
+      "name": "rotate75",
+      "argv": [
+        "./rotate75",
+        "models64/full_vectors.f32",
+        "models75/ids.u32",
+        "models75/rotated.f32"
+      ]
+    },
+    {
+      "name": "rotate75_cross",
+      "argv": [
+        "./rotate75",
+        "models64/full_vectors.f32",
+        "models75/cross_ids.u32",
+        "models75/cross_rotated.f32"
+      ]
+    },
+    {
+      "name": "validate_data75",
+      "argv": [
+        "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+        "scripts/validate_data75.py"
+      ]
+    },
+    {
+      "name": "crossdata75",
+      "argv": [
+        "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+        "scripts/crossdata75.py"
+      ]
+    },
+    {
+      "name": "fitdata75",
+      "argv": [
+        "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+        "scripts/fitdata75.py"
+      ]
+    },
+    {
+      "name": "train75_coupled",
+      "argv": [
+        "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+        "scripts/train75.py",
+        "coupled"
+      ]
+    },
+    {
+      "name": "train75_independent",
+      "argv": [
+        "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+        "scripts/train75.py",
+        "independent"
+      ]
+    },
+    {
+      "name": "codec75_build",
+      "argv": [
+        "c++",
+        "-O3",
+        "-std=c++17",
+        "-march=native",
+        "-ffp-contract=off",
+        "-pthread",
+        "-DRABITQ_SUPPORTED=1",
+        "-DQG_ROTATION_768=1",
+        "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+        "-isystem",
+        "/home/xingrui/workspace/zvec/symphony_qg/zvec/thirdparty/RaBitQ-Library/RaBitQ-Library-0.1/include",
+        "scripts/codec75.cc",
+        "lib/libzvec_turbo.a",
+        "lib/librabitqlib_runtime.a",
+        "lib/libzvec_ailego.a",
+        "-o",
+        "codec75"
+      ]
+    },
+    {
+      "name": "cross75_build",
+      "argv": [
+        "c++",
+        "-O3",
+        "-std=c++17",
+        "-march=native",
+        "-ffp-contract=off",
+        "-pthread",
+        "-DRABITQ_SUPPORTED=1",
+        "-DQG_ROTATION_768=1",
+        "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+        "-isystem",
+        "/home/xingrui/workspace/zvec/symphony_qg/zvec/thirdparty/RaBitQ-Library/RaBitQ-Library-0.1/include",
+        "scripts/cross75.cc",
+        "lib/libzvec_turbo.a",
+        "lib/librabitqlib_runtime.a",
+        "lib/libzvec_ailego.a",
+        "-o",
+        "cross75"
+      ]
+    },
+    {
+      "name": "codec75_native",
+      "argv": [
+        "./codec75",
+        "models75/rotated.f32",
+        "models75/signs_coupled.i8",
+        "native",
+        "models75/scores_native.f32",
+        "models75/codes_native.bin"
+      ]
+    },
+    {
+      "name": "cross75_native",
+      "argv": [
+        "./cross75",
+        "models75/rotated.f32",
+        "models75/cross_rotated.f32",
+        "models75/pairs.u32",
+        "models75/codes_native.bin",
+        "models75/signs_coupled.i8",
+        "native",
+        "models75/cross_scores_native.f32"
+      ]
+    },
+    {
+      "name": "codec75_precision_control",
+      "argv": [
+        "./codec75",
+        "models75/rotated.f32",
+        "models75/signs_coupled.i8",
+        "precision_control",
+        "models75/scores_precision_control.f32",
+        "models75/codes_precision_control.bin"
+      ]
+    },
+    {
+      "name": "cross75_precision_control",
+      "argv": [
+        "./cross75",
+        "models75/rotated.f32",
+        "models75/cross_rotated.f32",
+        "models75/pairs.u32",
+        "models75/codes_precision_control.bin",
+        "models75/signs_coupled.i8",
+        "precision_control",
+        "models75/cross_scores_precision_control.f32"
+      ]
+    },
+    {
+      "name": "codec75_coupled",
+      "argv": [
+        "./codec75",
+        "models75/rotated.f32",
+        "models75/signs_coupled.i8",
+        "coupled",
+        "models75/scores_coupled.f32",
+        "models75/codes_coupled.bin"
+      ]
+    },
+    {
+      "name": "cross75_coupled",
+      "argv": [
+        "./cross75",
+        "models75/rotated.f32",
+        "models75/cross_rotated.f32",
+        "models75/pairs.u32",
+        "models75/codes_coupled.bin",
+        "models75/signs_coupled.i8",
+        "coupled",
+        "models75/cross_scores_coupled.f32"
+      ]
+    },
+    {
+      "name": "codec75_independent",
+      "argv": [
+        "./codec75",
+        "models75/rotated.f32",
+        "models75/signs_independent.i8",
+        "independent",
+        "models75/scores_independent.f32",
+        "models75/codes_independent.bin"
+      ]
+    },
+    {
+      "name": "cross75_independent",
+      "argv": [
+        "./cross75",
+        "models75/rotated.f32",
+        "models75/cross_rotated.f32",
+        "models75/pairs.u32",
+        "models75/codes_independent.bin",
+        "models75/signs_independent.i8",
+        "independent",
+        "models75/cross_scores_independent.f32"
+      ]
+    }
+  ]
+}

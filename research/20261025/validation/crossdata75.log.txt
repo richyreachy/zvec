@@ -1,0 +1,19 @@
+{
+  "pairs": 1024,
+  "cross_queries": 16384,
+  "all_pairs_disjoint": true,
+  "all_cross_queries_excluded_from_corresponding_centers_neighbors_build_and_local_validation": true,
+  "raw_fp64_scores": 1048576,
+  "max_raw_rotated_score_difference": 8.226140302269869e-08,
+  "max_query_norm_difference": 9.804828837722823e-08,
+  "minimum_candidate_union_size": 49,
+  "total_duplicate_candidates_across_pairs": 640,
+  "sha256": {
+    "pairs.u32": "001f72901cbd0dd92e8b979e11560d77a8cad74ab4620f02f6bd293a3ab13c28",
+    "cross_ids.u32": "9f7a8dd4bf5e5f197bcd6a0221a4ebc4b3cfec2249567748ec6e9ff5b964cd00",
+    "cross_rotated.f32": "df7e2874d7d561cfbbb91318dcfb70c6a1857fe8d16e6e7341e0b661336270c0",
+    "cross_truth.f64": "7cc13eaa7d87ca83a7fd953a0a0b3b3ad5ce6b5e9800f73acdf07fd51c3571bc"
+  },
+  "not_full_search_equivalence": true
+}
+CROSSDATA75 COMPLETE
