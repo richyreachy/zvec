@@ -1,0 +1,28 @@
+{
+  "variant": {
+    "name": "trace80_learned_v1",
+    "defines": [
+      "QG_BUCKET=1",
+      "QG_BUCKET_WIDTH=.016f",
+      "QG_ADAPTIVE=1",
+      "QG_RUNTIME_ADAPTIVE=1",
+      "QG_STOP_MIN=10",
+      "QG_STOP_PATIENCE=0",
+      "QG_STOP_MARGIN=.04f",
+      "QG_ROTATION_768=1",
+      "QG_AUGMENT=3",
+      "QG_INDEPENDENT_CODE_IMPORT=1",
+      "QG_MULTI_TRACE=1"
+    ],
+    "baseline": "5a1c8a9852acd34c16114940b4cfc41e157dd9b7",
+    "patch_sha256": "570a0896e8aa9d742f134a0cc590ad82c7df3f4fda0aa3176f423c019ac531db",
+    "immutable_build_source": "/home/xingrui/bench/quantized_graph/research_20261025/variants/trace80_learned_v1/build_source",
+    "research_head": "76196ec08812e8164091f93a6e70d71b6bb80000"
+  },
+  "protocol_sha256_before_trace": "653aee3fafda65dc9fc3e6500cbec0206071b850bfcbe1ed259028dcc94c0efc",
+  "same_margin": 0.02,
+  "queries": 1000,
+  "no_timing": true,
+  "no_training": true,
+  "runner_sha256": "3d48fc4714ffe85d67624ee235a722370fed5d0573d55763362f02d6397bbbb2"
+}

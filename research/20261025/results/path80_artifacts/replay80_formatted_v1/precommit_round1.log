@@ -1,0 +1,302 @@
+Ruff (lint + fix)........................................................Failed
+- hook id: ruff-check
+- exit code: 1
+
+B905 `zip()` without an explicit `strict=` parameter
+   --> research/20261025/scripts/check80_actual_prefix_v1.py:149:26
+    |
+147 |     actual_nodes = [block["node"] for block in actual["blocks"]]
+148 |     shared = 0
+149 |     for first, second in zip(native_nodes, actual_nodes):
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+150 |         if first != second:
+151 |             break
+    |
+help: Add explicit value for parameter `strict=`
+
+PLR0915 Too many statements (84 > 50)
+  --> research/20261025/scripts/path80_score.py:45:5
+   |
+45 | def main():
+   |     ^^^^
+46 |     parser = argparse.ArgumentParser(description=__doc__)
+47 |     parser.add_argument("--name", default="path80_native_v1")
+   |
+
+T201 `print` found
+   --> research/20261025/scripts/path80_score.py:102:9
+    |
+100 |     }
+101 |     if not args.execute:
+102 |         print(json.dumps(planned, indent=2))
+    |         ^^^^^
+103 |         return
+104 |     out.mkdir(exist_ok=False)
+    |
+help: Remove `print`
+
+T201 `print` found
+   --> research/20261025/scripts/path80_score.py:187:9
+    |
+185 |         )
+186 |         write_json(out / "proof.json", result)
+187 |         print("PATH80 SCORE COMPLETE", out / "proof.json", flush=True)
+    |         ^^^^^
+188 |     except BaseException as error:
+189 |         write_json(out / "failure.json", {"error": repr(error), "commands": completed,
+    |
+help: Remove `print`
+
+PT018 Assertion should be broken down into multiple parts
+  --> research/20261025/scripts/prepare80_controls_v1.py:28:5
+   |
+26 |     assert f.read(16) == struct.pack('<4I', 0x51474d68, 1, 32, 768)
+27 |     first = record.unpack(f.read(32))
+28 |     assert first[0] == 0 and first[1] == 1 and first[2] == 1
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+29 |     center = first[3]
+30 |     eligible = []
+   |
+help: Break down assertion into multiple parts
+
+PT018 Assertion should be broken down into multiple parts
+  --> research/20261025/scripts/prepare80_controls_v1.py:35:13
+   |
+33 |         event = record.unpack(f.read(32))
+34 |         if event[1] == 1:
+35 |             assert event[0] == 0 and event[2] == 2
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+36 |             original_next = event[3]
+37 |             break
+   |
+help: Break down assertion into multiple parts
+
+PT018 Assertion should be broken down into multiple parts
+  --> research/20261025/scripts/prepare80_controls_v1.py:38:9
+   |
+36 |             original_next = event[3]
+37 |             break
+38 |         assert event[0] == 0 and event[1] == 2 and event[2] == 1
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+39 |         if event[4] != center:
+40 |             eligible.append((index, event))
+   |
+help: Break down assertion into multiple parts
+
+C408 Unnecessary `dict()` call (rewrite as a literal)
+  --> research/20261025/scripts/prepare80_same_bin_control_v1.py:35:10
+   |
+33 |   source_hash = sha(source)
+34 |   assert source_hash == '4787aa0f822bb2ddf35f4af28c04579283fac5d557fbea74c9f1802047d3d04c'
+35 |   counts = dict(events=0, queries=0, kind2=0, changed=0, toward_positive_infinity=0,
+   |  __________^
+36 | |               toward_negative_infinity=0, unchanged=0, changed_bucket_ids=0)
+   | |____________________________________________________________________________^
+37 |   destination = out / 'native_path_same_bin_scores.bin'
+38 |   width = None
+   |
+help: Rewrite as a literal
+
+PT018 Assertion should be broken down into multiple parts
+  --> research/20261025/scripts/prepare80_same_bin_control_v1.py:54:13
+   |
+52 |             counts['kind2'] += 1
+53 |             old = np.float32(row[5])
+54 |             assert np.isfinite(old) and width is not None
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+55 |             bucket = locate(old, width)
+56 |             chosen = old
+   |
+help: Break down assertion into multiple parts
+
+PT018 Assertion should be broken down into multiple parts
+  --> research/20261025/scripts/prepare80_same_bin_control_v1.py:73:1
+   |
+71 |         outgoing.write(raw)
+72 |         counts['events'] += 1
+73 | assert counts['queries'] == 1000 and counts['changed'] > 0
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+74 | assert counts['changed'] + counts['unchanged'] == counts['kind2']
+75 | assert sha(source) == source_hash
+   |
+help: Break down assertion into multiple parts
+
+T201 `print` found
+  --> research/20261025/scripts/prepare80_same_bin_control_v1.py:86:1
+   |
+84 |     json.dump(proof, output, indent=2)
+85 |     output.write('\n')
+86 | print(json.dumps(proof, indent=2))
+   | ^^^^^
+   |
+help: Remove `print`
+
+T201 `print` found
+  --> research/20261025/scripts/summarize80_replay_v1.py:69:1
+   |
+67 |     json.dump(result, stream, indent=2)
+68 |     stream.write('\n')
+69 | print(json.dumps(result, indent=2))
+   | ^^^^^
+   |
+help: Remove `print`
+
+PLR0915 Too many statements (145 > 50)
+   --> research/20261025/scripts/trace80_native_v1.py:200:5
+    |
+200 | def main():
+    |     ^^^^
+201 |     parser = argparse.ArgumentParser(description=__doc__)
+202 |     parser.add_argument("--native-events", type=Path, required=True)
+    |
+
+B007 Loop control variable `other_row` not used within loop body
+   --> research/20261025/scripts/trace80_native_v1.py:261:65
+    |
+259 | …     overlay_query, learned_rows = next(overlays)
+260 | …     need(overlay_query == query and len(learned_rows) == len(rows), "Overlay alignment")
+261 | …     for (index, raw, row), (other_index, other_raw, other_row) in zip(rows, learned_rows, strict=True):
+    |                                                       ^^^^^^^^^
+262 | …         need(index == other_index and raw[:20] == other_raw[:20] and raw[24:] == other_raw[24:], "Overlay changed non-score fields")
+263 | …         if row[1] != 2:
+    |
+help: Rename unused `other_row` to `_other_row`
+
+F841 Local variable `token` is assigned to but never used
+   --> research/20261025/scripts/trace80_native_v1.py:319:21
+    |
+317 |                                             "source": source, "target": target,
+318 |                                             "native_bin": native_bin, "learned_bin": other_bin}
+319 |                     token = native.observe(source, target, step, lane, score)
+    |                     ^^^^^
+320 |                     if shadow is not None:
+321 |                         shadow.observe(source, target, step, lane, other_score)
+    |
+help: Remove assignment to unused variable `token`
+
+C408 Unnecessary `dict()` call (rewrite as a literal)
+   --> research/20261025/scripts/trace80_native_v1.py:323:44
+    |
+321 |   …             shadow.observe(source, target, step, lane, other_score)
+322 |   …         if query < 1000:
+323 |   …             proposals.writerow(dict(query=query, event_index=event_index, source=source, step=step, lane=lane,
+    |  __________________________________^
+324 | | …                 arrival_serial=native.arrival, target=target, native_unexpanded=int(pending), shared_prefix=int(divergence is None),
+325 | | …                 native_score_bits=bits(score), learned_score_bits=None if other_score is None else bits(other_score), exact_bits=bi…
+326 | | …                 native_bin=native_bin, learned_bin=other_bin, exact_bin=native.locate(truth),
+327 | | …                 native_nominal_boundary_distance=native.boundary_distance(score),
+328 | | …                 learned_nominal_boundary_distance=None if other_score is None else native.boundary_distance(other_score)))
+    | |___________________________________________________________________________________________________________________________^
+329 |   …         counters["native_score_records"] += 1
+330 |   …     cursor += degree + 1
+    |
+help: Rewrite as a literal
+
+PLR0915 Too many statements (159 > 50)
+   --> research/20261025/scripts/trace80_replay_v2.py:200:5
+    |
+200 | def main():
+    |     ^^^^
+201 |     parser = argparse.ArgumentParser(description=__doc__)
+202 |     parser.add_argument("--native-events", type=Path, required=True)
+    |
+
+B007 Loop control variable `other_row` not used within loop body
+   --> research/20261025/scripts/trace80_replay_v2.py:273:65
+    |
+271 | …     overlay_query, learned_rows = next(overlays)
+272 | …     need(overlay_query == query and len(learned_rows) == len(rows), "Overlay alignment")
+273 | …     for (index, raw, row), (other_index, other_raw, other_row) in zip(rows, learned_rows, strict=True):
+    |                                                       ^^^^^^^^^
+274 | …         need(index == other_index and raw[:20] == other_raw[:20] and raw[24:] == other_raw[24:], "Overlay changed non-score fields")
+275 | …         if row[1] != 2:
+    |
+help: Rename unused `other_row` to `_other_row`
+
+F841 Local variable `token` is assigned to but never used
+   --> research/20261025/scripts/trace80_replay_v2.py:331:21
+    |
+329 |                                             "source": source, "target": target,
+330 |                                             "native_bin": native_bin, "learned_bin": other_bin}
+331 |                     token = native.observe(source, target, step, lane, score)
+    |                     ^^^^^
+332 |                     if shadow is not None:
+333 |                         shadow.observe(source, target, step, lane, other_score)
+    |
+help: Remove assignment to unused variable `token`
+
+C408 Unnecessary `dict()` call (rewrite as a literal)
+   --> research/20261025/scripts/trace80_replay_v2.py:335:44
+    |
+333 |   …             shadow.observe(source, target, step, lane, other_score)
+334 |   …         if query < 1000:
+335 |   …             proposals.writerow(dict(query=query, event_index=event_index, source=source, step=step, lane=lane,
+    |  __________________________________^
+336 | | …                 arrival_serial=native.arrival, target=target, native_unexpanded=int(pending), shared_prefix=int(divergence is None),
+337 | | …                 native_score_bits=bits(score), learned_score_bits=None if other_score is None else bits(other_score), exact_bits=bi…
+338 | | …                 native_bin=native_bin, learned_bin=other_bin, exact_bin=native.locate(truth),
+339 | | …                 native_nominal_boundary_distance=native.boundary_distance(score),
+340 | | …                 learned_nominal_boundary_distance=None if other_score is None else native.boundary_distance(other_score)))
+    | |___________________________________________________________________________________________________________________________^
+341 |   …         counters["native_score_records"] += 1
+342 |   …     cursor += degree + 1
+    |
+help: Rewrite as a literal
+
+PLR0915 Too many statements (159 > 50)
+   --> research/20261025/scripts/trace80_replay_v3.py:200:5
+    |
+200 | def main():
+    |     ^^^^
+201 |     parser = argparse.ArgumentParser(description=__doc__)
+202 |     parser.add_argument("--native-events", type=Path, required=True)
+    |
+
+B007 Loop control variable `other_row` not used within loop body
+   --> research/20261025/scripts/trace80_replay_v3.py:273:65
+    |
+271 | …     overlay_query, learned_rows = next(overlays)
+272 | …     need(overlay_query == query and len(learned_rows) == len(rows), "Overlay alignment")
+273 | …     for (index, raw, row), (other_index, other_raw, other_row) in zip(rows, learned_rows, strict=True):
+    |                                                       ^^^^^^^^^
+274 | …         need(index == other_index and raw[:20] == other_raw[:20] and raw[24:] == other_raw[24:], "Overlay changed non-score fields")
+275 | …         if row[1] != 2:
+    |
+help: Rename unused `other_row` to `_other_row`
+
+F841 Local variable `token` is assigned to but never used
+   --> research/20261025/scripts/trace80_replay_v3.py:331:21
+    |
+329 |                                             "source": source, "target": target,
+330 |                                             "native_bin": native_bin, "learned_bin": other_bin}
+331 |                     token = native.observe(source, target, step, lane, score)
+    |                     ^^^^^
+332 |                     if shadow is not None:
+333 |                         shadow.observe(source, target, step, lane, other_score)
+    |
+help: Remove assignment to unused variable `token`
+
+C408 Unnecessary `dict()` call (rewrite as a literal)
+   --> research/20261025/scripts/trace80_replay_v3.py:335:44
+    |
+333 |   …             shadow.observe(source, target, step, lane, other_score)
+334 |   …         if query < 1000:
+335 |   …             proposals.writerow(dict(query=query, event_index=event_index, source=source, step=step, lane=lane,
+    |  __________________________________^
+336 | | …                 arrival_serial=native.arrival, target=target, native_unexpanded=int(pending), shared_prefix=int(divergence is None),
+337 | | …                 native_score_bits=bits(score), learned_score_bits=None if other_score is None else bits(other_score), exact_bits=bi…
+338 | | …                 native_bin=native_bin, learned_bin=other_bin, exact_bin=native.locate(truth),
+339 | | …                 native_nominal_boundary_distance=native.boundary_distance(score),
+340 | | …                 learned_nominal_boundary_distance=None if other_score is None else native.boundary_distance(other_score)))
+    | |___________________________________________________________________________________________________________________________^
+341 |   …         counters["native_score_records"] += 1
+342 |   …     cursor += degree + 1
+    |
+help: Rewrite as a literal
+
+Found 37 errors (13 fixed, 24 remaining).
+No fixes available (20 hidden fixes can be enabled with the `--unsafe-fixes` option).
+
+Ruff (format)............................................................Passed
+clang-format (C++).......................................................Passed
+Detect hardcoded secrets (gitleaks)......................................Passed

@@ -1,0 +1,25 @@
+{
+  "proof_kind": "same_bin_nextafter_control",
+  "control_native_scores_from_original_trace": true,
+  "off_policy_rescored_native_events": true,
+  "actual_learned_path": false,
+  "query_count": 1000,
+  "source_events_sha256": "4787aa0f822bb2ddf35f4af28c04579283fac5d557fbea74c9f1802047d3d04c",
+  "rescored_events_sha256": "4c4cb572d65906a192838047379cd44be5f630c7dbb8c8152a59f5cd1aed770b",
+  "model_sha256": null,
+  "model_path": null,
+  "no_codec_rescore_claim": true,
+  "no_GT_or_hits_input": true,
+  "fixed_rule": "try nextafter(+inf), then nextafter(-inf), adopt only finite same-FP32-bucket value; else unchanged",
+  "counts": {
+    "events": 1016151,
+    "queries": 1000,
+    "kind2": 984388,
+    "changed": 984388,
+    "toward_positive_infinity": 984383,
+    "toward_negative_infinity": 5,
+    "unchanged": 0,
+    "changed_bucket_ids": 0
+  },
+  "script_sha256": "d18b43d983502ec9353f7318d6c5e0e035696e520ecfb2b8e6e0a63659051c04"
+}

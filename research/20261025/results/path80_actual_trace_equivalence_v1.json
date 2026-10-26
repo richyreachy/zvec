@@ -1,0 +1,55 @@
+{
+  "passed": true,
+  "runs": [
+    {
+      "condition": "native",
+      "events_file": "/home/xingrui/bench/quantized_graph/research_20261025/path80_actual_v1/native/events.bin",
+      "events_sha256": "4787aa0f822bb2ddf35f4af28c04579283fac5d557fbea74c9f1802047d3d04c",
+      "event_records": 1016151,
+      "ids_file": "/home/xingrui/bench/quantized_graph/research_20261025/experiments/diag80_actual_v1_native/search_k10_r0_ids.csv",
+      "ids_sha256": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+      "top10_id_hex_rows_byte_identical": 10000,
+      "native_entire_trace_byte_identical_to_phase68": true
+    },
+    {
+      "condition": "learned",
+      "events_file": "/home/xingrui/bench/quantized_graph/research_20261025/path80_actual_v1/learned/events.bin",
+      "events_sha256": "d942aa0a1a479eee9f7dbbc80a9a737d28037c96ac32d83619adafbfa008766d",
+      "event_records": 976881,
+      "ids_file": "/home/xingrui/bench/quantized_graph/research_20261025/experiments/diag80_actual_v1_learned/search_k10_r0_ids.csv",
+      "ids_sha256": "d99f76acf64c2c2c8fbcba6f9c74f87173f598c04541372f4a6fabec571cac54",
+      "top10_id_hex_rows_byte_identical": 10000,
+      "native_entire_trace_byte_identical_to_phase68": false
+    }
+  ],
+  "configuration": {
+    "variant": {
+      "name": "trace80_learned_v1",
+      "defines": [
+        "QG_BUCKET=1",
+        "QG_BUCKET_WIDTH=.016f",
+        "QG_ADAPTIVE=1",
+        "QG_RUNTIME_ADAPTIVE=1",
+        "QG_STOP_MIN=10",
+        "QG_STOP_PATIENCE=0",
+        "QG_STOP_MARGIN=.04f",
+        "QG_ROTATION_768=1",
+        "QG_AUGMENT=3",
+        "QG_INDEPENDENT_CODE_IMPORT=1",
+        "QG_MULTI_TRACE=1"
+      ],
+      "baseline": "5a1c8a9852acd34c16114940b4cfc41e157dd9b7",
+      "patch_sha256": "570a0896e8aa9d742f134a0cc590ad82c7df3f4fda0aa3176f423c019ac531db",
+      "immutable_build_source": "/home/xingrui/bench/quantized_graph/research_20261025/variants/trace80_learned_v1/build_source",
+      "research_head": "76196ec08812e8164091f93a6e70d71b6bb80000"
+    },
+    "protocol_sha256_before_trace": "653aee3fafda65dc9fc3e6500cbec0206071b850bfcbe1ed259028dcc94c0efc",
+    "same_margin": 0.02,
+    "queries": 1000,
+    "no_timing": true,
+    "no_training": true,
+    "runner_sha256": "3d48fc4714ffe85d67624ee235a722370fed5d0573d55763362f02d6397bbbb2"
+  },
+  "new_timing_rows": 0,
+  "no_new_model_or_parameter_selection": true
+}

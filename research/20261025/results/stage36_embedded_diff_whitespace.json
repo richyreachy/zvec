@@ -1,0 +1,399 @@
+{
+  "original_check_returncode": 2,
+  "warnings": [
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/check80_actual_prefix_v1.py.diff",
+      "line": 9,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/check80_actual_prefix_v1.py.diff",
+      "line": 22,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/check80_actual_prefix_v1.py.diff",
+      "line": 77,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/check80_actual_prefix_v1.py.diff",
+      "line": 90,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/check80_actual_prefix_v1.py.diff",
+      "line": 91,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/check80_actual_prefix_v1.py.diff",
+      "line": 110,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/check80_actual_prefix_v1.py.diff",
+      "line": 111,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/check80_actual_prefix_v1.py.diff",
+      "line": 127,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/check80_actual_prefix_v1.py.diff",
+      "line": 161,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/check80_actual_prefix_v1.py.diff",
+      "line": 162,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/check80_actual_prefix_v1.py.diff",
+      "line": 316,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/check80_actual_prefix_v1.py.diff",
+      "line": 317,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/path80_lifo_control_v1.cc.diff",
+      "line": 6,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/path80_lifo_control_v1.cc.diff",
+      "line": 12,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/path80_score.cc.diff",
+      "line": 132,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/path80_score.py.diff",
+      "line": 9,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/path80_score.py.diff",
+      "line": 21,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/path80_score.py.diff",
+      "line": 35,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/path80_score.py.diff",
+      "line": 36,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/path80_score.py.diff",
+      "line": 175,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/path80_score.py.diff",
+      "line": 345,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/path80_score.py.diff",
+      "line": 346,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/path80_score.py.diff",
+      "line": 345,
+      "kind": "new blank line at EOF.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/prepare80_controls_v1.py.diff",
+      "line": 14,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/prepare80_controls_v1.py.diff",
+      "line": 22,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/prepare80_controls_v1.py.diff",
+      "line": 31,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/prepare80_same_bin_control_v1.py.diff",
+      "line": 17,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/prepare80_same_bin_control_v1.py.diff",
+      "line": 28,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/prepare80_same_bin_control_v1.py.diff",
+      "line": 29,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/prepare80_same_bin_control_v1.py.diff",
+      "line": 38,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/prepare80_same_bin_control_v1.py.diff",
+      "line": 40,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/prepare80_same_bin_control_v1.py.diff",
+      "line": 41,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/summarize80_replay_v1.py.diff",
+      "line": 19,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/theoretical80_threshold_check.py.diff",
+      "line": 9,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/theoretical80_threshold_check.py.diff",
+      "line": 19,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/theoretical80_threshold_check.py.diff",
+      "line": 20,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/theoretical80_threshold_check.py.diff",
+      "line": 69,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_native_v1.py.diff",
+      "line": 9,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_native_v1.py.diff",
+      "line": 36,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_native_v1.py.diff",
+      "line": 37,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_native_v1.py.diff",
+      "line": 62,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_native_v1.py.diff",
+      "line": 63,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_native_v1.py.diff",
+      "line": 86,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_native_v1.py.diff",
+      "line": 129,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_native_v1.py.diff",
+      "line": 163,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_native_v1.py.diff",
+      "line": 164,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_primary.py.diff",
+      "line": 7,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v2.py.diff",
+      "line": 9,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v2.py.diff",
+      "line": 36,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v2.py.diff",
+      "line": 37,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v2.py.diff",
+      "line": 62,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v2.py.diff",
+      "line": 63,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v2.py.diff",
+      "line": 86,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v2.py.diff",
+      "line": 129,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v2.py.diff",
+      "line": 163,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v2.py.diff",
+      "line": 164,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v3.py.diff",
+      "line": 9,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v3.py.diff",
+      "line": 36,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v3.py.diff",
+      "line": 37,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v3.py.diff",
+      "line": 62,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v3.py.diff",
+      "line": 63,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v3.py.diff",
+      "line": 86,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v3.py.diff",
+      "line": 129,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v3.py.diff",
+      "line": 163,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    },
+    {
+      "path": "research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/trace80_replay_v3.py.diff",
+      "line": 164,
+      "kind": "trailing whitespace.",
+      "content": "single unified-diff context prefix for empty source line"
+    }
+  ],
+  "warning_count": 65,
+  "all_are_unified_diff_empty_context_lines": true,
+  "files_unchanged": true,
+  "scope": "Only archived unified-diff context lines; not source whitespace errors"
+}

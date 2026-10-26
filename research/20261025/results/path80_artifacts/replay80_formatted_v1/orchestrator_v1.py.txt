@@ -1,0 +1,227 @@
+"""Replay the explicit stage36 archive in a fresh sandbox; no retrieval timing."""
+from __future__ import annotations
+
+import difflib
+import hashlib
+import json
+import logging
+import os
+import shutil
+import subprocess
+import time
+from pathlib import Path
+
+R = Path('/home/xingrui/bench/quantized_graph/research_20261025')
+S = Path('/home/xingrui/workspace/quantized_graph/symphony_research_20261025')
+ARCHIVE = S / 'research/20261025'
+A = R / 'replay80_formatted_v1'
+PYTHON = '/home/xingrui/bench/symphony_qg/.venv/bin/python'
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+
+
+def need(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
+def sha(path):
+    digest = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for block in iter(lambda: stream.read(4 << 20), b''):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def read(path):
+    return json.loads(Path(path).read_text())
+
+
+def save(path, value):
+    with Path(path).open('x') as stream:
+        json.dump(value, stream, indent=2, allow_nan=False)
+        stream.write('\n')
+
+
+def main():  # noqa: PLR0915 - preserve the explicit frozen replay protocol
+    need(not A.exists(), 'Fresh exclusive replay directory required')
+    A.mkdir()
+    for name in ['scripts', 'results', 'logs', 'diffs', 'variants', 'objects', 'probe', 'lifo']:
+        (A / name).mkdir()
+    filelist = read(R / 'results/stage36_archive_filelist.json')['files']
+    protected = {}
+    archive_hashes = {}
+    source_pairs = []
+    for item in filelist:
+        source, target = Path(item['source']), Path(item['target'])
+        need(sha(source) == item['original_sha256'], 'Original bench artifact changed: ' + str(source))
+        protected[str(source)] = sha(source)
+        protected[str(target)] = sha(target)
+        archive_hashes[str(target)] = sha(target)
+        if target.parent == ARCHIVE / 'scripts':
+            local = A / 'scripts' / target.name
+            shutil.copyfile(target, local)
+            need(sha(local) == sha(target), 'Archived script copy differs')
+            (A / 'diffs' / (target.name + '.diff')).write_text(''.join(difflib.unified_diff(
+                source.read_text().splitlines(True), target.read_text().splitlines(True),
+                fromfile=str(source), tofile=str(target))))
+            source_pairs.append({'original': str(source), 'original_sha256': sha(source),
+                                 'archived': str(target), 'archived_sha256': sha(target),
+                                 'executed_copy': str(local), 'executed_copy_sha256': sha(local)})
+    helper = ARCHIVE / 'scripts/independent78_import.h'
+    protected[str(helper)] = sha(helper)
+    shutil.copyfile(helper, A / 'scripts/independent78_import.h')
+    for name in ['models64', 'models68', 'models77', 'lib']:
+        (A / name).symlink_to(R / name, target_is_directory=True)
+    variant = A / 'variants/trace68_native'
+    variant.mkdir()
+    for name in ['metadata.json', 'commands.json', 'build_source_sha256.json']:
+        source = R / 'variants/trace68_native' / name
+        protected[str(source)] = sha(source)
+        shutil.copyfile(source, variant / name)
+    (variant / 'libcore_knn_hnsw.so').symlink_to(R / 'variants/trace68_native/libcore_knn_hnsw.so')
+    commands = read(R / 'results/build_commands.json')
+    replacements = []
+    for record in commands:
+        record['cwd'] = str(A)
+        for i, argument in enumerate(record['argv']):
+            changed = argument.replace(str(R), str(A))
+            if changed != argument:
+                replacements.append({'from': argument, 'to': changed})
+            record['argv'][i] = changed
+    save(A / 'results/build_commands.json', commands)
+    save(A / 'diffs/build_command_path_replacements.json', replacements)
+    headers = [S / 'src/core/algorithm/quantized_graph/quantized_graph.h',
+               S / 'src/core/algorithm/quantized_graph/independent_code_import.h',
+               S / 'src/turbo/quantizer/symphony_qg_quantizer/symphony_qg_quantizer.h']
+    for path in headers:
+        protected[str(path)] = sha(path)
+    save(A / 'source_manifest.json', {'source_pairs': source_pairs, 'protected_input_sha256': protected,
+                                    'archive_source_sha256': archive_hashes,
+                                    'sandbox_script_path_edits': [],
+                                    'only_path_changes': str(A / 'diffs/build_command_path_replacements.json'),
+                                    'source_models_and_libraries_read_only_inputs': True})
+    env = {k: v for k, v in os.environ.items() if not k.startswith(('QG_', 'BENCH_', 'GTEST_'))
+           and k not in ['PYTHONOPTIMIZE', 'PYTHONPATH', 'LD_PRELOAD', 'LD_LIBRARY_PATH']}
+    env.update(OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1', PYTHONDONTWRITEBYTECODE='1',
+               LD_LIBRARY_PATH=str(R / 'variants/trace68_native') + ':' + str(R / 'lib'))
+    executed, checks = [], {}
+
+    def run(name, command):
+        logging.info('STAGE36 REPLAY START %s', name)
+        start = time.time()
+        with (A / 'logs' / (name + '.log')).open('x') as stream:
+            result = subprocess.run(command, cwd=A, env=env, stdout=stream, stderr=subprocess.STDOUT, check=False)
+        record = {'name': name, 'argv': command, 'cwd': str(A), 'returncode': result.returncode,
+                  'elapsed_seconds': time.time() - start, 'log': str(A / 'logs' / (name + '.log'))}
+        save(A / 'logs' / (name + '_command_result.json'), record)
+        executed.append(record)
+        need(result.returncode == 0, 'Replay failed: ' + name)
+        logging.info('STAGE36 REPLAY PASS %s', name)
+
+    def same_values(old, new, ignore):
+        need({k: v for k, v in old.items() if k not in ignore} ==
+             {k: v for k, v in new.items() if k not in ignore}, 'Structured result differs beyond permitted provenance fields')
+
+    try:
+        run('versions', [PYTHON, '-c', "import sys,numpy,subprocess;print(sys.version);print(numpy.__version__);subprocess.run(['c++','--version'],check=True)"])
+        run('rational_math', [PYTHON, str(A / 'scripts/theoretical80_threshold_check.py'), '--out', str(A / 'results/theoretical80_threshold_check.json')])
+        same_values(read(R / 'results/theoretical80_threshold_check.json'), read(A / 'results/theoretical80_threshold_check.json'), {'script_sha256'})
+        checks['rational_math_all_numeric_fields_equal'] = True
+        # Invoke the ARCHIVED Python runner. Its source snapshot must equal the
+        # archived CC, and its command must compile that snapshot, never raw CC.
+        run('scorer_all1000', [PYTHON, str(A / 'scripts/path80_score.py'), '--name', 'path80_native_v1', '--execute'])
+        score = read(A / 'path80_native_v1/proof.json')
+        old_score = read(R / 'path80_native_v1/proof.json')
+        need(score['passed'] and score['all_queries_native_gate'] and score['query_count'] == 1000, 'Full scorer gate')
+        compiled = score['command_results'][0]['argv']
+        need(str(A / 'path80_native_v1/source/path80_score.cc') in compiled, 'Scorer compiled wrong source path')
+        need(sha(A / 'path80_native_v1/source/path80_score.cc') == sha(ARCHIVE / 'scripts/path80_score.cc'), 'Scorer snapshot is not archived source')
+        binary_artifacts = ['native_path_learned_scores.bin', 'event_audit.bin', 'queries_prepared769.f32', 'queries_rotated768.f32']
+        artifact_hashes = {}
+        for name in binary_artifacts:
+            need(sha(A / 'path80_native_v1' / name) == sha(R / 'path80_native_v1' / name), 'Scorer bytes differ: ' + name)
+            artifact_hashes[name] = sha(A / 'path80_native_v1' / name)
+        need(read(A / 'path80_native_v1/scorer_result.json') == read(R / 'path80_native_v1/scorer_result.json'), 'Scorer numeric result differs')
+        checks['scorer_all1000'] = {'numeric_results_equal': True, 'binary_artifacts_byte_equal': artifact_hashes,
+                                   'native_edges_bit_identical': score['scored_edges'],
+                                   'rotations_bit_identical': score['actual_rotations_verified_against_frozen'],
+                                   'compiled_archived_source_verified': True}
+        # Query probe: preserve original flags/link order, change source/output paths only.
+        for name in ['path80_query_probe.cc', 'path80_score.cc', 'independent78_import.h']:
+            shutil.copyfile(A / 'scripts' / name, A / 'probe' / name)
+        probe_commands = read(R / 'path80_query_probe_v3/commands.json')
+        for i, command in enumerate(probe_commands):
+            changed = [x.replace(str(R / 'path80_query_probe_v3'), str(A / 'probe')).replace(str(R / 'scripts'), str(A / 'probe')) for x in command]
+            run('probe_compile' if i == 0 else 'probe_link', changed)
+        command = [x.replace(str(R / 'path80_query_probe_v3'), str(A / 'probe')) for x in read(R / 'path80_query_probe_v3/run_command.json')]
+        run('probe_run', command)
+        need((A / 'logs/probe_run.log').read_bytes() == (R / 'path80_query_probe_v3/probe.jsonl').read_bytes(), 'Probe numeric output differs')
+        checks['actual_query_probe_output_byte_equal'] = True
+        # Regenerate fixed controls through archived source; input links are read-only.
+        run('prepare_controls', [PYTHON, str(A / 'scripts/prepare80_controls_v1.py')])
+        run('prepare_same_bin', [PYTHON, str(A / 'scripts/prepare80_same_bin_control_v1.py')])
+        for relative in ['path80_controls_v1/identity.bin', 'path80_controls_v1/synthetic_last_lane.bin',
+                         'path80_same_bin_control_v1/native_path_same_bin_scores.bin']:
+            need(sha(A / relative) == sha(R / relative), 'Control overlay bytes differ: ' + relative)
+        checks['all_regenerated_control_overlay_bytes_equal'] = True
+        shared = ['--native-events', str(R / 'models68/primary/events.bin'), '--native-metadata', str(R / 'variants/trace68_native/metadata.json'),
+                  '--graph', str(R / 'models64/full_graph.bin'), '--runtime-config', str(R / 'experiments/diag68_primary/config.json'),
+                  '--native-results', str(R / 'experiments/diag68_primary/search_k10_r0_ids.csv')]
+        tasks = [
+            ('native', 'trace80_native_v1.py', 'path80_native_replay_v1', []),
+            ('identity', 'trace80_replay_v2.py', 'path80_identity_replay_v2', ['--rescored-events', str(A / 'path80_controls_v1/identity.bin'), '--rescore-proof', str(A / 'path80_controls_v1/identity_proof.json'), '--allow-control-proof']),
+            ('synthetic', 'trace80_replay_v2.py', 'path80_synthetic_replay_v2', ['--rescored-events', str(A / 'path80_controls_v1/synthetic_last_lane.bin'), '--rescore-proof', str(A / 'path80_controls_v1/synthetic_last_lane_proof.json'), '--allow-control-proof']),
+            ('same_bin', 'trace80_replay_v3.py', 'path80_same_bin_replay_v3', ['--rescored-events', str(A / 'path80_same_bin_control_v1/native_path_same_bin_scores.bin'), '--rescore-proof', str(A / 'path80_same_bin_control_v1/proof.json'), '--allow-control-proof']),
+            ('learned', 'trace80_replay_v2.py', 'path80_learned_replay_v2', ['--rescored-events', str(A / 'path80_native_v1/native_path_learned_scores.bin'), '--rescore-proof', str(A / 'path80_native_v1/proof.json')]),
+        ]
+        for name, script, dirname, extra in tasks:
+            run('replay_' + name, [PYTHON, str(A / 'scripts' / script), *shared, *extra, '--output', str(A / dirname)])
+            same_values(read(R / dirname / 'summary.json'), read(A / dirname / 'summary.json'), {'script_hash', 'rescore_proof_sha256'})
+            for filename in ['queries.jsonl', 'proposals.csv']:
+                need(sha(A / dirname / filename) == sha(R / dirname / filename), 'Replay body bytes differ: ' + dirname + '/' + filename)
+            checks['replay_' + name] = {'all_algorithm_and_numeric_fields_equal': True, 'queries_jsonl_and_proposals_csv_byte_equal': True,
+                                      'counters': read(A / dirname / 'summary.json')['counters']}
+        run('prefix_summary', [PYTHON, str(A / 'scripts/summarize80_replay_v1.py'), '--replay', str(A / 'path80_learned_replay_v2'), '--output', str(A / 'results/path80_learned_common_prefix_summary_v1.json')])
+        same_values(read(R / 'results/path80_learned_common_prefix_summary_v1.json'), read(A / 'results/path80_learned_common_prefix_summary_v1.json'), {'script_sha256', 'source_replay_summary_sha256'})
+        run('actual_prefix', [PYTHON, str(A / 'scripts/check80_actual_prefix_v1.py'), '--native-events', str(R / 'path80_actual_v1/native/events.bin'),
+                             '--overlay-events', str(A / 'path80_native_v1/native_path_learned_scores.bin'), '--actual-events', str(R / 'path80_actual_v1/learned/events.bin'),
+                             '--replay-queries', str(A / 'path80_learned_replay_v2/queries.jsonl'), '--output', str(A / 'results/path80_actual_prefix_v1.json')])
+        old, new = read(R / 'results/path80_actual_prefix_v1.json'), read(A / 'results/path80_actual_prefix_v1.json')
+        same_values(old, new, {'script_sha256', 'inputs_native_overlay_actual', 'replay_predictions'})
+        need([x['sha256'] for x in old['inputs_native_overlay_actual']] == [x['sha256'] for x in new['inputs_native_overlay_actual']], 'Comparator input bytes differ')
+        need(old['replay_predictions']['sha256'] == new['replay_predictions']['sha256'], 'Prediction bytes differ')
+        checks['independent_actual_prefix_all1000_equal'] = True
+        # Production bucket control also compiles the archive snapshot.
+        shutil.copyfile(A / 'scripts/path80_lifo_control_v1.cc', A / 'lifo/path80_lifo_control_v1.cc')
+        for record in read(R / 'path80_lifo_control_v1/commands.json'):
+            command = [x.replace(str(R / 'path80_lifo_control_v1'), str(A / 'lifo')) for x in record['argv']]
+            run('lifo_' + record['name'], command)
+        lifo = json.loads((A / 'logs/lifo_run.log').read_text())
+        old_lifo = read(R / 'results/path80_lifo_control_v1.json')
+        need(all(old_lifo[k] == v for k, v in lifo.items()), 'Production LIFO numeric control differs')
+        checks['production_lifo_control_equal'] = True
+        for path, expected in protected.items():
+            need(sha(path) == expected, 'Protected original/archive/production input changed: ' + path)
+        result = {'passed': True, 'stage': 36, 'sandbox': str(A), 'checks': checks, 'commands': executed,
+                  'source_manifest': str(A / 'source_manifest.json'), 'protected_input_count': len(protected),
+                  'protected_inputs_unchanged': True, 'production_headers_unchanged': True,
+                  'bench_success_sources_and_evidence_unchanged': True,
+                  'allowed_differences': ['script/binary SHA due formatting and source paths', 'output/source/log paths', 'wall-clock durations',
+                                          'proof hashes caused only by provenance changes', 'CLI print replaced with logging; assertions split without changing evaluated checks',
+                                          'explicit strict=False preserves comparator shorter-sequence zip behavior'],
+                  'archive_semantic_edits': ['format/import ordering', 'CLI logging', 'split conjunction asserts', 'dict literals',
+                                             'unused binding removal while preserving call', 'local complexity noqa avoids refactoring frozen protocol', 'explicit non-strict zip'],
+                  'no_performance_timing': True, 'no_retrieval_or_training': True,
+                  'trace80_primary_archived_but_not_rerun': True,
+                  'no_unfinished_mechanism_A_B_inputs': True,
+                  'runner_sha256': sha(Path(__file__))}
+        save(A / 'stage36_postformat_validation.json', result)
+        save(R / 'results/stage36_postformat_validation.json', result)
+        logging.info('STAGE36 POSTFORMAT COMPLETE %s', R / 'results/stage36_postformat_validation.json')
+    except BaseException as error:
+        save(A / 'failure.json', {'error': repr(error), 'commands': executed, 'checks_completed': checks})
+        raise
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,130 @@
+--- /home/xingrui/bench/quantized_graph/research_20261025/scripts/theoretical80_threshold_check.py
++++ /home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/theoretical80_threshold_check.py
+@@ -3,15 +3,16 @@
+ No training, model reads, retrieval, or timing claims. This checks real-algebra
+ statements with rational arithmetic, not the production FP32/LUT scorer.
+ """
++
+ from __future__ import annotations
+ 
+ import argparse
+-from fractions import Fraction as F
+ import hashlib
+ import itertools
+ import json
++import random
++from fractions import Fraction as F
+ from pathlib import Path
+-import random
+ 
+ 
+ def dot(left, right):
+@@ -57,11 +58,17 @@
+     for signs in itertools.product((-1, 1), repeat=dimension):
+         counts["enumerated_codes"] += 1
+         denominator = dot(r, signs)
+-        flips = [int(first != second) for first, second in zip(native, signs, strict=True)]
+-        mass = sum((abs(value) * flip for value, flip in zip(r, flips, strict=True)), F(0))
++        flips = [
++            int(first != second) for first, second in zip(native, signs, strict=True)
++        ]
++        mass = sum(
++            (abs(value) * flip for value, flip in zip(r, flips, strict=True)), F(0)
++        )
+         assert denominator == l1 - 2 * mass
+         for budget in sorted({1, 2, min(8, dimension)}):
+-            radial_feasible = denominator > 0 and l1 / denominator <= tau and sum(flips) <= budget
++            radial_feasible = (
++                denominator > 0 and l1 / denominator <= tau and sum(flips) <= budget
++            )
+             linear_feasible = sum(flips) <= budget and mass <= (1 - 1 / tau) * l1 / 2
+             assert radial_feasible == linear_feasible
+             counts["budget_set_equivalence_checks"] += 1
+@@ -71,7 +78,13 @@
+             continue
+         estimated = radial_score(r, delta, constant, signs)
+         for threshold in (exact - gamma, exact, exact + gamma, estimated):
+-            linear = dot([(constant - threshold) * x - radius * d for x, d in zip(r, delta, strict=True)], signs)
++            linear = dot(
++                [
++                    (constant - threshold) * x - radius * d
++                    for x, d in zip(r, delta, strict=True)
++                ],
++                signs,
++            )
+             assert estimated - threshold == linear / denominator
+             assert (estimated <= threshold) == (linear <= 0)
+             assert (estimated < threshold) == (linear < 0)
+@@ -91,7 +104,10 @@
+             if hinge == 0:
+                 assert label * (estimated - threshold) >= gamma
+                 counts["zero_hinge_implies_score_margin_checks"] += 1
+-            if l1 / denominator <= tau and label * (estimated - threshold) >= tau * gamma:
++            if (
++                l1 / denominator <= tau
++                and label * (estimated - threshold) >= tau * gamma
++            ):
+                 assert hinge == 0
+                 counts["sufficient_margin_implies_zero_hinge_checks"] += 1
+ 
+@@ -101,15 +117,26 @@
+     parser.add_argument("--out", type=Path, required=True)
+     args = parser.parse_args()
+     rng = random.Random(8003)
+-    names = ["enumerated_codes", "budget_set_equivalence_checks", "zero_residual_cases_rejected",
+-             "zero_exact_margin_labels_rejected", "nonpositive_denominator_codes_rejected",
+-             "threshold_sign_equivalence_checks", "estimated_threshold_ties_checked",
+-             "zero_exact_margin_hinge_cases_excluded", "hinge_flip_upper_bound_checks",
+-             "zero_hinge_implies_score_margin_checks", "sufficient_margin_implies_zero_hinge_checks"]
++    names = [
++        "enumerated_codes",
++        "budget_set_equivalence_checks",
++        "zero_residual_cases_rejected",
++        "zero_exact_margin_labels_rejected",
++        "nonpositive_denominator_codes_rejected",
++        "threshold_sign_equivalence_checks",
++        "estimated_threshold_ties_checked",
++        "zero_exact_margin_hinge_cases_excluded",
++        "hinge_flip_upper_bound_checks",
++        "zero_hinge_implies_score_margin_checks",
++        "sufficient_margin_implies_zero_hinge_checks",
++    ]
+     counts = dict.fromkeys(names, 0)
+     for dimension in range(1, 9):
+         for trial in range(8):
+-            r = [F(rng.choice((0, 1, 2, 3, 5, 50, 100, 200)) * rng.choice((-1, 1)), 100) for _ in range(dimension)]
++            r = [
++                F(rng.choice((0, 1, 2, 3, 5, 50, 100, 200)) * rng.choice((-1, 1)), 100)
++                for _ in range(dimension)
++            ]
+             if trial == 0:
+                 r = [F(0)] * dimension
+             delta = [F(rng.randrange(-7, 8), 7) for _ in range(dimension)]
+@@ -122,12 +149,21 @@
+             exact = 1 - dot(query, vector)
+             assert constant - dot(delta, r) == exact
+             check_case(r, delta, constant, exact, counts)
+-    report = {"status": "passed", "seed": 8003, "arithmetic": "fractions.Fraction exact rational",
+-              "dimensions": list(range(1, 9)), "cases_per_dimension": 8,
+-              "scale_ratio": "51/50", "gamma": "1/100", "kappa": "||r||_1 * gamma",
+-              "counts": counts, "scope": "exhaustive signs on fixed synthetic cases; no code optimization",
+-              "production_fp32_lut_equivalence_claim": False, "qps_or_recall_claim": False,
+-              "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
++    report = {
++        "status": "passed",
++        "seed": 8003,
++        "arithmetic": "fractions.Fraction exact rational",
++        "dimensions": list(range(1, 9)),
++        "cases_per_dimension": 8,
++        "scale_ratio": "51/50",
++        "gamma": "1/100",
++        "kappa": "||r||_1 * gamma",
++        "counts": counts,
++        "scope": "exhaustive signs on fixed synthetic cases; no code optimization",
++        "production_fp32_lut_equivalence_claim": False,
++        "qps_or_recall_claim": False,
++        "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
++    }
+     with args.out.open("x") as stream:
+         json.dump(report, stream, indent=2)
+         stream.write("\n")

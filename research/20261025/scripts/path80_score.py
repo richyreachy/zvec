@@ -1,0 +1,306 @@
+"""Draft phase80 offline scorer runner; default prints a plan and runs nothing.
+
+Use --execute only after the root agent ends the confirmation timing window.
+All outputs and command logs use a new, exclusive path80_* directory. No index
+is opened, no retrieval is timed, and no existing source/model is modified.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import logging
+import os
+import shutil
+import subprocess
+import time
+from pathlib import Path
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+R = Path(__file__).resolve().parent.parent
+TRUSTED = {
+    "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
+    "models64/full_vectors.f32": "5c9d8196d5c46d617c5cb3d9eedae5f9b8bf1677e370f210c5b84b08cdd66d24",
+    "models77/rotated.f32": "69787cd3b97ebc844a5547d76c10fdaca14a103f62d6fd3fe62a67caccf18f22",
+    "models77/full/blocks.bin": "2ac03543d4a09ae655d38130419df41668e4d62bdd3231b49135d2603c39f138",
+    "models77/header1000000.bin": "6fdcfd9d64ca1d469fa7bd6dce9c37e02a00d760105ec76567be6092f72a3b3f",
+}
+
+
+def need(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
+def sha(path):
+    h = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for data in iter(lambda: stream.read(4 << 20), b""):
+            h.update(data)
+    return h.hexdigest()
+
+
+def write_json(path, value):
+    with path.open("x") as stream:
+        json.dump(value, stream, indent=2)
+        stream.write("\n")
+
+
+def main():  # noqa: PLR0915 - preserve the frozen validation protocol
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--name", default="path80_native_v1")
+    parser.add_argument("--execute", action="store_true")
+    parser.add_argument("--query-count", type=int, default=1000)
+    args = parser.parse_args()
+    need(1 <= args.query_count <= 1000, "--query-count must be 1..1000")
+    need(
+        args.name.startswith("path80_") and Path(args.name).name == args.name,
+        "--name must be one direct path80_* directory name",
+    )
+    out = R / args.name
+    need(not out.exists() and not out.is_symlink(), "Output exists; choose a new name")
+    variant = R / "variants/trace68_native"
+    metadata = json.loads((variant / "metadata.json").read_text())
+    frozen = Path(metadata["immutable_build_source"])
+    commands = json.loads((variant / "commands.json").read_text())
+    original_compile = next(
+        c
+        for c in commands
+        if "-c" in c and any(x.endswith("/hnsw_quantized_graph.cc") for x in c)
+    )
+    original_source = next(
+        x for x in original_compile if x.endswith("/hnsw_quantized_graph.cc")
+    )
+    original_object = original_compile[original_compile.index("-o") + 1]
+    source = out / "source/path80_score.cc"
+    obj = out / "path80_score.o"
+    binary = out / "path80_score"
+    compile_command = [
+        str(source) if x == original_source else str(obj) if x == original_object else x
+        for x in original_compile
+    ]
+    # Preserve the trace codec TU compiler flags exactly, including generic
+    # -march=x86-64 and contraction defaults. Do not introduce -march=native.
+    compile_command.extend(["-I", str(out / "source"), "-pthread"])
+    build_commands = json.loads((R / "results/build_commands.json").read_text())
+    driver_object = str(R / "objects/benchmark.o")
+    driver_link = next(
+        c["argv"]
+        for c in build_commands
+        if "-c" not in c["argv"] and driver_object in c["argv"]
+    )
+    driver_binary = driver_link[driver_link.index("-o") + 1]
+    link_command = [
+        str(obj)
+        if x == driver_object
+        else str(binary)
+        if x == driver_binary
+        else f"-Wl,--dependency-file={out / 'path80.link.d'}"
+        if x.startswith("-Wl,--dependency-file=")
+        else x
+        for x in driver_link
+    ]
+    # Match the original driver DSO order and whole-archive policy: Ailego norm
+    # symbols occur in multiple DSOs, so a minimal reordered link is NOT exact.
+    link_command.append("-pthread")
+    linked_inputs = {Path(x) for x in link_command if x.endswith((".a", ".so"))}
+    linked_inputs.add(variant / "libcore_knn_hnsw.so")
+    events = R / "models68/primary/events.bin"
+    query_text = Path(
+        "/home/xingrui/bench/dataset/cohere/1m/cohere_test_vector_1m.1000.new.txt"
+    )
+    score_command = [
+        str(binary),
+        str(events),
+        str(R / "models64/full_graph.bin"),
+        str(R / "models64/full_vectors.f32"),
+        str(R / "models77/rotated.f32"),
+        str(R / "models77/full/blocks.bin"),
+        str(R / "models77/header1000000.bin"),
+        TRUSTED["models77/full/blocks.bin"],
+        str(query_text),
+        str(out),
+        str(args.query_count),
+    ]
+    planned = {
+        "draft_pending_compilation_and_numeric_acceptance": True,
+        "execute_requested": args.execute,
+        "output": str(out),
+        "frozen_native_source": str(frozen),
+        "compile": compile_command,
+        "link": link_command,
+        "score": score_command,
+        "off_policy_rescored_native_events": True,
+        "actual_learned_path": False,
+        "native_gate_query_count": args.query_count,
+        "mechanism_sample_preselected_query_ids": [0, 127],
+        "mechanism_sample_interval_inclusive": True,
+        "retrieval_or_timing_runs": False,
+    }
+    if not args.execute:
+        logging.info("%s", json.dumps(planned, indent=2))
+        return
+    out.mkdir(exist_ok=False)
+    (out / "source").mkdir()
+    (out / "logs").mkdir()
+    write_json(out / "plan.json", planned)
+    started = time.time()
+    completed = []
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if not k.startswith(("QG_", "BENCH_", "GTEST_"))
+        and k not in {"LD_LIBRARY_PATH", "LD_PRELOAD", "PYTHONPATH", "PYTHONOPTIMIZE"}
+    }
+    env.update(
+        LD_LIBRARY_PATH=f"{variant}:{R / 'lib'}",
+        OPENBLAS_NUM_THREADS="1",
+        OMP_NUM_THREADS="1",
+    )
+
+    def run(name, argv):
+        begin = time.time()
+        log = out / "logs" / (name + ".log")
+        write_json(
+            out / "logs" / (name + "_command.json"),
+            {"argv": argv, "cwd": str(out), "log": str(log), "started_unix": begin},
+        )
+        with log.open("x") as stream:
+            result = subprocess.run(
+                argv,
+                cwd=out,
+                env=env,
+                stdout=stream,
+                stderr=subprocess.STDOUT,
+                check=False,
+            )
+        record = {
+            "name": name,
+            "argv": argv,
+            "returncode": result.returncode,
+            "log": str(log),
+            "elapsed_seconds": time.time() - begin,
+        }
+        completed.append(record)
+        write_json(out / "logs" / (name + "_result.json"), record)
+        need(result.returncode == 0, f"{name} failed; see {log}")
+
+    try:
+        source_hashes = {}
+        for name in ["path80_score.cc", "path80_score.py", "independent78_import.h"]:
+            source_path = R / "scripts" / name
+            target = out / "source" / name
+            source_hashes[str(source_path)] = sha(source_path)
+            shutil.copyfile(source_path, target)
+            need(
+                sha(target) == source_hashes[str(source_path)], "Copied source differs"
+            )
+        frozen_hashes = json.loads((variant / "build_source_sha256.json").read_text())
+        for relative, expected in frozen_hashes.items():
+            need(
+                sha(frozen / relative) == expected, f"Frozen source differs: {relative}"
+            )
+        input_hashes = {}
+        for relative, expected in TRUSTED.items():
+            actual = sha(R / relative)
+            need(actual == expected, f"Trusted input differs: {relative}")
+            input_hashes[relative] = actual
+        input_hashes["models68/primary/events.bin"] = sha(events)
+        input_hashes[str(query_text)] = sha(query_text)
+        library_hashes = {str(path): sha(path) for path in sorted(linked_inputs)}
+        write_json(
+            out / "inputs.json",
+            {
+                "inputs_sha256": input_hashes,
+                "source_sha256": source_hashes,
+                "libraries_sha256": library_hashes,
+                "frozen_source_sha256": frozen_hashes,
+                "numpy_geometry_queries_f32_used": False,
+            },
+        )
+        run("compile", compile_command)
+        run("link", link_command)
+        run("score", score_command)
+        result = json.loads((out / "scorer_result.json").read_text())
+        need(
+            result["native_scores_bit_identical"]
+            and result["native_truth_bit_identical"]
+            and result["all_queries_native_gate"] == (args.query_count == 1000)
+            and result["query_count"] == args.query_count,
+            "Requested primary prefix native score/truth gate did not pass",
+        )
+        # Hash trace and used frozen sources again; a race invalidates the proof.
+        need(
+            sha(events) == input_hashes["models68/primary/events.bin"],
+            "Source trace changed during run",
+        )
+        for path, expected in library_hashes.items():
+            need(sha(path) == expected, "Linked library changed during run")
+        for relative, expected in frozen_hashes.items():
+            need(sha(frozen / relative) == expected, "Frozen source changed during run")
+        result.update(
+            passed=True,
+            source_events_sha256=input_hashes["models68/primary/events.bin"],
+            model_sha256=input_hashes["models77/full/blocks.bin"],
+            model_path=str(R / "models77/full/blocks.bin"),
+            rescored_events_sha256=sha(out / "native_path_learned_scores.bin"),
+            source_events=str(events),
+            rescored_events=str(out / "native_path_learned_scores.bin"),
+            input_manifest=str(out / "inputs.json"),
+            command_results=completed,
+            binary_sha256=sha(binary),
+            elapsed_seconds=time.time() - started,
+            audit_layout={
+                "header_u32": [
+                    "magic=0x51475080",
+                    "version=1",
+                    "record_bytes=64",
+                    "dimension=768",
+                    "queries",
+                    "events",
+                    "zero",
+                    "zero",
+                ],
+                "record": "original_Event32,u64_global_event_index,u32_degree,u32_lane,u32_native_bits,u32_learned_bits,u32_center_bits,u32_flags",
+                "no_edge_lane": 4294967295,
+                "flags": {
+                    "1": "full learned block",
+                    "2": "actual exact distance verified",
+                    "4": "native FastScan verified",
+                    "8": "no edge lane",
+                },
+            },
+            artifacts_sha256={
+                name: sha(out / name)
+                for name in [
+                    "event_audit.bin",
+                    "queries_prepared769.f32",
+                    "queries_rotated768.f32",
+                    "scorer_result.json",
+                ]
+            },
+            mechanism_sample_preselected_query_ids=[0, 127],
+            mechanism_sample_interval_inclusive=True,
+            actual_learned_path=False,
+            off_policy_rescored_native_events=True,
+            independent_replay_still_required=True,
+        )
+        write_json(out / "proof.json", result)
+        logging.info("PATH80 SCORE COMPLETE %s", out / "proof.json")
+    except BaseException as error:
+        write_json(
+            out / "failure.json",
+            {
+                "error": repr(error),
+                "commands": completed,
+                "elapsed_seconds": time.time() - started,
+                "passed": False,
+            },
+        )
+        raise
+
+
+if __name__ == "__main__":
+    main()

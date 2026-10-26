@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T21:27:43.281450+08:00",
+  "updated_at": "2026-10-26T22:02:53.140106+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -255,16 +255,24 @@
     "independent78_confirmation_runs": 12,
     "independent78_confirmation_timing_rows": 24,
     "independent78_confirmation_warmup_id_hex_rows": 120000,
-    "independent78_confirmation_archive_audit_passed": true
+    "independent78_confirmation_archive_audit_passed": true,
+    "path80_native_expansions_replayed": 30763,
+    "path80_native_edge_scores_and_truth_bit_verified": 984388,
+    "path80_actual_rotations_verified": 364384,
+    "path80_actual_prefix_queries_verified": 1000,
+    "path80_actual_prefix_centers_bit_identical": 4952,
+    "path80_actual_prefix_edges_bit_identical": 158464,
+    "path80_same_bin_changed_scores": 984388,
+    "path80_same_bin_control_queries_unchanged": 1000,
+    "theoretical80_codes_exact_enumeration": 3568,
+    "theoretical80_threshold_sign_equivalences": 7100
   },
   "latest_source_change": "Phase78 default-off verified model import;FP32 cosine768 Symphony only,short blocks native;no scan kernel changes.",
   "next_actions": [
-    "Stage35 committed;continuephase80 frozen diagnostic protocol and perstage commits.",
-    "Complete exact native bucket/LIFO/repeatedproposal replay against all1000primary trace expansions and stops before any learned replacement.",
-    "Reproduce nativeactualFastScan and exact reference scores bitwise using actual production query normalization/metric and original stored vector metadata;preserve failed preflight,do notloosen tolerance.",
-    "Use learned actualscores only after nativeverification;identify first path divergence,then stop path-equivalence claim. All1000queries diagnostic;no GT-driven training/parameterselection.",
-    "Verify fixedthreshold radialscore-to-binarylinearconstraint identity and feasibleflipbudget byindependent small-dimension enumeration;not yet train/rebuild.",
-    "No25%breakthrough;continue objective after diagnosing currentloss mismatch."
+    "Commitstage36 usingexplicit archive seal plusrootreport;do notmixstage37 A/B files.",
+    "Archive/replay completed A/B statistics asstage37:bothpredeclared conclusions inconclusive;no posthoc threshold search.",
+    "Completephase81 metadata-only earlycenter preflight;freeze split/list before labels;define separate pilot protocol for budgeted binary thresholdloss,no primaryGT training.",
+    "Require stable>=25%QPS atRecall>=90 plus extraqueries;no newperformancecandidate accepted."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "",
@@ -273,10 +281,10 @@
   "primary_measurement_rows": 1340,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "9710a9026460d2687f151e666e8ac26ac361a201",
+  "head": "f3b3ea8b5e5be76a63499e33dd55c73cf81c3899",
   "stage_commit_count": 35,
   "extra_document_index_commits": 27,
-  "working_tree_status": "Stage35 committed;documentation index follows;phase80 work confined tobench.",
+  "working_tree_status": "Stage36mechanicalreports andexplicitarchive ready tocommit;stage37A/Bfiles inparallel preparation;no production edits.",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -322,7 +330,7 @@
     "heldout_validated": false,
     "source_provenance_exception": "results/router60_prebuild_guard_change.json"
   },
-  "head_scope": "Latest research stage35;following docs index not self-referenced.",
+  "head_scope": "ActualdocsHEAD afterstage35;phase80 mechanical replay and A/B analyses inprogress,bench runtime state only.",
   "diagnostic61": "Complete: three seeds fail5% prespecified reconstruction-error gate; local flip rates do not consistently improve.104ns incremental hot transform only; no search timing.",
   "directional62_probe": {
     "beta": 0.9359792556459329,
@@ -3959,7 +3967,7 @@
     "production_loader_implemented": false,
     "no_retrieval_qps_or_recall_claim": true
   },
-  "in_progress_phase": 80,
+  "in_progress_phase": 81,
   "phase78_status": "Complete:4pairedrounds x3conditions x1/8threads x3seconds. Learned medianQPS31012.207855/229339.88135 atRecall.9069;gain -2.737%/-2.887% vsfrozenbaseline;no benefit;no extra-query gate.",
   "independent78_screen": {
     "passed_full_import": true,
@@ -4114,7 +4122,7 @@
   },
   "theoretical79_status": "Independent algebra and reused-proxy width diagnostic complete;Gram interval too wide (0/1024Top1 certificates for native and learned);no finiteprecision deployed certificate,not new blind queries.",
   "phase78_confirmation_log": "logs/confirm78.log",
-  "phase80_status": "Preparing exact native bucket replay and actual FastScan score replay on existing1000primary trace;strict bit checks before learned counterfactual. First score preflight truth mismatch preserved for diagnosis;no relaxed tolerance.",
+  "phase80_status": "Mechanicalvalidation complete andarchived replay passes;actual1000firstdivergences match;A/B main effects complete but bothinconclusive,beingseparatelyarchivedstage37.",
   "previous_goal_turn_classification": "Progress:implemented and validated model import,completed full1M screen and theorem checks,committed stage34;started live confirmation.",
   "independent78_confirmation": {
     "complete": true,
@@ -4826,5 +4834,10 @@
     "all_top10_ids_and_hex_scores_match_frozen_screen_or_baseline": true,
     "additional_queries_tested": false,
     "breakthrough_verified": false
-  }
+  },
+  "phase80_fixed_protocol_sha256": "653aee3fafda65dc9fc3e6500cbec0206071b850bfcbe1ed259028dcc94c0efc",
+  "phase80_actual_trace_exec_session_status": "9701 completed normally;do not restart",
+  "phase80_scoring_exec_session_status": "loader full score completed with proof;first2 failedpreflights preserved",
+  "phase80_mechanism_a_frozen_sampling_sha256": "ee0adfe3092cc3e40702a20992f68798ce597ec96eba0a7389572d482a41e94c",
+  "phase81_status": "Metadata-only hot-early-center preflight authorized on4096databasequerytrace;seed8101 split3072/1024,step<=8,traincount>=64,top32centers;no effectlabelread,no training."
 }

@@ -1,0 +1,58 @@
+{
+  "queries": 1000,
+  "all_primary_queries_used_no_subset_selection": true,
+  "first_divergence_counts": {
+    "next_id": 998,
+    "next_id_divergence_learned_min_bin_down": 241,
+    "next_id_divergence_same_min_bin": 500,
+    "next_id_divergence_learned_min_bin_up": 257,
+    "stop": 1,
+    "unchanged_entire_native_path_and_stop_action": 1
+  },
+  "common_prefix_expansions_mean": 4.952,
+  "common_prefix_expansions_percentiles_0_10_25_50_75_90_100": [
+    1.0,
+    1.0,
+    2.0,
+    4.0,
+    7.0,
+    11.0,
+    19.0
+  ],
+  "first_divergence_decision_step_histogram": {
+    "2": 185,
+    "3": 175,
+    "4": 137,
+    "5": 80,
+    "6": 76,
+    "7": 66,
+    "8": 42,
+    "9": 50,
+    "10": 30,
+    "11": 42,
+    "12": 35,
+    "13": 24,
+    "14": 18,
+    "15": 17,
+    "16": 7,
+    "17": 7,
+    "18": 2,
+    "19": 2,
+    "20": 4
+  },
+  "native_stop_reasons_reconstructed": {
+    "margin": 981,
+    "cap": 19
+  },
+  "same_target_different_winning_provenance_query_count": 40,
+  "unchanged_native_path_query_ids": [
+    929
+  ],
+  "no_GT_read": true,
+  "no_tuning": true,
+  "actual_learned_trace_crosscheck_pending": true,
+  "no_actual_learned_path_claim_after_first_divergence": true,
+  "source_replay_summary_sha256": "71fd53a9cc6d9ab2c32fac817e46d49c3a5691cab4046ca48d7fd16a335a38a2",
+  "source_replay_queries_sha256": "3e0a69e0c93a640f297bf5ac5378a422197e82e5d2ce23b4b886ef50ac205540",
+  "script_sha256": "c10a1f343fa59237c3908ad9a8adf21ee707c43f52e3fe2dccdd8d2f081d656b"
+}

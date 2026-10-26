@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/trace80_replay_v2.py",
+    "--native-events",
+    "/home/xingrui/bench/quantized_graph/research_20261025/models68/primary/events.bin",
+    "--native-metadata",
+    "/home/xingrui/bench/quantized_graph/research_20261025/variants/trace68_native/metadata.json",
+    "--graph",
+    "/home/xingrui/bench/quantized_graph/research_20261025/models64/full_graph.bin",
+    "--runtime-config",
+    "/home/xingrui/bench/quantized_graph/research_20261025/experiments/diag68_primary/config.json",
+    "--native-results",
+    "/home/xingrui/bench/quantized_graph/research_20261025/experiments/diag68_primary/search_k10_r0_ids.csv",
+    "--rescored-events",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path80_controls_v1/identity.bin",
+    "--rescore-proof",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path80_controls_v1/identity_proof.json",
+    "--allow-control-proof",
+    "--output",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path80_identity_replay_v2"
+  ],
+  "cwd": "/home/xingrui/bench/quantized_graph/research_20261025",
+  "script_sha256": "e186974d9b1304ced8f256e37bde33ef1148658853a6464d1b0c705bfa842d6d",
+  "control_preparer_sha256": "81fb20e6461cfd95cef162e8cd988af3d7d9a4e7f341fd534a62be33178e175c",
+  "scope": "control,no learned model,no GT,no retrieval"
+}

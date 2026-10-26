@@ -1,0 +1,37 @@
+{
+  "version": "native_overlay_replay_v2",
+  "counters": {
+    "native_queries": 1000,
+    "native_expansions_order_verified": 30763,
+    "native_score_records": 984388,
+    "path_bits_verified": 0,
+    "top10_members_and_score_bits_verified_queries": 1000,
+    "prefix_diverged_queries": 1,
+    "same_target_different_provenance_queries": 0,
+    "queries_with_eligible_bin_change": 1,
+    "same_bins_implies_same_actions_checked_queries": 999
+  },
+  "fixed_protocol": {
+    "topk": 10,
+    "margin": 0.02,
+    "cap": 64,
+    "patience": 0,
+    "bucket_width_ratio": 0.016,
+    "mechanism_queries": "primary 0..999",
+    "native_gate_queries": 1000
+  },
+  "trace_hash": "4787aa0f822bb2ddf35f4af28c04579283fac5d557fbea74c9f1802047d3d04c",
+  "graph_hash": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
+  "metadata_hash": "85ab5d4e5b6131225606d9c3a9e7280f5d6fb6e70ce3c69571fb1e5f19f7f952",
+  "runtime_config_hash": "2b6e5122192cdc765d712e90fd837473acbad36dc2df91725caaec8ecdcb48c0",
+  "native_results_hash": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+  "script_hash": "e186974d9b1304ced8f256e37bde33ef1148658853a6464d1b0c705bfa842d6d",
+  "overlay_present": true,
+  "proof_kind": "synthetic_last_lane_control",
+  "rescore_proof_sha256": "1a922e46daaf41f4671000a5854cffeb4e146cf93325f8c699563f06d1872fe8",
+  "rescored_events_sha256": "9dc628da02b2924a9c982b13963f3c67df401681a3e9e108a24bc621a6f93961",
+  "no_gt_read": true,
+  "no_training_or_parameter_search": true,
+  "no_claim_of_learned_path_after_first_divergence": true,
+  "observed_path_score_bits_validated": false
+}

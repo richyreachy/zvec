@@ -1,0 +1,48 @@
+{
+  "passed": true,
+  "full_proof": "/home/xingrui/bench/quantized_graph/research_20261025/path80_native_v1/proof.json",
+  "small_proof": "/home/xingrui/bench/quantized_graph/research_20261025/path80_preflight8_v3/proof.json",
+  "small_query_count": 8,
+  "full_query_count": 1000,
+  "events": 1016151,
+  "expansion_blocks": 30763,
+  "scored_edges": 984388,
+  "full_block_visits": 30760,
+  "native_short_block_visits": 3,
+  "actual_rotations_verified_against_frozen": 364384,
+  "changed_edge_score_bits": 984316,
+  "native_scores_bit_identical": true,
+  "native_truth_bit_identical": true,
+  "source_events_sha256": "4787aa0f822bb2ddf35f4af28c04579283fac5d557fbea74c9f1802047d3d04c",
+  "rescored_events_sha256": "bf68e1b90065d66b71a2183abc0e484ec5ff55e12257375fdc79ba9b1e9a447a",
+  "model_sha256": "2ac03543d4a09ae655d38130419df41668e4d62bdd3231b49135d2603c39f138",
+  "off_policy_rescored_native_events": true,
+  "actual_learned_path": false,
+  "new_retrieval_or_qps_runs": false,
+  "primary_queries_already_tuned_not_blind": true,
+  "failed_attempts_preserved": [
+    {
+      "path": "/home/xingrui/bench/quantized_graph/research_20261025/path80_preflight8_v1",
+      "reason": "Used legacy IndexFactory Cosine distance instead of actual driver FP32 Turbo callback; event4 truth differed by4ULP; no learned scoring/publication"
+    },
+    {
+      "path": "/home/xingrui/bench/quantized_graph/research_20261025/path80_preflight8_v2",
+      "reason": "Used legacy IndexFactory Cosine distance instead of actual driver FP32 Turbo callback; event4 truth differed by4ULP; no learned scoring/publication"
+    }
+  ],
+  "query_probe": {
+    "path": "/home/xingrui/bench/quantized_graph/research_20261025/path80_query_probe_v3/probe.jsonl",
+    "uses_turbo": true,
+    "prepared_bytes_equal_standalone_reformer": true,
+    "actual_callback_bit_identical_truth_records": 40,
+    "legacy_metric_mismatch_records": 18,
+    "tail_not_read_by_fp32_distance": true
+  },
+  "source_sha256": {
+    "path80_score.cc": "2d59916d44e9fe6dc1b01ceeb27542f665ebe8a01cc3ff796153c8304c8350a6",
+    "path80_score.py": "cbdba2992d84458a2cd75fc6c0f0f07bd94af2dcef3421072235b5fb507ff6e7",
+    "path80_query_probe.cc": "30ee21894fc779d149bb0ba783ab929190613faff2e0ec4beec36ccc0d58d9e7"
+  },
+  "synthetic_malformed_fixture_tests_executed": false,
+  "consumer_requires_full_proof_and_nonestimate_byte_identity": true
+}

@@ -1,0 +1,75 @@
+{
+  "passed": true,
+  "production_bucket_used": true,
+  "entry_id": 0,
+  "entry_exact_bits": 1065353216,
+  "width_bits": 1015222895,
+  "fixed_candidates": [
+    {
+      "id": 1,
+      "score_bits": 1056964608
+    },
+    {
+      "id": 2,
+      "score_bits": 1056981385
+    }
+  ],
+  "shared_bucket_id": 32,
+  "shared_lower_bound_bits": 1056830391,
+  "arrival_ab": [
+    1,
+    2
+  ],
+  "pop_ab": [
+    2,
+    1
+  ],
+  "arrival_ba": [
+    2,
+    1
+  ],
+  "pop_ba": [
+    1,
+    2
+  ],
+  "only_intervention_is_arrival_order": true,
+  "same_candidate_ids_and_score_bits": true,
+  "entry_seed_popped_before_set_scale": true,
+  "bucket_reused_after_reset": true,
+  "ground_truth_or_queries_read": false,
+  "retrieval_or_qps_run": false,
+  "source_sha256": {
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/path80_lifo_control_v1.cc": "786e9e4eea08711bffea30b4089ad9b9464f30c77bc5f8df7cfb037d68857ed1",
+    "/home/xingrui/bench/quantized_graph/research_20261025/variants/stage78_import_default/build_source/src/core/algorithm/quantized_graph/quantized_graph_bucket.h": "89361725c53f168e3a2a1e6b112077c7791e5aae87812d57ea3085c114af297e"
+  },
+  "binary_sha256": "d221627b5ac75a88cf308e6c9adce8691b5eb07a9a227f681cf0d92ffea470be",
+  "command_manifest": "/home/xingrui/bench/quantized_graph/research_20261025/path80_lifo_control_v1/commands.json",
+  "commands": [
+    {
+      "name": "compile",
+      "argv": [
+        "c++",
+        "-O2",
+        "-std=c++17",
+        "-DQG_BUCKET_WIDTH=.016f",
+        "-I",
+        "/home/xingrui/bench/quantized_graph/research_20261025/variants/stage78_import_default/build_source/src",
+        "/home/xingrui/bench/quantized_graph/research_20261025/path80_lifo_control_v1/path80_lifo_control_v1.cc",
+        "-o",
+        "/home/xingrui/bench/quantized_graph/research_20261025/path80_lifo_control_v1/lifo_control"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 0.402576208114624
+    },
+    {
+      "name": "run",
+      "argv": [
+        "/home/xingrui/bench/quantized_graph/research_20261025/path80_lifo_control_v1/lifo_control"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 0.0012085437774658203
+    }
+  ],
+  "source_unchanged": true,
+  "fixture_directory": "/home/xingrui/bench/quantized_graph/research_20261025/path80_lifo_control_v1"
+}

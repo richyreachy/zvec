@@ -1,0 +1,23 @@
+{
+  "cwd": "/home/xingrui/bench/quantized_graph/research_20261025/path80_lifo_control_v1",
+  "commands": [
+    [
+      "c++",
+      "-O2",
+      "-std=c++17",
+      "-DQG_BUCKET_WIDTH=.016f",
+      "-I",
+      "/home/xingrui/bench/quantized_graph/research_20261025/variants/stage78_import_default/build_source/src",
+      "/home/xingrui/bench/quantized_graph/research_20261025/path80_lifo_control_v1/path80_lifo_control_v1.cc",
+      "-o",
+      "/home/xingrui/bench/quantized_graph/research_20261025/path80_lifo_control_v1/lifo_control"
+    ],
+    [
+      "/home/xingrui/bench/quantized_graph/research_20261025/path80_lifo_control_v1/lifo_control"
+    ]
+  ],
+  "source_sha256": {
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/path80_lifo_control_v1.cc": "786e9e4eea08711bffea30b4089ad9b9464f30c77bc5f8df7cfb037d68857ed1",
+    "/home/xingrui/bench/quantized_graph/research_20261025/variants/stage78_import_default/build_source/src/core/algorithm/quantized_graph/quantized_graph_bucket.h": "89361725c53f168e3a2a1e6b112077c7791e5aae87812d57ea3085c114af297e"
+  }
+}

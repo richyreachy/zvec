@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "identity_and_single_proposal_controls_passed": true,
+  "nontrivial_same_bin_control": {
+    "changed_scores": 984388,
+    "positive_nextafter": 984383,
+    "negative_fallback_nextafter": 5,
+    "changed_bins": 0,
+    "verified_queries": 1000,
+    "expanded_order_divergences": 0,
+    "stop_action_divergences": 0,
+    "winning_provenance_divergences": 0
+  },
+  "actual_production_bucket_lifo_swap_passed": true,
+  "no_GT_or_parameter_tuning": true,
+  "input_sha256": {
+    "results/path80_controls_validation_v1.json": "b0acaedc9575056a239157718bdb75913d08a428af414c0832c2efe3ee06dbb6",
+    "path80_same_bin_control_v1/proof.json": "dae28b5f027254febd8f09261d6fc1494e68cdda86d39500a5ed70eb4dd85be4",
+    "path80_same_bin_replay_v3/summary.json": "4c5a9ea67c765df67e4c93f1b38ef935412ea68e0bf7574752faac507218a865",
+    "results/path80_lifo_control_v1.json": "f65cc4afcb9dfea554a75724ad6ab232a869fb6085c26b0cd38a8ced98174db9"
+  }
+}

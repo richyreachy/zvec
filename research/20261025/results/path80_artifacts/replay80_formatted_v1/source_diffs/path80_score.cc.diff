@@ -1,0 +1,497 @@
+--- /home/xingrui/bench/quantized_graph/research_20261025/scripts/path80_score.cc
++++ /home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/path80_score.cc
+@@ -38,30 +38,47 @@
+ void need(bool condition, const std::string &message) {
+   if (!condition) throw std::runtime_error(message);
+ }
+-template<class T> T take(const char *p) {
+-  T x; std::memcpy(&x, p, sizeof(x)); return x;
+-}
+-uint32_t bits(float x) { return take<uint32_t>(reinterpret_cast<const char *>(&x)); }
++template <class T>
++T take(const char *p) {
++  T x;
++  std::memcpy(&x, p, sizeof(x));
++  return x;
++}
++uint32_t bits(float x) {
++  return take<uint32_t>(reinterpret_cast<const char *>(&x));
++}
+ struct Map {
+-  int fd = -1; size_t size = 0; const char *p = nullptr;
++  int fd = -1;
++  size_t size = 0;
++  const char *p = nullptr;
+   explicit Map(const std::string &path) {
+     fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+     need(fd >= 0, "open: " + path);
+-    struct stat st{};
++    struct stat st {};
+     if (::fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size <= 0) {
+-      ::close(fd); fd = -1; throw std::runtime_error("stat: " + path);
++      ::close(fd);
++      fd = -1;
++      throw std::runtime_error("stat: " + path);
+     }
+     size = size_t(st.st_size);
+     void *v = ::mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd, 0);
+-    if (v == MAP_FAILED) { ::close(fd); fd = -1; throw std::runtime_error("mmap: " + path); }
++    if (v == MAP_FAILED) {
++      ::close(fd);
++      fd = -1;
++      throw std::runtime_error("mmap: " + path);
++    }
+     p = static_cast<const char *>(v);
+   }
+   Map(const Map &) = delete;
+   Map &operator=(const Map &) = delete;
+-  ~Map() { if (p) ::munmap(const_cast<char *>(p), size); if (fd >= 0) ::close(fd); }
++  ~Map() {
++    if (p) ::munmap(const_cast<char *>(p), size);
++    if (fd >= 0) ::close(fd);
++  }
+ };
+ void save(const std::string &path, const void *data, size_t size) {
+-  FILE *f = std::fopen(path.c_str(), "wbx"); need(f != nullptr, "exclusive output: " + path);
++  FILE *f = std::fopen(path.c_str(), "wbx");
++  need(f != nullptr, "exclusive output: " + path);
+   const bool wrote = std::fwrite(data, 1, size, f) == size;
+   const bool closed = std::fclose(f) == 0;
+   need(wrote && closed, "write/close: " + path);
+@@ -88,16 +105,23 @@
+ };
+ struct ProductionQuery : zvec::core_interface::HNSWIndex {
+   void initialize() {
+-    zvec::core_interface::HNSWIndexParam p(zvec::core_interface::MetricType::kCosine, D, 50, 500);
+-    p.data_type = zvec::core_interface::DataType::DT_FP32; p.use_id_map = true;
++    zvec::core_interface::HNSWIndexParam p(
++        zvec::core_interface::MetricType::kCosine, D, 50, 500);
++    p.data_type = zvec::core_interface::DataType::DT_FP32;
++    p.use_id_map = true;
+     p.quantized_graph_codec = "symphony_qg";
+-    proxima_index_params_.set("proxima.hnsw.quantized_graph.degree", uint32_t(K));
+-    need(init(p) == 0 && turbo_quantizer_, "actual driver FP32 Turbo quantizer init");
+-  }
+-  void prepare(const float *q, std::string &storage, const void *&data, core::IndexQueryMeta &meta) {
+-    need(_prepare_dense_query({zvec::core_interface::DenseVector{q}}, &storage, &data, &meta) == 0,
++    proxima_index_params_.set("proxima.hnsw.quantized_graph.degree",
++                              uint32_t(K));
++    need(init(p) == 0 && turbo_quantizer_,
++         "actual driver FP32 Turbo quantizer init");
++  }
++  void prepare(const float *q, std::string &storage, const void *&data,
++               core::IndexQueryMeta &meta) {
++    need(_prepare_dense_query({zvec::core_interface::DenseVector{q}}, &storage,
++                              &data, &meta) == 0,
+          "actual driver _prepare_dense_query");
+-    need(data == storage.data() && meta.dimension() == D && storage.size() == (D + 1) * 4,
++    need(data == storage.data() && meta.dimension() == D &&
++             storage.size() == (D + 1) * 4,
+          "actual FP32 Turbo query layout");
+   }
+   float distance(const float *v, const void *q) const {
+@@ -111,85 +135,118 @@
+ std::vector<std::array<float, D>> queries(const std::string &path) {
+   // Match benchmark_nav.cc::Queries: C++ stream extraction directly into float.
+   // Never use models68/primary/queries.f32 (NumPy-normalized geometry input).
+-  std::ifstream input(path); need(bool(input), "query text open");
++  std::ifstream input(path);
++  need(bool(input), "query text open");
+   input.imbue(std::locale::classic());
+   std::vector<std::array<float, D>> output;
+   std::string line;
+   while (std::getline(input, line)) {
+-    const auto sep = line.find(';'); need(sep != std::string::npos, "query separator");
+-    need(std::stoull(line.substr(0, sep)) == output.size(), "query sequential ID");
+-    std::istringstream row(line.substr(sep + 1)); row.imbue(std::locale::classic());
+-    std::array<float, D> v{}; size_t count = 0; float value;
++    const auto sep = line.find(';');
++    need(sep != std::string::npos, "query separator");
++    need(std::stoull(line.substr(0, sep)) == output.size(),
++         "query sequential ID");
++    std::istringstream row(line.substr(sep + 1));
++    row.imbue(std::locale::classic());
++    std::array<float, D> v{};
++    size_t count = 0;
++    float value;
+     while (row >> value) {
+       need(count < D && std::isfinite(value), "query dimension/nonfinite");
+       v[count++] = value;
+     }
+-    need(count == D, "query dimension"); output.push_back(v);
+-  }
+-  need(input.eof() && output.size() == 1000, "expected 1000 complete primary queries");
++    need(count == D, "query dimension");
++    output.push_back(v);
++  }
++  need(input.eof() && output.size() == 1000,
++       "expected 1000 complete primary queries");
+   return output;
+ }
+ }  // namespace
+ 
+ int main(int argc, char **argv) try {
+-  need(argc == 11, "usage: path80_score events graph raw rotated model header model_sha query_txt exclusive_output_dir query_count");
+-  need(std::numeric_limits<float>::is_iec559 && sizeof(float) == 4, "IEEE FP32 required");
+-  const uint32_t endian = 1; need(*reinterpret_cast<const char *>(&endian) == 1, "little-endian required");
++  need(argc == 11,
++       "usage: path80_score events graph raw rotated model header model_sha "
++       "query_txt exclusive_output_dir query_count");
++  need(std::numeric_limits<float>::is_iec559 && sizeof(float) == 4,
++       "IEEE FP32 required");
++  const uint32_t endian = 1;
++  need(*reinterpret_cast<const char *>(&endian) == 1, "little-endian required");
+   const std::string out = argv[9];
+   const size_t query_count = std::stoul(argv[10]);
+   need(query_count > 0 && query_count <= 1000, "query prefix count");
+   Map events(argv[1]), graph(argv[2]), raw(argv[3]), rotated(argv[4]);
+   const uint32_t expected_header[4] = {0x51474d68, 1, 32, 768};
+   need(events.size >= 16 && (events.size - 16) % sizeof(Event) == 0 &&
+-       std::memcmp(events.p, expected_header, 16) == 0, "event header/size");
++           std::memcmp(events.p, expected_header, 16) == 0,
++       "event header/size");
+   need(graph.size >= 32 && take<uint32_t>(graph.p) == 0x51474764 &&
+-       take<uint32_t>(graph.p + 4) == 1 && take<uint32_t>(graph.p + 12) == D &&
+-       take<uint32_t>(graph.p + 16) == K, "graph header");
++           take<uint32_t>(graph.p + 4) == 1 &&
++           take<uint32_t>(graph.p + 12) == D &&
++           take<uint32_t>(graph.p + 16) == K,
++       "graph header");
+   const size_t n = take<uint32_t>(graph.p + 8);
+   need(n == 1000000 && graph.size == 32 + n * 140 &&
+-       take<uint32_t>(graph.p + 20) < n, "full graph dimensions");
++           take<uint32_t>(graph.p + 20) < n,
++       "full graph dimensions");
+   need(raw.size == 16 + n * D * 4 && rotated.size == n * D * 4, "vector sizes");
+   independent78::Config config;
+-  config.model_path = argv[5]; config.raw_vectors_path = argv[3];
+-  config.rotated_path = argv[4]; config.trusted_header_path = argv[6];
+-  config.model_sha256 = argv[7]; config.docs = n;
+-  independent78::Import model; model.open(config);
++  config.model_path = argv[5];
++  config.raw_vectors_path = argv[3];
++  config.rotated_path = argv[4];
++  config.trusted_header_path = argv[6];
++  config.model_sha256 = argv[7];
++  config.docs = n;
++  independent78::Import model;
++  model.open(config);
+   need(model.loaded() && model.count() == n, "trusted full model validation");
+   Codec codec(D, true);
+-  need(codec.encoded_dim() == D && codec.quantized_dim() == D && codec.batch_bytes() == B, "native codec layout");
++  need(codec.encoded_dim() == D && codec.quantized_dim() == D &&
++           codec.batch_bytes() == B,
++       "native codec layout");
+   auto reformer = core::IndexFactory::CreateReformer("CosineNormalizeReformer");
+   const zvec::ailego::Params empty;
+-  need(reformer && reformer->init(empty) == 0, "production CosineNormalizeReformer");
+-  ProductionQuery production; production.initialize();
++  need(reformer && reformer->init(empty) == 0,
++       "production CosineNormalizeReformer");
++  ProductionQuery production;
++  production.initialize();
+   const auto input_queries = queries(argv[8]);
+   const auto raw_vector = [&](uint32_t id) {
+     need(id < n, "vector ID range");
+     return reinterpret_cast<const float *>(raw.p + 16) + size_t(id) * D;
+   };
+   const auto graph_record = [&](uint32_t id) {
+-    need(id < n, "graph ID range"); return graph.p + 32 + size_t(id) * 140;
+-  };
+-  const auto key = [&](uint32_t id) { return take<uint64_t>(graph_record(id)); };
++    need(id < n, "graph ID range");
++    return graph.p + 32 + size_t(id) * 140;
++  };
++  const auto key = [&](uint32_t id) {
++    return take<uint64_t>(graph_record(id));
++  };
+   std::vector<uint8_t> rotation_verified(n, 0);
+   size_t verified_vectors = 0;
+   std::vector<float> one_rotation;
+   const auto vector = [&](uint32_t id) {
+     need(id < n, "rotated ID range");
+-    const auto *reference = reinterpret_cast<const float *>(rotated.p) + size_t(id) * D;
++    const auto *reference =
++        reinterpret_cast<const float *>(rotated.p) + size_t(id) * D;
+     if (!rotation_verified[id]) {
+       codec.transform(raw_vector(id), one_rotation);
+       need(one_rotation.size() == D, "actual rotation dimension");
+       model.verify_vectors(id, key(id), raw_vector(id), one_rotation.data(), D);
+-      need(std::memcmp(reference, one_rotation.data(), D * 4) == 0, "actual rotation differs from frozen FP32");
+-      rotation_verified[id] = 1; ++verified_vectors;
++      need(std::memcmp(reference, one_rotation.data(), D * 4) == 0,
++           "actual rotation differs from frozen FP32");
++      rotation_verified[id] = 1;
++      ++verified_vectors;
+     }
+     return reference;
+   };
+   std::unordered_map<uint32_t, Block> blocks;
+   blocks.reserve(32768);
+   const auto block = [&](uint32_t id) -> const Block & {
+-    auto found = blocks.find(id); if (found != blocks.end()) return found->second;
+-    Block b; const char *g = graph_record(id); b.degree = take<uint32_t>(g + 8);
++    auto found = blocks.find(id);
++    if (found != blocks.end()) return found->second;
++    Block b;
++    const char *g = graph_record(id);
++    b.degree = take<uint32_t>(g + 8);
+     need(b.degree <= K, "graph degree");
+     std::array<uint64_t, K> keys{};
+     std::vector<float> neighbors(K * D, 0.f);
+@@ -197,12 +254,15 @@
+     for (size_t lane = 0; lane < b.degree; ++lane) {
+       const uint32_t target = take<uint32_t>(g + 12 + lane * 4);
+       need(target < n && target != id, "graph neighbor ID");
+-      b.ids[lane] = target; keys[lane] = key(target);
++      b.ids[lane] = target;
++      keys[lane] = key(target);
+       std::copy_n(vector(target), D, neighbors.data() + lane * D);
+     }
+-    if (b.degree) codec.encode(center, neighbors.data(), b.degree, b.native.data());
++    if (b.degree)
++      codec.encode(center, neighbors.data(), b.degree, b.native.data());
+     b.imported = b.native;
+-    b.learned = model.copy_full_block(id, key(id), keys.data(), b.degree, b.imported.data(), B);
++    b.learned = model.copy_full_block(id, key(id), keys.data(), b.degree,
++                                      b.imported.data(), B);
+     need(b.learned == (b.degree == K), "full-only code import");
+     if (!b.learned) need(b.imported == b.native, "short block changed");
+     return blocks.emplace(id, std::move(b)).first->second;
+@@ -213,87 +273,137 @@
+   rescored = original;
+   std::vector<Audit> audit(event_count);
+   std::vector<float> prepared_queries, rotated_queries;
+-  prepared_queries.reserve(1000 * (D + 1)); rotated_queries.reserve(1000 * D);
++  prepared_queries.reserve(1000 * (D + 1));
++  rotated_queries.reserve(1000 * D);
+   std::vector<uint32_t> expanded_query(n, UINT32_MAX);
+-  size_t cursor = 0, expansions = 0, edges = 0, full_blocks = 0, short_blocks = 0, changed_edges = 0;
+-  const auto same = [&](float actual, float expected, size_t event, const char *what) {
++  size_t cursor = 0, expansions = 0, edges = 0, full_blocks = 0,
++         short_blocks = 0, changed_edges = 0;
++  const auto same = [&](float actual, float expected, size_t event,
++                        const char *what) {
+     need(std::isfinite(actual) && bits(actual) == bits(expected),
+          std::string(what) + " bit mismatch at event " + std::to_string(event) +
+-         " actual=" + std::to_string(bits(actual)) + " expected=" + std::to_string(bits(expected)));
++             " actual=" + std::to_string(bits(actual)) +
++             " expected=" + std::to_string(bits(expected)));
+   };
+   const auto valid_event = [&](size_t event, uint32_t query) -> const Event & {
+     need(event < original.size(), "truncated query events");
+     const auto &r = original[event];
+-    need(r.query == query && r.reserved == 0 && std::isfinite(r.estimate) && std::isfinite(r.exact), "event query/reserved/finite");
++    need(r.query == query && r.reserved == 0 && std::isfinite(r.estimate) &&
++             std::isfinite(r.exact),
++         "event query/reserved/finite");
+     return r;
+   };
+   for (uint32_t qi = 0; qi < query_count; ++qi) {
+     const core::IndexQueryMeta input_meta(core::IndexMeta::DT_FP32, D);
+-    core::IndexQueryMeta prepared_meta, independent_meta; std::string prepared, independent;
++    core::IndexQueryMeta prepared_meta, independent_meta;
++    std::string prepared, independent;
+     const void *prepared_data = nullptr;
+-    production.prepare(input_queries[qi].data(), prepared, prepared_data, prepared_meta);
+-    need(reformer->transform(input_queries[qi].data(), input_meta, &independent, &independent_meta) == 0 &&
+-         prepared == independent, "actual Turbo preparation differs from independent production reformer");
++    production.prepare(input_queries[qi].data(), prepared, prepared_data,
++                       prepared_meta);
++    need(reformer->transform(input_queries[qi].data(), input_meta, &independent,
++                             &independent_meta) == 0 &&
++             prepared == independent,
++         "actual Turbo preparation differs from independent production "
++         "reformer");
+     const auto *query = static_cast<const float *>(prepared_data);
+     prepared_queries.insert(prepared_queries.end(), query, query + D + 1);
+-    Codec::Query lookup; codec.prepare_query(query, lookup);
++    Codec::Query lookup;
++    codec.prepare_query(query, lookup);
+     need(lookup.rotated.size() == D, "prepared query actual rotation");
+-    rotated_queries.insert(rotated_queries.end(), lookup.rotated.begin(), lookup.rotated.end());
++    rotated_queries.insert(rotated_queries.end(), lookup.rotated.begin(),
++                           lookup.rotated.end());
+     uint32_t step = 0;
+     while (valid_event(cursor, qi).kind != 3) {
+       const auto &r = valid_event(cursor, qi);
+-      need(r.kind == 1 && r.source == r.target && r.step == ++step && r.source < n, "center sequence");
+-      need(expanded_query[r.source] != qi, "duplicate center expansion"); expanded_query[r.source] = qi;
++      need(r.kind == 1 && r.source == r.target && r.step == ++step &&
++               r.source < n,
++           "center sequence");
++      need(expanded_query[r.source] != qi, "duplicate center expansion");
++      expanded_query[r.source] = qi;
+       const Block &b = block(r.source);
+       const float center = production.distance(raw_vector(r.source), query);
+-      same(center, r.exact, cursor, "center exact"); same(center, r.estimate, cursor, "center estimate");
+-      audit[cursor] = {r, cursor, b.degree, UINT32_MAX, bits(center), bits(center), bits(center), 10};
+-      ++cursor; ++expansions; b.learned ? ++full_blocks : ++short_blocks;
++      same(center, r.exact, cursor, "center exact");
++      same(center, r.estimate, cursor, "center estimate");
++      audit[cursor] = {r,
++                       cursor,
++                       b.degree,
++                       UINT32_MAX,
++                       bits(center),
++                       bits(center),
++                       bits(center),
++                       10};
++      ++cursor;
++      ++expansions;
++      b.learned ? ++full_blocks : ++short_blocks;
+       std::array<float, K> native_scores{};
+       if (b.degree) {
+         codec.scan(b.native.data(), lookup, center, native_scores.data());
+       }
+       for (uint32_t lane = 0; lane < b.degree; ++lane, ++cursor) {
+         const auto &edge = valid_event(cursor, qi);
+-        need(edge.kind == 2 && edge.step == step && edge.source == r.source && edge.target == b.ids[lane], "edge source/target/lane order");
++        need(edge.kind == 2 && edge.step == step && edge.source == r.source &&
++                 edge.target == b.ids[lane],
++             "edge source/target/lane order");
+         same(native_scores[lane], edge.estimate, cursor, "native FastScan");
+         const float truth = production.distance(raw_vector(edge.target), query);
+         same(truth, edge.exact, cursor, "edge exact");
+-        audit[cursor] = {edge, cursor, b.degree, lane, bits(native_scores[lane]), bits(native_scores[lane]), bits(center), uint32_t(6 | (b.learned ? 1 : 0))};
++        audit[cursor] = {edge,
++                         cursor,
++                         b.degree,
++                         lane,
++                         bits(native_scores[lane]),
++                         bits(native_scores[lane]),
++                         bits(center),
++                         uint32_t(6 | (b.learned ? 1 : 0))};
+         ++edges;
+       }
+     }
+     const auto &end = valid_event(cursor, qi);
+-    need(step >= 10 && step <= 64 && end.step == step && end.source == UINT32_MAX &&
+-         end.target == UINT32_MAX && bits(end.estimate) == 0 && bits(end.exact) == 0, "query end");
+-    audit[cursor] = {end, cursor, 0, UINT32_MAX, 0, 0, 0, 8}; ++cursor;
++    need(step >= 10 && step <= 64 && end.step == step &&
++             end.source == UINT32_MAX && end.target == UINT32_MAX &&
++             bits(end.estimate) == 0 && bits(end.exact) == 0,
++         "query end");
++    audit[cursor] = {end, cursor, 0, UINT32_MAX, 0, 0, 0, 8};
++    ++cursor;
+   }
+   if (query_count == 1000) {
+-    need(cursor == event_count, "all 1000 queries consumed with no trailing event");
+-    need(event_count == 1016151 && expansions == 30763 && edges == 984388, "frozen primary event counts");
++    need(cursor == event_count,
++         "all 1000 queries consumed with no trailing event");
++    need(event_count == 1016151 && expansions == 30763 && edges == 984388,
++         "frozen primary event counts");
+   } else {
+-    need(cursor < event_count && original[cursor].query == query_count && original[cursor].kind == 1,
++    need(cursor < event_count && original[cursor].query == query_count &&
++             original[cursor].kind == 1,
+          "small preflight ends at complete query boundary");
+   }
+   const size_t selected_events = cursor;
+-  audit.resize(selected_events); rescored.resize(selected_events);
++  audit.resize(selected_events);
++  rescored.resize(selected_events);
+   // A separate pass prevents learned scores from being evaluated before the
+   // entire selected prefix has passed native bit identity (1000 for full run).
+-  std::cerr << "PATH80 NATIVE GATE PASSED queries=" << query_count << " edges=" << edges << '\n';
++  std::cerr << "PATH80 NATIVE GATE PASSED queries=" << query_count
++            << " edges=" << edges << '\n';
+   cursor = 0;
+   for (uint32_t qi = 0; qi < query_count; ++qi) {
+-    Codec::Query lookup; codec.prepare_query(prepared_queries.data() + size_t(qi) * (D + 1), lookup);
++    Codec::Query lookup;
++    codec.prepare_query(prepared_queries.data() + size_t(qi) * (D + 1), lookup);
+     while (original[cursor].kind != 3) {
+       const auto &center = original[cursor];
+-      const Block &b = blocks.at(center.source); ++cursor;
++      const Block &b = blocks.at(center.source);
++      ++cursor;
+       std::array<float, K> learned_scores{};
+-      if (b.degree) codec.scan(b.imported.data(), lookup, center.exact, learned_scores.data());
++      if (b.degree)
++        codec.scan(b.imported.data(), lookup, center.exact,
++                   learned_scores.data());
+       for (uint32_t lane = 0; lane < b.degree; ++lane, ++cursor) {
+         need(std::isfinite(learned_scores[lane]), "nonfinite learned score");
+-        if (!b.learned) same(learned_scores[lane], original[cursor].estimate, cursor, "short native score");
++        if (!b.learned)
++          same(learned_scores[lane], original[cursor].estimate, cursor,
++               "short native score");
+         rescored[cursor].estimate = learned_scores[lane];
+         audit[cursor].learned_bits = bits(learned_scores[lane]);
+-        changed_edges += audit[cursor].native_bits != audit[cursor].learned_bits;
++        changed_edges +=
++            audit[cursor].native_bits != audit[cursor].learned_bits;
+       }
+     }
+     ++cursor;
+@@ -301,30 +411,49 @@
+   need(cursor == selected_events, "learned pass event count");
+   // Outputs are published only after ALL original scores/truth values match.
+   // This event stream retains the original visitation path; it is off-policy.
+-  std::vector<char> output(16 + selected_events * sizeof(Event)); std::memcpy(output.data(), expected_header, 16);
+-  std::memcpy(output.data() + 16, rescored.data(), rescored.size() * sizeof(Event));
++  std::vector<char> output(16 + selected_events * sizeof(Event));
++  std::memcpy(output.data(), expected_header, 16);
++  std::memcpy(output.data() + 16, rescored.data(),
++              rescored.size() * sizeof(Event));
+   save(out + "/native_path_learned_scores.bin", output.data(), output.size());
+-  const uint32_t audit_header[8] = {0x51475080, 1, 64, 768, uint32_t(query_count), uint32_t(selected_events), 0, 0};
++  const uint32_t audit_header[8] = {
++      0x51475080, 1, 64, 768, uint32_t(query_count), uint32_t(selected_events),
++      0,          0};
+   std::vector<char> audit_output(32 + audit.size() * sizeof(Audit));
+   std::memcpy(audit_output.data(), audit_header, 32);
+-  std::memcpy(audit_output.data() + 32, audit.data(), audit.size() * sizeof(Audit));
++  std::memcpy(audit_output.data() + 32, audit.data(),
++              audit.size() * sizeof(Audit));
+   save(out + "/event_audit.bin", audit_output.data(), audit_output.size());
+-  save(out + "/queries_prepared769.f32", prepared_queries.data(), prepared_queries.size() * 4);
+-  save(out + "/queries_rotated768.f32", rotated_queries.data(), rotated_queries.size() * 4);
++  save(out + "/queries_prepared769.f32", prepared_queries.data(),
++       prepared_queries.size() * 4);
++  save(out + "/queries_rotated768.f32", rotated_queries.data(),
++       rotated_queries.size() * 4);
+   std::ostringstream result;
+-  result << "{\"native_scores_bit_identical\":true,\"native_truth_bit_identical\":true,"
+-         << "\"all_queries_native_gate\":" << (query_count == 1000 ? "true" : "false")
++  result << "{\"native_scores_bit_identical\":true,\"native_truth_bit_"
++            "identical\":true,"
++         << "\"all_queries_native_gate\":"
++         << (query_count == 1000 ? "true" : "false")
+          << ",\"off_policy_rescored_native_events\":true,"
+-         << "\"actual_learned_path\":false,\"query_count\":" << query_count << ",\"events\":" << selected_events
+-         << ",\"expansion_blocks\":" << expansions << ",\"scored_edges\":" << edges
+-         << ",\"full_block_visits\":" << full_blocks << ",\"native_short_block_visits\":" << short_blocks
+-         << ",\"changed_edge_score_bits\":" << changed_edges << ",\"unique_encoded_blocks\":" << blocks.size()
++         << "\"actual_learned_path\":false,\"query_count\":" << query_count
++         << ",\"events\":" << selected_events
++         << ",\"expansion_blocks\":" << expansions
++         << ",\"scored_edges\":" << edges
++         << ",\"full_block_visits\":" << full_blocks
++         << ",\"native_short_block_visits\":" << short_blocks
++         << ",\"changed_edge_score_bits\":" << changed_edges
++         << ",\"unique_encoded_blocks\":" << blocks.size()
+          << ",\"actual_rotations_verified_against_frozen\":" << verified_vectors
+-         << ",\"query_preprocessing\":\"actual Index::_prepare_dense_query FP32 Turbo;bytes independently equal CosineNormalizeReformer;actual Symphony codec prepare_query\","
+-         << "\"truth_distance\":\"actual Fp32Quantizer::calc_distance_dp_query dispatched kernel original_dim768\","
++         << ",\"query_preprocessing\":\"actual Index::_prepare_dense_query "
++            "FP32 Turbo;bytes independently equal "
++            "CosineNormalizeReformer;actual Symphony codec prepare_query\","
++         << "\"truth_distance\":\"actual Fp32Quantizer::calc_distance_dp_query "
++            "dispatched kernel original_dim768\","
+          << "\"no_retrieval_or_qps_claim\":true}\n";
+-  const auto text = result.str(); save(out + "/scorer_result.json", text.data(), text.size());
+-  std::cout << text; return 0;
++  const auto text = result.str();
++  save(out + "/scorer_result.json", text.data(), text.size());
++  std::cout << text;
++  return 0;
+ } catch (const std::exception &error) {
+-  std::cerr << "PATH80 FAILED " << error.what() << '\n'; return 1;
+-}
++  std::cerr << "PATH80 FAILED " << error.what() << '\n';
++  return 1;
++}

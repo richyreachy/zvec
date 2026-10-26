@@ -1,0 +1,10 @@
+{
+  "condition": "native",
+  "events_file": "/home/xingrui/bench/quantized_graph/research_20261025/path80_actual_v1/native/events.bin",
+  "events_sha256": "4787aa0f822bb2ddf35f4af28c04579283fac5d557fbea74c9f1802047d3d04c",
+  "event_records": 1016151,
+  "ids_file": "/home/xingrui/bench/quantized_graph/research_20261025/experiments/diag80_actual_v1_native/search_k10_r0_ids.csv",
+  "ids_sha256": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+  "top10_id_hex_rows_byte_identical": 10000,
+  "native_entire_trace_byte_identical_to_phase68": true
+}
