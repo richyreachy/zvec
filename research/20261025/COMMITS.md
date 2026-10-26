@@ -1,14 +1,24 @@
 # 阶段提交索引
 
-分支：`feat/symphony-qg-research-20261025`。均在2026-10-26补录；完整证据见对应阶段说明。
+分支：`feat/symphony-qg-research-20261025`。研究工作区：`/home/xingrui/workspace/quantized_graph/symphony_research_20261025`。原始 `zvec` 工作区未改动。
+
+前6个阶段按已保存源码与证据补录，后续阶段在验证后提交。提交日期不冒充实验日期。
 
 | 阶段 | 提交 | 内容 |
 |---|---|---|
-| 01 | `4670ebcb4f6a` | feat(qg): checkpoint adaptive buckets and 768D rotation |
-| 02 | `b63464541429` | test(qg): preserve queue and navigation ablation evidence |
-| 03 | `92f19a26ac46` | test(qg): add interval refinement and residual geometry ablations |
-| 04 | `351fed1af14c` | test(qg): separate stopping estimates and batch exact refinement |
-| 05 | `394254126bf7` | test(qg): add low-rank residual error correction |
-| 06 | `a4d400d50fea` | test(qg): evaluate submodular local-radius edge selection |
+| [01](stages/01.md) | `4670ebcb4f6a` | 自适应桶与768维旋转基线 |
+| [02](stages/02.md) | `b63464541429` | 队列与导航消融 |
+| [03](stages/03.md) | `92f19a26ac46` | 区间精排与残差几何 |
+| [04](stages/04.md) | `351fed1af14c` | 停止估计与批量精排 |
+| [05](stages/05.md) | `394254126bf7` | 低秩残差修正 |
+| [06](stages/06.md) | `a4d400d50fea` | 局部半径选边 |
+| [07](stages/07.md) | `5f5b360c2733` | 拓扑诊断工具与格式化后验证 |
+| [08](stages/08.md) | `73ee35193596` | 可达性诊断与输出一致性 |
+| [09](stages/09.md) | `7c9f7eab3ff3` | 距离下降选边：负结果 |
+| [10](stages/10.md) | `e924a599253b` | 旋转SQ8：误差改善但性能未胜基线 |
 
-阶段07：`5f5b360c`，格式化后验证与拓扑诊断工具。阶段08的新增结论见 [08.md](stages/08.md)。
+10个研究阶段均已提交；另有维护索引的文档提交。所有研究提交通过仓库钩子。负结果用于记录已排除的方向，不代表性能提升。
+
+每个后续阶段在验证完成后单独提交，保存实现、配置、证据和局限。大型数据、索引及二进制保留在bench目录；当前没有已验证的重大突破。
+
+[研究报告](cohere90_breakthrough_research.md) · [提交元数据](results/stage_commits.json)。

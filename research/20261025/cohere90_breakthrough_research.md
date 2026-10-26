@@ -10,9 +10,9 @@
 
 本轮探索点通常仅1–2轮，最快的单次达标点不能与历史中位数直接解释为稳定提升。FP16减少精排次数、低秩误差修正、64边图及量化感知剪边均尚未达到25%目标。
 
-已汇总 682 条计时记录（每个算法/参数/线程/轮次计一条）；完整数字见下表和JSON。
+已汇总 774 条计时记录（每个算法/参数/线程/轮次计一条）；完整数字见下表和JSON。
 
-## 正在验证的方向
+## 已探索的方向
 
 1. screen36：结果容器、结果门控、访问表和节点预取。
 2. screen37：FP16/SQ8 中心区间上界驱动停止，按下界延后精确核算。
@@ -170,6 +170,18 @@
 | screen49_cohere_control_pre | 8 | 800 | 90.32% | 233380 | 9.53 | 2 | 是 |
 | screen49_cohere_cover49_aug2_reference | 1 | 2000 | 90.29% | 28775 | 9.54 | 1 | 是 |
 | screen49_cohere_cover49_aug2_reference | 8 | 2000 | 90.29% | 228345 | 9.54 | 1 | 是 |
+| screen52_cohere_control_post | 1 | 800 | 90.32% | 28802 | 9.53 | 2 | 是 |
+| screen52_cohere_control_post | 8 | 800 | 90.32% | 226529 | 9.53 | 2 | 是 |
+| screen52_cohere_control_pre | 1 | 800 | 90.32% | 28895 | 9.52 | 2 | 是 |
+| screen52_cohere_control_pre | 8 | 800 | 90.32% | 226469 | 9.53 | 2 | 是 |
+| screen53_cohere_control_post | 1 | 800 | 90.32% | 28519 | 9.53 | 2 | 是 |
+| screen53_cohere_control_post | 8 | 800 | 90.32% | 227504 | 9.53 | 2 | 是 |
+| screen53_cohere_control_pre | 1 | 800 | 90.32% | 29885 | 9.52 | 2 | 是 |
+| screen53_cohere_control_pre | 8 | 800 | 90.32% | 227704 | 9.53 | 2 | 是 |
+| screen53_cohere_rot53_estimate | 1 | 3000 | 91.59% | 27331 | 7.33 | 1 | 是 |
+| screen53_cohere_rot53_estimate | 8 | 3000 | 91.59% | 214188 | 7.33 | 1 | 是 |
+| screen53_cohere_rot53_upper_v2 | 1 | -2000 | 91.99% | 25912 | 7.33 | 1 | 是 |
+| screen53_cohere_rot53_upper_v2 | 8 | -2000 | 91.99% | 200588 | 7.33 | 1 | 是 |
 
 未出现达标点的已测组（未完成组仍可能变化）：
 
@@ -178,6 +190,9 @@
 - screen43_cohere_tail_bucket_fast：最高已测 Recall@10 83.88%。
 - screen49_cohere_cover49_quantized：最高已测 Recall@10 86.33%。
 - screen49_cohere_cover49_true：最高已测 Recall@10 86.61%。
+- screen52_cohere_progress52_quantized：最高已测 Recall@10 86.26%。
+- screen52_cohere_progress52_saturated：最高已测 Recall@10 88.08%。
+- screen52_cohere_progress52_true：最高已测 Recall@10 86.30%。
 
 标签在 STOP_GRID 模式下编码 margin/patience，实际 ef=800；各实验 `config.json` 保存完整命令和环境变量。
 
@@ -206,10 +221,22 @@
 | diag47_oracle2 | 0.06 | 92.37% | 29.849 | 2.7% |
 | diag47_oracle8 | 0.06 | 92.68% | 30.769 | 3.4% |
 
-下一组结构实验screen49：固定32边预算，用局部真实/量化进展半径构成次模覆盖目标；含相同两跳候选的多样性剪枝对照。[推导、适用边界和相关工作](notes/coverage_graph49.md)。
+已完成结构实验screen49：固定32边预算，用局部真实/量化进展半径构成次模覆盖目标；含相同两跳候选的多样性剪枝对照。[推导、适用边界和相关工作](notes/coverage_graph49.md)。
 
 验证 `lowrank48_test`：`low-rank identity/span/LUT checks=3840 worst_identity=1.14312e-05 worst_lut=0.0409895 passed`。
 
 验证 `quantized_prune_geometry_test`：`native ideal score checks=6144 max_gap=3.40216e-06 local-radius checks=29967 passed`。
 
 验证 `cover49_test`：`cover greedy-vs-exhaustive trials=1000 min_ratio=0.925047 local-ball checks=11908 passed`。
+
+## 阶段51–53与提交记录
+
+图可达性诊断排除了新增不可达目标足以解释覆盖图召回下降的假设：两种覆盖图各只有1/10,000次GT出现不可达，却在相同停止参数下损失约15个百分点召回。详见[拓扑诊断](notes/topology51.md)。
+
+距离下降比例选边的三种变体最高召回为86.30%、86.26%、88.08%，均未达90%。8,000项几何检查通过不代表全局检索性能成立。详见[数学推导和负结果](notes/progress52.md)。
+
+旋转SQ8将1,000个数据库样本的重建误差中位数从0.02013降到0.00701，但已测估计停止达标点为Recall@10=91.59%、单线程27,330.80 QPS，未超过冻结基线。8,000项区间与1,000项锚点检查通过；实际主查询按界精排与全部展开节点精排的10,000条ID/分数完全一致。平均展开33.292个节点，按界精排18.178个。详见[实现与边界](notes/rotated_center53.md)。
+
+上述数字属于各自参数下的探索点，不能视为精确90%工作点或稳定收益。研究目标仍未完成。后续候选方向是数据库公共均值中心化SQ8；目前只有样本误差观察，尚未实现或测得QPS。
+
+已按阶段保存10个研究提交，见[提交索引](COMMITS.md)。后续每个完成验证且有实质进展的阶段继续单独提交。

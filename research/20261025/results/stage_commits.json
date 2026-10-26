@@ -1,0 +1,75 @@
+[
+  {
+    "stage": "01",
+    "commit": "4670ebcb4f6aa741b775636d51896dd6c2b2ae00",
+    "title": "feat(qg): checkpoint adaptive buckets and 768D rotation",
+    "source_snapshot": "bucket90_w16",
+    "raw_snapshot_hashes_verified": 7,
+    "formatted_source_hashes_verified": 7
+  },
+  {
+    "stage": "02",
+    "commit": "b634645414296ac297635db7a737e6d248f1f86e",
+    "title": "test(qg): preserve queue and navigation ablation evidence",
+    "source_snapshot": "round3_default",
+    "raw_snapshot_hashes_verified": 9,
+    "formatted_source_hashes_verified": 9
+  },
+  {
+    "stage": "03",
+    "commit": "92f19a26ac461a3ede1736b13e648991481ba4e3",
+    "title": "test(qg): add interval refinement and residual geometry ablations",
+    "source_snapshot": "quantized_prune2_all",
+    "raw_snapshot_hashes_verified": 9,
+    "formatted_source_hashes_verified": 9
+  },
+  {
+    "stage": "04",
+    "commit": "351fed1af14c967117e496774879c92f837bcbe1",
+    "title": "test(qg): separate stopping estimates and batch exact refinement",
+    "source_snapshot": "wide_prefetch",
+    "raw_snapshot_hashes_verified": 9,
+    "formatted_source_hashes_verified": 9
+  },
+  {
+    "stage": "05",
+    "commit": "394254126bf7ea68e7c0ec6f4575fa08017ecce0",
+    "title": "test(qg): add low-rank residual error correction",
+    "source_snapshot": "lowrank48_16",
+    "raw_snapshot_hashes_verified": 9,
+    "formatted_source_hashes_verified": 9
+  },
+  {
+    "stage": "06",
+    "commit": "a4d400d50feab1ca6ec65ef3d285fc23dc9021f9",
+    "title": "test(qg): evaluate submodular local-radius edge selection",
+    "source_snapshot": "cover49_quantized",
+    "raw_snapshot_hashes_verified": 10,
+    "formatted_source_hashes_verified": 10
+  },
+  {
+    "stage": "07",
+    "commit": "5f5b360c2733730bef5f9bf53954e2d5819c4c00",
+    "title": "test(qg): add topology diagnostics and verify formatted research sources",
+    "source_snapshot": "diag51_base + post_commit_default",
+    "validation": "28 default tests,3840 low-rank,1000 greedy,11908 balls,1000-query baseline output equivalence"
+  },
+  {
+    "stage": "08",
+    "commit": "73ee35193596d0dd401eef51c3ebb8a2b9684849",
+    "title": "test(qg): diagnose coverage graph regression and check trace equivalence",
+    "validation": "3,000 query / 30,000 ID-score row diagnostic equivalence; unreachable GT analysis"
+  },
+  {
+    "stage": "09",
+    "commit": "7c9f7eab3ff3e0522f24dd3eb5a2b50b18c2e999",
+    "title": "test(qg): evaluate fractional progress edge selection and record negative results",
+    "validation": "8,000 progress/contraction checks; three variants fail 90% recall"
+  },
+  {
+    "stage": "10",
+    "commit": "e924a599253b2f4c9ff9463f03065b2b20cc7fbd",
+    "title": "test(qg): evaluate rotated SQ8 centers with interval audits",
+    "validation": "8,000 interval and 1,000 anchor checks; 1,000-query full-refine equivalence; negative performance"
+  }
+]
