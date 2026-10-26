@@ -99,6 +99,9 @@ int SearchGraph(Scan &scan, Frontier &frontier, Visit &visit,
                                    scratch.distances.data());
       if (error != 0) return error;
       if constexpr (Scan::kVisitOnExpansion) {
+#if defined(QG_PROFILE)
+        scan.profile_admission_begin();
+#endif
         for (size_t i = 0; i < count; ++i) {
           const float distance = scratch.distances[i];
           // Admission is sequential: each insertion may tighten the beam.
@@ -106,6 +109,9 @@ int SearchGraph(Scan &scan, Frontier &frontier, Visit &visit,
           const uint32_t neighbor = scratch.ids[i];
           if (!visit.visited(neighbor)) frontier.push(neighbor, distance);
         }
+#if defined(QG_PROFILE)
+        scan.profile_admission_end();
+#endif
       } else {
         frontier.push_batch(scratch.ids.data(), scratch.distances.data(),
                             count);

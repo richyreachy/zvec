@@ -45,9 +45,18 @@ class SymphonyQGRotation {
   size_t padded_dim() const {
     return padded_;
   }
-  void rotate(const void *data, std::vector<float> &out) const {
+#if defined(QG_ROTATOR_AVX512)
+  __attribute__((target("avx512f,avx512bw,avx512dq,fma")))
+#endif
+  void
+  rotate(const void *data, std::vector<float> &out) const {
     const auto *values = static_cast<const float *>(data);
+#if defined(QG_ROTATOR_RESIZE)
+    out.resize(padded_);
+    std::fill(out.begin() + dimension_, out.end(), 0.f);
+#else
     out.assign(padded_, 0.0f);
+#endif
     std::copy(values, values + dimension_, out.begin());
     for (size_t pass = 0; pass < kPasses; ++pass) {
       const float *signs = signs_.data() + pass * padded_;

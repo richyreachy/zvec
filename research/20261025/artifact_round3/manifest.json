@@ -1,0 +1,114 @@
+{
+  "bucket90_w16": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/bucket90_w16/libcore_knn_hnsw.so",
+    "sha256": "f31d7cdde771d7c48211b38a04c6efa5e33025742afd1cf278cc893d9098fe28"
+  },
+  "cache90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/cache90/libcore_knn_hnsw.so",
+    "sha256": "aab3629d7d6cb0d2124b7d9f6252e05920eae15809d46fc28ad340a06f72755f"
+  },
+  "cache_noprefetch90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/cache_noprefetch90/libcore_knn_hnsw.so",
+    "sha256": "26242f9d21b7f474a17567ff8f2d6c26b180ee7fe370d4dcaff4dbea880de0ff"
+  },
+  "cheap_window90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/cheap_window90/libcore_knn_hnsw.so",
+    "sha256": "666ddb4088da5b25b470eac35f5e55598ca3478c3356e9f6ebaf566c5a911c75"
+  },
+  "cheap_window_noprefetch90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/cheap_window_noprefetch90/libcore_knn_hnsw.so",
+    "sha256": "f5e9a3f59c8a2f3e7136a2b9c1294c656dbd7ae8a15cc088dbc5dfe72a7d3723"
+  },
+  "dominance90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/dominance90/libcore_knn_hnsw.so",
+    "sha256": "9b372347053b7d821b08e8c97b31df2e1059009dfd3d4c62c996f184ae7e14e1"
+  },
+  "dominance_rotator90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/dominance_rotator90/libcore_knn_hnsw.so",
+    "sha256": "fdf605623099d5716e22ce355a2ccd3648b4e0668fde55584050843da694a10a"
+  },
+  "exact_window90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/exact_window90/libcore_knn_hnsw.so",
+    "sha256": "2c266dfd068fd2a3118962a19c92341a9b204034911560a87640c6036b25e46f"
+  },
+  "feedback90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/feedback90/libcore_knn_hnsw.so",
+    "sha256": "10aebda31d339007c276860f1e8615f321be16d2caec87eb44126e933d7c943c"
+  },
+  "flat128": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/flat128/libcore_knn_hnsw.so",
+    "sha256": "b7d59a0ccc568961af035275f5b060882a733ad885898985081d4e7e540cd3b2"
+  },
+  "fresh_control90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/fresh_control90/libcore_knn_hnsw.so",
+    "sha256": "c8d11367ba6e8c4a270f7b2b07449c3d4d8c105744bce2e4abbd2e35e9c5b190"
+  },
+  "gap90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/gap90/libcore_knn_hnsw.so",
+    "sha256": "1a999641626c035ec9f439c498f28fb8ede512a02a47476aee9f4f6b1947dee5"
+  },
+  "native": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/native/libcore_knn_hnsw.so",
+    "sha256": "20228b5b1841cb9a8e346c95b1c8442b6c23cec16ff8ec14aeb313ed80ec49ba"
+  },
+  "noprefetch90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/noprefetch90/libcore_knn_hnsw.so",
+    "sha256": "f3ec6821add207a11b7dd66f6f69327604bdf037844d92d00abba2276b10f7f6"
+  },
+  "rotator90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/rotator90/libcore_knn_hnsw.so",
+    "sha256": "aa88319a2444ee83cc6b0ea93ad5c5f9d96ab83c9ff892f1582f7d67b77effc4"
+  },
+  "round3_default": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/round3_default/libcore_knn_hnsw.so",
+    "sha256": "a3e1f547d4d6c6a6ad788a732e5a0aa6706acfea88d4e6ceea8774c44bf367dd"
+  },
+  "round3_profile_base": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/round3_profile_base/libcore_knn_hnsw.so",
+    "sha256": "47797d4fb01b2a03aaaab981c70d1b81756b4a862c11dc8af52d0ef3362baef9"
+  },
+  "round3_profile_route": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/round3_profile_route/libcore_knn_hnsw.so",
+    "sha256": "9e1c596271d03f0646162b4d1756eb0ea041cbbb7df5e67520da310cd65c25d3"
+  },
+  "round3_profile_window": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/round3_profile_window/libcore_knn_hnsw.so",
+    "sha256": "5c76c46323b5adfa2034164c8f9a7da4eb8a73fe5e11bccd40612a00b3cf83ed"
+  },
+  "route90_bucket": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/route90_bucket/libcore_knn_hnsw.so",
+    "sha256": "b9f4e06b2b84f2fcd7931488559f1c50f7c5274dbdc0372ea85ed47ad93bafbd"
+  },
+  "route90_native": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/route90_native/libcore_knn_hnsw.so",
+    "sha256": "edca6301d4d823cca5fc7bbd5d5c816edea9030eeffbe917a4e46f15f923252d"
+  },
+  "shared90": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/shared90/libcore_knn_hnsw.so",
+    "sha256": "b5993267751e295c08624cb7ec44d18a8352bb86f38bd70facdfef5863b117fb"
+  },
+  "small128": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/small128/libcore_knn_hnsw.so",
+    "sha256": "595ed0826f770aaec821b209db6eaf76b6e89f263bfdca6396bc27205bd9dc17"
+  },
+  "small64": {
+    "library": "/home/xingrui/bench/quantized_graph/research_20261025/variants/small64/libcore_knn_hnsw.so",
+    "sha256": "34bbdcc12544a49ad8b0bf459dfc6e7ccea1031243de0c4c099d9701501c974c"
+  },
+  "research_benchmark": {
+    "executable": "/home/xingrui/bench/quantized_graph/research_20261025/research_benchmark",
+    "sha256": "a0f322a3a165427a1396025d7698b97b49e20d2bcf0499576fad1d45df62e5a2"
+  },
+  "research_benchmark_nav": {
+    "executable": "/home/xingrui/bench/quantized_graph/research_20261025/research_benchmark_nav",
+    "sha256": "2ac560cea4216dd31f4d7098f6d901346539f88a25145368d014d3d1acc47476"
+  },
+  "research_benchmark_router": {
+    "executable": "/home/xingrui/bench/quantized_graph/research_20261025/research_benchmark_router",
+    "sha256": "e3e3d29a5ee2a2818078a7f51d3f3650ddecc53466a1d942e8b461a68cc1b45f"
+  },
+  "research_benchmark_gap": {
+    "executable": "/home/xingrui/bench/quantized_graph/research_20261025/research_benchmark_gap",
+    "sha256": "04fb0c0147cf7db5be292f443e763e7ae2cb01ed12a99da66c17304bc464e98e"
+  }
+}

@@ -53,6 +53,15 @@
 #include <zvec/core/framework/index_error.h>
 #include "utility/graph_search.h"
 #include "quantized_graph_beam.h"
+#if defined(QG_PROFILE)
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#endif
+#if defined(QG_PROJECTION_ROUTER)
+#include <cstdlib>
+#include "quantized_graph_router.h"
+#endif
 #if defined(QG_CENTER_QUANTIZED)
 #include "quantized_graph_half_center.h"
 #if !defined(QG_ADAPTIVE) && !defined(QG_DEFERRED_COSINE)
@@ -106,6 +115,9 @@ class QuantizedGraph {
   }
 
  private:
+#if defined(QG_SHARED_DOMINANCE)
+  using LocalVisitSet = QuantizedGraphSharedVisit;
+#else
   class LocalVisitSet {
    public:
     void reset(size_t expect) {
@@ -151,6 +163,7 @@ class QuantizedGraph {
     std::unordered_set<NodeId> overflow_;
     size_t mask_{0};
   };
+#endif
 
   // Resolve TLS once at the query boundary. In particular, probing the visit
   // table must not call __tls_get_addr for every candidate in a shared build.
@@ -200,12 +213,22 @@ class QuantizedGraph {
 #endif
 #if defined(QG_BUCKET)
     QuantizedGraphBucket beam;
+#if defined(QG_BUCKET_DOMINANCE)
+#if defined(QG_DOMINANCE_CACHE)
+    QuantizedGraphDominanceCache dominance;
+#else
+    QuantizedGraphBucketDominance dominance;
+#endif
+#endif
 #elif defined(QG_HEAP)
     AdaptiveHeap beam;
 #else
     QuantizedGraphBeam beam{1};
 #endif
     typename Codec::Query query;
+#if defined(QG_PROJECTION_ROUTER)
+    std::vector<float> route_scores, route_query;
+#endif
     std::vector<NodeId> expanded;
 #if defined(QG_DEFERRED_COSINE)
     std::vector<std::pair<float, NodeId>> refine_candidates;
@@ -318,6 +341,9 @@ class QuantizedGraph {
   size_t max_neighbors_{32};
   size_t neighbor_bytes_{0};
   Codec codec_;
+#if defined(QG_PROJECTION_ROUTER)
+  QuantizedGraphRouter router_;
+#endif
   // Immutable after prebuild and before the next clear(); read lock-free.
   std::unique_ptr<char[], ArenaDeleter> arena_;
   NodeId arena_count_{0};
@@ -369,6 +395,9 @@ void QuantizedGraph<Codec>::clear() {
   arena_.reset();
   arena_count_ = 0;
   entry_ = kInvalidNodeId;
+#if defined(QG_PROJECTION_ROUTER)
+  router_.clear();
+#endif
   std::lock_guard<std::mutex> lock(mutex_);
   lazy_blocks_.clear();
 }
@@ -511,6 +540,14 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
     };
     std::vector<uint32_t> selected;
     selected.reserve(kMaxBlockNeighbors);
+#if defined(QG_FORCED_NEAR)
+    // Reserve a small dense local neighborhood, then spend remaining slots
+    // on diverse navigation edges. Construction uses database vectors only.
+    for (size_t i = 0; i < std::min(size_t{QG_FORCED_NEAR},
+                                    std::min(order.size(), kMaxBlockNeighbors));
+         ++i)
+      selected.push_back(order[i]);
+#endif
 #if defined(QG_AUGMENT) && QG_AUGMENT >= 3
     if (original_neighbor_count < kMaxBlockNeighbors)
       for (uint32_t i = 0; i < original_neighbor_count; ++i)
@@ -518,6 +555,10 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
 #endif
     for (uint32_t idx : order) {
       if (selected.size() == kMaxBlockNeighbors) break;
+#if defined(QG_FORCED_NEAR)
+      if (std::find(selected.begin(), selected.end(), idx) != selected.end())
+        continue;
+#endif
 #if defined(QG_AUGMENT) && QG_AUGMENT >= 3
       if (original_neighbor_count < kMaxBlockNeighbors &&
           idx < original_neighbor_count)
@@ -762,6 +803,11 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
 
   // Published under the caller's exclusive lock; searches only
   // start afterwards, so reads need no synchronization.
+#if defined(QG_PROJECTION_ROUTER)
+  const int route_rc =
+      router_.build(entity, codec_, centroid, doc_cnt, dimension_);
+  if (route_rc) return route_rc;
+#endif
   lazy_blocks_.clear();
   arena_ = std::move(arena);
   arena_count_ = static_cast<NodeId>(doc_cnt);
@@ -814,6 +860,9 @@ template <class Codec>
 template <class Graph, class Context>
 int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
                                   Context &ctx) const {
+#if defined(QG_PROFILE)
+  const auto profile_start = std::chrono::steady_clock::now();
+#endif
   auto &results = ctx.reset_results();
   results.clear();
   if (entry == kInvalidNodeId || ctx.topk() == 0) return 0;
@@ -821,6 +870,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   auto &state = search_state();
   auto &visited = state.visited;
   visited.reset(results.limit());
+#if defined(QG_BUCKET_DOMINANCE)
+  state.dominance.reset();
+#endif
 #if defined(QG_FIRST_ESTIMATE)
   state.discovered.reset(std::max(size_t{64}, results.limit() * 4));
   state.discovered.set_visited(entry);
@@ -830,6 +882,32 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   beam.insert(entry, std::numeric_limits<float>::max());
   auto &batch_query = state.query;
   codec_.prepare_query(ctx.query(), batch_query);
+#if defined(QG_PROJECTION_ROUTER)
+  if (!router_.empty()) {
+    const float *rotated = QuantizedGraphRouter::rotated(batch_query, 0);
+    if (!rotated) {
+      codec_.transform(ctx.query(), state.route_query);
+      rotated = state.route_query.data();
+    }
+    const size_t route_dim =
+        std::getenv("QG_ROUTE_DIM")
+            ? std::strtoul(std::getenv("QG_ROUTE_DIM"), nullptr, 10)
+            : 64;
+    const size_t route_count =
+        std::getenv("QG_ROUTE_COUNT")
+            ? std::strtoul(std::getenv("QG_ROUTE_COUNT"), nullptr, 10)
+            : 256;
+    const size_t route_short =
+        std::getenv("QG_ROUTE_SHORTLIST")
+            ? std::strtoul(std::getenv("QG_ROUTE_SHORTLIST"), nullptr, 10)
+            : 4;
+    const int rc = router_.choose(ctx, entity, rotated, entry, route_dim,
+                                  route_count, route_short, state.route_scores);
+    if (rc) return rc;
+    beam.reset(std::max(size_t{1}, results.limit()));
+    beam.insert(entry, std::numeric_limits<float>::max());
+  }
+#endif
 #if defined(QG_CENTER_QUANTIZED)
   double query_norm2_double = 0;
   const float *query_values = static_cast<const float *>(ctx.query());
@@ -858,6 +936,20 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   struct StopState {
     std::vector<float> &best;
     size_t k, stale = 0, expanded = 0;
+#if defined(QG_GAP_FEEDBACK)
+    float gap_blend = std::getenv("QG_GAP_BLEND")
+                          ? std::strtof(std::getenv("QG_GAP_BLEND"), nullptr)
+                          : .25f;
+#endif
+#if defined(QG_ERROR_FEEDBACK)
+    float popped_estimate = std::numeric_limits<float>::quiet_NaN(),
+          error_mean = 0;
+    size_t error_count = 0;
+    float error_blend =
+        std::getenv("QG_ERROR_BLEND")
+            ? std::strtof(std::getenv("QG_ERROR_BLEND"), nullptr)
+            : .5f;
+#endif
 #if defined(QG_RUNTIME_ADAPTIVE)
     size_t patience =
         std::getenv("QG_PATIENCE")
@@ -872,6 +964,14 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
     void observe(float d, bool eligible) {
       ++expanded;
+#if defined(QG_ERROR_FEEDBACK)
+      if (expanded > 1 && std::isfinite(popped_estimate) && d > 1e-6f) {
+        const float residual =
+            std::clamp((d - popped_estimate) / d, -.25f, .25f);
+        error_mean += .125f * (residual - error_mean);
+        ++error_count;
+      }
+#endif
       if (eligible && (best.size() < k || d < best.back())) {
         best.insert(std::lower_bound(best.begin(), best.end(), d), d);
         if (best.size() > k) best.pop_back();
@@ -894,10 +994,24 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
     bool stop(float next) const {
 #if defined(QG_RUNTIME_ADAPTIVE)
+      float calibrated_margin = margin;
+#if defined(QG_GAP_FEEDBACK)
+      if (best.size() == k && k >= 2) {
+        const float gap = std::clamp(
+            (best.back() - best[k / 2 - 1]) / std::max(best.back(), 1e-6f), 0.f,
+            1.f);
+        calibrated_margin = std::clamp(
+            calibrated_margin + gap_blend * (.10f - gap), -.10f, .20f);
+      }
+#endif
+#if defined(QG_ERROR_FEEDBACK)
+      if (error_count >= 8) calibrated_margin -= error_blend * error_mean;
+#endif
       return best.size() == k && expanded >= QG_STOP_MIN &&
              (expanded >= cap ||
               (stale >= patience &&
-               next - best.back() >= margin * std::max(best.back(), 1e-6f)));
+               next - best.back() >=
+                   calibrated_margin * std::max(best.back(), 1e-6f)));
 #else
       return best.size() == k && expanded >= QG_STOP_MIN &&
              stale >= QG_STOP_PATIENCE &&
@@ -905,6 +1019,26 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
                  QG_STOP_MARGIN * std::max(best.back(), 1e-6f);
 #endif
     }
+#if defined(QG_CHEAP_WINDOW)
+#if defined(QG_ERROR_FEEDBACK) || defined(QG_GAP_FEEDBACK) || \
+    !defined(QG_RUNTIME_ADAPTIVE)
+#error Cheap window requires a constant per-query runtime margin
+#endif
+    float admission_cutoff(float width, float overflow_lower) const {
+      if (patience != 0 || best.size() != k || expanded < QG_STOP_MIN ||
+          margin < 0 || !std::isfinite(margin))
+        return std::numeric_limits<float>::infinity();
+      const float r = best.back(), threshold = r + margin * std::max(r, 1e-6f);
+      const float pad =
+          16 * std::numeric_limits<float>::epsilon() *
+          (std::abs(r) + std::abs(threshold) + std::abs(width) + 1.f);
+      if (!std::isfinite(threshold) || overflow_lower < threshold + pad)
+        return std::numeric_limits<float>::infinity();
+      // Slack admits extra candidates, avoiding a division per admission.
+      // The exact stop threshold only decreases as exact Top-K improves.
+      return std::max(0.f, threshold + 2 * width + pad);
+    }
+#endif
   };
   state.best_exact.clear();
   StopState stopping{state.best_exact, ctx.topk()};
@@ -958,6 +1092,20 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     const NodeId *neighbors = nullptr;
     const char *codes = nullptr;
     float exact = 0;
+#if defined(QG_PROFILE)
+    uint64_t profile_begin_ns = 0, profile_score_ns = 0, profile_admit_ns = 0,
+             profile_edges = 0;
+    std::chrono::steady_clock::time_point profile_admit_start;
+    void profile_admission_begin() {
+      profile_admit_start = std::chrono::steady_clock::now();
+    }
+    void profile_admission_end() {
+      profile_admit_ns +=
+          std::chrono::duration_cast<std::chrono::nanoseconds>(
+              std::chrono::steady_clock::now() - profile_admit_start)
+              .count();
+    }
+#endif
 #if defined(QG_CENTER_STATS)
     size_t refined_count = 0;
 #endif
@@ -965,6 +1113,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     float navigation_center = 0;
 #endif
     int begin(NodeId id) {
+#if defined(QG_PROFILE)
+      const auto profile_t = std::chrono::steady_clock::now();
+#endif
       expanded.push_back(id);
       block = index.get_block(entity, id);
       if (block == nullptr) return IndexError_Mismatch;
@@ -1060,6 +1211,11 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
       if (refined && !ctx.excluded(id)) output.emplace(id, exact);
       ctx.on_expand();
+#if defined(QG_PROFILE)
+      profile_begin_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                              std::chrono::steady_clock::now() - profile_t)
+                              .count();
+#endif
       return 0;
     }
     size_t neighbor_count() const {
@@ -1075,6 +1231,10 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     void stage(NodeId, size_t, size_t) {}
     int score(size_t offset, const NodeId *ids, size_t count,
               float *distances) {
+#if defined(QG_PROFILE)
+      const auto profile_t = std::chrono::steady_clock::now();
+      profile_edges += count;
+#endif
       float center_score = exact;
 #if defined(QG_REANCHOR) && defined(QG_CENTER_QUANTIZED)
       if (index.compressed_center_) center_score = navigation_center;
@@ -1108,6 +1268,11 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #if QG_EXPERIMENT == 1 || QG_EXPERIMENT == 3
       std::copy_n(truth.data(), count, distances);
 #endif
+#endif
+#if defined(QG_PROFILE)
+      profile_score_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                              std::chrono::steady_clock::now() - profile_t)
+                              .count();
 #endif
       return 0;
     }
@@ -1156,6 +1321,13 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     const std::vector<NodeId> *expanded;
     size_t expansion_cap;
 #endif
+#if defined(QG_BUCKET_DOMINANCE)
+#if defined(QG_DOMINANCE_CACHE)
+    QuantizedGraphDominanceCache *dominance;
+#else
+    QuantizedGraphBucketDominance *dominance;
+#endif
+#endif
 #if defined(QG_FIRST_ESTIMATE)
     LocalVisitSet *discovered;
 #endif
@@ -1170,6 +1342,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     Diagnostics *diag;
 #endif
     NodeId prefetched = kInvalidNodeId;
+#if defined(QG_CHEAP_WINDOW)
+    mutable float cutoff = std::numeric_limits<float>::infinity();
+#endif
     bool has_next() const {
 #if defined(QG_TAIL_REFINE)
       if (expanded->size() >= expansion_cap) return false;
@@ -1178,10 +1353,17 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       while (beam.has_next() && visited->visited(beam.next_id_at(0)))
         beam.pop();
       if (beam.has_next() && stopping->stop(beam.next_distance())) return false;
+#if defined(QG_CHEAP_WINDOW)
+      cutoff = stopping->admission_cutoff(
+          beam.width(), float(QuantizedGraphBucket::N - 2) * beam.width());
+#endif
 #endif
       return beam.has_next() && !ctx.reach_scan_limit();
     }
     NodeId pop() {
+#if defined(QG_ERROR_FEEDBACK)
+      stopping->popped_estimate = beam.next_distance() + .5f * beam.width();
+#endif
 #if defined(QG_PATH_TRACE)
       path->estimate = beam.next_distance();
 #endif
@@ -1191,6 +1373,14 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       return beam.pop();
     }
     bool accepts(float distance) const {
+#if defined(QG_CHEAP_WINDOW)
+      if (distance > cutoff) {
+#if defined(QG_WINDOW_AUDIT)
+        if (!stopping->stop(beam.lower_bound(distance))) std::abort();
+#endif
+        return false;
+      }
+#endif
 #if defined(QG_WINDOW)
       if (!std::isfinite(distance) ||
           !stopping->admit(beam.lower_bound(distance)))
@@ -1199,6 +1389,12 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       return !beam.is_full(distance) && std::isfinite(distance);
     }
     void push(NodeId id, float distance) {
+#if defined(QG_SHARED_DOMINANCE)
+      if (!visited->admit(id, beam.locate(distance))) return;
+#endif
+#if defined(QG_BUCKET_DOMINANCE)
+      if (!dominance->admit(id, beam.locate(distance))) return;
+#endif
 #if defined(QG_FIRST_ESTIMATE)
       if (discovered->visited(id)) return;
       discovered->set_visited(id);
@@ -1211,7 +1407,8 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #else
       beam.insert(id, distance);
 #endif
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && \
+    !defined(QG_DISABLE_FRONTIER_PREFETCH)
       if (beam.has_next()) {
         const NodeId next = beam.next_id_at(0);
         // Only prefetch published arena slots. Lazy blocks require a lookup
@@ -1237,6 +1434,10 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
              &expanded,
              expansion_cap
 #endif
+#if defined(QG_BUCKET_DOMINANCE)
+             ,
+             &state.dominance
+#endif
 #if defined(QG_FIRST_ESTIMATE)
              ,
              &state.discovered
@@ -1255,6 +1456,12 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
              &diag
 #endif
   };
+#if defined(QG_PROFILE)
+  const auto profile_init_ns =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          std::chrono::steady_clock::now() - profile_start)
+          .count();
+#endif
   const int search_ret = SearchGraph(scan, frontier, visited, state.scratch);
   if (search_ret != 0) return search_ret;
 #if defined(QG_LOCAL_COMPLETION)
@@ -1386,6 +1593,23 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       results.emplace(candidate, exact);
     }
   }
+#if defined(QG_PROFILE)
+  const auto total = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         std::chrono::steady_clock::now() - profile_start)
+                         .count();
+  static thread_local FILE *profile = []() {
+    const char *p = std::getenv("QG_PROFILE_FILE");
+    return p ? std::fopen(p, "w") : nullptr;
+  }();
+  if (profile)
+    std::fprintf(profile, "%zu,%zu,%lld,%lld,%llu,%llu,%llu,%llu\n",
+                 expanded.size(), results.limit(), (long long)total,
+                 (long long)profile_init_ns,
+                 (unsigned long long)scan.profile_begin_ns,
+                 (unsigned long long)scan.profile_score_ns,
+                 (unsigned long long)scan.profile_admit_ns,
+                 (unsigned long long)scan.profile_edges);
+#endif
   return 0;
 }
 
