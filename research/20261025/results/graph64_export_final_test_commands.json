@@ -1,0 +1,16 @@
+{
+  "compile": [
+    "g++",
+    "-O2",
+    "-std=c++17",
+    "-UNDEBUG",
+    "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src/core",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/graph64_export_test.cc",
+    "-o",
+    "/home/xingrui/bench/quantized_graph/research_20261025/graph64_export_test_final"
+  ],
+  "run": [
+    "/home/xingrui/bench/quantized_graph/research_20261025/graph64_export_test_final",
+    "/home/xingrui/bench/quantized_graph/research_20261025/results/graph64_export_unit_final_tmp"
+  ]
+}

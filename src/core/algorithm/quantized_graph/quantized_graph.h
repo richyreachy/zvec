@@ -57,6 +57,9 @@
 #include <zvec/core/framework/index_error.h>
 #include "utility/graph_search.h"
 #include "quantized_graph_beam.h"
+#if defined(QG_GRAPH_EXPORT)
+#include "quantized_graph_export.h"
+#endif
 #if defined(QG_EDGE_TRAIN_EXPORT)
 #include "quantized_graph_edge_export.h"
 #endif
@@ -1094,6 +1097,16 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
   lazy_blocks_.clear();
   arena_ = std::move(arena);
   arena_count_ = static_cast<NodeId>(doc_cnt);
+#if defined(QG_GRAPH_EXPORT)
+  if (!QuantizedGraphExport::write(
+          entity, doc_cnt, dimension_, uint32_t(entry_),
+          std::getenv("QG_GRAPH_EXPORT_FILE"),
+          std::getenv("QG_GRAPH_VECTOR_FILE"), [this](uint32_t id) {
+            const Block *b = slot(id);
+            return std::make_pair(b->neighbors(), size_t(b->neighbor_cnt));
+          }))
+    return IndexError_Mismatch;
+#endif
 #if defined(QG_EDGE_TRAIN_EXPORT)
   if (!QuantizedGraphEdgeExport::write(
           entity, doc_cnt, dimension_, std::getenv("QG_EDGE_TRAIN_EXPORT_FILE"),

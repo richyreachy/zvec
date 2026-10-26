@@ -1,0 +1,14 @@
+{
+  "name": "graph64_candidates",
+  "defines": [
+    "QG_BUCKET=1",
+    "QG_BUCKET_WIDTH=.016f",
+    "QG_ROTATION_768=1",
+    "QG_AUGMENT=3",
+    "QG_GRAPH_EXPORT=1"
+  ],
+  "baseline": "5a1c8a9852acd34c16114940b4cfc41e157dd9b7",
+  "patch_sha256": "cf8b8da35f72fb5b6475831b79cf351006a56aa33828a25de3eb6776cd5d237c",
+  "immutable_build_source": "/home/xingrui/bench/quantized_graph/research_20261025/variants/graph64_candidates/build_source",
+  "research_head": "d644616df4105b0c4c17f08dbdb21a8d38b06b8f"
+}

@@ -1,0 +1,26 @@
+{
+  "run": [
+    "taskset",
+    "-c",
+    "0,2,4,6,8,10,12,14",
+    "/home/xingrui/bench/quantized_graph/research_20261025/graph64_driver",
+    "search",
+    "/home/xingrui/bench/quantized_graph/research_20261025/indexes/cohere1m_m50_efc500.index",
+    "symphony_qg",
+    "0",
+    "-1",
+    "/home/xingrui/bench/quantized_graph/research_20261025/models64/bounded"
+  ],
+  "env": {
+    "LD_LIBRARY_PATH": "/home/xingrui/bench/quantized_graph/research_20261025/variants/graph64_bounded:/home/xingrui/bench/quantized_graph/research_20261025/lib",
+    "QG_GRAPH_EXPORT_FILE": "/home/xingrui/bench/quantized_graph/research_20261025/models64/bounded_graph.bin",
+    "QG_GRAPH_VECTOR_FILE": "/home/xingrui/bench/quantized_graph/research_20261025/models64/bounded_vectors.f32",
+    "GRAPH64_QUERY_COUNT": "4096",
+    "GRAPH64_QUERY_THREADS": "8",
+    "BENCH_DEGREE": "32"
+  },
+  "candidate_count": 200,
+  "ef": 400,
+  "queue": "bounded original beam",
+  "no_adaptive_top10_stopping": true
+}

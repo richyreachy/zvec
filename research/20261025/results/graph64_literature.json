@@ -1,0 +1,16 @@
+{
+  "access_date": "2026-10-26",
+  "sources": [
+    {
+      "url": "https://www.cs.columbia.edu/~verma/classes/uml/ref/clustering_minimize_intercluster_distance_gonzalez.pdf",
+      "title": "Gonzalez 1985: Clustering to minimize the maximum intercluster distance",
+      "read_scope": "Section2 algorithm and proof,not all hardness arguments",
+      "use": "Prior art for farthest-first;fixed-seed covering-radius argument written separately in notes/graph64_geometry.md",
+      "novelty_claim": false
+    },
+    {
+      "url": "https://arxiv.org/html/2411.12229v1#S3.SS2",
+      "use": "Previously read graph-construction prior art;counterexample is scoped to the explicitly tested sequential greedy rule,not every paper implementation"
+    }
+  ]
+}
