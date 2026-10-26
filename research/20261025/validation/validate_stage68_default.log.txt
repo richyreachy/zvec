@@ -1,0 +1,13 @@
+[01m[K/home/xingrui/workspace/quantized_graph/symphony_research_20261025/tests/core/algorithm/hnsw/symphony_qg_test.cc:[m[K In member function ‘[01m[Kvirtual void zvec::core::{anonymous}::QuantizedGraphTest_IndependentBackendUsesMultipleAndPartialCodecBatches_Test::[01;32m[KTestBody[m[K()[m[K’:
+[01m[K/home/xingrui/workspace/quantized_graph/symphony_research_20261025/tests/core/algorithm/hnsw/symphony_qg_test.cc:506:8:[m[K [01;35m[Kwarning: [m[Ksuggest explicit braces to avoid ambiguous ‘[01m[Kelse[m[K’ [[01;35m[K-Wdangling-else[m[K]
+  506 |     if [01;35m[K([m[Kprebuilt)
+      |        [01;35m[K^[m[K
+[01m[K/home/xingrui/workspace/quantized_graph/symphony_research_20261025/tests/core/algorithm/hnsw/symphony_qg_test.cc:[m[K In member function ‘[01m[Kvirtual void zvec::core::{anonymous}::QuantizedGraphTest_CompletionFiltersUnvisitedNodesAndHonorsBudget_Test::[01;32m[KTestBody[m[K()[m[K’:
+[01m[K/home/xingrui/workspace/quantized_graph/symphony_research_20261025/tests/core/algorithm/hnsw/symphony_qg_test.cc:579:8:[m[K [01;35m[Kwarning: [m[Ksuggest explicit braces to avoid ambiguous ‘[01m[Kelse[m[K’ [[01;35m[K-Wdangling-else[m[K]
+  579 |     if [01;35m[K([m[Kprebuilt)
+      |        [01;35m[K^[m[K
+[01m[K/home/xingrui/workspace/quantized_graph/symphony_research_20261025/tests/core/algorithm/hnsw/symphony_qg_test.cc:[m[K In lambda function:
+[01m[K/home/xingrui/workspace/quantized_graph/symphony_research_20261025/tests/core/algorithm/hnsw/symphony_qg_test.cc:1074:16:[m[K [01;35m[Kwarning: [m[Ksuggest explicit braces to avoid ambiguous ‘[01m[Kelse[m[K’ [[01;35m[K-Wdangling-else[m[K]
+ 1074 |             if [01;35m[K([m[Kfiltered) EXPECT_NE(1U, id);
+      |                [01;35m[K^[m[K
+STAGE68 DEFAULT VALIDATION COMPLETE

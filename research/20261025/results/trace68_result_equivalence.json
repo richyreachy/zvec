@@ -1,0 +1,8 @@
+{
+  "database_queries": 4096,
+  "result_pairs": 40960,
+  "disabled_enabled_and_frozen_reference_bit_identical": true,
+  "sha256": "0038285c11c0881a111f1330f705e993bae2012343b3503ee9ac629ca6e7c8a9",
+  "self_included_proxy_queries": true,
+  "no_primary_or_gt_queries_used": true
+}

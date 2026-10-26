@@ -57,6 +57,12 @@
 #include <zvec/core/framework/index_error.h>
 #include "utility/graph_search.h"
 #include "quantized_graph_beam.h"
+#if defined(QG_MULTI_TRACE)
+#if defined(QG_CENTER_QUANTIZED)
+#error Multi-estimate trace currently requires exact FP32 centers
+#endif
+#include "quantized_graph_multi_trace.h"
+#endif
 #if defined(QG_GRAPH_IMPORT)
 #include "quantized_graph_import.h"
 #endif
@@ -1570,6 +1576,10 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     double se = 0, bias = 0;
   } diag;
 #endif
+#if defined(QG_MULTI_TRACE)
+  QuantizedGraphMultiTrace multi_trace;
+  if (!multi_trace.ready()) return IndexError_Mismatch;
+#endif
   struct Scan {
     enum { kVisitOnExpansion = true };
     const QuantizedGraph &index;
@@ -1604,6 +1614,10 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
 #if QG_DIAG
     Diagnostics *diag;
+#endif
+#if defined(QG_MULTI_TRACE)
+    QuantizedGraphMultiTrace *multi_trace;
+    NodeId trace_source = kInvalidNodeId;
 #endif
     const Block *block = nullptr;
     const NodeId *neighbors = nullptr;
@@ -1646,6 +1660,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       const auto profile_t = std::chrono::steady_clock::now();
 #endif
       expanded.push_back(id);
+#if defined(QG_MULTI_TRACE)
+      trace_source = id;
+#endif
       block = index.get_block(entity, id);
       if (block == nullptr) return IndexError_Mismatch;
       neighbors = reinterpret_cast<const NodeId *>(
@@ -1795,6 +1812,11 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
                                               exact);
 #endif
+#if defined(QG_MULTI_TRACE)
+      if (!multi_trace->event(1, uint32_t(expanded.size()), id, id, exact,
+                              exact))
+        return IndexError_Mismatch;
+#endif
 #if defined(QG_PATH_TRACE)
       if (path->file)
         std::fprintf(path->file, "%llu,%zu,%zu,%llu,%.9g,%.9g\n",
@@ -1860,6 +1882,19 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       index.codec_.scan(
           codes + (offset / Codec::kBatchSize) * index.codec_.batch_bytes(),
           query, center_score, distances);
+#if defined(QG_MULTI_TRACE)
+      if (multi_trace->active()) {
+        for (size_t i = 0; i < count; ++i) {
+          typename Graph::Vector raw;
+          if (entity.get_vector(ids[i], raw) != 0 || !raw.data())
+            return IndexError_Mismatch;
+          const float truth = ctx.reference_distance(raw.data());
+          if (!multi_trace->event(2, uint32_t(expanded.size()), trace_source,
+                                  ids[i], distances[i], truth))
+            return IndexError_Mismatch;
+        }
+      }
+#endif
 #if QG_EXPERIMENT == 1 || QG_EXPERIMENT == 3 || QG_DIAG
       std::array<float, Codec::kBatchSize> truth;
       for (size_t i = 0; i < count; ++i) {
@@ -1935,6 +1970,10 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #if QG_DIAG
          ,
          &diag
+#endif
+#if defined(QG_MULTI_TRACE)
+         ,
+         &multi_trace
 #endif
   };
   struct Frontier {
@@ -2106,6 +2145,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
   const int search_ret = SearchGraph(scan, frontier, visited, state.scratch);
   if (search_ret != 0) return search_ret;
+#if defined(QG_MULTI_TRACE)
+  if (!multi_trace.end(uint32_t(expanded.size()))) return IndexError_Mismatch;
+#endif
 #if defined(QG_LOCAL_COMPLETION)
 #if defined(QG_CENTER_QUANTIZED)
 #error Local completion prototype expects FP32 center rows

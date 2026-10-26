@@ -1,0 +1,78 @@
+[
+  {
+    "mode": "reference",
+    "command": [
+      "taskset",
+      "-c",
+      "0,2,4,6,8,10,12,14",
+      "/home/xingrui/bench/quantized_graph/research_20261025/trace68_driver",
+      "search",
+      "/home/xingrui/bench/quantized_graph/research_20261025/indexes/cohere1m_m50_efc500.index",
+      "symphony_qg",
+      "0",
+      "-1",
+      "/home/xingrui/bench/quantized_graph/research_20261025/models68/reference"
+    ],
+    "env": {
+      "TRACE68_GRAPH_FILE": "/home/xingrui/bench/quantized_graph/research_20261025/models64/full_graph.bin",
+      "TRACE68_VECTOR_FILE": "/home/xingrui/bench/quantized_graph/research_20261025/models64/full_vectors.f32",
+      "TRACE68_QUERY_COUNT": "4096",
+      "QG_CAP": "64",
+      "QG_PATIENCE": "0",
+      "QG_MARGIN": ".02",
+      "BENCH_DEGREE": "32",
+      "LD_LIBRARY_PATH": "/home/xingrui/bench/quantized_graph/research_20261025/variants/bucket90_w16:/home/xingrui/bench/quantized_graph/research_20261025/lib"
+    }
+  },
+  {
+    "mode": "disabled",
+    "command": [
+      "taskset",
+      "-c",
+      "0,2,4,6,8,10,12,14",
+      "/home/xingrui/bench/quantized_graph/research_20261025/trace68_driver",
+      "search",
+      "/home/xingrui/bench/quantized_graph/research_20261025/indexes/cohere1m_m50_efc500.index",
+      "symphony_qg",
+      "0",
+      "-1",
+      "/home/xingrui/bench/quantized_graph/research_20261025/models68/disabled"
+    ],
+    "env": {
+      "TRACE68_GRAPH_FILE": "/home/xingrui/bench/quantized_graph/research_20261025/models64/full_graph.bin",
+      "TRACE68_VECTOR_FILE": "/home/xingrui/bench/quantized_graph/research_20261025/models64/full_vectors.f32",
+      "TRACE68_QUERY_COUNT": "4096",
+      "QG_CAP": "64",
+      "QG_PATIENCE": "0",
+      "QG_MARGIN": ".02",
+      "BENCH_DEGREE": "32",
+      "LD_LIBRARY_PATH": "/home/xingrui/bench/quantized_graph/research_20261025/variants/trace68_native:/home/xingrui/bench/quantized_graph/research_20261025/lib"
+    }
+  },
+  {
+    "mode": "enabled",
+    "command": [
+      "taskset",
+      "-c",
+      "0,2,4,6,8,10,12,14",
+      "/home/xingrui/bench/quantized_graph/research_20261025/trace68_driver",
+      "search",
+      "/home/xingrui/bench/quantized_graph/research_20261025/indexes/cohere1m_m50_efc500.index",
+      "symphony_qg",
+      "0",
+      "-1",
+      "/home/xingrui/bench/quantized_graph/research_20261025/models68/enabled"
+    ],
+    "env": {
+      "TRACE68_GRAPH_FILE": "/home/xingrui/bench/quantized_graph/research_20261025/models64/full_graph.bin",
+      "TRACE68_VECTOR_FILE": "/home/xingrui/bench/quantized_graph/research_20261025/models64/full_vectors.f32",
+      "TRACE68_QUERY_COUNT": "4096",
+      "QG_CAP": "64",
+      "QG_PATIENCE": "0",
+      "QG_MARGIN": ".02",
+      "BENCH_DEGREE": "32",
+      "LD_LIBRARY_PATH": "/home/xingrui/bench/quantized_graph/research_20261025/variants/trace68_native:/home/xingrui/bench/quantized_graph/research_20261025/lib",
+      "QG_MULTI_TRACE_FILE": "/home/xingrui/bench/quantized_graph/research_20261025/models68/events.bin"
+    }
+  }
+]

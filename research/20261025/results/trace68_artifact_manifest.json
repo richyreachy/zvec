@@ -1,0 +1,82 @@
+{
+  "models68/events.bin": {
+    "bytes": 125133520,
+    "sha256": "03ed33a889c106748c87d870bdccc7dbfd367d44b8a6b3047dfe8b8ecc01f51b"
+  },
+  "models68/primary/events.bin": {
+    "bytes": 32516848,
+    "sha256": "4787aa0f822bb2ddf35f4af28c04579283fac5d557fbea74c9f1802047d3d04c"
+  },
+  "models68/pairs_v2.npy": {
+    "bytes": 24519552,
+    "sha256": "6ccac23a1d3d6cf156fb85dc3953b32ff746e048929c4aee7b9e3a40e366e4b8"
+  },
+  "models68/primary/pairs_v2.npy": {
+    "bytes": 6345600,
+    "sha256": "7dd0b79dc0a20f9f68267819ff09063f00c3fa9604f4af12f6f87a5ebdc935a4"
+  },
+  "models68/reference_results.bin": {
+    "bytes": 344096,
+    "sha256": "0038285c11c0881a111f1330f705e993bae2012343b3503ee9ac629ca6e7c8a9"
+  },
+  "models68/disabled_results.bin": {
+    "bytes": 344096,
+    "sha256": "0038285c11c0881a111f1330f705e993bae2012343b3503ee9ac629ca6e7c8a9"
+  },
+  "models68/enabled_results.bin": {
+    "bytes": 344096,
+    "sha256": "0038285c11c0881a111f1330f705e993bae2012343b3503ee9ac629ca6e7c8a9"
+  },
+  "models68/primary/queries.f32": {
+    "bytes": 3072000,
+    "sha256": "10c11b7f9ccdb085d87b74f331854a45def06aa87c0d5e9c439f4582abb73087"
+  },
+  "models68/geometry/moments.f64": {
+    "bytes": 4194304,
+    "sha256": "2938e3a907889f6de5c6c05600881ee3f0904ecb463c761010eaaedaa1f933e0"
+  },
+  "models68/geometry/ids.u32": {
+    "bytes": 524288,
+    "sha256": "fba0f1963ac0d7c8e19346a3e45686a562e5b8df7c502079b4468982540a28cf"
+  },
+  "models68/geometry/error_vectors.f64": {
+    "bytes": 402653184,
+    "sha256": "99450b003e0fd75d88a4c1d020c5150a50e0d0186b15bf8c01ffcaaea45fb370"
+  },
+  "models68/geometry/config.json": {
+    "bytes": 392,
+    "sha256": "27fb4eb702603746560f7bd60c962a70016483107dd2a2be87cc5ce9d4871519"
+  },
+  "models68/geometry/sample.npy": {
+    "bytes": 2359680,
+    "sha256": "b0c1f16cf491c1a37acd8375d27ff1a4c7b476ea457d263b0cfafaab8e9e85dc"
+  },
+  "models68/geometry/proxy_deltas.f64": {
+    "bytes": 201326592,
+    "sha256": "f73483423857963db813d364c885ffe867445ae3b8489e1d4daaaf5b7ccf9971"
+  },
+  "models68/primary/geometry/moments.f64": {
+    "bytes": 4081664,
+    "sha256": "ea53296c427bdc4e302cd1567b2fc6dde583fcae15379f362a34faf16fd1533e"
+  },
+  "models68/primary/geometry/ids.u32": {
+    "bytes": 510208,
+    "sha256": "4f73f80270aecb7724207c768e643fb7b8c856d60ef21680ffb6e82745d2a594"
+  },
+  "models68/primary/geometry/error_vectors.f64": {
+    "bytes": 391839744,
+    "sha256": "af9ced3604ee49d0f12fccca9a1aa8b8c1b306d66781e9b6f0541e5ddeff9d2c"
+  },
+  "models68/primary/geometry/config.json": {
+    "bytes": 391,
+    "sha256": "ad10502865063394b3e6e2577023620c4f0f426342ec80e12757e99f1f3a2746"
+  },
+  "models68/primary/geometry/sample.npy": {
+    "bytes": 2296320,
+    "sha256": "77006f82be46db1882c484613beb891303262ef3fb80a78303eefa7e1a59788c"
+  },
+  "models68/primary/geometry/proxy_deltas.f64": {
+    "bytes": 195919872,
+    "sha256": "3d034e0b9af1ff5f6bf3e6121622dd6663413bd0ccc2d308a86205f5d921f3ec"
+  }
+}

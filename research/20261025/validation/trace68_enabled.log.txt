@@ -1,0 +1,7 @@
+CONFIG topk=10 m=50 efConstruction=500 degree=32 build_threads=8
+[ INFO 2026-10-26 15:46:50 126928710185792 hnsw_streamer.cc:370] HnswStreamer open
+[ INFO 2026-10-26 15:46:50 126928710185792 hnsw_streamer_entity.cc:519] Open index, l0NeighborCnt=100 upperNeighborCnt=50 efConstruction=500 curDocCnt=1000000 totalVecs=1000000 maxLevel=3
+[ INFO 2026-10-26 15:47:27 126928710185792 hnsw_streamer.cc:649] HnswStreamer quantized_graph prebuild done, cost_ms=36786
+[ INFO 2026-10-26 15:47:30 126928710185792 hnsw_streamer.cc:663] HnswStreamer close
+[ INFO 2026-10-26 15:47:30 126928710185792 hnsw_streamer.cc:298] HnswStreamer cleanup
+TRACE68 COMPLETE queries=4096 self_hits=3963; database proxies include self, no GT or retrieval QPS

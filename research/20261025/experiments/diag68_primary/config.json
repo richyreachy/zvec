@@ -1,0 +1,32 @@
+{
+  "command": [
+    "taskset",
+    "-c",
+    "0,2,4,6,8,10,12,14",
+    "/home/xingrui/bench/quantized_graph/research_20261025/research_benchmark_nav",
+    "search",
+    "/home/xingrui/bench/quantized_graph/research_20261025/indexes/cohere1m_m50_efc500.index",
+    "symphony_qg",
+    "0",
+    "-1",
+    "/home/xingrui/bench/quantized_graph/research_20261025/experiments/diag68_primary/search"
+  ],
+  "env": {
+    "LD_LIBRARY_PATH": "/home/xingrui/bench/quantized_graph/research_20261025/variants/trace68_native:/home/xingrui/bench/quantized_graph/research_20261025/lib",
+    "BENCH_N": "1000000",
+    "BENCH_DATA": "/home/xingrui/bench/dataset/cohere/1m/",
+    "BENCH_TOPK": "10",
+    "BENCH_DEGREE": "32",
+    "BENCH_ROUNDS": "1",
+    "BENCH_EFS": "20000",
+    "BENCH_THREADS": "1",
+    "BENCH_QUERY_BEGIN": "0",
+    "BENCH_QUERY_END": "1000",
+    "BENCH_LABEL": "trace68_native",
+    "QG_CAP": "64",
+    "QG_PATIENCE": "0",
+    "BENCH_STOP_GRID": "1",
+    "BENCH_MARGIN_DENOM": "1000",
+    "QG_MULTI_TRACE_FILE": "/home/xingrui/bench/quantized_graph/research_20261025/models68/primary/events.bin"
+  }
+}

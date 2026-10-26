@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/home/xingrui/bench/quantized_graph/research_20261025/scripts/analyze68.py", line 19, in <module>
+    qi,values=line.split(';');assert int(qi)==len(query_rows);v=np.array([float(x) for x in values.split()],dtype=np.float32).astype(np.float64);v/=np.linalg.norm(v);query_rows.append(v.astype(np.float32))
+    ^^^^^^^^^
+ValueError: too many values to unpack (expected 2)
