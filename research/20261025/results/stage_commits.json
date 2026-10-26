@@ -99,5 +99,12 @@
     "title": "test(qg): evaluate sphere-calibrated factors without extra code bytes",
     "validation": "2000 constraints;8000 great-circle and8000 LUT checks;32 codec edge cases;28 default tests;whole-graph fallback counts;2000 performance/diagnostic query comparisons and1000 interval/full-refine comparisons",
     "conclusion": "No observed performance advantage;local geometric exactness does not ensure lower global error or higher QPS"
+  },
+  {
+    "stage": "15",
+    "commit": "a6be3689ae1fb9ee0cad9f57b9d29e0a4313bc53",
+    "title": "test(qg): quantify entry routing headroom with full cost accounting",
+    "validation": "9000 legacy router checks;600 large/retained-distance/disabled checks;28 default tests;1000-query disabled-output equivalence;17000 query evaluations complete;2 source manifests verified",
+    "conclusion": "Routing reduces expansions at passing recall points, but adds full-dimensional scans and5 exact distances;no QPS measurement or performance claim"
   }
 ]
