@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "reference": "/home/xingrui/bench/quantized_graph/research_20261025/experiments/time65_control_pre/search_k10_r0_ids.csv",
+  "reference_sha256": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+  "query_count": 1000,
+  "topk": 10,
+  "timed": false,
+  "variants": [
+    {
+      "variant": "independent78_off_v1",
+      "file": "/home/xingrui/bench/quantized_graph/research_20261025/experiments/check78_disabled_independent78_off_v1/search_k10_r0_ids.csv",
+      "top10_rows": 10000,
+      "ids_and_hex_scores_byte_identical": true,
+      "sha256": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e"
+    },
+    {
+      "variant": "independent78_native_v1",
+      "file": "/home/xingrui/bench/quantized_graph/research_20261025/experiments/check78_disabled_independent78_native_v1/search_k10_r0_ids.csv",
+      "top10_rows": 10000,
+      "ids_and_hex_scores_byte_identical": true,
+      "sha256": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e"
+    }
+  ]
+}

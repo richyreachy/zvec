@@ -1,0 +1,59 @@
+{
+  "passed": true,
+  "synthetic_nodes": 40,
+  "dimensions": 768,
+  "full_blocks": 36,
+  "short_nonempty_blocks": 3,
+  "empty_blocks": 1,
+  "max_readonly_query_threads": 8,
+  "actual_fastscan_calls": 26741,
+  "bit_identical_scalar_lut_fma_lane_checks": 815958,
+  "checks": [
+    "one_thread_prebuild_all_39_nonempty_blocks_real_scan",
+    "eight_thread_repeated_prebuild_and_concurrent_queries",
+    "mapped_sources_released_before_queries",
+    "clear_rejects_queries_until_rebuild",
+    "clear_then_rebuild_restores_codes",
+    "same_key_source_one_ulp_fails_closed_then_recovers",
+    "center_external_key_change_fails_closed_then_recovers",
+    "neighbor_order_change_fails_closed_then_recovers",
+    "deleted_node_fails_closed_then_recovers",
+    "get_vector_error_fails_closed_then_recovers",
+    "wrong_model_sha_fails_closed_then_recovers",
+    "sq8_import_rejected_and_query_closed",
+    "no_key_graph_compiles_and_import_rejects",
+    "explicit_disable_rebuild_uses_native_codec",
+    "native_clear_restores_lazy_graph_build_and_concurrent_query",
+    "no_key_native_prebuild_and_query",
+    "sq8_native_recovery_prebuild_and_query"
+  ],
+  "scope": "40 synthetic normalized vectors;real QuantizedGraph,Symphony rotation,FastScan;no optimized training or full1M model validation or Cohere timing",
+  "prepare": {
+    "real_rotation_vectors": 40,
+    "synthetic_sign_flips": 1152
+  },
+  "fixture": "/home/xingrui/bench/quantized_graph/research_20261025/integration78_actual_v2",
+  "commands": "/home/xingrui/bench/quantized_graph/research_20261025/results/integration78_actual_v2_commands.json",
+  "log": "/home/xingrui/bench/quantized_graph/research_20261025/logs/integration78_actual_v2.log",
+  "source_files_sha256": {
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/import78_integration.py": "815873debd265ae5752d79b37f43eedc480c56b58f849cf87cdd5653db932446",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/import78_integration.cc": "04a19759410f5429f2ffb7f9ad66c497d1bb21ec4a88d10913dc2209270d5c85",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src/core/algorithm/quantized_graph/quantized_graph.h": "128ce391809918faf2ffd765bf54b987eb1c86fe7661f0b9eaf7adf698d8e6ef",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src/core/algorithm/quantized_graph/independent_code_import.h": "de8d451fd0319c6046b971d2ba2be81c51b3973bfee8b9b6aa3fadb4b7647d4e",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src/turbo/quantizer/symphony_qg_quantizer/symphony_qg_quantizer.h": "61df87d6480b0ce00a202e056180327067402ce77cdb8b3ae22a7d51ca60dcef",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/coupled73_codec.h": "0028835018024073f6844db55b4dfa7a7f425f67cf3ff48399df2fa124dbc5aa"
+  },
+  "binary_sha256": "ea9ecb08fd17ae265d0ea8ddfcdc65252abc8a4b56d2f1184beaf28553db3581",
+  "fixture_sha256": {
+    "graph.bin": "37770471dc6d423e6147a78fe95afa1cc572dd8f115f9060368ce915a351dae4",
+    "header.bin": "3869e5e14333939cba57c52157b549ca3ebb5cb69df01f73c1fb3d22ed191623",
+    "imported.codes": "e73485a60eef868f24c1137aafa10f68b318f68abfbd4ea21704962464e62b0f",
+    "imported.signs": "17bb46f850f432b53f8b088e1bd74be3116b4e927eeba4f74ea6db457cfc5273",
+    "model.bin": "c5d640902caf3827f1eae4fb309e0402c1c6fa1b73853325c34a2553bc27bfe1",
+    "native.codes": "920ff33c8902def6baf7b61b1e1d5641bc948994c573d1c9bc8c95cae7c5b5bf",
+    "native.signs": "d5790f7c73a07c2d1e60f5ae65a74dd5aa3080ca944ebd178034aec390ac481d",
+    "raw.f32": "6280a0803e2de0089d2821a87df70955d7d65255164a69d22ba085a5eb4321e4",
+    "rot.f32": "7ccb95f77ab6879733a44fd46981ce0094650ebf4b103e5c1048729fbf3c328b"
+  },
+  "duration_seconds_build_and_test": 7.174242258071899
+}

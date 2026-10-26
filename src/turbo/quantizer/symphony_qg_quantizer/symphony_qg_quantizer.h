@@ -85,6 +85,12 @@ class SymphonyQGBlockQuantizer {
 #endif
   }
 
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+  bool independent_codes_supported() const {
+    return cosine_ && encoded_dim() == 768 && quantized_dim() == 768 &&
+           batch_bytes() == 3328;
+  }
+#endif
 #if defined(QG_FUSION)
   bool fusion_supported() const {
     return cosine_ && encoded_dim() == 768 && quantized_dim() == 768;

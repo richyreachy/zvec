@@ -73,6 +73,23 @@
 #endif
 #include "quantized_graph_fusion.h"
 #endif
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+#if !defined(QG_ROTATION_768)
+#error Independent code import requires the original 768D rotation
+#endif
+#if defined(QG_FUSION) || defined(QG_CENTER_QUANTIZED) ||          \
+    defined(QG_PROJECT_DIM) || defined(QG_RESIDUAL_TWO_STAGE) ||   \
+    defined(QG_LOWRANK) || defined(QG_DIRECTION_BETA) ||           \
+    defined(QG_DIRECTION_MSE) || defined(QG_RADIAL_CALIBRATION) || \
+    defined(QG_GEOM_BIAS) || defined(QG_HIERARCHICAL) ||           \
+    defined(QG_GRAPH_IMPORT) || defined(QG_REANCHOR) ||            \
+    defined(QG_INTEGER_ROUTER) || defined(QG_PROJECTION_ROUTER)
+#error Independent code import excludes changed codecs, centers, graphs, and routers
+#endif
+#include <cstdio>
+#include <cstdlib>
+#include "independent_code_import.h"
+#endif
 #if defined(QG_MULTI_TRACE)
 #if defined(QG_CENTER_QUANTIZED)
 #error Multi-estimate trace currently requires exact FP32 centers
@@ -150,6 +167,31 @@
 #endif
 
 namespace zvec::core {
+
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+struct IndependentCodeImportSupport {
+  template <class C>
+  static auto supported(const C &codec,
+                        int) -> decltype(codec.independent_codes_supported(),
+                                         bool()) {
+    return codec.independent_codes_supported();
+  }
+  template <class C>
+  static bool supported(const C &, long) {
+    return false;
+  }
+  template <class G>
+  static auto key(const G &graph, uint32_t id,
+                  int) -> decltype(static_cast<uint64_t>(graph.key(id))) {
+    return static_cast<uint64_t>(graph.key(id));
+  }
+  template <class G>
+  static uint64_t key(const G &, uint32_t, long) {
+    throw std::runtime_error(
+        "Independent code import requires external graph keys");
+  }
+};
+#endif
 
 // Fixed-batch quantized neighbor search over an externally owned FP32 graph.
 // Graph: valid(id), neighbors(id) (size/index access), and get_vector(id,
@@ -437,6 +479,16 @@ class QuantizedGraph {
   bool build_block(const Graph &entity, NodeId id, const void *center,
                    Block *slot, Scratch &scratch, int &error) const;
 
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+  template <class Graph>
+  bool import_codes(const Graph &entity, NodeId id, Block *block,
+                    const Scratch &scratch, int &error) const;
+  // Only prebuild workers access the temporary mapping, under the caller's
+  // exclusive lock. Queries see the fully copied arena after publication.
+  const independent78::Import *independent_pending_{nullptr};
+  bool independent_required_{false}, independent_ready_{false};
+  mutable std::atomic<uint64_t> independent_copied_{0}, independent_short_{0};
+#endif
   size_t dimension_;
   size_t stored_dimension_;
   size_t stored_center_bytes_;
@@ -519,6 +571,11 @@ QuantizedGraph<Codec>::QuantizedGraph(size_t dimension, Codec codec,
 
 template <class Codec>
 void QuantizedGraph<Codec>::clear() {
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+  independent_ready_ = false;
+  // Preserve required across mutations: a stale learned snapshot must fail
+  // at the query boundary rather than lazily rebuilding original codes.
+#endif
   // Called under the caller's exclusive lock; no concurrent searches.
   arena_.reset();
 #if defined(QG_GRAPH_IMPORT)
@@ -535,6 +592,38 @@ void QuantizedGraph<Codec>::clear() {
   std::lock_guard<std::mutex> lock(mutex_);
   lazy_blocks_.clear();
 }
+
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+template <class Codec>
+template <class Graph>
+bool QuantizedGraph<Codec>::import_codes(const Graph &entity, NodeId id,
+                                         Block *block, const Scratch &scratch,
+                                         int &error) const {
+  if (!independent_pending_) return true;
+  try {
+    std::array<uint64_t, 32> keys{};
+    if (scratch.neighbors.size() > keys.size())
+      throw std::runtime_error("Independent code import neighbor capacity");
+    for (size_t i = 0; i < scratch.neighbors.size(); ++i)
+      keys[i] =
+          IndependentCodeImportSupport::key(entity, scratch.neighbors[i], 0);
+    const bool copied = independent_pending_->copy_full_block(
+        id, IndependentCodeImportSupport::key(entity, id, 0), keys.data(),
+        scratch.neighbors.size(), const_cast<char *>(block->codes()),
+        codec_.batch_bytes());
+    if (copied)
+      independent_copied_.fetch_add(1, std::memory_order_relaxed);
+    else
+      independent_short_.fetch_add(1, std::memory_order_relaxed);
+    return true;
+  } catch (const std::exception &e) {
+    std::fprintf(stderr, "INDEPENDENT78 block id=%u rejected: %s\n", id,
+                 e.what());
+    error = IndexError_Mismatch;
+    return false;
+  }
+}
+#endif
 
 template <class Codec>
 template <class Graph>
@@ -915,7 +1004,11 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
               uint16_t{0});
 #endif
   if (neighbor_cnt == 0) {
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+    return import_codes(entity, id, block, scratch, error);
+#else
     return true;
+#endif
   }
 
   const void *encoding_center = center_ptr;
@@ -979,13 +1072,63 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
                   const_cast<char *>(block->codes()) +
                       (offset / batch_size) * batch_bytes);
   }
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+  return import_codes(entity, id, block, scratch, error);
+#else
   return true;
+#endif
 }
 
 template <class Codec>
 template <class Graph>
 int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
                                     size_t threads) {
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+  const char *model_file = std::getenv("QG_INDEPENDENT_CODE_FILE");
+  const bool requested = model_file && *model_file;
+  if (requested || independent_required_) clear();
+  independent_required_ = requested;
+  independent_ready_ = false;
+  independent_copied_.store(0, std::memory_order_relaxed);
+  independent_short_.store(0, std::memory_order_relaxed);
+  independent78::Import imported;
+  struct PendingReset {
+    const independent78::Import *&value;
+    ~PendingReset() {
+      value = nullptr;
+    }
+  } pending_reset{independent_pending_};
+  independent_pending_ = nullptr;
+  if (requested) {
+    if (!cosine_ || dimension_ != 768 || max_neighbors_ != 32 ||
+        compressed_center_ ||
+        !IndependentCodeImportSupport::supported(codec_, 0))
+      return IndexError_Mismatch;
+    try {
+      auto required_env = [](const char *name) -> std::string {
+        const char *value = std::getenv(name);
+        if (!value || !*value)
+          throw std::runtime_error(std::string("Missing ") + name);
+        return value;
+      };
+      independent78::Config config;
+      config.model_path = model_file;
+      config.raw_vectors_path = required_env("QG_INDEPENDENT_RAW_FILE");
+      config.rotated_path = required_env("QG_INDEPENDENT_ROTATED_FILE");
+      config.trusted_header_path = required_env("QG_INDEPENDENT_HEADER_FILE");
+      config.model_sha256 = required_env("QG_INDEPENDENT_MODEL_SHA256");
+      config.docs = doc_cnt;
+      config.dimension = dimension_;
+      config.max_neighbors = max_neighbors_;
+      config.cosine = cosine_;
+      imported.open(config);
+      independent_pending_ = &imported;
+    } catch (const std::exception &e) {
+      std::fprintf(stderr, "INDEPENDENT78 load rejected: %s\n", e.what());
+      return IndexError_Mismatch;
+    }
+  }
+#endif
 #if defined(QG_FUSION)
   if (!cosine_ || dimension_ != 768 || max_neighbors_ != 32 ||
       !QuantizedGraphFusion::supported(codec_, 0) ||
@@ -1063,6 +1206,12 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
       auto *slot = reinterpret_cast<Block *>(arena.get() +
                                              static_cast<size_t>(id) * stride_);
       if (!entity.valid(id)) {
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+        if (independent_pending_) {
+          first_error.store(IndexError_Mismatch);
+          return;
+        }
+#endif
         // Deleted ids never become expandable (blocks only store valid keys),
         // but leave their slots as defined empty blocks instead of garbage.
         auto *empty = new (slot) Block{};
@@ -1084,6 +1233,21 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
         return;
       }
       const auto *values = static_cast<const float *>(raw.data());
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+      if (independent_pending_) {
+        try {
+          codec_.transform(raw.data(), scratch.vector);
+          independent_pending_->verify_vectors(
+              id, IndependentCodeImportSupport::key(entity, id, 0), values,
+              scratch.vector.data(), scratch.vector.size());
+        } catch (const std::exception &e) {
+          std::fprintf(stderr, "INDEPENDENT78 vector id=%u rejected: %s\n", id,
+                       e.what());
+          first_error.store(IndexError_Mismatch);
+          return;
+        }
+      }
+#endif
       for (size_t d = 0; d < dimension_; ++d) centroid[d] += values[d];
       ++valid_counts[part];
       int error = 0;
@@ -1275,6 +1439,20 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
     }
   }
 #endif
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+  if (independent_required_) {
+    if (independent_copied_.load() + independent_short_.load() != doc_cnt)
+      return IndexError_Mismatch;
+    independent_ready_ = true;
+    std::fprintf(stderr,
+                 "INDEPENDENT78 ready nodes=%zu copied=%llu native_short=%llu "
+                 "release_mapped_bytes=%zu\n",
+                 doc_cnt,
+                 static_cast<unsigned long long>(independent_copied_.load()),
+                 static_cast<unsigned long long>(independent_short_.load()),
+                 imported.mapped_bytes());
+  }
+#endif
   return 0;
 }
 
@@ -1285,6 +1463,9 @@ const typename QuantizedGraph<Codec>::Block *QuantizedGraph<Codec>::get_block(
   if (id < arena_count_) {
     return slot(id);
   }
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+  if (independent_required_) return nullptr;
+#endif
 
   // Nodes added after prebuild (e.g. following clear()) are built lazily into
   // standalone fixed-stride blocks.
@@ -1329,6 +1510,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
   auto &results = ctx.reset_results();
   results.clear();
+#if defined(QG_INDEPENDENT_CODE_IMPORT)
+  if (independent_required_ && !independent_ready_) return IndexError_Mismatch;
+#endif
   if (entry == kInvalidNodeId || ctx.topk() == 0) return 0;
   if (!entity.valid(entry)) return IndexError_Mismatch;
   auto &state = search_state();
