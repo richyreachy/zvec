@@ -1,0 +1,109 @@
+{
+  "cwd": "/home/xingrui/bench/quantized_graph/research_20261025",
+  "environment": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1"
+  },
+  "commands": [
+    {
+      "name": "rotate74_build",
+      "argv": [
+        "c++",
+        "-O3",
+        "-std=c++17",
+        "-march=native",
+        "-pthread",
+        "-DQG_ROTATION_768=1",
+        "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+        "scripts/rotate74.cc",
+        "-o",
+        "rotate74"
+      ]
+    },
+    {
+      "name": "rotate74",
+      "argv": [
+        "./rotate74",
+        "models64/full_vectors.f32",
+        "models74/ids.u32",
+        "models74/rotated.f32"
+      ]
+    },
+    {
+      "name": "validate_data74",
+      "argv": [
+        "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+        "scripts/validate_data74.py"
+      ]
+    },
+    {
+      "name": "fitdata74",
+      "argv": [
+        "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+        "scripts/fitdata74.py"
+      ]
+    },
+    {
+      "name": "train74",
+      "argv": [
+        "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+        "scripts/train74.py"
+      ]
+    },
+    {
+      "name": "codec74_build",
+      "argv": [
+        "c++",
+        "-O3",
+        "-std=c++17",
+        "-march=native",
+        "-ffp-contract=off",
+        "-pthread",
+        "-DRABITQ_SUPPORTED=1",
+        "-DQG_ROTATION_768=1",
+        "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+        "-isystem",
+        "/home/xingrui/workspace/zvec/symphony_qg/zvec/thirdparty/RaBitQ-Library/RaBitQ-Library-0.1/include",
+        "scripts/codec74.cc",
+        "lib/libzvec_turbo.a",
+        "lib/librabitqlib_runtime.a",
+        "lib/libzvec_ailego.a",
+        "-o",
+        "codec74"
+      ]
+    },
+    {
+      "name": "codec74_native",
+      "argv": [
+        "./codec74",
+        "models74/rotated.f32",
+        "models74/signs.i8",
+        "native",
+        "models74/scores_native.f32",
+        "models74/codes_native.bin"
+      ]
+    },
+    {
+      "name": "codec74_precision_control",
+      "argv": [
+        "./codec74",
+        "models74/rotated.f32",
+        "models74/signs.i8",
+        "precision_control",
+        "models74/scores_precision_control.f32",
+        "models74/codes_precision_control.bin"
+      ]
+    },
+    {
+      "name": "codec74_learned",
+      "argv": [
+        "./codec74",
+        "models74/rotated.f32",
+        "models74/signs.i8",
+        "learned",
+        "models74/scores_learned.f32",
+        "models74/codes_learned.bin"
+      ]
+    }
+  ]
+}
