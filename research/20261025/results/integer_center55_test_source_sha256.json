@@ -1,0 +1,5 @@
+{
+  "source": "/home/xingrui/bench/quantized_graph/research_20261025/scripts/integer_center55_test.cc",
+  "sha256": "e7683c372182c2539302970b48a515beecaccbf0e123a6112c1d4f57f1873029",
+  "note": "Bench source is the compiled unit test; repository copy is formatted separately."
+}

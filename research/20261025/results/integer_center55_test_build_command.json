@@ -1,0 +1,10 @@
+[
+  "g++",
+  "-O3",
+  "-std=c++17",
+  "-UNDEBUG",
+  "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src/core",
+  "/home/xingrui/bench/quantized_graph/research_20261025/scripts/integer_center55_test.cc",
+  "-o",
+  "/home/xingrui/bench/quantized_graph/research_20261025/integer_center55_test"
+]
