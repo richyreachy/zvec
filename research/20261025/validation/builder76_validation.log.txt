@@ -1,0 +1,1 @@
+{"centers":2048,"threads":1,"updates":524119,"compute_seconds":11.055013733,"elapsed_seconds":11.098549110,"peak_rss_kib":366080,"no_retrieval_qps_claim":true}

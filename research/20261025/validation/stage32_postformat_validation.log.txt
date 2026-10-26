@@ -1,0 +1,155 @@
+REPLAY32 build0
+REPLAY32 build1
+REPLAY32 check76
+REPLAY32 builder1
+REPLAY32 validate1
+REPLAY32 builder8
+REPLAY32 validate8
+REPLAY32 codec_build
+REPLAY32 codec
+{
+  "full_real_centers_per_run": 2048,
+  "threads_verified": [
+    1,
+    8
+  ],
+  "accepted_updates_per_run": 524119,
+  "all_six_builder_outputs_byte_identical_to_preformat_and_across_threads": true,
+  "actual_codec_scores_byte_identical": 2097152,
+  "actual_code_blocks_byte_identical": 2048,
+  "math_checks_identical": true,
+  "source_header_hashes_verified": {
+    "src/turbo/quantizer/symphony_qg_quantizer/symphony_qg_quantizer.h": "9acdafd1192fb5eaadd0cf003f34d0416a44bfc417da4d62e862db2de9dc59cf",
+    "src/turbo/distance/common/symphony_qg_distance.h": "5410d89dd9d0a88653d0a7d58dcb03a9d649112255ae30f6c88d178b845e0199",
+    "src/turbo/distance/common/symphony_qg_kernels.h": "b8737892014456c3345d2979d9592292a3b75997694d004a3902220780376afa",
+    "src/turbo/preprocessor/symphony_qg_rotator/symphony_qg_rotator.h": "a4efd148aecca3a61709876571f9d9673c0a8c0e5feea51ee580e0e05bf0e105"
+  },
+  "all_manifest_original_files_unchanged": true,
+  "formatted_script_hashes": {
+    "independent76.h": "6afa1c0e42d986eaff9488eafd8bcaaa76a081eea5e8acb4d77acbe08c91e1bb",
+    "bind76.cc": "3ff43efb1f211d3a2694d7a45a0e503a5b067d528f0afc2df0bc88ab1ff7d783",
+    "builder76.cc": "65cac3b4e6ca4ff2ce3ccb6128a0a2839ece37df1c26427ba95b198e8c27131d",
+    "check76.py": "38ea546aa786bde9bec76cef83f96c6751d2ac5f54bab2bef4a517e5db815967",
+    "validate76.py": "725ae91940023264573a00624580d854127f40d050823ebc1a5d169899f71d88",
+    "measure76.py": "7df4f6a6bb2aeb3d7ae693921eff448ea95f1a86e3cacfc5af5c6103850d6893",
+    "coupled75_math.py": "96b50806280a9cd2a1dfb52b9a2706efdb5fcb2370d489981d8d76cf61cbe11f",
+    "codec75.cc": "d20677e632c66f1d50f8fca163885fac0c0ef842eb2e13fd6f4e44745579c200",
+    "coupled73_codec.h": "acccc8deb1f07dcc3d505e0f268c38ab192f32cff670b26c205745c7dc61889c",
+    "graph65_refine.cc": "ee24cb77a89a7e97dbba2503408b6feed4db63bfd4578568ffb4d32186f7b1f1"
+  },
+  "commands": [
+    {
+      "name": "build0",
+      "argv": [
+        "c++",
+        "-O3",
+        "-std=c++17",
+        "-march=native",
+        "-ffp-contract=off",
+        "-fPIC",
+        "-shared",
+        "scripts/bind76.cc",
+        "-o",
+        "lib/independent76.so"
+      ]
+    },
+    {
+      "name": "build1",
+      "argv": [
+        "c++",
+        "-O3",
+        "-std=c++17",
+        "-march=native",
+        "-ffp-contract=off",
+        "-pthread",
+        "scripts/builder76.cc",
+        "-o",
+        "builder76"
+      ]
+    },
+    {
+      "name": "check76",
+      "argv": [
+        "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+        "scripts/check76.py"
+      ]
+    },
+    {
+      "name": "builder1",
+      "argv": [
+        "taskset",
+        "-c",
+        "0",
+        "./builder76",
+        "models75/fit.f32",
+        "models76_validation",
+        "1"
+      ]
+    },
+    {
+      "name": "validate1",
+      "argv": [
+        "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+        "scripts/validate76.py",
+        "models76_validation"
+      ]
+    },
+    {
+      "name": "builder8",
+      "argv": [
+        "taskset",
+        "-c",
+        "0,2,4,6,8,10,12,14",
+        "./builder76",
+        "models75/fit.f32",
+        "models76_threads8",
+        "8"
+      ]
+    },
+    {
+      "name": "validate8",
+      "argv": [
+        "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+        "scripts/validate76.py",
+        "models76_threads8"
+      ]
+    },
+    {
+      "name": "codec_build",
+      "argv": [
+        "c++",
+        "-O3",
+        "-std=c++17",
+        "-march=native",
+        "-ffp-contract=off",
+        "-pthread",
+        "-DRABITQ_SUPPORTED=1",
+        "-DQG_ROTATION_768=1",
+        "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+        "-isystem",
+        "/home/xingrui/workspace/zvec/symphony_qg/zvec/thirdparty/RaBitQ-Library/RaBitQ-Library-0.1/include",
+        "scripts/codec75.cc",
+        "lib/libzvec_turbo.a",
+        "lib/librabitqlib_runtime.a",
+        "lib/libzvec_ailego.a",
+        "-o",
+        "codec75"
+      ]
+    },
+    {
+      "name": "codec",
+      "argv": [
+        "./codec75",
+        "models75/rotated.f32",
+        "models76_validation/signs.i8",
+        "independent",
+        "models76_validation/scores.f32",
+        "models76_validation/codes.bin"
+      ]
+    }
+  ],
+  "replay_directory": "/home/xingrui/bench/quantized_graph/research_20261025/replay76_formatted",
+  "no_production_source_changes": true,
+  "no_retrieval_qps_claim": true
+}
+POSTFORMAT32 COMPLETE

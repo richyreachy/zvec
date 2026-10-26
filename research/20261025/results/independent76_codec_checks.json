@@ -1,0 +1,14 @@
+{
+  "outputs": {
+    "codes.bin": {
+      "sha256": "4516942177cbb7dc73ae46bf355661a11acedc9b0e7e14ec993cd70681cb033b",
+      "phase75_byte_identical": true
+    },
+    "scores.f32": {
+      "sha256": "edd5e159c884bf3d6000aa1ab797dad7fbd3e05be514618f862befb83f58a098",
+      "phase75_byte_identical": true
+    }
+  },
+  "score_count": 2097152,
+  "scalar_lut_fma_bit_checks": 65536
+}

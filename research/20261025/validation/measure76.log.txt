@@ -1,0 +1,21 @@
+MEASURE76 models76_t1_r0
+MEASURE76 models76_t8_r0
+MEASURE76 models76_t8_r1
+MEASURE76 models76_t1_r1
+MEASURE76 models76_t1_r2
+MEASURE76 models76_t8_r2
+MEASURE76 models76_t8_r3
+MEASURE76 models76_t1_r3
+{
+  "1": {
+    "median_compute_seconds": 11.04492532,
+    "median_elapsed_seconds": 11.086532126,
+    "max_peak_rss_kib": 366080
+  },
+  "8": {
+    "median_compute_seconds": 1.38918323,
+    "median_elapsed_seconds": 1.43065437,
+    "max_peak_rss_kib": 373888
+  }
+}
+MEASURE76 COMPLETE

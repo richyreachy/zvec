@@ -1,0 +1,49 @@
+{
+  "source_commit_before_phase76": "8c0e678db30e2dd31aebf34967e8da69c4377630",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "build_commands": [
+    [
+      "c++",
+      "-O3",
+      "-std=c++17",
+      "-march=native",
+      "-ffp-contract=off",
+      "-fPIC",
+      "-shared",
+      "scripts/bind76.cc",
+      "-o",
+      "lib/independent76.so"
+    ],
+    [
+      "c++",
+      "-O3",
+      "-std=c++17",
+      "-march=native",
+      "-ffp-contract=off",
+      "-pthread",
+      "scripts/builder76.cc",
+      "-o",
+      "builder76"
+    ]
+  ],
+  "files": {
+    "models75/fit.f32": "d097a9c202885eb5b93ce02dd85d28852f4476bc50e529de8bff9b8bbbe3647a",
+    "models75/signs_independent.i8": "f7b5e5c78b616b125b359c4c3ccc5a78c4827841a19a8df016772e22cca2fbac",
+    "models75/alpha_independent.f64": "182f861b631d075c48e80370cbe0b453089cb8ba82b8a173773ec99d455e9a39",
+    "models75/history_independent.jsonl": "079cea785841443957696845ec554ac8820a8f0236f8f0ea56450222e4ffc9e5",
+    "builder76": "5cde1dae21e61a161b161a8785f7cee758df532e1cd8023e50d34975b7601333",
+    "lib/independent76.so": "e33268acd33c16668c6c3041e35514a9b0f224ed360056bec911d715b4fde31a",
+    "codec75": "910bdbd6a5b114356d0e5b72ebc38aebaf17efd959d1ded0378e9fe17c25a478",
+    "scripts/independent76.h": "c31b0a28b190c62751c530ca48ad553980cc515b71fdb69fd919ddd7beedec1e",
+    "scripts/bind76.cc": "5c2cc1ff550801cc5f2ecf59a34b3413d23c435c02489465a98e2c267958f9fb",
+    "scripts/builder76.cc": "fb47a9e1e6981d18cf2524942ce44b1d5e6060dcc8fd8ab6e34309244513e54e",
+    "scripts/check76.py": "d0e4c1e02daee27203f303301c6c93b10940edbae528627daa8353b3f32054a9",
+    "scripts/validate76.py": "984fce7451f81bfe133fb4db326f65dea4d69e0c271cf71fb5dfc2e8ec31ec6b",
+    "scripts/measure76.py": "704d509f7d4ea9f141f75db11eeba05931877664dfea722e9f4945e33055657a",
+    "scripts/coupled75_math.py": "d2162f4f3ae2cdac1c8543bfcfe8e5975cd6158de2f6beb328b45f64809a8f3e",
+    "scripts/codec75.cc": "4eb8a59877a179696fb010487f8aad21d7b1e25c3a7b2aad702786b6163a51f1",
+    "scripts/coupled73_codec.h": "0028835018024073f6844db55b4dfa7a7f425f67cf3ff48399df2fa124dbc5aa"
+  },
+  "no_production_source_changes": true,
+  "retrieval_timing_rows_unchanged": 1310
+}
