@@ -1,0 +1,8 @@
+{
+  "file": "results/graph66_work_recall.csv",
+  "raw_bench_sha256": "c06086387d6684b096a16f4b632f93b71117d1abbf86929d3cc52c903dc4030e",
+  "archive_lf_sha256": "dc1a85c7cd223174653f7b7982ecfa90619e9bf1f25af887fe16d916e0fbc270",
+  "csv_rows_identical": true,
+  "data_rows": 42,
+  "change": "Normalize only archived summary CSV CRLF to LF;raw benchmark and postformat-generated output remain unchanged."
+}

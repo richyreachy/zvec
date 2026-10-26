@@ -174,5 +174,14 @@
     "validation": "4096 database disabled/frozen and enabled/audit equality;10000 primary repeat/diagnostic query comparisons;50960 FP64 result distances;65536 half patterns;200000 disabled queue events and40000 enabled pops;4096 synthetic and8192 actual edge scales;12 compile configurations;28 default tests;3x20 source manifests;formatted unit/geometry/analysis/Markdown identity",
     "conclusion": "Fixed-lambda full fusion90.14% recall:20267.14/158846.30 QPS(1/8threads),37.00%/32.69% below contemporaneous frozen baseline. Disabled metadata/cache control loses31.36%/27.31%;mean expansions only30.763->30.304. Stop expanding this implementation;22 new timing rows,1310 cumulative;no breakthrough or extra-query acceptance.",
     "failures_preserved": "Auxiliary unit RNG argument and geometry mixed floating type compilation errors fixed;failure evidence retained;no failed search result used."
+  },
+  {
+    "stage": "25",
+    "commit": "8c7fc22b686e3a937cdd1b199778ae35a182de0c",
+    "title": "test(qg): separate graph scoring effects and verify ranking counterexample",
+    "validation": "42000 full query evaluations/420000 valid unique-per-query result rows;14208 distinct query/key FP64 scores;18000 historical query equality checks;2x20 source manifests;4096 shared-anchor pair identities;actual one-bit orthogonal-rotation counterexample with200000 paired Gaussian queries;formatted analysis/math/CSV replay byte identity;default28 tests inherited from unchanged phase69 source",
+    "conclusion": "Exact-neighbor diagnostics:original90.83%/27.268 expansions,nearest90.41%/25.474,angular91.33%/27.284;not equal recall or deployable QPS. Actual one-bit example reduces both individual reconstruction errors but Gaussian rank risk rises15.99%->21.77%. Next investigate database-only ranking objective;zero new timing rows,1310 cumulative;no breakthrough.",
+    "execution_order": "Previously planned phase66 completed after69;no production source changes.",
+    "archive_note": "Summary CSV normalized CRLF to LF in following documentation commit;42 parsed data rows identical,raw benchmark retained and hashes recorded."
   }
 ]
