@@ -197,5 +197,12 @@
     "title": "test(qg): reject local rotation selection and verify pairwise risk formulas",
     "validation": "2048 fresh centers;16 selection and16 heldout proxies per center;8388608 actual codec scores;2097152 cosine gap checks;133120 rotated vectors;selector label isolation;24 unequal-radius/nonzero-mean/anisotropic Gaussian one-bit cases with2400000 queries;full formatted replay byte-identical;original input/model/library/source hashes verified",
     "conclusion": "Validation errors7617->7595 out of32768;relative gain0.29%,paired center95%CI[-0.90%,1.47%],fails10%gate;stop fixed local four-model bank. Derive distribution-free margin bound and conditional Gaussian pair risk;neither novelty nor Cohere Gaussian fit claimed. No production changes or new timing;1310 rows;no breakthrough."
+  },
+  {
+    "stage": "28",
+    "commit": "59908e368e1c428195bd6a1e1f1e301dd31d66cf",
+    "title": "test(qg): validate conditional ranking risk against heldout proxies",
+    "validation": "2048 fresh centers;16 fitting/16 heldout proxies;two fixed16-pair families;four actual codecs8388608 scores;262144 joint-gap distribution predictions;4194304 heldout binary events;256 independent CDF integrations,7 angular and9 degenerate checks;fit/heldout isolation;full formatted replay byte-identical;input/library/source hashes verified",
+    "conclusion": "Gaussian Brier improves4.28%-4.49% over frequency/Jeffreys baselines with positive paired intervals,but all below prespecified5%gate;tail miscalibration and loose moment bound. Stop current small-sample Gaussian training target. No production changes,new QPS or recall;1310 rows;no breakthrough."
   }
 ]
