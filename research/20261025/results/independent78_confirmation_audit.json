@@ -1,0 +1,341 @@
+{
+  "passed_raw_validation": true,
+  "all_12_run_configs_ids_hex_scores_query_hits_validated": true,
+  "timed_calls_check_return_status_and_length_only": true,
+  "full_ids_and_scores_checked_in_each_runs_untimed_quality_pass": true,
+  "timing_rows": 24,
+  "cumulative_retrieval_timing_rows": 1340,
+  "summary": {
+    "1": {
+      "qps_rounds": {
+        "baseline": [
+          32121.40964,
+          31789.10166,
+          31730.2324,
+          31980.81103
+        ],
+        "learned": [
+          31204.45947,
+          30955.68053,
+          30271.14516,
+          31068.73518
+        ],
+        "disabled": [
+          31210.53799,
+          31183.45136,
+          30824.45034,
+          31400.29858
+        ]
+      },
+      "median_qps": {
+        "baseline": 31884.956345,
+        "learned": 31012.207855,
+        "disabled": 31196.994675
+      },
+      "qps_range": {
+        "baseline": [
+          31730.2324,
+          32121.40964
+        ],
+        "learned": [
+          30271.14516,
+          31204.45947
+        ],
+        "disabled": [
+          30824.45034,
+          31400.29858
+        ]
+      },
+      "learned_over_baseline_median_gain": -0.02737179504204834,
+      "learned_over_baseline_paired_gains": [
+        -0.028546386359649234,
+        -0.026217196664248155,
+        -0.045984133415928,
+        -0.028519472165493776
+      ],
+      "disabled_over_baseline_median_gain": -0.021576371708217135,
+      "all_four_learned_qps_below_baseline": true,
+      "all_four_learned_gains_at_least_25pct": false
+    },
+    "8": {
+      "qps_rounds": {
+        "baseline": [
+          236810.4206,
+          235507.4153,
+          234110.0276,
+          237019.9339
+        ],
+        "learned": [
+          229045.2548,
+          229634.5079,
+          230554.2467,
+          228280.3654
+        ],
+        "disabled": [
+          230221.6347,
+          231008.0967,
+          229828.3568,
+          232271.0146
+        ]
+      },
+      "median_qps": {
+        "baseline": 236158.91795,
+        "learned": 229339.88134999998,
+        "disabled": 230614.8657
+      },
+      "qps_range": {
+        "baseline": [
+          234110.0276,
+          237019.9339
+        ],
+        "learned": [
+          228280.3654,
+          230554.2467
+        ],
+        "disabled": [
+          229828.3568,
+          232271.0146
+        ]
+      },
+      "learned_over_baseline_median_gain": -0.02887477914953762,
+      "learned_over_baseline_paired_gains": [
+        -0.03279064232192841,
+        -0.024937250457777838,
+        -0.015188503185670554,
+        -0.03687271511807633
+      ],
+      "disabled_over_baseline_median_gain": -0.023475938567663168,
+      "all_four_learned_qps_below_baseline": true,
+      "all_four_learned_gains_at_least_25pct": false
+    }
+  },
+  "quality": {
+    "same_margin_020": {
+      "queries_better": 96,
+      "queries_equal": 804,
+      "queries_worse": 100,
+      "total_top10_hit_delta": -37,
+      "hit_change_histogram": {
+        "-10": 4,
+        "-8": 4,
+        "-6": 1,
+        "-5": 1,
+        "-4": 4,
+        "-3": 7,
+        "-2": 14,
+        "-1": 65,
+        "0": 804,
+        "1": 64,
+        "2": 19,
+        "3": 4,
+        "5": 1,
+        "6": 2,
+        "7": 4,
+        "8": 1,
+        "9": 1
+      },
+      "primary_queries_reused_not_blind": true
+    },
+    "selected_margin_024": {
+      "queries_better": 115,
+      "queries_equal": 805,
+      "queries_worse": 80,
+      "total_top10_hit_delta": 37,
+      "hit_change_histogram": {
+        "-10": 2,
+        "-8": 3,
+        "-6": 1,
+        "-5": 1,
+        "-4": 4,
+        "-3": 5,
+        "-2": 12,
+        "-1": 52,
+        "0": 805,
+        "1": 80,
+        "2": 21,
+        "3": 5,
+        "5": 1,
+        "6": 2,
+        "7": 4,
+        "8": 1,
+        "9": 1
+      },
+      "primary_queries_reused_not_blind": true
+    }
+  },
+  "open_resources": [
+    {
+      "experiment": "confirm78_r0_baseline",
+      "fields": {
+        "algorithm": "symphony_qg",
+        "seconds": "37.1427",
+        "rss_kib": "9979584",
+        "peak_rss_kib": "9978784"
+      }
+    },
+    {
+      "experiment": "confirm78_r0_learned",
+      "fields": {
+        "algorithm": "symphony_qg",
+        "seconds": "74.6124",
+        "rss_kib": "10018324",
+        "peak_rss_kib": "19527784"
+      }
+    },
+    {
+      "experiment": "confirm78_r0_disabled",
+      "fields": {
+        "algorithm": "symphony_qg",
+        "seconds": "37.3952",
+        "rss_kib": "9979620",
+        "peak_rss_kib": "9978900"
+      }
+    },
+    {
+      "experiment": "confirm78_r1_disabled",
+      "fields": {
+        "algorithm": "symphony_qg",
+        "seconds": "37.4538",
+        "rss_kib": "9979648",
+        "peak_rss_kib": "9979088"
+      }
+    },
+    {
+      "experiment": "confirm78_r1_learned",
+      "fields": {
+        "algorithm": "symphony_qg",
+        "seconds": "74.5609",
+        "rss_kib": "10018068",
+        "peak_rss_kib": "19527640"
+      }
+    },
+    {
+      "experiment": "confirm78_r1_baseline",
+      "fields": {
+        "algorithm": "symphony_qg",
+        "seconds": "37.0318",
+        "rss_kib": "9979592",
+        "peak_rss_kib": "9978652"
+      }
+    },
+    {
+      "experiment": "confirm78_r2_learned",
+      "fields": {
+        "algorithm": "symphony_qg",
+        "seconds": "74.4538",
+        "rss_kib": "10017892",
+        "peak_rss_kib": "19533648"
+      }
+    },
+    {
+      "experiment": "confirm78_r2_baseline",
+      "fields": {
+        "algorithm": "symphony_qg",
+        "seconds": "37.0036",
+        "rss_kib": "9979616",
+        "peak_rss_kib": "9978916"
+      }
+    },
+    {
+      "experiment": "confirm78_r2_disabled",
+      "fields": {
+        "algorithm": "symphony_qg",
+        "seconds": "37.4208",
+        "rss_kib": "9979492",
+        "peak_rss_kib": "9978720"
+      }
+    },
+    {
+      "experiment": "confirm78_r3_disabled",
+      "fields": {
+        "algorithm": "symphony_qg",
+        "seconds": "37.4165",
+        "rss_kib": "9979936",
+        "peak_rss_kib": "9979040"
+      }
+    },
+    {
+      "experiment": "confirm78_r3_baseline",
+      "fields": {
+        "algorithm": "symphony_qg",
+        "seconds": "37.0204",
+        "rss_kib": "9979620",
+        "peak_rss_kib": "9978820"
+      }
+    },
+    {
+      "experiment": "confirm78_r3_learned",
+      "fields": {
+        "algorithm": "symphony_qg",
+        "seconds": "74.4267",
+        "rss_kib": "10018264",
+        "peak_rss_kib": "19533744"
+      }
+    }
+  ],
+  "source_files_sha256": {
+    "experiments/confirm78_r0_baseline/search_k10_r0_recall.csv": "a10287c355acfe9603910ef9b510513f8a8ffca1cee0aac8bfc14fa06c7ad3c7",
+    "experiments/confirm78_r0_baseline/run.log": "f7950116ca672456ad66bb1de23ecbccfa2d1b1498556d992b3f93a04e9ecc05",
+    "experiments/confirm78_r0_baseline/search_k10_r0_ids.csv": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+    "experiments/confirm78_r0_baseline/config.json": "3f3bbef6d2a6ee8de08753ad0bad45d5e93b77b14fa98602152d77978582d520",
+    "experiments/confirm78_r0_baseline/search_k10_r0.csv": "3ca67922b9020830725799bba6680a77b919b6c9841fdd0fdda25b7f9ca03e6f",
+    "experiments/confirm78_r0_learned/search_k10_r0_recall.csv": "978b3ca4d776d3ad526b4e7fce883979ac2d2ee4360f3d719a1cd2f49e98ad34",
+    "experiments/confirm78_r0_learned/run.log": "5a136c1d0a7dbd959439c89b1002b2dfc797cd5fa161518f443a12a6497f6801",
+    "experiments/confirm78_r0_learned/search_k10_r0_ids.csv": "4f96c95f3d3f297a2ae093f6db46f28761e18530eb253ef8b186fe9da9927412",
+    "experiments/confirm78_r0_learned/config.json": "f1ec9e0e18e2addf246d5b971ca9146ff52dd50e9eeb8caaef9f06a2bceb1a7a",
+    "experiments/confirm78_r0_learned/search_k10_r0.csv": "8646acade84e9019ff74d43656d3c84b6f67467f418eed22e2a54073eed15dec",
+    "experiments/confirm78_r0_disabled/search_k10_r0_recall.csv": "a10287c355acfe9603910ef9b510513f8a8ffca1cee0aac8bfc14fa06c7ad3c7",
+    "experiments/confirm78_r0_disabled/run.log": "dc87de1d7c20a190129beee7cd73037cc186da1215b9dedc06802de5fdfe52e6",
+    "experiments/confirm78_r0_disabled/search_k10_r0_ids.csv": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+    "experiments/confirm78_r0_disabled/config.json": "f713721f74ac3b7aeede44adc5839adca1526599aa5c3ac2f58811998d8ad019",
+    "experiments/confirm78_r0_disabled/search_k10_r0.csv": "85552e5432ca163c5c32b31e335ce2ea3f77fd90ff2156dfc2ed533a3f4c1b3a",
+    "experiments/confirm78_r1_disabled/search_k10_r0_recall.csv": "a10287c355acfe9603910ef9b510513f8a8ffca1cee0aac8bfc14fa06c7ad3c7",
+    "experiments/confirm78_r1_disabled/run.log": "9f3e402f52a9238d618f82919dcc224193809815d676e20cadabb407733b6588",
+    "experiments/confirm78_r1_disabled/search_k10_r0_ids.csv": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+    "experiments/confirm78_r1_disabled/config.json": "3a038287f49fb593d8f81d158a8c84ff4b0d53e69da6b8e5a5f3c177b0697a7f",
+    "experiments/confirm78_r1_disabled/search_k10_r0.csv": "268105ec4e64fd8b98601765759efe971e194d19d09a024ca3a2281bb7c4a087",
+    "experiments/confirm78_r1_learned/search_k10_r0_recall.csv": "978b3ca4d776d3ad526b4e7fce883979ac2d2ee4360f3d719a1cd2f49e98ad34",
+    "experiments/confirm78_r1_learned/run.log": "ba93d8392022d6aefac9f66355184d6d560afd8226812585554b1c36e4d93b74",
+    "experiments/confirm78_r1_learned/search_k10_r0_ids.csv": "4f96c95f3d3f297a2ae093f6db46f28761e18530eb253ef8b186fe9da9927412",
+    "experiments/confirm78_r1_learned/config.json": "9dc299c9b18eacce72a5ce1c27f5202c32d4ea9cd044c47b796de7134746b9e0",
+    "experiments/confirm78_r1_learned/search_k10_r0.csv": "e8241c617cb5a35b61a74cca9fc8f4f5ba34ea0883db2c1b12ca1769114f3444",
+    "experiments/confirm78_r1_baseline/search_k10_r0_recall.csv": "a10287c355acfe9603910ef9b510513f8a8ffca1cee0aac8bfc14fa06c7ad3c7",
+    "experiments/confirm78_r1_baseline/run.log": "621f3eef3cf5fee8f186ff1fa33412bfeba9035e7287ff8fe960ee6686636dd5",
+    "experiments/confirm78_r1_baseline/search_k10_r0_ids.csv": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+    "experiments/confirm78_r1_baseline/config.json": "ceb58996fdb531ec110efc83545ad0601088311adfcc16a1a3e5af0bce27da1e",
+    "experiments/confirm78_r1_baseline/search_k10_r0.csv": "d19dc58a0c514d9cc8431666721620ad355c7ec718269796ec8b1cc468e926ce",
+    "experiments/confirm78_r2_learned/search_k10_r0_recall.csv": "978b3ca4d776d3ad526b4e7fce883979ac2d2ee4360f3d719a1cd2f49e98ad34",
+    "experiments/confirm78_r2_learned/run.log": "0c6fc2bfa398e44a037396e73f955be32885fbbfb60fcc19cf0569c489343eae",
+    "experiments/confirm78_r2_learned/search_k10_r0_ids.csv": "4f96c95f3d3f297a2ae093f6db46f28761e18530eb253ef8b186fe9da9927412",
+    "experiments/confirm78_r2_learned/config.json": "1619d352d2485b1899b1cdda08b5b1c071b0a852f23432badefaa5ee5b40014e",
+    "experiments/confirm78_r2_learned/search_k10_r0.csv": "1251672550a0308a392f789d1caea7abce8fc64716c1b9a33521f01cdc8f5cb3",
+    "experiments/confirm78_r2_baseline/search_k10_r0_recall.csv": "a10287c355acfe9603910ef9b510513f8a8ffca1cee0aac8bfc14fa06c7ad3c7",
+    "experiments/confirm78_r2_baseline/run.log": "48a135887ec902d1064679c0aa0c241fce5420bef978d2824604e1f2e354ae2f",
+    "experiments/confirm78_r2_baseline/search_k10_r0_ids.csv": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+    "experiments/confirm78_r2_baseline/config.json": "0441d937d1d83e5efceaf3cdf17c7adf634af48b349b51fe76b4bcd66aaa090e",
+    "experiments/confirm78_r2_baseline/search_k10_r0.csv": "82b0df6898c543dceb6f60ccbd5a0121bc7e85fabce5f2e85824dc65ad54d663",
+    "experiments/confirm78_r2_disabled/search_k10_r0_recall.csv": "a10287c355acfe9603910ef9b510513f8a8ffca1cee0aac8bfc14fa06c7ad3c7",
+    "experiments/confirm78_r2_disabled/run.log": "e52c48f49fe0e12dce9e8ad5e4b99b45bbc76d4a9782d9199b7e6f6b62d9043d",
+    "experiments/confirm78_r2_disabled/search_k10_r0_ids.csv": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+    "experiments/confirm78_r2_disabled/config.json": "ec4b6c189fd6b01dc458a28d57c3adcda8a8245bda510f78fef99dffac65f986",
+    "experiments/confirm78_r2_disabled/search_k10_r0.csv": "c7457c38e748c31eff94c0490d3cd1412029afe27aeba678a1b12e0856163df7",
+    "experiments/confirm78_r3_disabled/search_k10_r0_recall.csv": "a10287c355acfe9603910ef9b510513f8a8ffca1cee0aac8bfc14fa06c7ad3c7",
+    "experiments/confirm78_r3_disabled/run.log": "f934076081fe97c31ef672bfde57dd09cb20c30072b899094d146cc365c9bc08",
+    "experiments/confirm78_r3_disabled/search_k10_r0_ids.csv": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+    "experiments/confirm78_r3_disabled/config.json": "8685eb1a9c8ea1379cb7d148c8b98bd018f11765c7fd661d0929bee785f260b4",
+    "experiments/confirm78_r3_disabled/search_k10_r0.csv": "d66adec42dc14ae8493af4dd1629032606d13a39d777ee17f4a5bc64a82a946c",
+    "experiments/confirm78_r3_baseline/search_k10_r0_recall.csv": "a10287c355acfe9603910ef9b510513f8a8ffca1cee0aac8bfc14fa06c7ad3c7",
+    "experiments/confirm78_r3_baseline/run.log": "6065a14b6ef61a29d1428bb09610c2d5ae0e58e5586f4c5cf839e85fb0e2fcf7",
+    "experiments/confirm78_r3_baseline/search_k10_r0_ids.csv": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+    "experiments/confirm78_r3_baseline/config.json": "3dcf7552f1ba7894b478933099d428cad62022ca023ea4dd818c3872c853ab71",
+    "experiments/confirm78_r3_baseline/search_k10_r0.csv": "374a3157ae37a8945ff90c4dfd968c8cf56c908f4a2430479f11b189648ebd9d",
+    "experiments/confirm78_r3_learned/search_k10_r0_recall.csv": "978b3ca4d776d3ad526b4e7fce883979ac2d2ee4360f3d719a1cd2f49e98ad34",
+    "experiments/confirm78_r3_learned/run.log": "efdd2f9c81527600413fa9fb3c9e08c1ef3bb24567fb9f412a3f6e50eaaffb9d",
+    "experiments/confirm78_r3_learned/search_k10_r0_ids.csv": "4f96c95f3d3f297a2ae093f6db46f28761e18530eb253ef8b186fe9da9927412",
+    "experiments/confirm78_r3_learned/config.json": "4287c62e9ad1a31d4ac6b685fe6eab1fb511955fea84ea316cc4d20fe3dfd947",
+    "experiments/confirm78_r3_learned/search_k10_r0.csv": "6cb0052fdc6d1916dd2a310d0eadd348fd092b3bebd81d49e6725bec8550ecc0"
+  },
+  "analysis_source_sha256": "b549f322fd15c5ac454ec953f2b5a48f356820094041f2bb0ebe24cb28db85a3",
+  "additional_query_gate_not_run": true,
+  "breakthrough_verified": false
+}
