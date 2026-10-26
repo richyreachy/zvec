@@ -1,0 +1,384 @@
+{
+  "query_comparisons": [
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_batchprefetch3072/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_batchprefetch3072/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_batchprefetch640/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_batchprefetch640/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_batchprefetch6656/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_batchprefetch6656/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_bucket90_w16/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_bucket90_w16/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_control_post/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_control_post/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_prefetch3072/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_prefetch3072/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_result10/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_result10/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_result10_gate/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_result10_gate/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_result_gate/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_result_gate/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_visit64/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen36_cohere_visit64/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen42_cohere_aligned_center/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen42_cohere_aligned_center/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen42_cohere_bucket90_w16/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen42_cohere_bucket90_w16/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen42_cohere_control_post/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen42_cohere_control_post/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen42_cohere_omit_norm/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen42_cohere_omit_norm/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen42_cohere_omit_norm_batchprefetch/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen42_cohere_omit_norm_batchprefetch/search_k10_r1_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/round3_bucket90_w16/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen40_cohere_expand_batch1/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/screen43_cohere_tail_bucket_fast/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen43_cohere_tail_bucket_batch/search_k10_r0_ids.csv",
+      "queries_reference": 12000,
+      "queries_candidate": 12000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/breakthrough_half_full/search_k10_r0_ids.csv",
+      "candidate": "experiments/breakthrough_half_audit/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/breakthrough_sq8_full/search_k10_r0_ids.csv",
+      "candidate": "experiments/breakthrough_sq8_audit/search_k10_r0_ids.csv",
+      "queries_reference": 1000,
+      "queries_candidate": 1000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/screen45_cohere_half_estimated_stop/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen45_cohere_half_estimated_batch/search_k10_r0_ids.csv",
+      "queries_reference": 7000,
+      "queries_candidate": 7000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    },
+    {
+      "reference": "experiments/screen45_cohere_sq8_estimated_stop/search_k10_r0_ids.csv",
+      "candidate": "experiments/screen45_cohere_sq8_estimated_batch/search_k10_r0_ids.csv",
+      "queries_reference": 7000,
+      "queries_candidate": 7000,
+      "id_score_mismatch_count": 0,
+      "score_multiset_mismatch_count": 0,
+      "first_mismatch_keys": []
+    }
+  ],
+  "total_query_comparisons": 59000,
+  "id_score_mismatches": 0,
+  "score_multiset_mismatches": 0,
+  "batch1_path_equivalence": {
+    "rows_base": 30763,
+    "rows_batch1": 30763,
+    "full_row_match": true
+  },
+  "default_unit_tests": {
+    "tests": "28",
+    "failures": "0",
+    "disabled": "0",
+    "errors": "0",
+    "time": "0.03",
+    "timestamp": "2026-10-26T09:33:44",
+    "name": "AllTests"
+  },
+  "center_audit_stats": {
+    "half_audit": {
+      "queries": 1000,
+      "mean_expanded": 31.286,
+      "mean_refined": 11.288,
+      "max_expanded": 64,
+      "center_bytes": 1536,
+      "stride": 5056
+    },
+    "half_full": {
+      "queries": 1000,
+      "mean_expanded": 31.286,
+      "mean_refined": 31.286,
+      "max_expanded": 64,
+      "center_bytes": 1536,
+      "stride": 5056
+    },
+    "sq8_audit": {
+      "queries": 1000,
+      "mean_expanded": 38.927,
+      "mean_refined": 31.64,
+      "max_expanded": 64,
+      "center_bytes": 768,
+      "stride": 4288
+    },
+    "sq8_full": {
+      "queries": 1000,
+      "mean_expanded": 38.927,
+      "mean_refined": 38.927,
+      "max_expanded": 64,
+      "center_bytes": 768,
+      "stride": 4288
+    }
+  },
+  "historical_libraries_unchanged": {
+    "native": true,
+    "bucket90_w16": true,
+    "bucket90_w32": true
+  }
+}

@@ -16,6 +16,17 @@
 #include <turbo/distance/common/symphony_qg_distance.h>
 #include <turbo/preprocessor/symphony_qg_rotator/symphony_qg_rotator.h>
 
+#if defined(QG_LOWRANK)
+#include <immintrin.h>
+#include <cstdlib>
+#include <fstream>
+#include <stdexcept>
+#if defined(QG_PROJECT_DIM) || defined(QG_RESIDUAL_TWO_STAGE) || \
+    defined(QG_GEOM_BIAS)
+#error Low-rank correction requires the native full-dimensional one-bit codec
+#endif
+#endif
+
 namespace zvec::turbo {
 #if RABITQ_SUPPORTED
 // Node-centered RaBitQ blocks with the SymphonyQG rotation and FastScan layout.
@@ -25,10 +36,29 @@ class SymphonyQGBlockQuantizer {
   struct Query {
     std::vector<float> rotated;
     SymQuery lookup;
+#if defined(QG_LOWRANK)
+    std::array<float, QG_LOWRANK> projection{};
+#endif
   };
 
   explicit SymphonyQGBlockQuantizer(size_t dimension, bool cosine = false)
-      : rotation_(dimension), cosine_(cosine) {}
+      : rotation_(dimension), cosine_(cosine) {
+#if defined(QG_LOWRANK)
+    const char *path = std::getenv("QG_LOWRANK_BASIS");
+    if (!path) throw std::runtime_error("QG_LOWRANK_BASIS is required");
+    std::ifstream input(path, std::ios::binary);
+    std::vector<float> raw(dimension), rotated;
+    basis_.resize(QG_LOWRANK * encoded_dim());
+    for (size_t j = 0; j < QG_LOWRANK; ++j) {
+      if (!input.read(reinterpret_cast<char *>(raw.data()),
+                      dimension * sizeof(float)))
+        throw std::runtime_error("Truncated low-rank basis");
+      transform(raw.data(), rotated);
+      std::copy(rotated.begin(), rotated.end(),
+                basis_.begin() + j * encoded_dim());
+    }
+#endif
+  }
 
   size_t encoded_dim() const {
     return rotation_.padded_dim();
@@ -43,7 +73,10 @@ class SymphonyQGBlockQuantizer {
   size_t batch_bytes() const {
     return rabitqlib::QGBatchDataMap<float>::data_bytes(quantized_dim())
 #if defined(QG_RESIDUAL_TWO_STAGE)
-           * 2
+               * 2
+#endif
+#if defined(QG_LOWRANK)
+           + QG_LOWRANK * kBatchSize * sizeof(float)
 #endif
         ;
   }
@@ -142,6 +175,34 @@ class SymphonyQGBlockQuantizer {
       ConvertSymphonyQGCosineFactors(center, vectors, count, encoded_dim(),
                                      batch.f_add(), batch.f_rescale());
     }
+#if defined(QG_LOWRANK)
+    // e=h-r, h=(||r||^2/||r||_1) sign(r). Remove the projection of
+    // (center-query)^T e; remaining ideal error lies in the orthogonal
+    // complement.
+    rabitqlib::QGBatchDataMap<float> native(codes, encoded_dim());
+    float *correction = reinterpret_cast<float *>(
+        codes + rabitqlib::QGBatchDataMap<float>::data_bytes(encoded_dim()));
+    std::fill_n(correction, QG_LOWRANK * kBatchSize, 0.f);
+    std::array<float, QG_LOWRANK> center_projection;
+    for (size_t j = 0; j < QG_LOWRANK; ++j)
+      center_projection[j] =
+          dot(center, basis_.data() + j * encoded_dim(), encoded_dim());
+    std::vector<float> error(encoded_dim());
+    for (size_t i = 0; i < count; ++i) {
+      const float amplitude = native.f_rescale()[i] * (cosine_ ? -.5f : -.25f);
+      for (size_t d = 0; d < encoded_dim(); ++d) {
+        const float r = vectors[i * encoded_dim() + d] - center[d];
+        error[d] = (r > 0 ? amplitude : -amplitude) - r;
+      }
+      for (size_t j = 0; j < QG_LOWRANK; ++j) {
+        const float value = dot(error.data(), basis_.data() + j * encoded_dim(),
+                                encoded_dim()) *
+                            (cosine_ ? 1.f : 2.f);
+        correction[j * kBatchSize + i] = value;
+        native.f_add()[i] -= center_projection[j] * value;
+      }
+    }
+#endif
 #if defined(QG_GEOM_BIAS)
     // Research score family: native calibrated estimate + gamma*||e||^2/2
     // for cosine (gamma*||e||^2 for L2). gamma=1 is the squared distance
@@ -167,11 +228,20 @@ class SymphonyQGBlockQuantizer {
   void prepare_query(const void *vector, Query &query) const {
     transform(vector, query.rotated);
     query.lookup.reset(query.rotated.data(), quantized_dim());
+#if defined(QG_LOWRANK)
+    for (size_t j = 0; j < QG_LOWRANK; ++j)
+      query.projection[j] =
+          dot(query.rotated.data(), basis_.data() + j * encoded_dim(),
+              encoded_dim());
+#endif
   }
   void scan(const char *codes, Query &query, float center_distance,
             float *distances) const {
     query.lookup.set_g_add(center_distance);
     ScanSymphonyQGBatch(codes, query.lookup, quantized_dim(), distances);
+#if defined(QG_LOWRANK)
+    apply_correction(codes, query, distances);
+#endif
 #if defined(QG_RESIDUAL_TWO_STAGE)
     std::array<float, kBatchSize> correction;
     query.lookup.set_g_add(0);
@@ -183,6 +253,37 @@ class SymphonyQGBlockQuantizer {
   }
 
  private:
+#if defined(QG_LOWRANK)
+  __attribute__((target("avx512f,fma"))) static float dot(const float *a,
+                                                          const float *b,
+                                                          size_t n) {
+    __m512 sum[4] = {_mm512_setzero_ps(), _mm512_setzero_ps(),
+                     _mm512_setzero_ps(), _mm512_setzero_ps()};
+    size_t i = 0;
+    for (; i + 64 <= n; i += 64)
+      for (size_t j = 0; j < 4; ++j)
+        sum[j] = _mm512_fmadd_ps(_mm512_loadu_ps(a + i + 16 * j),
+                                 _mm512_loadu_ps(b + i + 16 * j), sum[j]);
+    float value = _mm512_reduce_add_ps(_mm512_add_ps(
+        _mm512_add_ps(sum[0], sum[1]), _mm512_add_ps(sum[2], sum[3])));
+    for (; i < n; ++i) value += a[i] * b[i];
+    return value;
+  }
+  __attribute__((target("avx512f,fma"))) void apply_correction(
+      const char *codes, const Query &query, float *distances) const {
+    const float *correction = reinterpret_cast<const float *>(
+        codes + rabitqlib::QGBatchDataMap<float>::data_bytes(encoded_dim()));
+    for (size_t i = 0; i < kBatchSize; i += 16) {
+      __m512 value = _mm512_loadu_ps(distances + i);
+      for (size_t j = 0; j < QG_LOWRANK; ++j)
+        value = _mm512_fmadd_ps(
+            _mm512_set1_ps(query.projection[j]),
+            _mm512_loadu_ps(correction + j * kBatchSize + i), value);
+      _mm512_storeu_ps(distances + i, value);
+    }
+  }
+  std::vector<float> basis_;
+#endif
   SymphonyQGRotation rotation_;
   bool cosine_;
 };
