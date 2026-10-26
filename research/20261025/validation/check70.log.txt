@@ -1,0 +1,12 @@
+{
+  "gradient_probes": 120,
+  "max_gradient_abs_error": 3.941501816595583e-08,
+  "norm_cases": 1000,
+  "max_norm2_error": 2.2737367544323206e-13,
+  "inner_product_cases": 1000,
+  "max_inner_product_error": 4.263256414560601e-14,
+  "zero_angle_identity_cases": 1000,
+  "zero_tie_gradient_check": true,
+  "piecewise_gradient_only_no_global_smoothness_claim": true
+}
+CHECK70 COMPLETE

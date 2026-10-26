@@ -1,0 +1,4 @@
+/usr/bin/ld: /tmp/cc3BhoJp.o: in function `main':
+codec70.cc:(.text.startup+0x201b): undefined reference to `rabitqlib::fastscan::accumulate(unsigned char const*, unsigned char const*, unsigned short*, unsigned long)'
+/usr/bin/ld: codec70.cc:(.text.startup+0x29bc): undefined reference to `rabitqlib::simd::scalar_quantize_uint8(unsigned char*, float const*, unsigned long, float, float)'
+collect2: error: ld returned 1 exit status

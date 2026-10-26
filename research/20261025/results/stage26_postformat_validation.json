@@ -1,0 +1,55 @@
+{
+  "commands": [
+    [
+      "c++",
+      "-O3",
+      "-std=c++17",
+      "-march=native",
+      "-pthread",
+      "-DQG_ROTATION_768=1",
+      "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+      "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/rotate70.cc",
+      "-o",
+      "/home/xingrui/bench/quantized_graph/research_20261025/rotate70_formatted"
+    ],
+    [
+      "/home/xingrui/bench/quantized_graph/research_20261025/rotate70_formatted",
+      "/home/xingrui/bench/quantized_graph/research_20261025/models64/full_vectors.f32",
+      "/home/xingrui/bench/quantized_graph/research_20261025/replay70_formatted/prefix_ids.u32",
+      "/home/xingrui/bench/quantized_graph/research_20261025/replay70_formatted/prefix_rotated.f32"
+    ],
+    [
+      "c++",
+      "-O3",
+      "-std=c++17",
+      "-march=native",
+      "-pthread",
+      "-DQG_ROTATION_768=1",
+      "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+      "-DRABITQ_SUPPORTED=1",
+      "-isystem",
+      "/home/xingrui/workspace/zvec/symphony_qg/zvec/thirdparty/RaBitQ-Library/RaBitQ-Library-0.1/include",
+      "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/codec70.cc",
+      "/home/xingrui/bench/quantized_graph/research_20261025/lib/libzvec_turbo.a",
+      "/home/xingrui/bench/quantized_graph/research_20261025/lib/librabitqlib_runtime.a",
+      "/home/xingrui/bench/quantized_graph/research_20261025/lib/libzvec_ailego.a",
+      "-o",
+      "/home/xingrui/bench/quantized_graph/research_20261025/codec70_formatted"
+    ]
+  ],
+  "sampling_files_identical": 4,
+  "rotation_prefix_centers_identical": 64,
+  "actual_codec_score_arrays_identical": 4,
+  "actual_codec_error_arrays_identical": 4,
+  "final_model_metrics_identical": 3,
+  "first_training_updates_identical": 3,
+  "replayed_json_identical": {
+    "rank70_math_checks.json": "0782f0224b65b8ca8869852deaa139140e6e535749e030ab542ec85cdc81248d",
+    "rank70_data_validation.json": "d76ed8d4f01caafd7b70540339d2d399d6f916478a4dd49a25c937b6fc4f81e2",
+    "rank70_boundary_probe.json": "1c4e7d9af134140a3f884843f46348c7e19ac9a2e8f48706f63221ae2692b166",
+    "rank70_adaptive_probe.json": "f75097fad13683e9c0d0551c2c9c8e634fed55aabb8da51dce37f17e2d2e93dc"
+  },
+  "repository_header_hashes_match": 4,
+  "timing_not_repeated": true,
+  "isolated_replay_changes_only_root_path": true
+}

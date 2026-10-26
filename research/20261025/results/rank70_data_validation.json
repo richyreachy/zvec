@@ -1,0 +1,24 @@
+{
+  "actual_graph_centers": 8192,
+  "all_edges_match_original_adjacency": true,
+  "cosine_pair_scores_checked": 1048576,
+  "center_inner_products_checked": 294912,
+  "norms_checked": 303104,
+  "max_pair_gap_rotation_error": 5.5561123646352684e-08,
+  "max_center_inner_product_rotation_error": 7.77416679920151e-08,
+  "max_norm2_rotation_error": 1.015910051638258e-07,
+  "zero_residual_edges_retained": 0,
+  "proxy_queries_with_tied_minima_within_1e_7": 3,
+  "center_folds_disjoint": true,
+  "source_hashes": {
+    "models70/config.json": "36fd4f8fd930c757ae0b76078b85ab9bf7d268d93ef0eedad053b79824e3e829",
+    "models70/ids.u32": "f0e20f1a188693c385dcb8563b76adcb4cc9fed8ff8d8497a733944a13d2041a",
+    "models70/rotated.f32": "60b0bd188ef3c23ab2c0f74e5db56b3e518874f272560cb9685bcc096d468dca",
+    "models70/truth.f64": "58d19a71337ded7d9cc12a0d7948d1abe4d36f4f87894b42711c46ec9948045d",
+    "models70/offsets.f64": "323a438d016b532d4b8308e85cda52c86899c806ec03b6a764b4520462d2fcc7",
+    "models70/train_rows.npy": "dbccc284a484e455759e014e6904360845bce360efa20a7730bcdc6f516c2307",
+    "models70/validation_rows.npy": "7c99430ae4a796f0e210832d8dfd4926a92f1532c8a9c82fab31c435289f05a6",
+    "scripts/rotate70.cc": "d1705d01cc3aa834e874bd52a3a8cec02b34c70f4cf2e77d0e2cc0d088da21fe",
+    "scripts/prepare70.py": "1506fa3126b613ad0fecc09ac0fdf19509a3b06fe6d8a7f57a5195156f0cf553"
+  }
+}

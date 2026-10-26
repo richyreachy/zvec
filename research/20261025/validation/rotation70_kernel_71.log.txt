@@ -1,0 +1,5 @@
+scalar_coordinate_checks=768000 identity_vectors=1000 norm_vectors=1000 max_relative_norm2_error=2.53727e-08 passed
+round,copy_ns,copy_and_transform_ns,incremental_ns,checksum
+0,89.3513,182.839,93.4881,6622.76
+1,89.2731,183.011,93.7382,13245.5
+2,88.7886,181.97,93.1816,19868.3
