@@ -1,0 +1,37 @@
+import math
+import numpy as np
+
+def cdf(x):
+ x=np.asarray(x,dtype=np.float64)
+ return np.fromiter((.5*math.erfc(-float(a)/math.sqrt(2)) for a in x.ravel()),dtype=np.float64,count=x.size).reshape(x.shape)
+
+def correlated_risk(a,b,rho,order=128):
+ """P(XY<0) from standardized thresholds; integrate rho=sin(theta)."""
+ a,b,rho=np.broadcast_arrays(a,b,rho);shape=a.shape;a=a.ravel();b=b.ravel();rho=rho.ravel();nodes,weights=np.polynomial.legendre.leggauss(order);out=np.empty(len(a))
+ pa=cdf(a);pb=cdf(b)
+ for start in range(0,len(a),2048):
+  end=min(start+2048,len(a));theta=np.arcsin(rho[start:end])[:,None]*(nodes+1)/2;s=np.sin(theta);c2=np.cos(theta)**2;aa=a[start:end,None];bb=b[start:end,None]
+  # Algebraically equivalent but nonnegative numerator prevents cancellation.
+  numer=(aa-bb)**2+2*aa*bb*(1-s)
+  numer=np.maximum(numer,0.)
+  integ=np.arcsin(rho[start:end])/2*np.sum(weights*np.exp(-numer/(2*c2)),axis=1)/(2*math.pi)
+  out[start:end]=pa[start:end]+pb[start:end]-2*(pa[start:end]*pb[start:end]+integ)
+ assert np.isfinite(out).all()
+ assert out.min()>-1e-10 and out.max()<1+1e-10
+ return np.clip(out,0.,1.).reshape(shape)
+
+def predict(x,y):
+ """Fit only supplied samples on last axis; no validation input accepted."""
+ assert x.shape==y.shape and x.shape[-1]>=2
+ mx=x.mean(axis=-1);my=y.mean(axis=-1);dx=x-mx[...,None];dy=y-my[...,None];vx=np.sum(dx*dx,axis=-1)/(x.shape[-1]-1);vy=np.sum(dy*dy,axis=-1)/(x.shape[-1]-1);cov=np.sum(dx*dy,axis=-1)/(x.shape[-1]-1)
+ p=np.zeros_like(mx);zx=vx==0;zy=vy==0;regular=~(zx|zy);both=zx&zy;p[both]=(mx[both]*my[both]<0)
+ onlyx=zx&~zy;onlyy=zy&~zx
+ for constant,mean,var,mask in [(mx,my,vy,onlyx),(my,mx,vx,onlyy)]:
+  lower=cdf(-mean[mask]/np.sqrt(var[mask]));p[mask]=np.where(constant[mask]>0,lower,np.where(constant[mask]<0,1-lower,0.))
+ a=-mx[regular]/np.sqrt(vx[regular]);b=-my[regular]/np.sqrt(vy[regular]);rho=np.clip(cov[regular]/np.sqrt(vx[regular]*vy[regular]),-1.,1.)
+ perfect=np.abs(rho)>=1-1e-14;pr=np.empty(len(a));pa=cdf(a[perfect]);pb=cdf(b[perfect]);pr[perfect]=pa+pb-2*np.where(rho[perfect]>0,np.minimum(pa,pb),np.maximum(pa+pb-1,0.))
+ use=~perfect;v64=correlated_risk(a[use],b[use],rho[use],64);v128=correlated_risk(a[use],b[use],rho[use],128);diff=np.abs(v64-v128);retry=diff>1e-8;final=v128.copy();max_final_error=0.
+ if retry.any():
+  v512=correlated_risk(a[use][retry],b[use][retry],rho[use][retry],512);v1024=correlated_risk(a[use][retry],b[use][retry],rho[use][retry],1024);max_final_error=float(np.max(np.abs(v512-v1024)));assert max_final_error<1e-8;final[retry]=v1024
+ pr[use]=final;p[regular]=np.clip(pr,0.,1.)
+ return p,{'zero_variance_cases':int(np.sum(zx|zy)),'perfect_correlation_cases':int(np.sum(perfect)),'quadrature_retry_cases':int(np.sum(retry)),'max_64_128_difference':float(diff.max()) if len(diff) else 0.,'max_512_1024_retry_difference':max_final_error}

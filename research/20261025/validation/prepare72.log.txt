@@ -1,0 +1,71 @@
+{
+  "centers": 2048,
+  "neighbors": 32,
+  "queries_per_center": 32,
+  "selection_queries_per_center": 16,
+  "validation_queries_per_center": 16,
+  "center_seed": 7201,
+  "proxy_seed": 7202,
+  "models": [
+    "baseline",
+    "70",
+    "71",
+    "72"
+  ],
+  "ties": "baseline first then seed order; truth distance tolerance1e-7",
+  "candidate_position_bins": [
+    [
+      0,
+      49
+    ],
+    [
+      50,
+      99
+    ],
+    [
+      100,
+      149
+    ],
+    [
+      150,
+      199
+    ]
+  ],
+  "queries_per_bin": 8,
+  "selection_first_four_per_bin": true,
+  "minimum_eligible_queries_in_bin": 21,
+  "old_centers_excluded": 10240,
+  "new_centers_disjoint_from_phase70": true,
+  "selection_validation_queries_disjoint_within_center": true,
+  "unique_selection_query_ids": 27248,
+  "unique_validation_query_ids": 27002,
+  "shared_query_ids_across_center_folds": 3748,
+  "shared_any_vector_ids_with_phase70": 40620,
+  "primary_or_extra_query_files_read": false,
+  "gt_files_read": false,
+  "local_queries_not_iid": true,
+  "proxy_pool_is_approximate_not_exact_top200": true,
+  "fixed_models_no_training": true,
+  "gate": {
+    "both_pair_families_and_both_empirical_baselines_brier_relative_improvement": 0.05,
+    "each_paired_center_bootstrap95_lower_positive": true,
+    "bootstrap_seed": 7272,
+    "bootstrap_samples": 4000
+  },
+  "no_retrieval_qps_or_recall_claim": true,
+  "new_centers_disjoint_from_phase71": true,
+  "shared_any_vector_ids_with_phase71": 23327,
+  "purpose": "joint-gap Gaussian prediction;no frame selection or training",
+  "pair_families": [
+    "adjacent_lanes16",
+    "geometry_nearest16"
+  ],
+  "margin_grid": [
+    0.005,
+    0.01,
+    0.02,
+    0.04,
+    0.08
+  ]
+}
+PREPARE72 COMPLETE

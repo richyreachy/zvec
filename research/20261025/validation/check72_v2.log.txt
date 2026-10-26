@@ -1,0 +1,26 @@
+{
+  "cdf_independent_conditional_integral_cases": 256,
+  "max_cdf_absolute_error": 1.5432100042289676e-14,
+  "near_perfect_correlation_angular_cases": 7,
+  "zero_variance_perfect_correlation_cases": 9,
+  "degenerate_predictions": [
+    0.0,
+    1.0,
+    0.0,
+    0.5,
+    0.5,
+    0.0,
+    0.5,
+    0.5,
+    1.0
+  ],
+  "predict_stats": {
+    "zero_variance_cases": 7,
+    "perfect_correlation_cases": 2,
+    "quadrature_retry_cases": 0,
+    "max_64_128_difference": 0.0,
+    "max_512_1024_retry_difference": 0.0
+  },
+  "no_distribution_fit_validation_claim": true
+}
+CHECK72 COMPLETE

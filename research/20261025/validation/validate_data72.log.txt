@@ -1,0 +1,23 @@
+{
+  "actual_graph_centers": 2048,
+  "all_edges_match_original_adjacency": true,
+  "cosine_pair_scores_checked": 2097152,
+  "center_inner_products_checked": 131072,
+  "norms_checked": 133120,
+  "max_pair_gap_rotation_error": 5.04279951685227e-08,
+  "max_center_inner_product_rotation_error": 7.184007821958716e-08,
+  "max_norm2_rotation_error": 1.0635304592554462e-07,
+  "zero_residual_edges_retained": 1,
+  "proxy_queries_with_tied_minima_within_1e_7": 0,
+  "selection_validation_query_ids_disjoint_per_center": true,
+  "source_hashes": {
+    "models72/config.json": "11156416db05860f1a3662c95d3ef959f44f41a8f5498f0c85700fa3c5eb736b",
+    "models72/ids.u32": "bbc217f73fdaf5014d131daeedf8dd3fbde8a0514bf5d92e3b80b7e6361c1eaf",
+    "models72/rotated.f32": "b86d315df518822dd26e164d29f2468fbce0467fceef0a3a3b4940429f4d81bb",
+    "models72/truth.f64": "4ef007851d4ea73db0dba5c130bac5882e103003bca3037761fb5e993ad43128",
+    "models72/offsets.f64": "9d42ea7d98cf209b05c81d4a91c272b0ba1ff568c4af38b5f3d7c294d2655f02",
+    "scripts/rotate72.cc": "cbad5c165dd3b1b62a0fe3a0e3efa6e1a1a0e4a9c09ca963a013aa7669f5a975",
+    "scripts/prepare72.py": "7039c6213ab3537d326c45b28a1cd62ae2649aa1860d224c55d0f5d17ab857a9"
+  }
+}
+DATA72 COMPLETE

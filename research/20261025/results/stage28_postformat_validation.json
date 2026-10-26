@@ -1,0 +1,52 @@
+{
+  "all_model_data_and_output_files_byte_identical": [
+    "codec_scores_baseline.f32",
+    "validation_positions.u32",
+    "selection_positions.u32",
+    "codec_scores_71.f32",
+    "ids.u32",
+    "offsets.f64",
+    "truth.f64",
+    "gaussian_predictions.npy",
+    "empirical_predictions.npy",
+    "positions.u32",
+    "heldout_flip_rates.npy",
+    "rows.u32",
+    "codec_scores_72.f32",
+    "pairs.u32",
+    "config.json",
+    "codec_scores_70.f32",
+    "rotated.f32",
+    "jeffreys_predictions.npy"
+  ],
+  "full_rotation_vectors_compared": 133120,
+  "full_codec_scores_compared": 8388608,
+  "new_center_sampling_and_proxy_split_identical": true,
+  "data_validation_metrics_identical": true,
+  "heldout_probability_analysis_byte_identical": true,
+  "independent_cdf_and_degenerate_checks_byte_identical": true,
+  "models64_full_input_hashes_verified": {
+    "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
+    "models64/full_vectors.f32": "5c9d8196d5c46d617c5cb3d9eedae5f9b8bf1677e370f210c5b84b08cdd66d24",
+    "models64/full_candidates.bin": "6c55553e87dae59c6c67babe4a5c65b1f92fedef4c83b0702a00f2ac4f61c830"
+  },
+  "inherited_models_libraries_helpers_hashes_verified": 8,
+  "production_source_header_hashes_verified": {
+    "src/turbo/quantizer/symphony_qg_quantizer/symphony_qg_quantizer.h": "9acdafd1192fb5eaadd0cf003f34d0416a44bfc417da4d62e862db2de9dc59cf",
+    "src/turbo/distance/common/symphony_qg_distance.h": "5410d89dd9d0a88653d0a7d58dcb03a9d649112255ae30f6c88d178b845e0199",
+    "src/turbo/distance/common/symphony_qg_kernels.h": "b8737892014456c3345d2979d9592292a3b75997694d004a3902220780376afa",
+    "src/turbo/preprocessor/symphony_qg_rotator/symphony_qg_rotator.h": "a4efd148aecca3a61709876571f9d9673c0a8c0e5feea51ee580e0e05bf0e105"
+  },
+  "formatted_scripts": {
+    "analyze72.py": "483b29c799a5f2974100fc5b390ba8b01ddc14321d98308036b0897906c6c0a9",
+    "check72.py": "f79226a06704268ef8d6cee01788d6445b002d9f17cc081140ab2a2639e1c2ba",
+    "codec72.cc": "4d08892ac10e5fd7d842b849b8118c5789cef025becb8ab32c7f70a3398cbd28",
+    "normalrisk72.py": "d6f39ceab1150a10134976b39b288423ef936d33067f234a0de9be0d404a4849",
+    "prepare72.py": "6c668403debe2870073b2f0a41ddca93bc909ebe39640c6ab6876768f839990f",
+    "rotate72.cc": "76d47de89a3b2a2ba42472ba85fcafc7fcba4269de161a0769c43498062a5a0a",
+    "run72.py": "791eadf2b97cb9624b7cfb36d856a007db44b640c28e96257280760855505d02",
+    "validate_data72.py": "b8d3dda0b4cad4c6bc4507466371dd3999df599cbdc0be312431dc7610f56e7a"
+  },
+  "replay_directory": "/home/xingrui/bench/quantized_graph/research_20261025/replay72_formatted",
+  "no_production_source_changes": true
+}
