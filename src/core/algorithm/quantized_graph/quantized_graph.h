@@ -57,6 +57,22 @@
 #include <zvec/core/framework/index_error.h>
 #include "utility/graph_search.h"
 #include "quantized_graph_beam.h"
+#if defined(QG_FUSION)
+#if !defined(QG_BUCKET) || !defined(QG_ADAPTIVE) || !defined(QG_ROTATION_768)
+#error Fusion requires the 768D rotation and adaptive bucket search
+#endif
+#if defined(QG_CENTER_QUANTIZED) || defined(QG_PROJECT_DIM) ||      \
+    defined(QG_RESIDUAL_TWO_STAGE) || defined(QG_DIRECTION_BETA) || \
+    defined(QG_DIRECTION_MSE) || defined(QG_RADIAL_CALIBRATION) ||  \
+    defined(QG_LOWRANK) || defined(QG_GEOM_BIAS) ||                 \
+    defined(QG_FIRST_ESTIMATE) || defined(QG_BUCKET_DOMINANCE) ||   \
+    defined(QG_SHARED_DOMINANCE) || defined(QG_WINDOW) ||           \
+    defined(QG_CHEAP_WINDOW) || defined(QG_FLAT_BUCKET) ||          \
+    defined(QG_EXPAND_BATCH) || QG_EXPERIMENT != 0
+#error Fusion phase69 excludes altered factors, admission, or center layouts
+#endif
+#include "quantized_graph_fusion.h"
+#endif
 #if defined(QG_MULTI_TRACE)
 #if defined(QG_CENTER_QUANTIZED)
 #error Multi-estimate trace currently requires exact FP32 centers
@@ -172,6 +188,13 @@ class QuantizedGraph {
   }
 
  private:
+#if defined(QG_BUCKET)
+#if defined(QG_FUSION)
+  using Bucket = QuantizedGraphFusionBucket;
+#else
+  using Bucket = QuantizedGraphBucket;
+#endif
+#endif
 #if defined(QG_SHARED_DOMINANCE)
   using LocalVisitSet = QuantizedGraphSharedVisit;
 #else
@@ -268,11 +291,14 @@ class QuantizedGraph {
 #endif
   struct SearchState {
     LocalVisitSet visited;
+#if defined(QG_FUSION)
+    QuantizedGraphFusion fusion;
+#endif
 #if defined(QG_FIRST_ESTIMATE)
     LocalVisitSet discovered;
 #endif
 #if defined(QG_BUCKET)
-    QuantizedGraphBucket beam;
+    Bucket beam;
 #if defined(QG_BUCKET_DOMINANCE)
 #if defined(QG_DOMINANCE_CACHE)
     QuantizedGraphDominanceCache dominance;
@@ -367,6 +393,11 @@ class QuantizedGraph {
     const char *codes() const {
       return reinterpret_cast<const char *>(neighbors()) + neighbor_bytes;
     }
+#if defined(QG_FUSION)
+    const uint16_t *error_scales() const {
+      return reinterpret_cast<const uint16_t *>(codes() + code_bytes);
+    }
+#endif
   };
 
   struct BlockDeleter {
@@ -475,8 +506,14 @@ QuantizedGraph<Codec>::QuantizedGraph(size_t dimension, Codec codec,
   neighbor_bytes_ = (max_neighbors_ * sizeof(NodeId) + 63) & ~size_t{63};
   const size_t code_bytes =
       (max_neighbors_ / batch_size) * codec_.batch_bytes();
+  const size_t extra_bytes =
+#if defined(QG_FUSION)
+      max_neighbors_ * sizeof(uint16_t);
+#else
+      0;
+#endif
   stride_ = (Block::kCenterOffset + stored_center_bytes_ + neighbor_bytes_ +
-             code_bytes + 63) &
+             code_bytes + extra_bytes + 63) &
             ~size_t{63};
 }
 
@@ -873,6 +910,10 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
             const_cast<NodeId *>(block->neighbors()));
 
   std::fill_n(const_cast<char *>(block->codes()), code_bytes, char{0});
+#if defined(QG_FUSION)
+  std::fill_n(const_cast<uint16_t *>(block->error_scales()), max_neighbors_,
+              uint16_t{0});
+#endif
   if (neighbor_cnt == 0) {
     return true;
   }
@@ -923,6 +964,14 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
         return false;
       }
       codec_.transform(neighbor.data(), scratch.vector);
+#if defined(QG_FUSION)
+      if (!QuantizedGraphFusion::error_scale(
+              scratch.encoded_center.data(), scratch.vector.data(), dim,
+              const_cast<uint16_t *>(block->error_scales())[offset + i])) {
+        error = IndexError_Mismatch;
+        return false;
+      }
+#endif
       std::copy(scratch.vector.begin(), scratch.vector.end(),
                 scratch.encoded.begin() + i * dim);
     }
@@ -937,6 +986,12 @@ template <class Codec>
 template <class Graph>
 int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
                                     size_t threads) {
+#if defined(QG_FUSION)
+  if (!cosine_ || dimension_ != 768 || max_neighbors_ != 32 ||
+      !QuantizedGraphFusion::supported(codec_, 0) ||
+      !__builtin_cpu_supports("f16c"))
+    return IndexError_Mismatch;
+#endif
 #if defined(QG_GRAPH_IMPORT)
   if (!imported_graph_.load(std::getenv("QG_GRAPH_IMPORT_FILE"), entity,
                             doc_cnt, dimension_, max_neighbors_))
@@ -1279,6 +1334,13 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   auto &state = search_state();
   auto &visited = state.visited;
   visited.reset(results.limit());
+#if defined(QG_FUSION)
+  const char *fusion_enable = std::getenv("QG_FUSION_ENABLE");
+  if (fusion_enable && std::strcmp(fusion_enable, "0") &&
+      std::strcmp(fusion_enable, "1"))
+    return IndexError_Mismatch;
+  state.fusion.reset(fusion_enable && !std::strcmp(fusion_enable, "1"));
+#endif
 #if defined(QG_BUCKET_DOMINANCE)
   state.dominance.reset();
 #endif
@@ -1591,6 +1653,10 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     const IntegerCenter::Query &integer_query;
 #endif
     std::vector<NodeId> &expanded;
+#if defined(QG_FUSION)
+    QuantizedGraphFusion *fusion;
+    const LocalVisitSet *fusion_visited;
+#endif
 #if defined(QG_PROJECTION_ROUTER) || defined(QG_INTEGER_ROUTER)
     float route_bucket_scale;
 #endif
@@ -1604,7 +1670,7 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
 #endif
 #if defined(QG_BUCKET)
-    QuantizedGraphBucket *bucket;
+    Bucket *bucket;
 #endif
 #if defined(QG_ADAPTIVE)
     StopState *stopping;
@@ -1882,6 +1948,14 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       index.codec_.scan(
           codes + (offset / Codec::kBatchSize) * index.codec_.batch_bytes(),
           query, center_score, distances);
+#if defined(QG_FUSION)
+      for (size_t i = 0; i < count; ++i) {
+        if (!fusion_visited->visited(ids[i]))
+          distances[i] = fusion->observe(
+              ids[i], distances[i],
+              QuantizedGraphFusion::decode(block->error_scales()[offset + i]));
+      }
+#endif
 #if defined(QG_MULTI_TRACE)
       if (multi_trace->active()) {
         for (size_t i = 0; i < count; ++i) {
@@ -1938,6 +2012,11 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
          state.integer_query,
 #endif
          expanded
+#if defined(QG_FUSION)
+         ,
+         &state.fusion,
+         &visited
+#endif
 #if defined(QG_PROJECTION_ROUTER) || defined(QG_INTEGER_ROUTER)
          ,
          route_bucket_scale
@@ -1978,8 +2057,11 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   };
   struct Frontier {
     const QuantizedGraph &index;
+#if defined(QG_FUSION)
+    QuantizedGraphFusion *fusion;
+#endif
 #if defined(QG_BUCKET)
-    QuantizedGraphBucket &beam;
+    Bucket &beam;
 #elif defined(QG_HEAP)
     AdaptiveHeap &beam;
 #else
@@ -2019,12 +2101,27 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       if (expanded->size() >= expansion_cap) return false;
 #endif
 #if defined(QG_ADAPTIVE)
-      while (beam.has_next() && visited->visited(beam.next_id_at(0)))
-        beam.pop();
+      while (beam.has_next()) {
+        const NodeId next = beam.next_id_at(0);
+        if (visited->visited(next)) {
+          beam.pop();
+          continue;
+        }
+#if defined(QG_FUSION)
+        if (!fusion->valid(next, beam.next_version())) {
+#if defined(QG_FUSION_AUDIT)
+          ++fusion->stale;
+#endif
+          beam.pop();
+          continue;
+        }
+#endif
+        break;
+      }
       if (beam.has_next() && stopping->stop(beam.next_distance())) return false;
 #if defined(QG_CHEAP_WINDOW)
-      cutoff = stopping->admission_cutoff(
-          beam.width(), float(QuantizedGraphBucket::N - 2) * beam.width());
+      cutoff = stopping->admission_cutoff(beam.width(),
+                                          float(Bucket::N - 2) * beam.width());
 #endif
 #endif
       return beam.has_next() && !ctx.reach_scan_limit();
@@ -2073,6 +2170,8 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
 #if QG_EXPERIMENT == 2 || QG_EXPERIMENT == 3
       beam.insert_unique(id, distance);
+#elif defined(QG_FUSION)
+      beam.insert(id, distance, fusion->version(id));
 #else
       beam.insert(id, distance);
 #endif
@@ -2108,6 +2207,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
     }
   } frontier{*this,
+#if defined(QG_FUSION)
+             &state.fusion,
+#endif
              beam,
              ctx
 #if defined(QG_TAIL_REFINE)
@@ -2145,6 +2247,18 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
   const int search_ret = SearchGraph(scan, frontier, visited, state.scratch);
   if (search_ret != 0) return search_ret;
+#if defined(QG_FUSION_AUDIT)
+  std::fprintf(stderr,
+               "QG_FUSION_AUDIT first=%llu second=%llu fused=%llu later=%llu "
+               "overflow=%llu fallback=%llu stale=%llu expanded=%zu\n",
+               (unsigned long long)state.fusion.first,
+               (unsigned long long)state.fusion.second,
+               (unsigned long long)state.fusion.fused,
+               (unsigned long long)state.fusion.later,
+               (unsigned long long)state.fusion.overflow,
+               (unsigned long long)state.fusion.fallback,
+               (unsigned long long)state.fusion.stale, expanded.size());
+#endif
 #if defined(QG_MULTI_TRACE)
   if (!multi_trace.end(uint32_t(expanded.size()))) return IndexError_Mismatch;
 #endif

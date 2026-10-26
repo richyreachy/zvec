@@ -1,0 +1,1 @@
+FUSION69 PASS half=65536 disabled_queue=200000 enabled_queue=40000 geometry=4096 max_half_relative=0.000376432033

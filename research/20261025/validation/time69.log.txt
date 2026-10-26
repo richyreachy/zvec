@@ -1,0 +1,11 @@
+START time69_control_pre
+DONE time69_control_pre
+START time69_disabled
+DONE time69_disabled
+START time69_enabled
+DONE time69_enabled
+START time69_control_post
+DONE time69_control_post
+START diag69_enabled
+DONE diag69_enabled
+TIME69 COMPLETE

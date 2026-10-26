@@ -1,0 +1,1 @@
+FUSION69 GEOMETRY edges=8192 ideal_half_delta=0 native_factor_delta=9.5087073603838945e-08 half_error=0.00012058433822104142

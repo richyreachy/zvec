@@ -1,0 +1,5 @@
+START diag69_disabled
+DONE diag69_disabled
+START screen69_enabled
+DONE screen69_enabled
+SCREEN69 COMPLETE

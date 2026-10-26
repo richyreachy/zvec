@@ -1,0 +1,54 @@
+{
+  "commands": [
+    [
+      "c++",
+      "-std=c++17",
+      "-UNDEBUG",
+      "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+      "-O2",
+      "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/fusion69_test.cc",
+      "-o",
+      "/home/xingrui/bench/quantized_graph/research_20261025/fusion69_test_formatted"
+    ],
+    [
+      "/home/xingrui/bench/quantized_graph/research_20261025/fusion69_test_formatted"
+    ],
+    [
+      "c++",
+      "-std=c++17",
+      "-UNDEBUG",
+      "-I/home/xingrui/workspace/quantized_graph/symphony_research_20261025/src",
+      "-O3",
+      "-march=native",
+      "-pthread",
+      "-DRABITQ_SUPPORTED=1",
+      "-DQG_ROTATION_768=1",
+      "-isystem",
+      "/home/xingrui/workspace/zvec/symphony_qg/zvec/thirdparty/RaBitQ-Library/RaBitQ-Library-0.1/include",
+      "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/fusion69_geometry.cc",
+      "-o",
+      "/home/xingrui/bench/quantized_graph/research_20261025/fusion69_geometry_formatted"
+    ],
+    [
+      "/home/xingrui/bench/quantized_graph/research_20261025/fusion69_geometry_formatted",
+      "/home/xingrui/bench/quantized_graph/research_20261025/models64/full_vectors.f32",
+      "/home/xingrui/bench/quantized_graph/research_20261025/models68/geometry/ids.u32",
+      "/home/xingrui/bench/quantized_graph/research_20261025/models68/geometry/moments.f64",
+      "/home/xingrui/bench/quantized_graph/research_20261025/models69/formatted/geometry.f64"
+    ]
+  ],
+  "standalone_unit_stdout_identical": true,
+  "geometry_edges_identical": 8192,
+  "replayed_reports_identical": {
+    "fusion69_analysis.json": "b037aa47460928efac43eef97d35a38020d3400e9c381d3e87e00e3c44adfeb1",
+    "fusion69_compile_guards.json": "d19a770af5250d1228dbc38d9edbd99cc6198682d6c1a1875e3f42089d6d0f83",
+    "notes/multianchor69.md": "0a94d2b160fe0c370cd4e42c1398eb7c699de5dc07cce76d74ef5008d647fd82",
+    "cohere90_breakthrough_research.md": "97f827786b63e8530c4a2e834b8eec8fbd68a1a516b295eec102a8485e714575"
+  },
+  "source_manifests": {
+    "fusion69_native": 20,
+    "fusion69_audit": 20,
+    "stage69_default": 20
+  },
+  "isolated_replay_changes_only_root_path": true
+}

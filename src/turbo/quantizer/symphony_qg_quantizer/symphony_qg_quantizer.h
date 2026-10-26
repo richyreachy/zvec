@@ -85,6 +85,11 @@ class SymphonyQGBlockQuantizer {
 #endif
   }
 
+#if defined(QG_FUSION)
+  bool fusion_supported() const {
+    return cosine_ && encoded_dim() == 768 && quantized_dim() == 768;
+  }
+#endif
   size_t encoded_dim() const {
     return rotation_.padded_dim();
   }

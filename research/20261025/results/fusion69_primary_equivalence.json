@@ -1,0 +1,7 @@
+{
+  "primary_queries": 1000,
+  "id_score_rows": 10000,
+  "disabled_matches_frozen_baseline": true,
+  "primary_queries_already_tuned_not_blind": true,
+  "lambda_frozen_no_refit": true
+}
