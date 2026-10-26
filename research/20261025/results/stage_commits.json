@@ -253,5 +253,26 @@
     "title": "test(qg): confirm learned-code performance and preserve negative result",
     "validation": "4pairedrounds x3conditions x1/8threads x3seconds;12run configs,120000untimedTop10ID/hexrows and24timings independently audited;allqueriedhitcounts repeated;QPSqueries/seconds checks;archivedanalysissemanticoutput exact.",
     "conclusion": "LearnedRecall.9069 QPS31012.207855/229339.88135 vsfrozenbaseline31884.956345/236158.91795 (-2.737%/-2.887%). Samecompiled-disabled also-2.158%/-2.348%,do notattributeallloss tolearner. Noextra-querygate;1340timingrows,no25%breakthrough."
+  },
+  {
+    "stage": "36",
+    "commit": "afcab1130b55b9f6735244995235873d0c2ce5d6",
+    "title": "test(qg): reproduce learned-code divergence and validate threshold constraints",
+    "validation": "1000 actual queries and first-divergence matches;30763 native expansions/984388 FastScan edges bit-exact;4952 common-prefix centers/158464 edges;identity/same-bin/LIFO/cross-bin controls;formatted full replay exact;Fraction threshold and budget checks.",
+    "conclusion": "998 next-ID divergences,1 early stop,1 unchanged;median common prefix4. Fixed-threshold binary linearization valid under positive denominator;not a performance or causal claim. No timing rows added."
+  },
+  {
+    "stage": "37",
+    "commit": "4a457a0eea54deb05b906269dee3c09b211cb1d9",
+    "title": "test(qg): archive inconclusive matched-query and bucket mechanisms",
+    "validation": "Frozen A sampling and63297 actual-code observations reproduced;query-equal4000 bootstrap outputs exact. B399721 pairs;1000-queryCSV and allnumeric/control values exact after archival.",
+    "conclusion": "A path/proxy Top1 errors both improve but predetermined support/refutation gates fail. B continuous/bucket errors both slightly improve,interactionCIcrosses0;both mechanisms inconclusive. No posthoc regrouping;1340 timing rows."
+  },
+  {
+    "stage": "38",
+    "commit": "35a0725a5517f682f76542bae3ea72bdae46487b",
+    "title": "test(qg): validate decision-code dual bounds and freeze query preflight",
+    "validation": "ID-only seed8101 split3072/1024;20 early centers frozen beforevalidationcoverage;6archive replay outputs byteidentical. Exact Fraction68 problems/324certificates/4090codes;4942global+33383conditional checks;archive replay numericallyidentical.",
+    "conclusion": "Budgeted hinge dual and safe coordinate screening validated onsynthetic problems;not a new universal theorem or768D optimum. Nonentry905/1024validationquerycoverage;no Cohere training,realFP32 guarantee or newRecall/QPS;no breakthrough."
   }
 ]

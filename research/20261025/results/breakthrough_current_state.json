@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T22:02:53.140106+08:00",
+  "updated_at": "2026-10-26T22:35:21.304325+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -265,26 +265,37 @@
     "path80_same_bin_changed_scores": 984388,
     "path80_same_bin_control_queries_unchanged": 1000,
     "theoretical80_codes_exact_enumeration": 3568,
-    "theoretical80_threshold_sign_equivalences": 7100
+    "theoretical80_threshold_sign_equivalences": 7100,
+    "theoretical81_problems": 68,
+    "theoretical81_certificates": 324,
+    "theoretical81_enumerated_binary_codes": 4090,
+    "theoretical81_feasible_binary_codes": 994,
+    "theoretical81_global_checks": 4942,
+    "theoretical81_conditional_checks": 33383,
+    "theoretical81_strict_screen_events": 81,
+    "theoretical81_nonempty_strict_screen_events": 13,
+    "theoretical81_equality_events_retained": 152,
+    "theoretical81_archive_replay_identical": true,
+    "phase81_preflight_byteidentical_outputs": 6
   },
   "latest_source_change": "Phase78 default-off verified model import;FP32 cosine768 Symphony only,short blocks native;no scan kernel changes.",
   "next_actions": [
-    "Commitstage36 usingexplicit archive seal plusrootreport;do notmixstage37 A/B files.",
-    "Archive/replay completed A/B statistics asstage37:bothpredeclared conclusions inconclusive;no posthoc threshold search.",
-    "Completephase81 metadata-only earlycenter preflight;freeze split/list before labels;define separate pilot protocol for budgeted binary thresholdloss,no primaryGT training.",
-    "Require stable>=25%QPS atRecall>=90 plus extraqueries;no newperformancecandidate accepted."
+    "Freeze minimal real-data two-code pilot protocol from notes/phase81_pilot_proposal.md before reading any score effects;earlystep<=8 means bucket/localcomparison,not actual stopping.",
+    "Use identical training split and feasible candidate domain for native,refit secondmoment anddecisionhinge;previous fullmodel only historicalreference.",
+    "Exhaustively solve the small frozen candidate domain;validate ideal decision andactualFastScan/FP32 bucketbehavior once onheldout queries;do not tune onvalidation.",
+    "Only expand if prespecified gate passes;future fullsearch must verify matchedrecallQPS,repeated timings andadditional queries."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
-  "original_repo_status": "",
+  "original_repo_status": "clean; original HEAD5a1c8a9852acd34c16114940b4cfc41e157dd9b7",
   "diagnostic47": "complete: no timing claims; original scalar full precision oracle lowest passing tested mean expansion27.268 vs30.763 baseline; fine-grid needed before strict optimality conclusions",
   "additional_queries_status": "Self-excluded database-query GT prepared, no graph results evaluated. External normalized query overlap0 atcos>0.999; max0.927826, model provenance still unverified.",
   "primary_measurement_rows": 1340,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "f3b3ea8b5e5be76a63499e33dd55c73cf81c3899",
-  "stage_commit_count": 35,
-  "extra_document_index_commits": 27,
-  "working_tree_status": "Stage36mechanicalreports andexplicitarchive ready tocommit;stage37A/Bfiles inparallel preparation;no production edits.",
+  "head": "35a0725a5517f682f76542bae3ea72bdae46487b",
+  "stage_commit_count": 38,
+  "extra_document_index_commits": 28,
+  "working_tree_status": "Stages36-38 committed; final document index pending. Production source unchanged since stage34; original zvec clean.",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -330,7 +341,7 @@
     "heldout_validated": false,
     "source_provenance_exception": "results/router60_prebuild_guard_change.json"
   },
-  "head_scope": "ActualdocsHEAD afterstage35;phase80 mechanical replay and A/B analyses inprogress,bench runtime state only.",
+  "head_scope": "Latest research stage38; next docs commit indexes36-38. Bench runtime state records actual docsHEAD after commit.",
   "diagnostic61": "Complete: three seeds fail5% prespecified reconstruction-error gate; local flip rates do not consistently improve.104ns incremental hot transform only; no search timing.",
   "directional62_probe": {
     "beta": 0.9359792556459329,
@@ -342,7 +353,7 @@
     "whole_search_gain": false
   },
   "diagnostic63": "Complete database-only two-parameter probe:6.02% local MSE gain;75 flips improve,70 worsen,paired interval crosseszero;unit endpoint bias coefficient0.05728 persists;not integrated.",
-  "latest_phase_result": "Phase78confirmation:all24timings and12queryoutputs validated;1340rows;learned slower thanfrozenbaseline,compiled-disabled also~2%slower;do notattributeallloss tolearner.",
+  "latest_phase_result": "Phase80 mechanisms A/B both inconclusive under frozen rules. Phase81 exact dual structure and ID-only preflight validated;no new retrieval timings,1340total.",
   "diagnostic64": "Complete candidate preparation only:1M database queries,200M candidate pairs;8-thread search time41.1757s;new refined graph not built or searched. Failed unbounded-bucket configuration preserved,not counted as performance.",
   "graph64_inputs": {
     "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
@@ -862,7 +873,7 @@
     "metadata_bytes_per_edge": 2,
     "fixed_graph_entry_degree_cap_ef": true
   },
-  "latest_research_stage": "Stage35:4round matched confirmation and independent raw/archived audit;learned code has no QPS gain;1340timingrows;phase80 diagnostics underway.",
+  "latest_research_stage": "Stage38:exact rational empirical hinge dual/safe-fixing checks and metadata-only query preflight,archived replay complete;no real-data newcode training.",
   "graph66_result": {
     "phase": 66,
     "executed_after_phase69": true,
@@ -4122,8 +4133,8 @@
   },
   "theoretical79_status": "Independent algebra and reused-proxy width diagnostic complete;Gram interval too wide (0/1024Top1 certificates for native and learned);no finiteprecision deployed certificate,not new blind queries.",
   "phase78_confirmation_log": "logs/confirm78.log",
-  "phase80_status": "Mechanicalvalidation complete andarchived replay passes;actual1000firstdivergences match;A/B main effects complete but bothinconclusive,beingseparatelyarchivedstage37.",
-  "previous_goal_turn_classification": "Progress:implemented and validated model import,completed full1M screen and theorem checks,committed stage34;started live confirmation.",
+  "phase80_status": "Complete:mechanicalvalidation andactualprefix,matchedqueryA,bucketB,allformatted fullreplays archived;both prespecified mechanisms inconclusive. Stop posthoc subgroup/threshold search.",
+  "previous_goal_turn_classification": "Progress:completed andcommitted mechanicalreplay andtwo frozeninconclusive diagnostics;derived andindependently checked dual/safe-fixing certificates;froze ID-only pilot data;no breakthrough claim.",
   "independent78_confirmation": {
     "complete": true,
     "rounds": 4,
@@ -4839,5 +4850,28 @@
   "phase80_actual_trace_exec_session_status": "9701 completed normally;do not restart",
   "phase80_scoring_exec_session_status": "loader full score completed with proof;first2 failedpreflights preserved",
   "phase80_mechanism_a_frozen_sampling_sha256": "ee0adfe3092cc3e40702a20992f68798ce597ec96eba0a7389572d482a41e94c",
-  "phase81_status": "Metadata-only hot-early-center preflight authorized on4096databasequerytrace;seed8101 split3072/1024,step<=8,traincount>=64,top32centers;no effectlabelread,no training."
+  "phase81_status": "Metadata-only3072/1024query split and20earlycenters frozen andarchive replay verified;19nonentrycenters cover905/1024valqueries. Synthetic exactdual certificates checked. Realdata trainingprotocol notyetfrozen or executed.",
+  "phase80_mechanism_A": {
+    "decision": "inconclusive",
+    "queries": 1000,
+    "states": 3793,
+    "centers": 3719,
+    "scoring_groups": 63297,
+    "delta_path_pp": -1.208333333333333,
+    "delta_proxy_pp": -2.978125,
+    "interaction_pp": 1.769791666666667,
+    "bootstrap_conditioned_on_fixed_shared_proxies": true,
+    "archive_replay_passed": true
+  },
+  "phase80_mechanism_B": {
+    "decision": "inconclusive",
+    "queries": 1000,
+    "eligible_pairs": 399721,
+    "delta_cont_pp": -0.09899,
+    "delta_bucket_pp": -0.08193,
+    "interaction_ci_crosses_zero": true,
+    "unchanged_priority_share_query_weighted": 0.389707,
+    "archive_replay_passed": true
+  },
+  "theoretical81_status": "Exact empirical-hinge weak duality and safe coordinate fixing verified with Fraction;standard duality and routing-aware prior art explicitly distinguished;not new MIP training or performance."
 }
