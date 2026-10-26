@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T19:37:13.594076+08:00",
+  "updated_at": "2026-10-26T20:18:08.871534+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -224,17 +224,26 @@
     "independent76_exact_real_model_centers": 2048,
     "independent76_exact_accepted_moves": 524119,
     "independent76_byte_identical_actual_scores": 2097152,
-    "independent76_thread_determinism_and_full_formatted_replay": true
+    "independent76_thread_determinism_and_full_formatted_replay": true,
+    "independent77_model_centers": 1000000,
+    "independent77_learned_centers": 997722,
+    "independent77_native_short_blocks": 2278,
+    "independent77_all_moves_replayed": 255336108,
+    "independent77_fixed_python_oracle_centers": 2048,
+    "independent77_python_exact_moves": 524148,
+    "independent77_all_actual_code_blocks_byte_identical": 1000000,
+    "independent77_strict_header_and_provenance_verified": true,
+    "independent77_archived_fullsampling_pilot_build_and_fullmodel_validation_replay_passed": true
   },
   "latest_source_change": "Stage24 default-off QG_FUSION addsFP16 edge error norms,bounded2048-slot cache,and versioned bucket;FP32/cosine768/degree32 only;disabled outputs preserve frozen baseline.",
   "next_actions": [
-    "Execute frozen notes/independent_code77_plan.md;keep selected stage75 objective and all parameters.",
-    "Verify frozen models64 inputs;generate deterministic internal-ID ordered PCG64 seed7602 full proxy table,16 per full-degree center,short blocks originalcodec.",
-    "Rotate all1M vectors with originalSymphony768 transform;verify norms and identical stage75 coordinates;no learned rotation or query/GT input.",
-    "Build versioned4096-header/3600-byte-record model with center/neighbor keys and3328 codes;pilot first8192 centers,thread determinism and independent Python sample before fullbuild.",
-    "After fullbuild verify all records,short-block native identity and fixed seed7701 sample2048 full-degree Python/codec equivalents;archive complete timing/RSS/hashes/audits.",
-    "Only after complete model acceptance implement default-off production loader with key/order/shape rejection and default baseline equivalence.",
-    "Then complete Cohere Top10 Recall>=90% repeated QPS and extra-query acceptance;1310 timing rows currently unchanged;best prior proj60_384 still no accepted25%breakthrough."
+    "Execute frozen notes/independent_code78_plan.md;modelSHA2ac03543d4a09ae655d38130419df41668e4d62bdd3231b49135d2603c39f138.",
+    "Complete independent78 import helper prototype with trustedSHA256/header,actual raw/rotated refs,strict records and mismatch rejection;unit/negative tests before production integration.",
+    "Default-off Symphony-only FP32 cosine768 degree32 prebuild loader;verify all current coordinates/rotation/final neighbor keys;copy fullblocks only,shortblocks current nativecodec;release mappings before query timing;clear/failure cannot silently fallback.",
+    "Run default regressions,compile macro/template guards,synthetic loading/lifecycle and real codec/rotation checks;disabled primary Top10 IDs+hex scores must match frozen bucket90_w16.",
+    "First enabled primary screen fixed margins.016/.020/.024/.028/.032/.040 atcap64/ef800;no retraining or seed/lambda/budget changes;select highestQPS meetingRecall>=.90.",
+    "Then matched1/8thread at least4rounds*3seconds versus frozen baseline margin.020 and samecompile disabled;alternate order;all other heavy work stopped during query timing.",
+    "Require extra-query validation and stable>=25%improvement before breakthrough;historical proj60_384 remains unaccepted best earlierQPS candidate;1310 retrieval rows unchanged."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "",
@@ -243,10 +252,10 @@
   "primary_measurement_rows": 1310,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "4aae9b54dbffbcb80b83086ea0f7dce03359b4e8",
-  "stage_commit_count": 32,
-  "extra_document_index_commits": 24,
-  "working_tree_status": "stage32 committed;documentation index follows",
+  "head": "1f3ba16fd87fe228951822a21a7751c883a312ab",
+  "stage_commit_count": 33,
+  "extra_document_index_commits": 25,
+  "working_tree_status": "stage33 committed;documentation index follows",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -266,7 +275,8 @@
     73,
     74,
     75,
-    76
+    76,
+    77
   ],
   "diagnostic58": "complete:17 configurations, no timing rows;full-dimensional scans and5 extra exact distances explicitly accounted;entry headroom supports low-cost router investigation",
   "router59_model": {
@@ -301,7 +311,7 @@
     "whole_search_gain": false
   },
   "diagnostic63": "Complete database-only two-parameter probe:6.02% local MSE gain;75 flips improve,70 worsen,paired interval crosseszero;unit endpoint bias coefficient0.05728 persists;not integrated.",
-  "latest_phase_result": "Phase76:C++ signs/moves match Python on all2048 centers;actual codes/scores identical;offline build2048 median elapsed11.0865s/1.4307s at1/8threads;all outputs deterministic. No fullgraph model yet,no new retrieval QPS/Recall,1310 rows.",
+  "latest_phase_result": "Phase77:full1M model complete and independently verified;997722learned/2278native,255336108moves;726.7429s8threadbuild,3138.125MiB. No production loader or new retrievalQPS/Recall;1310rows.",
   "diagnostic64": "Complete candidate preparation only:1M database queries,200M candidate pairs;8-thread search time41.1757s;new refined graph not built or searched. Failed unbounded-bucket configuration preserved,not counted as performance.",
   "graph64_inputs": {
     "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
@@ -821,7 +831,7 @@
     "metadata_bytes_per_edge": 2,
     "fixed_graph_entry_degree_cap_ef": true
   },
-  "latest_research_stage": "Stage32:C++ independent builder reproduces all2048 signs and524119 moves;actual codec byte-identical;offline build cost/resource gate passes;fullgraph still pending.",
+  "latest_research_stage": "Stage33:full1M independent code model accepted offline with all-code and all-move audits;fixed2048 Python references exact;no production source changes.",
   "graph66_result": {
     "phase": 66,
     "executed_after_phase69": true,
@@ -3857,5 +3867,73 @@
       }
     },
     "binary_sha256": "5cde1dae21e61a161b161a8785f7cee758df532e1cd8023e50d34975b7601333"
+  },
+  "phase77_status": "Complete:full model plus supplemental audits and archived replay pass.",
+  "phase77_log": "logs/runfull77.log",
+  "phase77_builder_log": "logs/fullbuild77_full.log",
+  "phase77_acceptance_when_complete": "results/independent77_full_acceptance.json",
+  "independent77_full_acceptance": {
+    "full_model_offline_validation_passed": true,
+    "build": {
+      "centers": 1000000,
+      "threads": 8,
+      "learned_blocks": 997722,
+      "native_blocks": 2278,
+      "updates": 255336108,
+      "elapsed_seconds": 726.742886168,
+      "peak_rss_kib": 3213440,
+      "requires_independent_validation": true,
+      "no_retrieval_qps_claim": true
+    },
+    "audit_and_python_oracle": {
+      "scope": "full",
+      "centers_audited": 1000000,
+      "learned_blocks": 997722,
+      "native_short_blocks": 2278,
+      "all_history_steps_monotone_and_budgets_valid": true,
+      "max_scale_ratio": 1.0199999883889739,
+      "max_radial_error": 1.1102230246251565e-16,
+      "max_actual_fp32_radial_error": 1.7539701457902623e-07,
+      "total_accepted_updates": 255336108,
+      "python_oracle_sample_centers": 2048,
+      "python_oracle_sample_rule": "fixed seed7701 before training",
+      "python_signs_and_all_moves_bit_identical": true,
+      "oracle_updates_compared": 524148,
+      "max_history_absolute_error": 1.5959455978986625e-16,
+      "max_lambda_absolute_error": 1.431146867680866e-17,
+      "codec_check_separately_required": true,
+      "no_retrieval_qps_claim": true
+    },
+    "actual_codec_validation": {
+      "centers": 1000000,
+      "learned_code_blocks_byte_identical": 997722,
+      "native_short_code_blocks_byte_identical": 2278,
+      "all_keys_and_neighbor_order_checked": true,
+      "scalar_lut_fma_bit_identical_scores": 16320
+    },
+    "input_hashes_before_and_after_verified": {
+      "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
+      "models64/full_vectors.f32": "5c9d8196d5c46d617c5cb3d9eedae5f9b8bf1677e370f210c5b84b08cdd66d24",
+      "models64/full_candidates.bin": "6c55553e87dae59c6c67babe4a5c65b1f92fedef4c83b0702a00f2ac4f61c830",
+      "fullbuild77": "5641364937e45931b121c327573d630970901b5eb2f94fee6eec55c1c3dcc03e",
+      "scripts/fullbuild77.cc": "57d3c1fc0630f7bc308794dd1cc79e0c27099b6f341e771b74c20cb9015bc25d",
+      "scripts/independent76.h": "c31b0a28b190c62751c530ca48ad553980cc515b71fdb69fd919ddd7beedec1e",
+      "models77/rotated.f32": "69787cd3b97ebc844a5547d76c10fdaca14a103f62d6fd3fe62a67caccf18f22",
+      "models77/proxies.u32": "460f6f8d88f0360b47e34dc9e2061fbe64f4af9e5763f096ae258bf3883a12a2",
+      "models77/header1000000.bin": "6fdcfd9d64ca1d469fa7bd6dce9c37e02a00d760105ec76567be6092f72a3b3f"
+    },
+    "output_sha256": {
+      "audit.bin": "67d023c0f2913762682453be60c83c340ae36741c329a1bc607a950f7d8372a3",
+      "blocks.bin": "2ac03543d4a09ae655d38130419df41668e4d62bdd3231b49135d2603c39f138",
+      "compact.u8": "cef344854a3a0051a21e453182ff521c4094fba666c7a431132c40e9f5cfdbb3",
+      "history.f64": "033bf5c6533f1d7654868928866cacbc0e12899751d387184eb26a0b0c75462b",
+      "moves.u16": "9c960ee051638540db3aa16029d23d4821038c269a4f18c72937df4abb41f95f"
+    },
+    "orchestrator_sha256": "8452e058bf33ba91bfb8c4ae34fdbf94a0ca1d3706beaa280f5a03102a90d34f",
+    "validation_script_sha256": "fd2c25d43d636316b2d7e0f163b1e97444f5bdf2b963cf92f42163d6483bbe21",
+    "codec_checker_sha256": "b91af7b8b837f8088f8c98046a0c2e0992d10750af84c49f94629a045555db49",
+    "total_pipeline_elapsed_seconds": 1052.2099498769967,
+    "production_loader_implemented": false,
+    "no_retrieval_qps_or_recall_claim": true
   }
 }

@@ -232,5 +232,12 @@
     "title": "test(qg): validate deterministic C++ sign optimizer and offline build cost",
     "validation": "5694 finite deltas vs direct objective;60 synthetic trajectories;all2048 centers final signs and524119 moves/order exactly Python;actual2048 codeblocks and2097152 scores byte-identical;65536 scalar LUT/FMA bit checks;1/8 thread1warmup+3round outputs byte-identical;formatted rebuild and full1/8thread/codec replay;input/source hashes unchanged",
     "conclusion": "2048-center offline build median elapsed11.0865s single,1.4307s eight threads;peak<=365.125MiB. Passes implementation/resource gate;full1M build still pending. No new query QPS/Recall or25%breakthrough;1310 timing rows."
+  },
+  {
+    "stage": "33",
+    "commit": "1f3ba16fd87fe228951822a21a7751c883a312ab",
+    "title": "test(qg): build and independently validate full Cohere sign-code model",
+    "validation": "1M proxy rows checked;997722 learned/2278 native blocks;all255336108 moves replay to compact with per-step radial feasibility;all1M actual code blocks independently reencoded;fixed2048 Python models524148 moves exact;16320scalarLUT/FMA checks;strict4096header/source hashes;7corruption guards;archived fullsampling,1/8thread8192rebuild and full1Mrecord/codec plus2048Python replay passed",
+    "conclusion": "Full1M model offline acceptance passes;8thread build726.7429s,3138.125MiB. ModelSHA2ac03543d4a09ae655d38130419df41668e4d62bdd3231b49135d2603c39f138. All recorded histories checked,all true intermediate objectives not recomputed. No production loader or new queryQPS/Recall;1310timing rows,no25%breakthrough."
   }
 ]
