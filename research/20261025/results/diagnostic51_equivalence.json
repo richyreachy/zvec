@@ -1,0 +1,17 @@
+{
+  "base": {
+    "queries": 1000,
+    "id_score_rows": 10000,
+    "exact_match": true
+  },
+  "cover_true": {
+    "queries": 1000,
+    "id_score_rows": 10000,
+    "exact_match": true
+  },
+  "cover_quantized": {
+    "queries": 1000,
+    "id_score_rows": 10000,
+    "exact_match": true
+  }
+}

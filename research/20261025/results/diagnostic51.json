@@ -1,0 +1,47 @@
+{
+  "diag51_base": {
+    "nodes": 1000000,
+    "valid_nodes": 1000000,
+    "edges": 31978472,
+    "entry_node_id": 934115,
+    "reachable": 999486,
+    "zero_indegree": 507,
+    "max_indegree": 1569,
+    "max_bfs_depth": 8,
+    "primary_gt_top10_unreachable_occurrences": 0,
+    "reachable_gt_fraction": 1.0,
+    "parent_tree_file": "/home/xingrui/bench/quantized_graph/research_20261025/results/diag51_base_parents.u32",
+    "parent_tree_sha256": "9459460e3bd02b9b7469fcd3afaf5144718482bc55e16d36ade884b334f0ceed",
+    "recall_at_margin_002_cap64": 0.9032
+  },
+  "diag51_cover_true": {
+    "nodes": 1000000,
+    "valid_nodes": 1000000,
+    "edges": 31978472,
+    "entry_node_id": 934115,
+    "reachable": 998405,
+    "zero_indegree": 1587,
+    "max_indegree": 2781,
+    "max_bfs_depth": 7,
+    "primary_gt_top10_unreachable_occurrences": 1,
+    "reachable_gt_fraction": 0.9999,
+    "parent_tree_file": "/home/xingrui/bench/quantized_graph/research_20261025/results/diag51_cover_true_parents.u32",
+    "parent_tree_sha256": "6d1a9512e87e4cfd3b80af1faf8b07780797b2c47de1228fa5b90fde1468584a",
+    "recall_at_margin_002_cap64": 0.7475
+  },
+  "diag51_cover_quantized": {
+    "nodes": 1000000,
+    "valid_nodes": 1000000,
+    "edges": 31978472,
+    "entry_node_id": 934115,
+    "reachable": 998436,
+    "zero_indegree": 1553,
+    "max_indegree": 2733,
+    "max_bfs_depth": 8,
+    "primary_gt_top10_unreachable_occurrences": 1,
+    "reachable_gt_fraction": 0.9999,
+    "parent_tree_file": "/home/xingrui/bench/quantized_graph/research_20261025/results/diag51_cover_quantized_parents.u32",
+    "parent_tree_sha256": "a44b4c1cdbd5693d25aacca992f7d938b34e62b1746ea2b5b37426b4908560f4",
+    "recall_at_margin_002_cap64": 0.7472
+  }
+}

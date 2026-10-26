@@ -10,3 +10,5 @@
 | 04 | `351fed1af14c` | test(qg): separate stopping estimates and batch exact refinement |
 | 05 | `394254126bf7` | test(qg): add low-rank residual error correction |
 | 06 | `a4d400d50fea` | test(qg): evaluate submodular local-radius edge selection |
+
+阶段07：`5f5b360c`，格式化后验证与拓扑诊断工具。阶段08的新增结论见 [08.md](stages/08.md)。
