@@ -1,0 +1,184 @@
+{
+  "passed_controls": true,
+  "decision": "inconclusive",
+  "mechanism": "A: benefit mismatch between native path query and matched heldout database proxies",
+  "effects_query_equal_weight": {
+    "delta_path": {
+      "estimate": -0.01208333333333333,
+      "ci97_5": [
+        -0.022834375000000007,
+        -0.0013333333333333335
+      ]
+    },
+    "delta_proxy": {
+      "estimate": -0.029781250000000002,
+      "ci97_5": [
+        -0.03289589843749999,
+        -0.026614518229166655
+      ]
+    },
+    "I_A": {
+      "estimate": 0.01769791666666667,
+      "ci97_5": [
+        0.006114518229166668,
+        0.028990690104166685
+      ]
+    }
+  },
+  "error_rates_query_equal_weight": {
+    "path_native": 0.23875,
+    "path_learned": 0.22666666666666666,
+    "proxy_native": 0.19790104166666667,
+    "proxy_learned": 0.16811979166666666
+  },
+  "raw_numerators_denominators": {
+    "path_native_errors": 935,
+    "path_learned_errors": 886,
+    "path_states": 3793,
+    "matched_proxy_native_errors": 12058,
+    "matched_proxy_learned_errors": 10246,
+    "matched_proxy_observations": 60688,
+    "unique_center_proxy_observations": 59504,
+    "proxy_corrections": 4040,
+    "proxy_correction_source_queries": 976,
+    "proxy_worsenings": 2228,
+    "path_corrections": 202,
+    "path_worsenings": 153,
+    "path_worsening_source_queries": 143
+  },
+  "eligible_queries": 1000,
+  "ineligible_query_ids": [],
+  "sufficiency_passed": true,
+  "support_conditions_passed": false,
+  "refute_conditions_passed": false,
+  "frozen_analysis_configuration": {
+    "top1_exact_tie_tolerance": 1e-07,
+    "selection_ties": "first minimum lane",
+    "state_proxy_average": "mean of 16 heldout proxy indicators",
+    "query_average": "mean over eligible fixed states, then equal weight over eligible queries",
+    "bootstrap_replicates": 4000,
+    "bootstrap_seed": 8002,
+    "bootstrap_unit": "eligible query cluster",
+    "two_sided_ci_percent": 97.5,
+    "ci_quantiles": [
+      0.0125,
+      0.9875
+    ],
+    "bootstrap_numpy_quantile_method": "linear",
+    "critical_correction_definition": "proxy native Top1 wrong to learned Top1 correct; count matched-state proxy observations and distinct source queries",
+    "sufficiency": {
+      "eligible_queries_min": 64,
+      "proxy_corrections_min": 100,
+      "proxy_correction_source_queries_min": 32
+    },
+    "path_degradation_counts": "report separately; no extra sufficiency threshold",
+    "support": {
+      "delta_proxy_max": -0.02,
+      "delta_path_min": 0.005,
+      "interaction_ci_lower_strict_min": 0
+    },
+    "refute": {
+      "delta_path_max": -0.02,
+      "interaction_ci_upper_max": 0.01
+    },
+    "controls": [
+      "native/native score bits and choices identical",
+      "exact-reference Top1 error zero with same tie rule",
+      "complete 16-training-proxy objective nonincrease"
+    ]
+  },
+  "bootstrap": {
+    "replicates": 4000,
+    "seed": 8002,
+    "cluster": "eligible query",
+    "two_sided_percent": 97.5
+  },
+  "controls": {
+    "actual_native_native_bit_identical_lanes": 2025504,
+    "native_native_choice_or_indicator_changes": 0,
+    "native_native_delta_path": 0,
+    "native_native_delta_proxy": 0,
+    "native_native_I_A": 0,
+    "exact_top1_errors": 0,
+    "complete_training_objective_nonincrease_centers": 3719,
+    "training_objective_relative_changes_percentiles": [
+      -0.48530979617434555,
+      -0.38726993923475034,
+      -0.3694173867713949,
+      -0.3499362231775701,
+      -0.25558048931226707
+    ]
+  },
+  "descriptive_not_new_hypothesis_tests": {
+    "path": {
+      "observations": 3793,
+      "true_top1_tied_observations": 0,
+      "non_tied_true_top1_pairs": 117583,
+      "native_signed_gap_wrong_or_zero": 1544,
+      "learned_signed_gap_wrong_or_zero": 1443,
+      "signed_gap_negative_to_positive": 438,
+      "signed_gap_positive_to_negative": 337,
+      "query_center_exact_distance_percentiles": [
+        0.03855711221694946,
+        0.11478358507156372,
+        0.1386951208114624,
+        0.17066717147827148,
+        0.2865481972694397
+      ],
+      "rotated_delta_norm_percentiles": [
+        0.2776946983210189,
+        0.4791316091109884,
+        0.5266788131441161,
+        0.5842385886162416,
+        0.7570313306943547
+      ],
+      "native_actual_mse": 5.0742433340870636e-05,
+      "learned_actual_mse": 4.119031662929742e-05
+    },
+    "proxy_unique_center_observations": {
+      "observations": 59504,
+      "true_top1_tied_observations": 0,
+      "non_tied_true_top1_pairs": 1844624,
+      "native_signed_gap_wrong_or_zero": 18126,
+      "learned_signed_gap_wrong_or_zero": 14127,
+      "signed_gap_negative_to_positive": 7745,
+      "signed_gap_positive_to_negative": 3746,
+      "query_center_exact_distance_percentiles": [
+        0.0006042122840881348,
+        0.1139514148235321,
+        0.13292545080184937,
+        0.1586744785308838,
+        0.38277924060821533
+      ],
+      "rotated_delta_norm_percentiles": [
+        0.03476675857425962,
+        0.47739175649896676,
+        0.5156074699863662,
+        0.5633374283320385,
+        0.8749621137108536
+      ],
+      "native_actual_mse": 4.7250490074405404e-05,
+      "learned_actual_mse": 2.7786693319843033e-05
+    }
+  },
+  "ideal_score_error_and_training_subspace_projection": "deferred descriptive follow-up; not required for this preregistered main effect",
+  "sampling_manifest": "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1/path80_matched_v1/sampling_manifest.json",
+  "sampling_manifest_sha256": "ee0adfe3092cc3e40702a20992f68798ce597ec96eba0a7389572d482a41e94c",
+  "score_proof": "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1/path80_matched_v1/score_v1/proof.json",
+  "score_proof_sha256": "99ff9e462a9c728e83fcbe4b31105a00a10d3490959d8137dbacf96939f08934",
+  "analysis_script_sha256": "4af2fa4677d51841b5805ded6bd93399f9ef72c49cd53863a09251f23da3a63c",
+  "primary_queries_already_tuned_not_blind": true,
+  "off_policy_native_states": true,
+  "new_training_or_retrieval": false,
+  "limitations": [
+    "Bootstrap describes stability on reused queries, not independent generalization",
+    "Same-center holdouts do not isolate query-center distance, candidate difficulty or arrival selection",
+    "No attribution of all recall/QPS differences and no learned-path claim"
+  ],
+  "artifact_sha256": {
+    "per_query.json": "2f530e609d6a11168a6603fff2ce8ad1ffc6805b69569e7c2be2f5cda9e9dea2",
+    "per_state.csv": "ae6488ccf7952e6073e21cc734b7106aa3c17bd3eb7a49d60534680d3539a8b0",
+    "bootstrap.f64": "de5e5200df74fa1e73bb3eb49062c66c75715526e701cd9ba57a2733ea335141",
+    "signed_gap_diagnostics.npz": "739c05bb019e1d4e873c57874ee34a54977f8577b85c1d4b5dffe43189bcc4c6"
+  }
+}

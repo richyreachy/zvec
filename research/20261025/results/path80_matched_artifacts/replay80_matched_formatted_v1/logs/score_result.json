@@ -1,0 +1,12 @@
+{
+  "phase": "score",
+  "argv": [
+    "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1/path80_matched_v1/score_v1/score",
+    "/home/xingrui/bench/quantized_graph/research_20261025",
+    "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1/path80_matched_v1",
+    "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1/path80_matched_v1/score_v1"
+  ],
+  "returncode": 0,
+  "elapsed_seconds": 39.319308280944824,
+  "log": "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1/logs/score.log"
+}

@@ -1,0 +1,11 @@
+{
+  "phase": "sample",
+  "argv": [
+    "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+    "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1/scripts/path80_matched_sample.py",
+    "path80_matched_generated_v1"
+  ],
+  "returncode": 0,
+  "elapsed_seconds": 1.9141879081726074,
+  "log": "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1/logs/sample.log"
+}

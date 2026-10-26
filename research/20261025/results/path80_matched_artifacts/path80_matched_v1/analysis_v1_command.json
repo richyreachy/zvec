@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/path80_matched_analyze.py",
+    "path80_matched_v1",
+    "score_v1",
+    "analysis_v1"
+  ],
+  "cwd": "/home/xingrui/bench/quantized_graph/research_20261025",
+  "script_sha256": "10099c1609c1c999c1be139931e4a9968881d79f41eceaf3c04d4c97c24c031c",
+  "started_unix": 1793022704.226974
+}

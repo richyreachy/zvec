@@ -1,0 +1,61 @@
+{
+  "version": "mechanism_b_forced_native_v1",
+  "frozen_before_effect_statistics": true,
+  "population": "all 1000 existing primary native traces, query IDs 0..999; full native path, forced-native/off-policy learned scores after divergence",
+  "query_count": 1000,
+  "primary_block_degree": 32,
+  "short_blocks": "count separately; no replacement and excluded from the prespecified Top1-versus-31 primary statistic",
+  "anchor": "first lane attaining the minimum exact FP32 reference distance over the complete 32-lane block, before pending filtering",
+  "pair_eligibility": "anchor and competitor are distinct targets, both unexpanded after the source-center expansion; exact distance competitor-anchor > 1e-7",
+  "true_tie_tolerance": 1e-07,
+  "true_ties": "count separately; excluded from error-rate denominators",
+  "continuous_preference": "anchor score strictly less than competitor score; approximate score equality conservatively counts as an error",
+  "bucket_preference": "lexicographic ascending (actual bucket ID, negative proposal arrival serial); same bucket uses LIFO",
+  "proposal_arrival": "increment for every lane, including visited targets, as in validated replay; compare local proposal tokens, not global queue winners",
+  "query_weighting": "equal weight over queries with at least one eligible pair; report queries with no eligible pair without filling their undefined ratios with zero",
+  "delta_cont": "mean_query[(learned continuous errors-native continuous errors)/n_pairs]",
+  "delta_bucket": "mean_query[(learned bucket errors-native bucket errors)/n_pairs]",
+  "interaction": "I_B=delta_bucket-delta_cont",
+  "E_numerator": "mean_query[(continuous native-wrong learned-correct AND unchanged local bucket preference)/n_pairs]",
+  "E_denominator": "mean_query[(continuous native-wrong learned-correct)/n_pairs]",
+  "E": "E_numerator/E_denominator; not mean_query[unchanged/corrections]; additionally report raw unchanged and correction counts",
+  "zero_E_denominator": "E is null and mechanism gate is insufficient",
+  "bootstrap": {
+    "unit": "query, preserving every within-query comparison and using one shared index draw across metrics",
+    "samples": 4000,
+    "seed": 8002,
+    "rng": "numpy.random.default_rng PCG64",
+    "two_sided_confidence": 0.975,
+    "quantiles": [
+      0.0125,
+      0.9875
+    ],
+    "metrics": [
+      "delta_cont",
+      "delta_bucket",
+      "I_B",
+      "E"
+    ],
+    "interpretation": "descriptive query-cluster stability on repeatedly used queries, not an independent population guarantee"
+  },
+  "minimum_valid_queries": 64,
+  "minimum_continuous_corrections": 100,
+  "minimum_queries_with_continuous_corrections": 32,
+  "support_gate": "delta_cont<=-0.01 AND delta_bucket>=0 AND E>=0.75 AND CI97.5(I_B).lower>0, with all minimum counts satisfied",
+  "refutation_gate": "E<=0.25 AND delta_bucket<=-0.01 AND CI97.5(delta_bucket).upper<0, with all minimum counts satisfied",
+  "otherwise": "inconclusive, or insufficient if minimum counts/E denominator fail; no parameter/split changes",
+  "controls": [
+    "native-vs-native pair comparison must give identical continuous/bucket errors and zero corrections/interaction",
+    "exact-reference continuous score comparison must give zero errors for all eligible non-tied pairs"
+  ],
+  "native_events": "/home/xingrui/bench/quantized_graph/research_20261025/models68/primary/events.bin",
+  "native_events_sha256": "4787aa0f822bb2ddf35f4af28c04579283fac5d557fbea74c9f1802047d3d04c",
+  "overlay_events": "/home/xingrui/bench/quantized_graph/research_20261025/path80_native_v1/native_path_learned_scores.bin",
+  "overlay_events_sha256": "bf68e1b90065d66b71a2183abc0e484ec5ff55e12257375fdc79ba9b1e9a447a",
+  "validated_bucket_module": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/trace80_replay_v2.py",
+  "validated_bucket_module_sha256": "2cb8ba79ac54c3968c9f4c86158a05ad67a5574c0f003032ecb471b96e98b07f",
+  "validated_parser_module": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/check80_actual_prefix_v1.py",
+  "validated_parser_module_sha256": "689b330efa90d8d527800586bcfea4d7ccbbcbff3dafab66f6cbe19eaf1584e6",
+  "no_new_training_parameter_selection_or_gt_reads": true,
+  "no_actual_learned_path_claim_after_first_divergence": true
+}

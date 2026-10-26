@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "path_observations": 3793,
+  "unique_centers": 3719,
+  "proxy_observations": 59504,
+  "observations": 63297,
+  "native_native_bit_identical_lanes": 2025504,
+  "path_native_exact_trace_bit_identical_lanes": 121376,
+  "path_learned_accepted_overlay_bit_identical_lanes": 121376,
+  "exact_top1_positive_control_observations": 63297,
+  "full_training_objective_nonincreasing_centers": 3719,
+  "actual_base_rotations_verified": 124409,
+  "proxy_query_preparation": "actual HNSW prepare and FP32 Turbo callback on frozen normalized database vector",
+  "no_training_or_parameter_fit": true,
+  "off_policy_native_states": true,
+  "retrieval_or_qps_run": false,
+  "frozen_sampling_manifest_sha256": "ee0adfe3092cc3e40702a20992f68798ce597ec96eba0a7389572d482a41e94c",
+  "artifact_sha256": {
+    "observations.bin": "9c36250e9a5e0d507be9e8b1712b732e90ab35fdf33e9f2013db92f6f1373ad6",
+    "training_controls.f64": "c34df74e3b936a8534f3a1681060147a7b259433d3e71462c32530f4546fb755",
+    "score_controls.json": "61651e4e1bf2def33510658c900251ff5139015fed0279dade4cedff98190d75"
+  },
+  "source_and_inputs_unchanged": true,
+  "archived_source_sha256": {
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/path80_matched_sample.py": "102329704768641aed6f366abdcc51606231ef430808edfe7c5fe980dca03851",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/path80_matched_analyze.py": "4af2fa4677d51841b5805ded6bd93399f9ef72c49cd53863a09251f23da3a63c",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/path80_matched_run.py": "93a35cfef0d65a77e2808dfeb8e368a381146f8109355c9b080fa712afe814ab",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/path80_matched_score.cc": "28a8940b39344dd2b77cb35caef9511077be4a5b99410fe0e442d9a7f1b338a5",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/path80_score.cc": "f49c51adf1975f1f9949525fbe3679ee751022a676cf3ec85be316b95d6edbc5",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/independent78_import.h": "de8d451fd0319c6046b971d2ba2be81c51b3973bfee8b9b6aa3fadb4b7647d4e",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/coupled73_codec.h": "acccc8deb1f07dcc3d505e0f268c38ab192f32cff670b26c205745c7dc61889c"
+  },
+  "replay_kind": "full formatted scorer byte comparison",
+  "original_score_proof": "/home/xingrui/bench/quantized_graph/research_20261025/path80_matched_v1/score_v1/proof.json",
+  "original_score_proof_sha256": "9fdb60d09982d52d12c511a9aa698f8c746fb9211bd1bca40fcdb7cf2577ea00",
+  "model_sha256": "2ac03543d4a09ae655d38130419df41668e4d62bdd3231b49135d2603c39f138",
+  "source_events_sha256": "4787aa0f822bb2ddf35f4af28c04579283fac5d557fbea74c9f1802047d3d04c"
+}

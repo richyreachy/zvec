@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/replay80_matched_formatted_v1.py",
+    "--bench-root",
+    "/home/xingrui/bench/quantized_graph/research_20261025",
+    "--archive-root",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025",
+    "--out",
+    "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1"
+  ],
+  "cwd": "/home/xingrui/bench/quantized_graph/research_20261025"
+}

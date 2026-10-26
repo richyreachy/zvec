@@ -7,3 +7,9 @@ thirdparty/RaBitQ-Library/*.patch whitespace=-blank-at-eol
 
 # Frozen unified diffs retain empty context lines, including at the end of a hunk.
 research/20261025/results/path80_artifacts/replay80_formatted_v1/source_diffs/*.diff whitespace=-blank-at-eol,-blank-at-eof
+
+# Preserve the exact csv.writer CRLF bytes of frozen research evidence.
+research/20261025/results/path80_matched_artifacts/path80_matched_v1/analysis_v1/per_state.csv whitespace=cr-at-eol
+research/20261025/results/path80_mechanism_b_queries_v1.csv whitespace=cr-at-eol
+# Captured hook output retains its original final blank line.
+research/20261025/results/path80_matched_artifacts/replay80_matched_formatted_v1/precommit.log whitespace=-blank-at-eof

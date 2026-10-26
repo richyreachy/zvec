@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1/path80_matched_v1/score_v1/score",
+    "/home/xingrui/bench/quantized_graph/research_20261025",
+    "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1/path80_matched_v1",
+    "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1/path80_matched_v1/score_v1"
+  ],
+  "cwd": "/home/xingrui/bench/quantized_graph/research_20261025/replay80_matched_formatted_v1",
+  "environment": {
+    "LD_LIBRARY_PATH": "/home/xingrui/bench/quantized_graph/research_20261025/variants/trace68_native:/home/xingrui/bench/quantized_graph/research_20261025/lib",
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1"
+  }
+}
