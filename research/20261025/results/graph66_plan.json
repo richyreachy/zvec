@@ -1,0 +1,31 @@
+{
+  "labels": [
+    0,
+    10000,
+    20000,
+    30000,
+    40000,
+    50000,
+    60000
+  ],
+  "margin_denominator": 1000000,
+  "graphs": [
+    "original",
+    "nearest",
+    "angular"
+  ],
+  "scores": [
+    "onebit",
+    "exact"
+  ],
+  "topk": 10,
+  "degree": 32,
+  "ef": 800,
+  "cap": 64,
+  "bucket_width": 0.016,
+  "same_original_entry": true,
+  "primary_not_blind": true,
+  "no_qps_measurement": true,
+  "oracle_not_deployable_or_lower_bound": true,
+  "graph_models_fixed_in_phase65": true
+}

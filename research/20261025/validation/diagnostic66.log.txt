@@ -1,0 +1,15 @@
+BUILT graph66_onebit
+BUILT graph66_exact
+START diag66_original_onebit
+DONE diag66_original_onebit
+START diag66_original_exact
+DONE diag66_original_exact
+START diag66_nearest_onebit
+DONE diag66_nearest_onebit
+START diag66_nearest_exact
+DONE diag66_nearest_exact
+START diag66_angular_onebit
+DONE diag66_angular_onebit
+START diag66_angular_exact
+DONE diag66_angular_exact
+DIAGNOSTIC66 COMPLETE
