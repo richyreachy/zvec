@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T17:09:19.593212+08:00",
+  "updated_at": "2026-10-26T17:50:09.584903+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -173,16 +173,21 @@
     "graph66_source_manifests": 2,
     "graph66_pair_identity_cases": 4096,
     "graph66_gaussian_queries_per_rotation": 200000,
-    "graph66_formatted_replay_identical": true
+    "graph66_formatted_replay_identical": true,
+    "rank70_gradient_probes": 120,
+    "rank70_rotated_vectors": 303104,
+    "rank70_candidate_gap_checks": 1048576,
+    "rank70_training_steps_total": 1800,
+    "rank70_actual_codec_validation_queries_per_model": 8192,
+    "rank70_simd_scalar_coordinates": 2304000,
+    "rank70_formatted_replay_identical": true
   },
   "latest_source_change": "Stage24 default-off QG_FUSION addsFP16 edge error norms,bounded2048-slot cache,and versioned bucket;FP32/cosine768/degree32 only;disabled outputs preserve frozen baseline.",
   "next_actions": [
-    "Follow notes/rank_rotation70_plan.md:database-only local-query proxies on fixed original32-edge graph;learn few fixed Givens layers for actual candidate ranking,not global reconstruction MSE.",
-    "Before training,derive/check piecewise rotation gradients including rotated query and residual L1 factor;sign crossings require evaluating real finite-step loss,not a global smoothness claim.",
-    "Use fixed center train/validation split and fixed candidate-pool proxy positions;report shared endpoint/query overlap;do not read primary or extra-query GT to train/select models.",
-    "Require at least5%relative heldout actual batch-top1 error reduction with paired uncertainty before online integration;surrogate loss decline alone is insufficient;limit predefined seeds/layers.",
-    "Include all query rotation overhead in complete searches;after offline gate first database proxy validation,then frozen model primary QPS/recall;only clear gains justify combinations/extra-query acceptance.",
-    "Do not expand full first-two fusion or nearest/angular completion parameter grids;historical proj60_384 remains candidate best,not an accepted25%breakthrough."
+    "Execute frozen notes/local_rotation71_plan.md:2048 new centers, fixed four-model bank;16 selection and16 separate validation database proxies per center.",
+    "Require at least10%relative heldout actual batch-top1 error reduction with paired center95%lower positive;otherwise stop this local bank branch.",
+    "No primary/extraquery GT for frame selection. Report shared endpoints and posthoc origins;no IID or novelty claim.",
+    "Only after gate passes consider fullgraph selection and all four query-transform/LUT costs;historical proj60_384 remains best candidate,not accepted25%breakthrough."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "",
@@ -191,10 +196,10 @@
   "primary_measurement_rows": 1310,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "8c7fc22b686e3a937cdd1b199778ae35a182de0c",
-  "stage_commit_count": 25,
-  "extra_document_index_commits": 17,
-  "working_tree_status": "stage25 committed;documentation index and archive CSV line-ending update follows",
+  "head": "573be4f24fbe5f36feeb4b453f340771133ced07",
+  "stage_commit_count": 26,
+  "extra_document_index_commits": 18,
+  "working_tree_status": "stage26 committed;documentation index follows",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -207,7 +212,8 @@
     67,
     68,
     69,
-    66
+    66,
+    70
   ],
   "diagnostic58": "complete:17 configurations, no timing rows;full-dimensional scans and5 extra exact distances explicitly accounted;entry headroom supports low-cost router investigation",
   "router59_model": {
@@ -242,7 +248,7 @@
     "whole_search_gain": false
   },
   "diagnostic63": "Complete database-only two-parameter probe:6.02% local MSE gain;75 flips improve,70 worsen,paired interval crosseszero;unit endpoint bias coefficient0.05728 persists;not integrated.",
-  "latest_phase_result": "Phase66 executed after69:nearest exact-score90.41%/25.474 expansions vs original90.83%/27.268;angular no meaningful work reduction. Actual one-bit orthogonal rotation reduces individual errors yet increases equal-radius Gaussian rank risk15.99%->21.77%. No new timing or performance claim;1310 rows.",
+  "latest_phase_result": "Phase70:all three global rank-trained rotations fail gate;actual Top1 errors1853 baseline vs1879/1904/1898 out of8192. Posthoc local leave-one-out gain0.86%,CI crosses zero. Zero new retrieval timing rows;1310 cumulative.",
   "diagnostic64": "Complete candidate preparation only:1M database queries,200M candidate pairs;8-thread search time41.1757s;new refined graph not built or searched. Failed unbounded-bucket configuration preserved,not counted as performance.",
   "graph64_inputs": {
     "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
@@ -762,7 +768,7 @@
     "metadata_bytes_per_edge": 2,
     "fixed_graph_entry_degree_cap_ef": true
   },
-  "latest_research_stage": "Stage25 completes graph/score diagnostics and proves an actual one-bit ranking counterexample;no production source changes.",
+  "latest_research_stage": "Stage26 rejects global ranking-trained rotations after actual-codec validation;no production source changes.",
   "graph66_result": {
     "phase": 66,
     "executed_after_phase69": true,
@@ -1932,5 +1938,431 @@
     "not_cohere_query_model": true,
     "not_a_novelty_claim": true,
     "no_online_speed_or_recall_claim": true
+  },
+  "rank70_training": {
+    "config": {
+      "centers": 8192,
+      "eligible_full_degree_centers": 997722,
+      "neighbors": 32,
+      "queries_per_center": 4,
+      "query_candidate_positions": [
+        16,
+        63,
+        127,
+        199
+      ],
+      "nonedge_distinct_query_selection_forward_wrap": true,
+      "positions_replaced": 3687,
+      "center_seed": 7001,
+      "split_seed": 7002,
+      "train_centers": 6144,
+      "validation_centers": 2048,
+      "shared_noncenter_ids_between_folds": 19468,
+      "primary_or_extra_query_files_read": false,
+      "gt_files_read": false,
+      "internal_database_proxies_not_unseen_vectors": true,
+      "seeds": [
+        70,
+        71,
+        72
+      ],
+      "layers": 3,
+      "pair_strides": [
+        1,
+        16,
+        384
+      ],
+      "steps": 600,
+      "batch_centers": 32,
+      "temperature": 0.01,
+      "tie_tolerance": 1e-07,
+      "initial_lr": 0.003,
+      "final_lr_fraction": 0.1,
+      "backtrack_factors": [
+        1.0,
+        0.5,
+        0.25,
+        0.125,
+        0.0625
+      ],
+      "update_acceptance": "actual same-batch crossentropy must not increase;otherwise keep angles,record rejected update",
+      "final_step_evaluated": 600,
+      "validation_not_used_for_checkpoint_selection": true,
+      "gate": {
+        "each_seed_actual_top1_relative_error_gain": 0.05,
+        "paired_center_bootstrap_gain_lower95_positive": true,
+        "all_seeds_required": true
+      },
+      "no_qps_claim": true
+    },
+    "baseline_validation": {
+      "crossentropy": 0.8183081883595829,
+      "top1_error_rate": 0.2259521484375,
+      "top1_errors": 1851,
+      "queries": 8192,
+      "near_pair_error_rate": 0.081573486328125,
+      "near_pair_count": 32768,
+      "tied_minimum_queries": 0
+    },
+    "seeds": [
+      {
+        "seed": 70,
+        "history": [
+          {
+            "step": 1,
+            "train_fixed_subset": {
+              "crossentropy": 0.8500763323455526,
+              "top1_error_rate": 0.2255859375,
+              "top1_errors": 231,
+              "queries": 1024,
+              "near_pair_error_rate": 0.0859375,
+              "near_pair_count": 4096,
+              "tied_minimum_queries": 0
+            },
+            "accepted_updates": 1,
+            "elapsed_seconds": 4.916779428953305
+          },
+          {
+            "step": 100,
+            "train_fixed_subset": {
+              "crossentropy": 0.8510158737784361,
+              "top1_error_rate": 0.2353515625,
+              "top1_errors": 241,
+              "queries": 1024,
+              "near_pair_error_rate": 0.08544921875,
+              "near_pair_count": 4096,
+              "tied_minimum_queries": 0
+            },
+            "accepted_updates": 92,
+            "elapsed_seconds": 27.740439867950045
+          },
+          {
+            "step": 300,
+            "train_fixed_subset": {
+              "crossentropy": 0.8461077583661294,
+              "top1_error_rate": 0.2275390625,
+              "top1_errors": 233,
+              "queries": 1024,
+              "near_pair_error_rate": 0.08447265625,
+              "near_pair_count": 4096,
+              "tied_minimum_queries": 0
+            },
+            "accepted_updates": 272,
+            "elapsed_seconds": 73.24767799896654
+          },
+          {
+            "step": 600,
+            "train_fixed_subset": {
+              "crossentropy": 0.8412416641533953,
+              "top1_error_rate": 0.2314453125,
+              "top1_errors": 237,
+              "queries": 1024,
+              "near_pair_error_rate": 0.08447265625,
+              "near_pair_count": 4096,
+              "tied_minimum_queries": 0
+            },
+            "accepted_updates": 524,
+            "elapsed_seconds": 147.80404479801655
+          }
+        ],
+        "validation": {
+          "crossentropy": 0.8213442589396363,
+          "top1_error_rate": 0.2283935546875,
+          "top1_errors": 1871,
+          "queries": 8192,
+          "near_pair_error_rate": 0.083282470703125,
+          "near_pair_count": 32768,
+          "tied_minimum_queries": 0
+        },
+        "relative_top1_error_reduction": -0.010804970286331712,
+        "paired_center_bootstrap95": [
+          -0.04273246471057198,
+          0.01976847607822596
+        ],
+        "quality_gate_passed": false,
+        "accepted_updates": 524,
+        "rejected_updates": 76,
+        "backtrack_attempts": 1309,
+        "max_abs_angle": 0.19927218133726296
+      },
+      {
+        "seed": 71,
+        "history": [
+          {
+            "step": 1,
+            "train_fixed_subset": {
+              "crossentropy": 0.8524008615574956,
+              "top1_error_rate": 0.2333984375,
+              "top1_errors": 239,
+              "queries": 1024,
+              "near_pair_error_rate": 0.086181640625,
+              "near_pair_count": 4096,
+              "tied_minimum_queries": 0
+            },
+            "accepted_updates": 1,
+            "elapsed_seconds": 152.727013658965
+          },
+          {
+            "step": 100,
+            "train_fixed_subset": {
+              "crossentropy": 0.8624646399591875,
+              "top1_error_rate": 0.236328125,
+              "top1_errors": 242,
+              "queries": 1024,
+              "near_pair_error_rate": 0.089111328125,
+              "near_pair_count": 4096,
+              "tied_minimum_queries": 0
+            },
+            "accepted_updates": 88,
+            "elapsed_seconds": 176.33713759691454
+          },
+          {
+            "step": 300,
+            "train_fixed_subset": {
+              "crossentropy": 0.8525185323221244,
+              "top1_error_rate": 0.232421875,
+              "top1_errors": 238,
+              "queries": 1024,
+              "near_pair_error_rate": 0.08544921875,
+              "near_pair_count": 4096,
+              "tied_minimum_queries": 0
+            },
+            "accepted_updates": 258,
+            "elapsed_seconds": 224.72471067402512
+          },
+          {
+            "step": 600,
+            "train_fixed_subset": {
+              "crossentropy": 0.855780567975237,
+              "top1_error_rate": 0.2314453125,
+              "top1_errors": 237,
+              "queries": 1024,
+              "near_pair_error_rate": 0.08642578125,
+              "near_pair_count": 4096,
+              "tied_minimum_queries": 0
+            },
+            "accepted_updates": 528,
+            "elapsed_seconds": 293.8004669669317
+          }
+        ],
+        "validation": {
+          "crossentropy": 0.821347077332604,
+          "top1_error_rate": 0.231201171875,
+          "top1_errors": 1894,
+          "queries": 8192,
+          "near_pair_error_rate": 0.082794189453125,
+          "near_pair_count": 32768,
+          "tied_minimum_queries": 0
+        },
+        "relative_top1_error_reduction": -0.023230686115613183,
+        "paired_center_bootstrap95": [
+          -0.056278191714414796,
+          0.007368907096236635
+        ],
+        "quality_gate_passed": false,
+        "accepted_updates": 528,
+        "rejected_updates": 72,
+        "backtrack_attempts": 1287,
+        "max_abs_angle": 0.18459163711538
+      },
+      {
+        "seed": 72,
+        "history": [
+          {
+            "step": 1,
+            "train_fixed_subset": {
+              "crossentropy": 0.8504790096573698,
+              "top1_error_rate": 0.232421875,
+              "top1_errors": 238,
+              "queries": 1024,
+              "near_pair_error_rate": 0.086669921875,
+              "near_pair_count": 4096,
+              "tied_minimum_queries": 0
+            },
+            "accepted_updates": 1,
+            "elapsed_seconds": 298.6215238699224
+          },
+          {
+            "step": 100,
+            "train_fixed_subset": {
+              "crossentropy": 0.851259897674973,
+              "top1_error_rate": 0.2431640625,
+              "top1_errors": 249,
+              "queries": 1024,
+              "near_pair_error_rate": 0.086669921875,
+              "near_pair_count": 4096,
+              "tied_minimum_queries": 0
+            },
+            "accepted_updates": 92,
+            "elapsed_seconds": 320.81185650092084
+          },
+          {
+            "step": 300,
+            "train_fixed_subset": {
+              "crossentropy": 0.8457392409944209,
+              "top1_error_rate": 0.2373046875,
+              "top1_errors": 243,
+              "queries": 1024,
+              "near_pair_error_rate": 0.086181640625,
+              "near_pair_count": 4096,
+              "tied_minimum_queries": 0
+            },
+            "accepted_updates": 273,
+            "elapsed_seconds": 367.03415621095337
+          },
+          {
+            "step": 600,
+            "train_fixed_subset": {
+              "crossentropy": 0.8454893880640486,
+              "top1_error_rate": 0.232421875,
+              "top1_errors": 238,
+              "queries": 1024,
+              "near_pair_error_rate": 0.083984375,
+              "near_pair_count": 4096,
+              "tied_minimum_queries": 0
+            },
+            "accepted_updates": 534,
+            "elapsed_seconds": 438.5185923780082
+          }
+        ],
+        "validation": {
+          "crossentropy": 0.8197726597865884,
+          "top1_error_rate": 0.2318115234375,
+          "top1_errors": 1899,
+          "queries": 8192,
+          "near_pair_error_rate": 0.082244873046875,
+          "near_pair_count": 32768,
+          "tied_minimum_queries": 0
+        },
+        "relative_top1_error_reduction": -0.02593192868719611,
+        "paired_center_bootstrap95": [
+          -0.058379778896868205,
+          0.005691235520452639
+        ],
+        "quality_gate_passed": false,
+        "accepted_updates": 534,
+        "rejected_updates": 66,
+        "backtrack_attempts": 1273,
+        "max_abs_angle": 0.20612257102410392
+      }
+    ],
+    "primary_or_extra_query_files_read": false,
+    "no_qps_claim": true,
+    "all_seeds_quality_gate_passed": false,
+    "elapsed_seconds": 442.7902134680189
+  },
+  "rank70_codec_validation": {
+    "models": [
+      {
+        "model": "baseline",
+        "queries": 8192,
+        "top1_error_rate": 0.2261962890625,
+        "top1_errors": 1853,
+        "relative_error_reduction": 0.0,
+        "paired_center_bootstrap95": [
+          0.0,
+          0.0
+        ],
+        "quality_gate_passed": false
+      },
+      {
+        "model": "70",
+        "queries": 8192,
+        "top1_error_rate": 0.2293701171875,
+        "top1_errors": 1879,
+        "relative_error_reduction": -0.014031300593631947,
+        "paired_center_bootstrap95": [
+          -0.047154587028824836,
+          0.017582622601279317
+        ],
+        "quality_gate_passed": false
+      },
+      {
+        "model": "71",
+        "queries": 8192,
+        "top1_error_rate": 0.232421875,
+        "top1_errors": 1904,
+        "relative_error_reduction": -0.027522935779816515,
+        "paired_center_bootstrap95": [
+          -0.06011557465818329,
+          0.0032210027672248034
+        ],
+        "quality_gate_passed": false
+      },
+      {
+        "model": "72",
+        "queries": 8192,
+        "top1_error_rate": 0.231689453125,
+        "top1_errors": 1898,
+        "relative_error_reduction": -0.024284943335132217,
+        "paired_center_bootstrap95": [
+          -0.057397046509857656,
+          0.007666678646086038
+        ],
+        "quality_gate_passed": false
+      }
+    ],
+    "production_codec_and_lut_used": true,
+    "block_proxy_not_full_search": true,
+    "kernel_checks_and_microbenchmarks": [
+      {
+        "seed": 70,
+        "scalar_coordinate_checks": 768000,
+        "identity_cases": 1000,
+        "norm_cases": 1000,
+        "incremental_ns_median": 94.5512,
+        "not_full_search_timing": true
+      },
+      {
+        "seed": 71,
+        "scalar_coordinate_checks": 768000,
+        "identity_cases": 1000,
+        "norm_cases": 1000,
+        "incremental_ns_median": 93.4881,
+        "not_full_search_timing": true
+      },
+      {
+        "seed": 72,
+        "scalar_coordinate_checks": 768000,
+        "identity_cases": 1000,
+        "norm_cases": 1000,
+        "incremental_ns_median": 92.2018,
+        "not_full_search_timing": true
+      }
+    ],
+    "all_seeds_actual_codec_gate_passed": false,
+    "integration_gate_passed": false,
+    "no_retrieval_qps_claim": true,
+    "new_retrieval_timing_rows": 0,
+    "cumulative_retrieval_timing_rows": 1310
+  },
+  "rank70_adaptive_probe": {
+    "models": [
+      "baseline",
+      "70",
+      "71",
+      "72"
+    ],
+    "baseline_error": 0.2261962890625,
+    "oracle_per_center_error": 0.150634765625,
+    "oracle_per_query_error": 0.138916015625,
+    "leave_one_local_query_out_error": 0.2242431640625,
+    "leave_one_out_relative_error_gain": 0.008634646519158122,
+    "paired_center_bootstrap95": [
+      -0.01078210778178177,
+      0.028147719536500544
+    ],
+    "frame_selection_counts": [
+      6413,
+      1017,
+      431,
+      331
+    ],
+    "tie_break_baseline_first": true,
+    "leave_one_out_selection_uses_three_other_proxy_labels": true,
+    "posthoc_reuse_of_validation_centers_not_blind": true,
+    "local_queries_not_independent": true,
+    "oracles_not_deployable": true,
+    "no_retrieval_qps_or_recall_claim": true
   }
 }

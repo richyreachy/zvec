@@ -183,5 +183,12 @@
     "conclusion": "Exact-neighbor diagnostics:original90.83%/27.268 expansions,nearest90.41%/25.474,angular91.33%/27.284;not equal recall or deployable QPS. Actual one-bit example reduces both individual reconstruction errors but Gaussian rank risk rises15.99%->21.77%. Next investigate database-only ranking objective;zero new timing rows,1310 cumulative;no breakthrough.",
     "execution_order": "Previously planned phase66 completed after69;no production source changes.",
     "archive_note": "Summary CSV normalized CRLF to LF in following documentation commit;42 parsed data rows identical,raw benchmark retained and hashes recorded."
+  },
+  {
+    "stage": "26",
+    "commit": "573be4f24fbe5f36feeb4b453f340771133ced07",
+    "title": "test(qg): reject global rank-trained rotations after codec validation",
+    "validation": "120 FP64 gradient probes;303104 rotated vectors;1048576 candidate gap checks;3 seeds x600 steps with actual loss backtracking;actual codec validation;2304000 SIMD/scalar coordinate checks;formatted sampling,math,data,codec,final metrics and initial training-step replay identical",
+    "conclusion": "Actual FastScan validation Top1 errors22.62% baseline vs22.94%/23.24%/23.17%;all fail5%gate. Local leave-one-proxy-out gain0.86%,95%CI crosses zero. No search integration or production changes;1310 timing rows unchanged;no breakthrough."
   }
 ]
