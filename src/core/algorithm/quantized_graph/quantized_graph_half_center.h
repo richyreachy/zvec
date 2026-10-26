@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <vector>
 namespace zvec::core {
 struct HalfCenter {
   __attribute__((target("f16c"))) static bool encode(const float *x, size_t n,
@@ -119,6 +120,90 @@ struct HalfCenter {
 }  // namespace zvec::core
 namespace zvec::core {
 struct SQ8Center {
+  // Shared shift is an immutable database-trained vector. Error is measured
+  // against the actual FP32 reconstruction, including the rounded addition.
+  static bool encode_shifted(const float *x, const float *shift, size_t n,
+                             uint8_t *out, float &error, float &norm2,
+                             float &offset, float &scale, float &projection,
+                             float &projection_error) {
+    std::vector<float> residual(n);
+    for (size_t j = 0; j < n; ++j) residual[j] = x[j] - shift[j];
+    if (!encode(residual.data(), n, out, error, norm2, offset, scale))
+      return false;
+    double err = 0, norm = 0, beta = 0, beta_abs = 0;
+    for (size_t j = 0; j < n; ++j) {
+      const float y = std::fma(float(out[j]), scale, offset) + shift[j];
+      if (!std::isfinite(y)) return false;
+      const double e = double(y) - x[j];
+      err += e * e;
+      norm += double(x[j]) * x[j];
+      beta += double(shift[j]) * e;
+      beta_abs += std::abs(double(shift[j]) * e);
+    }
+    error = std::nextafter(float(std::sqrt(err)),
+                           std::numeric_limits<float>::infinity());
+    norm2 = std::nextafter(float(norm), std::numeric_limits<float>::infinity());
+    projection = float(beta);
+    projection_error = std::nextafter(
+        float(std::abs(double(projection) - beta) +
+              4. * (n + 4) * std::numeric_limits<double>::epsilon() * beta_abs),
+        std::numeric_limits<float>::infinity());
+    return true;
+  }
+  static void decode_shifted(const uint8_t *h, const float *shift, size_t n,
+                             float *out, float offset, float scale) {
+    for (size_t j = 0; j < n; ++j)
+      out[j] = std::fma(float(h[j]), scale, offset) + shift[j];
+  }
+  __attribute__((target("avx512f,avx512bw,fma"))) static float
+  cosine_distance_shifted(const float *q, const uint8_t *h, const float *shift,
+                          size_t n, float offset, float scale) {
+    const __m512 lo = _mm512_set1_ps(offset), step = _mm512_set1_ps(scale);
+    __m512 a[4] = {_mm512_setzero_ps(), _mm512_setzero_ps(),
+                   _mm512_setzero_ps(), _mm512_setzero_ps()};
+    size_t i = 0;
+    for (; i + 64 <= n; i += 64)
+      for (size_t lane = 0; lane < 4; ++lane) {
+        const size_t j = i + 16 * lane;
+        const __m128i raw =
+            _mm_loadu_si128(reinterpret_cast<const __m128i *>(h + j));
+        const __m512 residual = _mm512_fmadd_ps(
+            _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(raw)), step, lo);
+        const __m512 v = _mm512_add_ps(residual, _mm512_loadu_ps(shift + j));
+        a[lane] = _mm512_fmadd_ps(_mm512_loadu_ps(q + j), v, a[lane]);
+      }
+    float dot = _mm512_reduce_add_ps(
+        _mm512_add_ps(_mm512_add_ps(a[0], a[1]), _mm512_add_ps(a[2], a[3])));
+    for (; i < n; ++i)
+      dot += q[i] * (std::fma(float(h[i]), scale, offset) + shift[i]);
+    return 1.f - dot;
+  }
+  // For any chosen alpha, q = alpha*shift + q_residual. Correcting by
+  // alpha*<shift, reconstruction-original> leaves only <q_residual, error>.
+  // Full query norm is still required for the floating dot-kernel error.
+  static float projected_lower_bound(float corrected, float error, float norm2,
+                                     float qnorm2, float residual_qnorm2,
+                                     float alpha, float beta, float beta_error,
+                                     size_t n) {
+    const double qnorm = std::sqrt(double(qnorm2));
+    const double eta =
+#if defined(QG_COSINE_BOUND_TIGHT)
+        (2. * n + 16) * (.5 * std::numeric_limits<float>::epsilon());
+#else
+        8. * (n + 16) * std::numeric_limits<float>::epsilon();
+#endif
+    const double gamma = eta / (1. - eta);
+    const double arithmetic =
+        gamma * qnorm * (2. * std::sqrt(double(norm2)) + error) +
+        16. * std::numeric_limits<float>::epsilon() *
+            (1. + std::abs(double(corrected)) +
+             std::abs(double(alpha) * beta)) +
+        std::abs(double(alpha)) * beta_error;
+    return std::nextafter(
+        float(double(corrected) - std::sqrt(double(residual_qnorm2)) * error -
+              arithmetic),
+        -std::numeric_limits<float>::infinity());
+  }
   __attribute__((target("avx512f,avx512bw,fma"))) static float cosine_distance(
       const float *q, const uint8_t *h, size_t n, float offset, float scale) {
     const __m512 lo = _mm512_set1_ps(offset), step = _mm512_set1_ps(scale);
@@ -145,8 +230,15 @@ struct SQ8Center {
                                   float qnorm2, size_t n) {
     const double qnorm = std::sqrt(double(qnorm2)),
                  norm = std::sqrt(double(norm2));
-    const double eta = 8. * (n + 16) * std::numeric_limits<float>::epsilon(),
-                 gamma = eta / (1. - eta);
+    // gamma_(2n+16) conservatively covers multiply/add and reduction
+    // paths in both normalized FP32 cosine kernels; no fast-math reassociation.
+    const double eta =
+#if defined(QG_COSINE_BOUND_TIGHT)
+        (2. * n + 16) * (.5 * std::numeric_limits<float>::epsilon());
+#else
+        8. * (n + 16) * std::numeric_limits<float>::epsilon();
+#endif
+    const double gamma = eta / (1. - eta);
     const double arithmetic = gamma * qnorm * (2. * norm + error) +
                               8. * std::numeric_limits<float>::epsilon() *
                                   (1. + std::abs(double(approximate)));

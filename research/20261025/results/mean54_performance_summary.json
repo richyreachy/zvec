@@ -1,0 +1,92 @@
+[
+  {
+    "experiment": "screen54_cohere_control_post",
+    "threads": 1,
+    "ef_label": 800,
+    "recall": 0.9032,
+    "qps_median": 32364.92499,
+    "rounds": 2,
+    "rss_gib_median": 9.525279998779297
+  },
+  {
+    "experiment": "screen54_cohere_control_post",
+    "threads": 8,
+    "ef_label": 800,
+    "recall": 0.9032,
+    "qps_median": 237182.42675,
+    "rounds": 2,
+    "rss_gib_median": 9.531465530395508
+  },
+  {
+    "experiment": "screen54_cohere_control_pre",
+    "threads": 1,
+    "ef_label": 800,
+    "recall": 0.9032,
+    "qps_median": 28616.412465,
+    "rounds": 2,
+    "rss_gib_median": 9.525272369384766
+  },
+  {
+    "experiment": "screen54_cohere_control_pre",
+    "threads": 8,
+    "ef_label": 800,
+    "recall": 0.9032,
+    "qps_median": 226512.06900000002,
+    "rounds": 2,
+    "rss_gib_median": 9.532964706420898
+  },
+  {
+    "experiment": "screen54_cohere_mean54_cv",
+    "threads": 1,
+    "ef_label": 25000,
+    "recall": 0.9087,
+    "qps_median": 31247.37546,
+    "rounds": 1,
+    "rss_gib_median": 7.330299377441406
+  },
+  {
+    "experiment": "screen54_cohere_mean54_cv",
+    "threads": 8,
+    "ef_label": 25000,
+    "recall": 0.9087,
+    "qps_median": 233846.207,
+    "rounds": 1,
+    "rss_gib_median": 7.3303070068359375
+  },
+  {
+    "experiment": "screen54_cohere_mean54_plain",
+    "threads": 1,
+    "ef_label": 30000,
+    "recall": 0.9135,
+    "qps_median": 28898.7285,
+    "rounds": 1,
+    "rss_gib_median": 7.328849792480469
+  },
+  {
+    "experiment": "screen54_cohere_mean54_plain",
+    "threads": 8,
+    "ef_label": 25000,
+    "recall": 0.9081,
+    "qps_median": 227609.6967,
+    "rounds": 1,
+    "rss_gib_median": 7.328849792480469
+  },
+  {
+    "experiment": "screen54_cohere_mean54_tight",
+    "threads": 1,
+    "ef_label": 25000,
+    "recall": 0.9081,
+    "qps_median": 31838.28092,
+    "rounds": 1,
+    "rss_gib_median": 7.329372406005859
+  },
+  {
+    "experiment": "screen54_cohere_mean54_tight",
+    "threads": 8,
+    "ef_label": 25000,
+    "recall": 0.9081,
+    "qps_median": 238359.6147,
+    "rounds": 1,
+    "rss_gib_median": 7.329658508300781
+  }
+]

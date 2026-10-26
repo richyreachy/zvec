@@ -1,0 +1,7 @@
+{
+  "queries": 1000,
+  "id_score_rows": 10000,
+  "audit_vs_full_exact_match": true,
+  "margin": 0.03,
+  "patience": 0
+}

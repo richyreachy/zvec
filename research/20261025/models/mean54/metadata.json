@@ -1,0 +1,10 @@
+{
+  "source": "/home/xingrui/bench/symphony_qg/cohere/original/data/base.f32",
+  "sample_ids": "/home/xingrui/bench/quantized_graph/research_20261025/lowrank48/sample_ids.npy",
+  "sample_ids_sha256": "a49d5865e66608821faf639f0a2c2a371a330f896cc1f05eee2cf3bd3a414fbc",
+  "sample_count": 65536,
+  "dimension": 768,
+  "mean_norm": 0.8336887556887197,
+  "mean_sha256": "5c809161a66a66829822b04904b8ae44305c60e9b59b20f085fa46bf8d81c0e2",
+  "queries_or_ground_truth_read": false
+}

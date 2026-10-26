@@ -17,7 +17,7 @@
 #define QG_CENTER_QUANTIZED 1
 #endif
 #include <algorithm>
-#if defined(QG_TOPOLOGY_STATS)
+#if defined(QG_TOPOLOGY_STATS) || defined(QG_CENTER_SHIFT)
 #include <cstdio>
 #include <cstdlib>
 #endif
@@ -88,6 +88,15 @@
     !defined(QG_REANCHOR) || !defined(QG_ROTATION_768)
 #error Rotated center prototype requires SQ8, deferred cosine, reanchoring and the 768D rotation
 #endif
+#endif
+#if defined(QG_CENTER_SHIFT)
+#if !defined(QG_CENTER_SQ8) || !defined(QG_DEFERRED_COSINE) || \
+    !defined(QG_REANCHOR) || defined(QG_ROTATED_CENTER)
+#error Shifted center prototype requires SQ8, deferred cosine and reanchoring, without rotated centers
+#endif
+#endif
+#if defined(QG_CENTER_CONTROL_VARIATE) && !defined(QG_CENTER_SHIFT)
+#error Center control variate requires a shared shift
 #endif
 #if defined(__linux__)
 #include <sys/mman.h>
@@ -299,6 +308,9 @@ class QuantizedGraph {
     float center_error, center_norm2;
 #if defined(QG_CENTER_SQ8)
     float center_offset, center_scale;
+#if defined(QG_CENTER_CONTROL_VARIATE)
+    float center_projection, center_projection_error;
+#endif
 #endif
 #endif
 
@@ -357,6 +369,10 @@ class QuantizedGraph {
   size_t stored_dimension_;
   size_t stored_center_bytes_;
   bool compressed_center_{false};
+#if defined(QG_CENTER_SHIFT)
+  std::vector<float> center_shift_;
+  double center_shift_norm2_{0};
+#endif
   bool cosine_{false};
   size_t max_neighbors_{32};
   size_t neighbor_bytes_{0};
@@ -734,11 +750,29 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
 #else
     const float *storage_values = center;
 #endif
+#if defined(QG_CENTER_SHIFT)
+    if (center_shift_.size() != dimension_) {
+      error = IndexError_Mismatch;
+      return false;
+    }
+    float projection, projection_error;
+    const bool encoded = SQ8Center::encode_shifted(
+        storage_values, center_shift_.data(), dimension_,
+        reinterpret_cast<uint8_t *>(const_cast<float *>(block->center())),
+        block->center_error, block->center_norm2, block->center_offset,
+        block->center_scale, projection, projection_error);
+#if defined(QG_CENTER_CONTROL_VARIATE)
+    block->center_projection = projection;
+    block->center_projection_error = projection_error;
+#endif
+    if (!encoded) {
+#else
     if (!SQ8Center::encode(
             storage_values, dimension_,
             reinterpret_cast<uint8_t *>(const_cast<float *>(block->center())),
             block->center_error, block->center_norm2, block->center_offset,
             block->center_scale)) {
+#endif
       error = IndexError_Mismatch;
       return false;
     }
@@ -775,9 +809,16 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
   if (compressed_center_) {
     reconstructed_center.resize(dimension_);
 #if defined(QG_CENTER_SQ8)
+#if defined(QG_CENTER_SHIFT)
+    SQ8Center::decode_shifted(
+        reinterpret_cast<const uint8_t *>(block->center()),
+        center_shift_.data(), dimension_, reconstructed_center.data(),
+        block->center_offset, block->center_scale);
+#else
     SQ8Center::decode(reinterpret_cast<const uint8_t *>(block->center()),
                       dimension_, reconstructed_center.data(),
                       block->center_offset, block->center_scale);
+#endif
 #else
     HalfCenter::decode(reinterpret_cast<const uint16_t *>(block->center()),
                        dimension_, reconstructed_center.data());
@@ -821,6 +862,27 @@ template <class Codec>
 template <class Graph>
 int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
                                     size_t threads) {
+#if defined(QG_CENTER_SHIFT)
+  if (compressed_center_) {
+    const char *path = std::getenv("QG_CENTER_MEAN_FILE");
+    if (!path) return IndexError_Mismatch;
+    FILE *file = std::fopen(path, "rb");
+    if (!file) return IndexError_Mismatch;
+    center_shift_.resize(dimension_);
+    const size_t count =
+        std::fread(center_shift_.data(), sizeof(float), dimension_, file);
+    const int extra = std::fgetc(file);
+    const bool io_error = std::ferror(file);
+    std::fclose(file);
+    if (count != dimension_ || extra != EOF || io_error)
+      return IndexError_Mismatch;
+    center_shift_norm2_ = 0;
+    for (float v : center_shift_) {
+      if (!std::isfinite(v)) return IndexError_Mismatch;
+      center_shift_norm2_ += double(v) * v;
+    }
+  }
+#endif
 #if defined(QG_ROTATED_CENTER)
   if (compressed_center_ && (dimension_ != 768 || codec_.encoded_dim() != 768))
     return IndexError_Mismatch;
@@ -1135,6 +1197,31 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   const float query_norm2 = std::nextafter(
       float(query_norm2_double), std::numeric_limits<float>::infinity());
 #endif
+#if defined(QG_CENTER_CONTROL_VARIATE)
+  double shift_dot = 0;
+  if (compressed_center_)
+    for (size_t j = 0; j < dimension_; ++j)
+      shift_dot += double(query_values[j]) * center_shift_[j];
+  const float center_alpha =
+      center_shift_norm2_ > 0 ? float(shift_dot / center_shift_norm2_) : 0.f;
+  double residual_norm = 0;
+  if (compressed_center_)
+    for (size_t j = 0; j < dimension_; ++j) {
+      const double r =
+          double(query_values[j]) - double(center_alpha) * center_shift_[j];
+      residual_norm += r * r;
+    }
+  // Padding covers FP64 formation of residuals even when cancellation is
+  // strong.
+  const double residual_norm_upper =
+      std::sqrt(residual_norm) +
+      8. * (dimension_ + 4) * std::numeric_limits<double>::epsilon() *
+          (std::sqrt(query_norm2_double) +
+           std::abs(double(center_alpha)) * std::sqrt(center_shift_norm2_));
+  const float residual_query_norm2 =
+      std::nextafter(float(residual_norm_upper * residual_norm_upper),
+                     std::numeric_limits<float>::infinity());
+#endif
   auto &expanded = state.expanded;
   expanded.clear();
 #if defined(QG_DEFERRED_COSINE)
@@ -1294,6 +1381,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
 #if defined(QG_CENTER_QUANTIZED)
     float query_norm2;
+#if defined(QG_CENTER_CONTROL_VARIATE)
+    float center_alpha, residual_query_norm2;
+#endif
 #endif
 #if defined(QG_BUCKET)
     QuantizedGraphBucket *bucket;
@@ -1377,6 +1467,13 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       if (index.compressed_center_) {
 #if defined(QG_CENTER_SQ8)
 #if defined(QG_DEFERRED_COSINE)
+#if defined(QG_CENTER_SHIFT)
+        exact = SQ8Center::cosine_distance_shifted(
+            static_cast<const float *>(ctx.query()),
+            reinterpret_cast<const uint8_t *>(block->center()),
+            index.center_shift_.data(), index.dimension_, block->center_offset,
+            block->center_scale);
+#else
         exact = SQ8Center::cosine_distance(
 #if defined(QG_ROTATED_CENTER)
             QuantizedGraphRouter::rotated(query, 0),
@@ -1385,6 +1482,7 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #endif
             reinterpret_cast<const uint8_t *>(block->center()),
             index.dimension_, block->center_offset, block->center_scale);
+#endif
 #else
         exact = SQ8Center::distance(
             static_cast<const float *>(ctx.query()),
@@ -1408,9 +1506,17 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
         navigation_center = exact;
 #endif
 #if defined(QG_DEFERRED_COSINE)
+#if defined(QG_CENTER_CONTROL_VARIATE)
+        exact = std::fma(center_alpha, block->center_projection, exact);
+        float lower = SQ8Center::projected_lower_bound(
+            exact, block->center_error, block->center_norm2, query_norm2,
+            residual_query_norm2, center_alpha, block->center_projection,
+            block->center_projection_error, index.dimension_);
+#else
         float lower = SQ8Center::cosine_lower_bound(
             exact, block->center_error, block->center_norm2, query_norm2,
             index.dimension_);
+#endif
 #if defined(QG_ROTATED_CENTER)
         lower = SQ8Center::rotated_lower_bound(
             lower, block->center_error, block->center_norm2, query_norm2);
@@ -1571,6 +1677,11 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
 #if defined(QG_CENTER_QUANTIZED)
          ,
          query_norm2
+#if defined(QG_CENTER_CONTROL_VARIATE)
+         ,
+         center_alpha,
+         residual_query_norm2
+#endif
 #endif
 #if defined(QG_BUCKET)
          ,
