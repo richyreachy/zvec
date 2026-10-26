@@ -1,0 +1,15 @@
+{
+  "scripts/export61.py": "82138b617513c2fb0fd8bfe8c788d65635266b036d8ee41624f99a5f850ababb",
+  "scripts/finalize61.py": "cbe55be83b35cc49afa4582faaa1ef224f53aa885af0e89ea7a1233415c9a3c7",
+  "scripts/train61.py": "bca2cc575195351876ed09d7384aef252662e27ad00db6766fe1f20244a13fcc",
+  "scripts/validate61.py": "55b723e6d8b0cb29f36a44aac27071ed8ae332226eada1c99010aa76333a7113",
+  "scripts/validate_stage61_default.py": "798f1974c284e408ec618cef22569f7b7c9ebc8c303bb7a9048a1a96c7a3e910",
+  "scripts/rotation61_math.py": "62d6642e37ed3c9a3330e2b874709d857cd82c7f40ef55576a0555c4f8031c91",
+  "scripts/directional62_probe.py": "1db21d59ff2eedfc15abcf2d5efab220f8a137ec3fafbc41a156c3cbb229e7d3",
+  "scripts/directional62_flip_ci.py": "46c25705344546029b0f3b2641674c9f28338804246768e0aa9c1676213241e0",
+  "scripts/rotate_edges61.cc": "0bb78b52d91590d976ef9b08e083cd04302c8188a9641a80f92872c47417b8cd",
+  "scripts/edge61_export_driver.cc": "3ab9e69d30dafb6cefe3f6a3f18b0296bce2ca683eb529e0c238d154786ee8ed",
+  "scripts/edge_export61_test.cc": "1d8f1b8dd5cd5ccb550c77c5ababa37d91b1f6e8811f7e2b1bbec2b3a7a19561",
+  "scripts/rotation61_kernel.h": "451ed4d9d653c2b0486a1c3c348b41db0effdbca1bd0eafe12e947b7a7bf3500",
+  "scripts/rotation61_kernel_test.cc": "b6cf9d88b8964a71ebaf1cc772c39e29add7347c7c12f16158316bac9db7adb2"
+}

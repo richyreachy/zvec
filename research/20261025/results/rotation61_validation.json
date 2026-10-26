@@ -1,0 +1,27 @@
+{
+  "diagnostic_only": true,
+  "no_search_qps_or_recall_claim": true,
+  "breakthrough_verified": false,
+  "samples": 65536,
+  "train_edges": 49152,
+  "validation_edges": 16384,
+  "all_seeds_quality_gate_passed": false,
+  "kernel_scalar_coordinate_checks": 768000,
+  "kernel_identity_vectors": 1000,
+  "kernel_norm_vectors": 1000,
+  "incremental_kernel_ns_median": 104.277,
+  "default_tests": 28,
+  "edge_export_checks": 511,
+  "math_checks": {
+    "gradient_probes": 120,
+    "max_gradient_abs_error": 1.5434070085341978e-09,
+    "orthogonality_cases": 16,
+    "max_norm2_error": 2.220446049250313e-16,
+    "reconstruction_identity_cases": 16
+  },
+  "source_manifests_verified": {
+    "edge61_export": 15,
+    "stage61_default": 15
+  },
+  "decision": "Do not integrate learned rotation:all seeds fail prespecified error-improvement gate,although transform cost is small. Next directional-factor probe is distinct and not implemented online."
+}

@@ -1,0 +1,13 @@
+{
+  "models61/angles_seed63.f32": "727344f28fbde1e55a9d33a9a84176c1ca76702eb6a4ad900ad6c10f26fa8584",
+  "models61/coefficients_seed63.f32": "1f8cd49747d78a4b8d1d5cf6cc42c83084cebbb5df16c11e2820d5c11fdc5271",
+  "models61/coefficients_seed61.f32": "0628eb310053eb8b51f571e438d66ae602b1e1a01f9c227c6d4f60f7bddfc35c",
+  "models61/residuals.f32": "9ea7d548c9701f4d4eab9ac6614dd8cde62d13869c5692b68a4eeb684dd24972",
+  "models61/coefficients_seed62.f32": "d744456d4ca961355895aba2f5117bb08f61873e12e8eda7e37523838e12a7b1",
+  "models61/angles_seed61.f32": "50fd58a3233bc783a26129998c8fa41e99f19399c5032c43c142e8f991a0c80c",
+  "models61/angles_seed62.f32": "939777075b15b37a7e760ce40cb1a6842036dbe7ecb530c9c88b8d0691797372",
+  "models61/training_config.json": "8c0371608a46a97814fd704b86e4e32be76f27aaf8655d3275cd5aa486fcbe20",
+  "models61/train_centers.npy": "b0df09e959bf7eb4d677f584579b6cb5974596c79a3886605f3d3826b101b570",
+  "models61/validation_centers.npy": "c4c1ea1e2f104de735b60513781cdb30e40bc7d7945d7e49ba2deabfc837720f",
+  "models61/directional62_pair_scores.npz": "9e348f1186d3a4711475ad2eb8ff746f29b5f956e65b5dd20c3728acee31cc06"
+}
