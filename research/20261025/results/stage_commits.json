@@ -121,5 +121,12 @@
     "validation": "Three dimensions: query codes,8000 integer dots,2875 FP64 formulas,300 scalar routes,500 rotation inner products each;legacy checks;7 incompatible prebuild cases;28 default tests;3000-query audit/full/performance equality;1000-query disabled equality;64 timing rows",
     "conclusion": "384-dimensional route35,725.54 QPS at90.42%;about11.35% above contemporary frozen controls,butnot25%;onlytwo rounds and no extra-query validation",
     "provenance": "Timed source predates a prebuild-only compatibility guard;exact removable patch/hash recorded;all post-guard audit/full outputs equal timed outputs"
+  },
+  {
+    "stage": "18",
+    "commit": "4a9a745c84a649943c174ba03567d7bde3926920",
+    "title": "test(qg): validate graph-trained rotation and directional factor probe",
+    "validation": "65536 actual graph centers, database-only train/validation split;120 finite-difference gradient probes;511 exporter checks;768000 SIMD/scalar coordinates;1000 identity and1000 norm cases;28 default tests;2 source manifests verified",
+    "conclusion": "Three learned rotations improve validation reconstruction error only0.17%-0.21%, below prespecified5% gate; no integration or search QPS claim. Separate directional-factor probe reduces local gap MSE5.42% without demonstrated ordering gain; online validation pending."
   }
 ]

@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T13:16:02.992110+08:00",
+  "updated_at": "2026-10-26T13:40:59.645764+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -93,15 +93,22 @@
     "router60_disabled_queries": 1000,
     "router60_audit_full_performance_queries": 3000,
     "router60_screen_query_evaluations": 33000,
-    "router60_timing_rows": 64
+    "router60_timing_rows": 64,
+    "rotation61_gradient_probes": 120,
+    "rotation61_export_checks": 511,
+    "rotation61_simd_scalar_coordinates": 768000,
+    "rotation61_identity_vectors": 1000,
+    "rotation61_norm_vectors": 1000,
+    "rotation61_default_tests": 28,
+    "rotation61_source_manifests": 2
   },
-  "latest_source_change": "Stage17 projected integer router256/384/768 and version2 model validation;prebuild-only compatibility guard added after timed source snapshots,exact difference recorded",
+  "latest_source_change": "Stage18 adds default-off actual final-graph edge exporter. Learned rotation remains standalone and is not integrated because all three seeds fail the prespecified gain gate.",
   "next_actions": [
-    "Use notes/learned_rotation61_plan.md: export actual32-edge graph residual training samples with internalID/externalkey/source vectors;no queries orGT for training.",
-    "Split by centerID into train/validation;first test low-cost structured orthogonal/Givens calibration against real graph residuals;check finite-difference gradients and reconstruction identity.",
-    "Only integrate if independent edge distortion improves enough and measured transform cost is small;MSE gains do not guarantee ranking or QPS.",
-    "Stop extending the same routing-tree grid;retain proj60_384 as a candidate,notbreakthrough;paired whole-search timing and extra-query gate remain required.",
-    "Continue committing each meaningful validated stage;learning rotations and butterflies already have prior work,so do not claim novelty without new evidence."
+    "Implement and independently test notes/directional_shrink62_plan.md factor-only candidate; beta1 must preserve original factors exactly, verify actual codec and LUT identities and edge cases.",
+    "Fit beta is already frozen at0.9359792556459329 using only graph training centers; compare native and int55 configurations with paired complete search timings before combinations.",
+    "Local MSE improves5.42% but paired flip interval crosseszero; no recall improvement claim. Stop candidate if full-search benefit does not materialize.",
+    "Retain proj60_384 as best current candidate;25% stable-gain and extra-query gates remain unfulfilled.",
+    "Commit each meaningful validated stage with evidence and limitations."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "",
@@ -110,16 +117,17 @@
   "primary_measurement_rows": 1068,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "cd64b8d660952a2fdc3ff5f1892019456098750c",
-  "stage_commit_count": 17,
-  "extra_document_index_commits": 9,
-  "working_tree_status": "Snapshot at stage17 source commit;documentation index follows",
+  "head": "4a9a745c84a649943c174ba03567d7bde3926920",
+  "stage_commit_count": 18,
+  "extra_document_index_commits": 10,
+  "working_tree_status": "",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
     47,
     51,
-    58
+    58,
+    61
   ],
   "diagnostic58": "complete:17 configurations, no timing rows;full-dimensional scans and5 extra exact distances explicitly accounted;entry headroom supports low-cost router investigation",
   "router59_model": {
@@ -141,5 +149,15 @@
     "qps_eight_two_round_median": 258918.37185,
     "heldout_validated": false,
     "source_provenance_exception": "results/router60_prebuild_guard_change.json"
+  },
+  "head_scope": "Latest research stage commit; following documentation index commit is not self-referenced.",
+  "diagnostic61": "Complete: three seeds fail5% prespecified reconstruction-error gate; local flip rates do not consistently improve.104ns incremental hot transform only; no search timing.",
+  "directional62_probe": {
+    "beta": 0.9359792556459329,
+    "local_gap_mse_relative_gain": 0.05422360417079361,
+    "flip_improved": 103,
+    "flip_worsened": 111,
+    "online_implemented": false,
+    "search_validated": false
   }
 }
