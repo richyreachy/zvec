@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T20:58:08.568003+08:00",
+  "updated_at": "2026-10-26T21:01:23.581749+08:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -267,10 +267,10 @@
   "primary_measurement_rows": 1316,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "b18e374a92b1d08c743b94c89d251d6536163391",
-  "stage_commit_count": 33,
-  "extra_document_index_commits": 25,
-  "working_tree_status": "Stage34 source and report ready for commit after archived theory/runner lint verification.",
+  "head": "4698d20773393046eb5d33aa87879b240c6c1bbe",
+  "stage_commit_count": 34,
+  "extra_document_index_commits": 26,
+  "working_tree_status": "Stage34 committed;documentation index follows. Confirmation protocol frozen,not yet running.",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -291,7 +291,9 @@
     74,
     75,
     76,
-    77
+    77,
+    78,
+    79
   ],
   "diagnostic58": "complete:17 configurations, no timing rows;full-dimensional scans and5 extra exact distances explicitly accounted;entry headroom supports low-cost router investigation",
   "router59_model": {
@@ -314,7 +316,7 @@
     "heldout_validated": false,
     "source_provenance_exception": "results/router60_prebuild_guard_change.json"
   },
-  "head_scope": "Actual docs HEAD after stage33;phase78 prototype remains in benchmark directory only.",
+  "head_scope": "Latest research stage34;following documentation index not self-referenced.",
   "diagnostic61": "Complete: three seeds fail5% prespecified reconstruction-error gate; local flip rates do not consistently improve.104ns incremental hot transform only; no search timing.",
   "directional62_probe": {
     "beta": 0.9359792556459329,
@@ -846,7 +848,7 @@
     "metadata_bytes_per_edge": 2,
     "fixed_graph_entry_degree_cap_ef": true
   },
-  "latest_research_stage": "Stage33:full1M independent code model accepted offline with all-code and all-move audits;fixed2048 Python references exact;no production source changes.",
+  "latest_research_stage": "Stage34:default-off learned model import passes full correctness/disabled equivalence and archived replay;full1M screen shows no benefit at same margin;theoretical bounds checked and simple Gram certificate too wide.",
   "graph66_result": {
     "phase": 66,
     "executed_after_phase69": true,

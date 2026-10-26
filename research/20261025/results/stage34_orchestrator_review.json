@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "scope": "Stage34 archived phase78 orchestrator lint, restricted AST equivalence, and read-only confirmation protocol review",
+  "created_utc": "2026-10-26T13:00:15.413199+00:00",
+  "passed": true,
+  "archive_source_changes": [
+    "research/20261025/scripts/replay78.py",
+    "research/20261025/scripts/confirm78.py"
+  ],
+  "bench_originals_and_production_sources_modified": false,
+  "full_tests_or_retrieval_executed": false,
+  "confirm78_executed": false,
+  "precommit": {
+    "command": [
+      "/home/xingrui/anaconda3/bin/python",
+      "-m",
+      "pre_commit",
+      "run",
+      "--files",
+      "research/20261025/scripts/replay78.py",
+      "research/20261025/scripts/confirm78.py"
+    ],
+    "cwd": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
+    "exit_code": 0,
+    "evidence": "Observed successful tool execution earlier in the same agent turn; not re-executed during evidence serialization",
+    "checks": {
+      "Ruff (lint + fix)": "Passed",
+      "Ruff (format)": "Passed",
+      "clang-format (C++)": "Skipped: no files to check",
+      "Detect hardcoded secrets (gitleaks)": "Passed"
+    }
+  },
+  "restricted_ast_review": {
+    "command": [
+      "python3",
+      "-c",
+      "\nimport ast\nimport hashlib\nfrom pathlib import Path\nraw = Path('/home/xingrui/bench/quantized_graph/research_20261025/scripts')\narchive = Path('/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts')\ndef shape(node):\n    return ast.dump(node, include_attributes=False)\ndef expression(text):\n    return ast.parse(text, mode='eval').body\nreplacements = {\n    'PHASE_SCRIPTS + [\"coupled73_codec.h\"]': '[*PHASE_SCRIPTS, \"coupled73_codec.h\"]',\n    'lines[:node.lineno - 1] + [f\"{variable} = Path({json.dumps(replacement)})\\\\n\"] + lines[node.end_lineno:]': '[*lines[:node.lineno - 1], f\"{variable} = Path({json.dumps(replacement)})\\\\n\", *lines[node.end_lineno:]]',\n    'print(f\"PREPARED78 {output}\", flush=True)': 'logging.info(\"PREPARED78 %s\", output)',\n    'print(f\"REPLAY78 START {name}\", flush=True)': 'logging.info(\"REPLAY78 START %s\", name)',\n    'print(f\"REPLAY78 PASS {name}\", flush=True)': 'logging.info(\"REPLAY78 PASS %s\", name)',\n    'print(\"REPLAY78 COMPLETE \" + str(output / \"results/replay78_comparison.json\"), flush=True)': 'logging.info(\"REPLAY78 COMPLETE %s\", output / \"results/replay78_comparison.json\")',\n    'print(\"CONFIRM78 COMPLETE\", json.dumps(summary), flush=True)': 'logging.info(\"CONFIRM78 COMPLETE %s\", json.dumps(summary))',\n}\nreplacements = {shape(expression(k)): (expression(v), k) for k,v in replacements.items()}\nclass AllowedChanges(ast.NodeTransformer):\n    def __init__(self): self.counts = {}\n    def visit(self, node):\n        replacement = replacements.get(shape(node))\n        if replacement:\n            self.counts[replacement[1]] = self.counts.get(replacement[1],0) + 1\n            return replacement[0]\n        return super().visit(node)\ndef normalize_imports_and_logging(tree, raw_file):\n    imports=[]\n    body=[]\n    for node in tree.body:\n        if isinstance(node, ast.ImportFrom) and node.module == '__future__':\n            assert [(n.name,n.asname) for n in node.names] == [('annotations',None)]\n            assert not any(isinstance(n, ast.AnnAssign) or isinstance(n, ast.arg) and n.annotation is not None or isinstance(n, (ast.FunctionDef,ast.AsyncFunctionDef)) and n.returns is not None for n in ast.walk(tree))\n            continue\n        if isinstance(node, ast.Import) and [(n.name,n.asname) for n in node.names] in [[('logging',None)],[('re',None)]]:\n            if node.names[0].name == 're':\n                assert raw_file and not any(isinstance(n,ast.Name) and n.id=='re' for n in ast.walk(tree))\n            continue\n        if isinstance(node, ast.Expr) and shape(node.value)==shape(expression('logging.basicConfig(level=logging.INFO, format=\"%(message)s\")')):\n            assert not raw_file\n            continue\n        if isinstance(node,(ast.Import,ast.ImportFrom)):\n            imports.append(node)\n        else:\n            body.append(node)\n    tree.body=sorted(imports,key=shape)+body\n    return tree\nAST_RESULTS=[]\nfor name in ('replay78.py','confirm78.py'):\n    old=ast.parse((raw/name).read_text())\n    new=ast.parse((archive/name).read_text())\n    changes=AllowedChanges()\n    old=changes.visit(old)\n    old=normalize_imports_and_logging(old,True)\n    new=normalize_imports_and_logging(new,False)\n    assert shape(old)==shape(new),name\n    expected=7 if name=='replay78.py' else 1\n    assert sum(changes.counts.values())==expected, changes.counts\n    AST_RESULTS.append({'file':name,'restricted_ast_equivalence_passed':True,'allowed_expression_replacements':changes.counts,'expression_replacement_count':sum(changes.counts.values()),'raw_path':str(raw/name),'raw_sha256':hashlib.sha256((raw/name).read_bytes()).hexdigest(),'archive_path':str(archive/name),'archive_sha256':hashlib.sha256((archive/name).read_bytes()).hexdigest()})\n"
+    ],
+    "cwd": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
+    "execution": "Inline source re-executed read-only during evidence serialization",
+    "results": [
+      {
+        "file": "replay78.py",
+        "restricted_ast_equivalence_passed": true,
+        "allowed_expression_replacements": {
+          "PHASE_SCRIPTS + [\"coupled73_codec.h\"]": 2,
+          "lines[:node.lineno - 1] + [f\"{variable} = Path({json.dumps(replacement)})\\n\"] + lines[node.end_lineno:]": 1,
+          "print(f\"PREPARED78 {output}\", flush=True)": 1,
+          "print(f\"REPLAY78 START {name}\", flush=True)": 1,
+          "print(f\"REPLAY78 PASS {name}\", flush=True)": 1,
+          "print(\"REPLAY78 COMPLETE \" + str(output / \"results/replay78_comparison.json\"), flush=True)": 1
+        },
+        "expression_replacement_count": 7,
+        "raw_path": "/home/xingrui/bench/quantized_graph/research_20261025/scripts/replay78.py",
+        "raw_sha256": "00a8663453299fff5eb3564f52deb75e3d7e93a634c7c77a20999e410d783ffd",
+        "archive_path": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/replay78.py",
+        "archive_sha256": "3ed92bf8b28b081eae3c75b278a84b8486cc355f6336919ea72170ad54a7c3f2"
+      },
+      {
+        "file": "confirm78.py",
+        "restricted_ast_equivalence_passed": true,
+        "allowed_expression_replacements": {
+          "print(\"CONFIRM78 COMPLETE\", json.dumps(summary), flush=True)": 1
+        },
+        "expression_replacement_count": 1,
+        "raw_path": "/home/xingrui/bench/quantized_graph/research_20261025/scripts/confirm78.py",
+        "raw_sha256": "0b3c84f6cbd18d590340ad7becf57c98ab929021e6917e6435874e608a6a32c0",
+        "archive_path": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/confirm78.py",
+        "archive_sha256": "64846fccd9c1eeff3e6dfa2c11e0cb4cff032d7eff101ed726121933fbda8948"
+      }
+    ],
+    "additional_allowed_normalizations": [
+      "Remove unused re import after asserting no Name re is referenced",
+      "Add logging import and exact basicConfig call",
+      "Sort imports for comparison",
+      "Normalize future annotations import only after verifying no annotations occur"
+    ],
+    "non_ast_changes": [
+      "Formatting and comments, including narrow PLR0915 explanation preserving sequential validation flow"
+    ],
+    "observable_logging_change": "Status messages use logging StreamHandler with default stderr instead of print stdout; message content is preserved and StreamHandler flushes"
+  },
+  "confirm_read_only_review": {
+    "command": [
+      "python3",
+      "-c",
+      "\nimport ast, collections, csv, hashlib, io, json\nfrom pathlib import Path\nr=Path('/home/xingrui/bench/quantized_graph/research_20261025')\np=Path('/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/confirm78.py')\nt=ast.parse(p.read_text())\nassigns={n.targets[0].id:n.value for n in t.body if isinstance(n,ast.Assign) and len(n.targets)==1 and isinstance(n.targets[0],ast.Name)}\norders=ast.literal_eval(assigns['orders']);variants=ast.literal_eval(assigns['variants'])\nassert len(orders)==4\nassert all(len(order)==3 and set(order)==set(variants) for order in orders)\nassert len({f'confirm78_r{i}_{condition}' for i,order in enumerate(orders) for condition in order})==12\nassert all(sum(c in order for order in orders)==4 for c in variants)\nref=(r/'experiments/time65_control_pre/search_k10_r0_ids.csv').read_bytes()\nlearned=b''.join(line for line in (r/'experiments/screen78_independent_v1/search_k10_r0_ids.csv').read_bytes().splitlines(keepends=True) if line.startswith(b'24000,'))\nassert len(ref.splitlines())==len(learned.splitlines())==10000\nREFERENCE_RESULTS=[]\nfor tag,data,expected_ef in [('baseline',ref,'20000'),('learned',learned,'24000')]:\n    rows=list(csv.reader(io.StringIO(data.decode())))\n    assert {row[0] for row in rows}=={expected_ef}\n    REFERENCE_RESULTS.append({'condition':tag,'id_score_rows':len(rows),'first_csv_row':rows[0],'sha256':hashlib.sha256(data).hexdigest()})\nPROTOCOL_RESULTS={'planned_run_count':12,'planned_timing_row_count':24,'conditions_per_round':orders,'variants':variants,'position_counts':{c:dict(collections.Counter(order.index(c)+1 for order in orders)) for c in variants},'references':REFERENCE_RESULTS,'no_benchmark_executed':True}\n"
+    ],
+    "cwd": "/home/xingrui/bench/quantized_graph/research_20261025",
+    "execution": "Inline source re-executed read-only during evidence serialization",
+    "protocol": {
+      "planned_run_count": 12,
+      "planned_timing_row_count": 24,
+      "conditions_per_round": [
+        [
+          "baseline",
+          "learned",
+          "disabled"
+        ],
+        [
+          "disabled",
+          "learned",
+          "baseline"
+        ],
+        [
+          "learned",
+          "baseline",
+          "disabled"
+        ],
+        [
+          "disabled",
+          "baseline",
+          "learned"
+        ]
+      ],
+      "variants": {
+        "baseline": "bucket90_w16",
+        "learned": "independent78_native_v1",
+        "disabled": "independent78_native_v1"
+      },
+      "position_counts": {
+        "baseline": {
+          "1": 1,
+          "3": 1,
+          "2": 2
+        },
+        "learned": {
+          "2": 2,
+          "1": 1,
+          "3": 1
+        },
+        "disabled": {
+          "3": 2,
+          "1": 2
+        }
+      },
+      "references": [
+        {
+          "condition": "baseline",
+          "id_score_rows": 10000,
+          "first_csv_row": [
+            "20000",
+            "0",
+            "142594",
+            "0x1.18b29p-4"
+          ],
+          "sha256": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e"
+        },
+        {
+          "condition": "learned",
+          "id_score_rows": 10000,
+          "first_csv_row": [
+            "24000",
+            "0",
+            "142594",
+            "0x1.18b29p-4"
+          ],
+          "sha256": "4f96c95f3d3f297a2ae093f6db46f28761e18530eb253ef8b186fe9da9927412"
+        }
+      ],
+      "no_benchmark_executed": true
+    },
+    "manual_findings": [
+      "Four rounds each run baseline, learned, and disabled once, with twelve distinct experiment directories and two timing rows per run",
+      "Baseline and learned precede each other twice each and share the same position counts; disabled is in edge positions only, so the three-condition design is not a fully balanced Latin square",
+      "Rows append in increasing paired_round order; per-condition qps arrays therefore align correctly for paired_gain calculation",
+      "Baseline and disabled compare all ID CSV bytes to the frozen baseline; learned compares all bytes to the frozen selected 24000 grid slice",
+      "Each frozen comparison contains 10000 rows for 1000 queries times top10; bytes cover grid token, query ID, document ID, rank order and hexfloat score",
+      "BENCH_STOP_GRID maps 20000 and 24000 to margin 0.020 and 0.024 with actual ef_search 800; these values are encoded grid labels rather than actual ef_search",
+      "Only learned receives model paths and trusted SHA; baseline and disabled require absence of INDEPENDENT78 ready, learned requires exact expected ready counts",
+      "Each run requires two timing rows for threads 1 and 8, each seconds >= 3 and recall >= 0.9",
+      "ID and score equivalence covers the complete serial warmup/recall output from each process; timed worker calls check return status and top10 length but do not export each worker result for equality",
+      "This confirms the existing screened query set, not blind or additional queries; result explicitly sets additional_queries_tested and breakthrough_verified false"
+    ],
+    "observed_launch_environment_before_serialization": {
+      "inherited_QG_or_BENCH_or_PYTHONOPTIMIZE_names": []
+    },
+    "read_input_sha256": {
+      "/home/xingrui/bench/quantized_graph/research_20261025/scripts/explore90.py": "2c91a80f422e6a45183030b93e33a41b26f2dd393a67b08fd21c4fb2de5792d2",
+      "/home/xingrui/bench/quantized_graph/research_20261025/scripts/benchmark_nav.cc": "c788a1ad510891ed83ca2f835dabf8271c18211bf24d4716cb948cac5d2da6a3",
+      "/home/xingrui/bench/quantized_graph/research_20261025/experiments/confirm90_cohere_native/config.json": "c4c79953cc74daa197edebada80e2c3c5f0181a2c263bdc2378f3530bef351ee",
+      "/home/xingrui/bench/quantized_graph/research_20261025/variants/bucket90_w16/metadata.json": "3615fee8b245ad4531437c6d6626c7b0177e210a343d77ba868cc345e4d7b798",
+      "/home/xingrui/bench/quantized_graph/research_20261025/variants/independent78_native_v1/metadata.json": "c52ac34c932c918bac692e538ad11901d852f4bfa0e2256b468ae2e63978bafb",
+      "/home/xingrui/bench/quantized_graph/research_20261025/results/independent78_screen.json": "f2766a237ee2a458d4b90becf65a4d7a402d587d3cdd78d1b6e5772bec08fc14",
+      "/home/xingrui/bench/quantized_graph/research_20261025/experiments/time65_control_pre/search_k10_r0_ids.csv": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+      "/home/xingrui/bench/quantized_graph/research_20261025/experiments/screen78_independent_v1/search_k10_r0_ids.csv": "69b5ffb9fd71d9dee62aba3e7b100506af824929fa05df5bf76aa3d8801b235f"
+    }
+  }
+}

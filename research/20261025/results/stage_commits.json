@@ -239,5 +239,12 @@
     "title": "test(qg): build and independently validate full Cohere sign-code model",
     "validation": "1M proxy rows checked;997722 learned/2278 native blocks;all255336108 moves replay to compact with per-step radial feasibility;all1M actual code blocks independently reencoded;fixed2048 Python models524148 moves exact;16320scalarLUT/FMA checks;strict4096header/source hashes;7corruption guards;archived fullsampling,1/8thread8192rebuild and full1Mrecord/codec plus2048Python replay passed",
     "conclusion": "Full1M model offline acceptance passes;8thread build726.7429s,3138.125MiB. ModelSHA2ac03543d4a09ae655d38130419df41668e4d62bdd3231b49135d2603c39f138. All recorded histories checked,all true intermediate objectives not recomputed. No production loader or new queryQPS/Recall;1310timing rows,no25%breakthrough."
+  },
+  {
+    "stage": "34",
+    "commit": "4698d20773393046eb5d33aa87879b240c6c1bbe",
+    "title": "feat(qg): integrate verified learned codes and record full-graph screen",
+    "validation": "TrustedSHA/header/raw/rotated/final-neighbor validation;62negative cases;22macro/template guards;28default+28import-default tests;26741FastScans/815958scalar lanes;2000disabledCoherequeries IDs+hex byte identical;full1M import;archived integration replay exact;theory replay exact.",
+    "conclusion": "First6pointscreen:learned .020Recall.8995 vs baseline.9032;selected .024Recall.9069 QPS30844.73511 at1thread1second,confirmation pending. Reused-proxy Gram intervals certified0/1024Top1.1316timingrows;no breakthrough."
   }
 ]
