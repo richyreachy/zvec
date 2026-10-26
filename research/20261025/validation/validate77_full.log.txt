@@ -1,0 +1,36 @@
+VALIDATE77 128 of 2048
+VALIDATE77 256 of 2048
+VALIDATE77 384 of 2048
+VALIDATE77 512 of 2048
+VALIDATE77 640 of 2048
+VALIDATE77 768 of 2048
+VALIDATE77 896 of 2048
+VALIDATE77 1024 of 2048
+VALIDATE77 1152 of 2048
+VALIDATE77 1280 of 2048
+VALIDATE77 1408 of 2048
+VALIDATE77 1536 of 2048
+VALIDATE77 1664 of 2048
+VALIDATE77 1792 of 2048
+VALIDATE77 1920 of 2048
+VALIDATE77 2048 of 2048
+{
+  "scope": "full",
+  "centers_audited": 1000000,
+  "learned_blocks": 997722,
+  "native_short_blocks": 2278,
+  "all_history_steps_monotone_and_budgets_valid": true,
+  "max_scale_ratio": 1.0199999883889739,
+  "max_radial_error": 1.1102230246251565e-16,
+  "max_actual_fp32_radial_error": 1.7539701457902623e-07,
+  "total_accepted_updates": 255336108,
+  "python_oracle_sample_centers": 2048,
+  "python_oracle_sample_rule": "fixed seed7701 before training",
+  "python_signs_and_all_moves_bit_identical": true,
+  "oracle_updates_compared": 524148,
+  "max_history_absolute_error": 1.5959455978986625e-16,
+  "max_lambda_absolute_error": 1.431146867680866e-17,
+  "codec_check_separately_required": true,
+  "no_retrieval_qps_claim": true
+}
+VALIDATE77 COMPLETE

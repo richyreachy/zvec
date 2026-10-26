@@ -1,0 +1,60 @@
+{
+  "commands": [
+    [
+      "taskset",
+      "-c",
+      "0",
+      "./fullbuild77",
+      "models64/full_graph.bin",
+      "models77/rotated.f32",
+      "models77/proxies.u32",
+      "models77/header8192.bin",
+      "models77/pilot_t1",
+      "1"
+    ],
+    [
+      "taskset",
+      "-c",
+      "0,2,4,6,8,10,12,14",
+      "./fullbuild77",
+      "models64/full_graph.bin",
+      "models77/rotated.f32",
+      "models77/proxies.u32",
+      "models77/header8192.bin",
+      "models77/pilot_t8",
+      "8"
+    ]
+  ],
+  "runs": [
+    {
+      "centers": 8192,
+      "threads": 1,
+      "learned_blocks": 8182,
+      "native_blocks": 10,
+      "updates": 2093896,
+      "elapsed_seconds": 47.59783175,
+      "peak_rss_kib": 3140096,
+      "requires_independent_validation": true,
+      "no_retrieval_qps_claim": true
+    },
+    {
+      "centers": 8192,
+      "threads": 8,
+      "learned_blocks": 8182,
+      "native_blocks": 10,
+      "updates": 2093896,
+      "elapsed_seconds": 6.165347934,
+      "peak_rss_kib": 3148928,
+      "requires_independent_validation": true,
+      "no_retrieval_qps_claim": true
+    }
+  ],
+  "all_five_outputs_thread_byte_identical": {
+    "blocks.partial": "3ee0dfa82ef68deefd985a277ccedd8ff5099367697975ad3bc4418fd922c80c",
+    "compact.u8": "50224caad7e51dd4cb0583c8ee1eed2e8ab69f1179b02e0bff78ce514cec50ee",
+    "audit.bin": "86d076c0622a6f86fcfe15882cef176b32fdf674c88c7d587de885f1d1e06faf",
+    "history.f64": "0f7c75142aa7d9ab0afae77bf7f29a70c777e6574efdc82f9f8fa1b04a4958a6",
+    "moves.u16": "919d5830c5eeaaf88263b2be7a20df43781dc96b0723fbabf91c5ee600191fbe"
+  },
+  "python_oracle_and_codec_verification_still_required": true
+}

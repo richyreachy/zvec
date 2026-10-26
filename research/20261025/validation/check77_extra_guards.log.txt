@@ -1,0 +1,42 @@
+{
+  "corrupted_cases_rejected": [
+    {
+      "case": "compact",
+      "exit_code": 1,
+      "stderr": "ERROR all moves reconstruct compact row=0"
+    },
+    {
+      "case": "moves",
+      "exit_code": 1,
+      "stderr": "ERROR all moves reconstruct compact row=0"
+    },
+    {
+      "case": "scale_audit",
+      "exit_code": 1,
+      "stderr": "ERROR recomputed geometry audit row=0"
+    },
+    {
+      "case": "scale_factor",
+      "exit_code": 1,
+      "stderr": "ERROR final radial bounds row=0"
+    },
+    {
+      "case": "history",
+      "exit_code": 1,
+      "stderr": "ERROR recorded objective monotonicity row=0"
+    },
+    {
+      "case": "header_magic",
+      "exit_code": 1,
+      "stderr_last_line": "ValueError: Unsupported model magic/version/record length"
+    },
+    {
+      "case": "header_zero_padding",
+      "exit_code": 1,
+      "stderr_last_line": "ValueError: Nonzero unused header bytes"
+    }
+  ],
+  "original_pilot_files_unchanged": true,
+  "scope": "guard checks for supplemental auditors,not production loader tests"
+}
+EXTRA77 GUARDS COMPLETE
