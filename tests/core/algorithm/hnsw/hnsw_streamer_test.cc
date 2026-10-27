@@ -30,6 +30,9 @@
 #include <random>
 #include <set>
 #include <gtest/gtest.h>
+#if RABITQ_SUPPORTED
+#include <rabitqlib/utils/cpu_features.hpp>
+#endif
 #include <turbo/quantizer/quantizer.h>
 #include <zvec/ailego/container/vector.h>
 #include "tests/test_util.h"
@@ -83,6 +86,173 @@ void HnswStreamerTest::SetUp() {
 
 void HnswStreamerTest::TearDown() {
   zvec::test_util::RemoveTestPath(dir_);
+}
+
+TEST_F(HnswStreamerTest, PQGraphInsertSearchAndReopen) {
+  for (const std::string codec : {"pq", "pq_residual"}) {
+    SCOPED_TRACE(codec);
+    constexpr size_t dimension = 17;  // Exercises zero-padded PQ subspaces.
+    IndexMeta meta(IndexMeta::DT_FP32, dimension);
+    meta.set_metric("SquaredEuclidean", 0, ailego::Params());
+    IndexQueryMeta qmeta(IndexMeta::DT_FP32, dimension);
+    for (bool turbo : {false, true}) {
+      SCOPED_TRACE(turbo);
+      auto quantizer =
+          turbo ? IndexFactory::CreateQuantizer("Fp32Quantizer") : nullptr;
+      if (turbo) {
+        ASSERT_NE(nullptr, quantizer);
+        ASSERT_EQ(0, quantizer->init(meta, ailego::Params()));
+      }
+      ailego::Params params;
+      params.set(PARAM_HNSW_QUANTIZED_GRAPH_CODEC, codec);
+      params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 16U);
+      params.set(PARAM_HNSW_STREAMER_EFCONSTRUCTION, 100U);
+      params.set(PARAM_HNSW_STREAMER_EF, 128U);
+      params.set(PARAM_HNSW_STREAMER_BRUTE_FORCE_THRESHOLD, 0U);
+      auto streamer = IndexFactory::CreateStreamer("HnswStreamer");
+      ASSERT_NE(nullptr, streamer);
+      ASSERT_EQ(0, streamer->init(meta, params, quantizer));
+      auto storage = IndexFactory::CreateStorage("MMapFileStorage");
+      ASSERT_NE(nullptr, storage);
+      ASSERT_EQ(0, storage->init(ailego::Params()));
+      const std::string path = dir_ + codec + "_" + std::to_string(turbo);
+      ASSERT_EQ(0, storage->open(path, true));
+      ASSERT_EQ(0, streamer->open(storage));  // No corpus to train on yet.
+      auto ctx = streamer->create_context();
+      std::vector<float> vector(dimension);
+      for (size_t i = 0; i < 96; ++i) {
+        std::fill(vector.begin(), vector.end(), float(i));
+        ASSERT_EQ(0, streamer->add_impl(i, vector.data(), qmeta, ctx));
+      }
+      std::fill(vector.begin(), vector.end(), 32.125f);
+      for (size_t stage = 0; stage < 3; ++stage) {
+        SCOPED_TRACE(stage);
+        if (stage == 1) {
+          ASSERT_EQ(0, streamer->add_impl(96, vector.data(), qmeta, ctx));
+        } else if (stage == 2) {
+          ASSERT_EQ(0, streamer->flush(0));
+          ctx.reset();
+          ASSERT_EQ(0, streamer->close());
+          ASSERT_EQ(0, storage->close());
+          streamer = IndexFactory::CreateStreamer("HnswStreamer");
+          ASSERT_EQ(0, streamer->init(meta, params, quantizer));
+          ASSERT_EQ(0, storage->open(path, false));
+          ASSERT_EQ(0,
+                    streamer->open(storage));  // Rebuild codebook and blocks.
+          ctx = streamer->create_context();
+        }
+        ctx->set_topk(5);
+        ASSERT_EQ(0, streamer->search_impl(vector.data(), qmeta, ctx));
+        ASSERT_EQ(5U, ctx->result().size());
+        EXPECT_EQ(stage == 0 ? 32U : 96U, ctx->result()[0].key());
+        for (const auto &result : ctx->result()) {
+          float delta = result.key() == 96 ? 0 : float(result.key()) - 32.125f;
+          EXPECT_NEAR(dimension * delta * delta, result.score(), 1e-5);
+        }
+      }
+      ctx.reset();
+      ASSERT_EQ(0, streamer->close());
+      ASSERT_EQ(0, storage->close());
+    }
+  }
+}
+
+
+TEST_F(HnswStreamerTest, ResidualPQCosineInsertSearchAndReopen) {
+  constexpr size_t dimension = 17;
+  IndexMeta raw(IndexMeta::DT_FP32, dimension);
+  raw.set_metric("Cosine", 0, ailego::Params());
+  IndexQueryMeta raw_query(IndexMeta::DT_FP32, dimension);
+  for (const std::string codec : {"pq", "pq_residual"}) {
+    for (bool turbo : {false, true}) {
+      SCOPED_TRACE(testing::Message() << codec << ":" << turbo);
+      auto quantizer =
+          turbo ? IndexFactory::CreateQuantizer("Fp32Quantizer") : nullptr;
+      auto converter = IndexFactory::CreateConverter("CosineFp32Converter");
+      ASSERT_EQ(0, converter->init(raw, ailego::Params()));
+      auto reformer =
+          IndexFactory::CreateReformer(converter->meta().reformer_name());
+      ASSERT_NE(nullptr, reformer);
+      ASSERT_EQ(0, reformer->init(converter->meta().reformer_params()));
+      IndexMeta meta = converter->meta();
+      if (turbo) {
+        ASSERT_EQ(0, quantizer->init(raw, ailego::Params()));
+        meta = quantizer->meta();
+        meta.set_quantizer("Fp32Quantizer", 0, ailego::Params());
+      }
+      ailego::Params params;
+      params.set(PARAM_HNSW_QUANTIZED_GRAPH_CODEC, codec);
+      params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 16U);
+      params.set(PARAM_HNSW_STREAMER_EFCONSTRUCTION, 100U);
+      params.set(PARAM_HNSW_STREAMER_EF, 128U);
+      params.set(PARAM_HNSW_STREAMER_BRUTE_FORCE_THRESHOLD, 0U);
+      auto streamer = IndexFactory::CreateStreamer("HnswStreamer");
+      ASSERT_EQ(0, streamer->init(meta, params, quantizer));
+      auto storage = IndexFactory::CreateStorage("MMapFileStorage");
+      ASSERT_EQ(0, storage->init(ailego::Params()));
+      const std::string path =
+          dir_ + codec + "_cosine_" + std::to_string(turbo);
+      ASSERT_EQ(0, storage->open(path, true));
+      ASSERT_EQ(0, streamer->open(storage));
+      auto ctx = streamer->create_context();
+      std::vector<std::string> data;
+      IndexQueryMeta converted_meta;
+      std::vector<float> values(dimension);
+      for (size_t i = 0; i < 96; ++i) {
+        for (size_t d = 0; d < dimension; ++d)
+          values[d] =
+              i == 0 ? 0 : float(i + 1) * std::sin(float(i * 7 + d * 3));
+        std::string converted;
+        int ret = turbo ? quantizer->quantize(values.data(), raw_query,
+                                              &converted, &converted_meta)
+                        : reformer->convert(values.data(), raw_query,
+                                            &converted, &converted_meta);
+        ASSERT_EQ(0, ret);
+        data.push_back(converted);
+        ASSERT_EQ(0,
+                  streamer->add_impl(i, converted.data(), converted_meta, ctx));
+      }
+      for (size_t d = 0; d < dimension; ++d)
+        values[d] = std::cos(float(d * 5 + 1));
+      std::string query;
+      IndexQueryMeta query_meta;
+      ASSERT_EQ(0, turbo ? quantizer->quantize(values.data(), raw_query, &query,
+                                               &query_meta)
+                         : reformer->transform(values.data(), raw_query, &query,
+                                               &query_meta));
+      for (size_t stage = 0; stage < 3; ++stage) {
+        if (stage == 1) {
+          data.push_back(query);
+          ASSERT_EQ(0, streamer->add_impl(96, query.data(), query_meta, ctx));
+        } else if (stage == 2) {
+          ASSERT_EQ(0, streamer->flush(0));
+          ctx.reset();
+          ASSERT_EQ(0, streamer->close());
+          ASSERT_EQ(0, storage->close());
+          streamer = IndexFactory::CreateStreamer("HnswStreamer");
+          ASSERT_EQ(0, streamer->init(meta, params, quantizer));
+          ASSERT_EQ(0, storage->open(path, false));
+          ASSERT_EQ(0, streamer->open(storage));
+          ctx = streamer->create_context();
+        }
+        ctx->set_topk(5);
+        ASSERT_EQ(0, streamer->search_impl(query.data(), query_meta, ctx));
+        ASSERT_EQ(5U, ctx->result().size());
+        if (stage > 0) EXPECT_EQ(96U, ctx->result()[0].key());
+        const auto *q = reinterpret_cast<const float *>(query.data());
+        for (const auto &result : ctx->result()) {
+          const auto *v =
+              reinterpret_cast<const float *>(data[result.key()].data());
+          float expected = 1;
+          for (size_t d = 0; d < dimension; ++d) expected -= q[d] * v[d];
+          EXPECT_NEAR(expected, result.score(), 2e-5);
+        }
+      }
+      ctx.reset();
+      ASSERT_EQ(0, streamer->close());
+      ASSERT_EQ(0, storage->close());
+    }
+  }
 }
 
 TEST_F(HnswStreamerTest, TestAddVector) {
@@ -4761,6 +4931,87 @@ TEST_F(HnswStreamerTest, TestTurboInt8QuantizerDistance) {
   EXPECT_EQ(query_index, ann_ctx->result()[0].key());
   ASSERT_EQ(0, streamer->close());
   ASSERT_EQ(0, storage->close());
+}
+
+TEST_F(HnswStreamerTest, SymphonyQGSearchFilterInsertAndReopen) {
+#if !RABITQ_SUPPORTED
+  GTEST_SKIP() << "Requires a RaBitQ-enabled build";
+#else
+  if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core())
+    GTEST_SKIP();
+#endif
+  auto holder =
+      make_shared<MultiPassIndexProvider<IndexMeta::DataType::DT_FP32>>(dim);
+  constexpr size_t count = 97;
+  for (size_t i = 0; i < count; ++i) {
+    NumericalVector<float> vector(dim);
+    for (size_t j = 0; j < dim; ++j) vector[j] = static_cast<float>(i) / 10;
+    ASSERT_TRUE(holder->emplace(i, vector));
+  }
+  IndexStreamer::Pointer streamer = std::make_shared<HnswStreamer>();
+  ailego::Params params;
+  params.set(PARAM_HNSW_SYMPHONY_QG, true);
+  params.set(PARAM_HNSW_STREAMER_MAX_NEIGHBOR_COUNT, 17U);
+  params.set(PARAM_HNSW_STREAMER_EF, 128U);
+  params.set(PARAM_HNSW_STREAMER_BRUTE_FORCE_THRESHOLD, 0U);
+  ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
+  auto storage = IndexFactory::CreateStorage("MMapFileStorage");
+  ASSERT_NE(nullptr, storage);
+  ASSERT_EQ(0, storage->init(ailego::Params()));
+  ASSERT_EQ(0, storage->open(dir_ + "/SymphonyQG", true));
+  ASSERT_EQ(0, streamer->open(storage));
+  auto context = streamer->create_context();
+  IndexQueryMeta qmeta(IndexMeta::DataType::DT_FP32, dim);
+  ASSERT_EQ(0, streamer->search_impl(holder->get_vector(0), qmeta, context));
+  for (size_t i = 0; i + 1 < count; ++i) {
+    ASSERT_EQ(0, streamer->add_impl(i, holder->get_vector(i), qmeta, context));
+  }
+  context->set_topk(5);
+  auto verify = [&]() {
+    ASSERT_EQ(0, streamer->search_impl(holder->get_vector(42), qmeta, context));
+    ASSERT_EQ(5U, context->result().size());
+    EXPECT_EQ(42U, context->result()[0].key());
+    for (const auto &doc : context->result()) {
+      const auto *a = static_cast<const float *>(holder->get_vector(42));
+      const auto *b = static_cast<const float *>(holder->get_vector(doc.key()));
+      float exact = 0;
+      for (size_t j = 0; j < dim; ++j) exact += (a[j] - b[j]) * (a[j] - b[j]);
+      EXPECT_NEAR(exact, doc.score(), 1e-4);
+    }
+  };
+  verify();  // cold blocks
+  verify();  // cached blocks
+  context->set_filter([](uint64_t key) { return key % 2 == 0; });
+  ASSERT_EQ(0, streamer->search_impl(holder->get_vector(42), qmeta, context));
+  ASSERT_EQ(5U, context->result().size());
+  for (const auto &doc : context->result()) EXPECT_EQ(1U, doc.key() % 2);
+  context->reset_filter();
+
+  // Insertion invalidates cached adjacency, including reverse edges.
+  ASSERT_EQ(0, streamer->add_impl(count - 1, holder->get_vector(count - 1),
+                                  qmeta, context));
+  ASSERT_EQ(
+      0, streamer->search_impl(holder->get_vector(count - 1), qmeta, context));
+  ASSERT_FALSE(context->result().empty());
+  EXPECT_EQ(count - 1, context->result()[0].key());
+  ASSERT_EQ(0, streamer->flush(0));
+  ASSERT_EQ(0, streamer->close());
+  streamer = std::make_shared<HnswStreamer>();
+  ASSERT_EQ(0, streamer->init(*index_meta_ptr_, params));
+  ASSERT_EQ(0, streamer->open(storage));
+  context = streamer->create_context();
+  context->set_topk(5);
+  verify();
+  ASSERT_EQ(0, streamer->close());
+}
+
+TEST_F(HnswStreamerTest, SymphonyQGRejectsInnerProduct) {
+  IndexMeta meta(IndexMeta::DataType::DT_FP32, dim);
+  meta.set_metric("InnerProduct", 0, ailego::Params());
+  IndexStreamer::Pointer streamer = std::make_shared<HnswStreamer>();
+  ailego::Params params;
+  params.set(PARAM_HNSW_SYMPHONY_QG, true);
+  EXPECT_EQ(IndexError_Unsupported, streamer->init(meta, params));
 }
 
 }  // namespace core

@@ -66,3 +66,32 @@ config/
 examples/python/
 examples/c_api/
 logs/
+
+# Research artifacts stay in ~/bench/quantized_graph, not in Git.
+# Keep only reports and reusable source/test scripts in this research tree.
+/research/20261025/**
+!/research/20261025/*.md
+!/research/20261025/notes/
+!/research/20261025/notes/*.md
+!/research/20261025/stages/
+!/research/20261025/stages/*.md
+!/research/20261025/scripts/
+!/research/20261025/scripts/**/
+!/research/20261025/scripts/**/*.py
+!/research/20261025/scripts/**/*.cc
+!/research/20261025/scripts/**/*.cpp
+!/research/20261025/scripts/**/*.c
+!/research/20261025/scripts/**/*.h
+!/research/20261025/scripts/**/*.hpp
+!/research/20261025/scripts/**/*.sh
+!/research/20261025/scripts/**/*.md
+!/research/20261025/tests/
+!/research/20261025/tests/**/
+!/research/20261025/tests/**/*.py
+!/research/20261025/tests/**/*.cc
+!/research/20261025/tests/**/*.cpp
+!/research/20261025/tests/**/*.c
+!/research/20261025/tests/**/*.h
+!/research/20261025/tests/**/*.hpp
+!/research/20261025/tests/**/*.sh
+!/research/20261025/tests/**/*.md

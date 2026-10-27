@@ -557,6 +557,13 @@ Attributes:
         disable quantization.
     use_flat_contiguous_memory (bool): Whether the Flat reference index used
         for refine should use contiguous vector memory.
+    quantized_graph_codec (str): Empty disables QG; "symphony_qg", "sq8",
+        "pq", or "pq_residual" selects the neighbor codec. "pq" uses PQ4 FastScan and retains FP32
+        vectors for exact scoring. "pq_residual" encodes node-centered residuals
+        for L2/cosine. Cannot combine "sq8", "pq", or "pq_residual" with
+        symphony_qg=True.
+    symphony_qg (bool): Enable experimental node-centered RaBitQ scanning for
+        unquantized FP32 L2 HNSW. Requires a RaBitQ-enabled build. Default False.
     flat_data_type (DataType): Physical data type stored by the Flat reference
         index. Defaults to ``VECTOR_FP32``; ``VECTOR_FP16`` and
         ``VECTOR_UINT8`` are also supported.
@@ -577,12 +584,14 @@ Examples:
       .def(py::init([](MetricType metric_type, int m, int ef_construction,
                        QuantizeType quantize_type, bool use_contiguous_memory,
                        QuantizerParam quantizer_param,
-                       bool use_flat_contiguous_memory,
-                       DataType flat_data_type) {
+                       bool use_flat_contiguous_memory, DataType flat_data_type,
+                       bool symphony_qg,
+                       const std::string &quantized_graph_codec) {
              return std::make_shared<HnswIndexParams>(
                  metric_type, m, ef_construction, quantize_type,
                  use_contiguous_memory, quantizer_param,
-                 use_flat_contiguous_memory, flat_data_type);
+                 use_flat_contiguous_memory, flat_data_type, symphony_qg,
+                 quantized_graph_codec);
            }),
            py::arg("metric_type") = MetricType::IP,
            py::arg("m") = core_interface::kDefaultHnswNeighborCnt,
@@ -592,7 +601,12 @@ Examples:
            py::arg("use_contiguous_memory") = false,
            py::arg("quantizer_param") = QuantizerParam(),
            py::arg("use_flat_contiguous_memory") = false,
-           py::arg("flat_data_type") = DataType::VECTOR_FP32)
+           py::arg("flat_data_type") = DataType::VECTOR_FP32,
+           py::arg("symphony_qg") = false,
+           py::arg("quantized_graph_codec") = "")
+      .def_property_readonly("symphony_qg", &HnswIndexParams::symphony_qg)
+      .def_property_readonly("quantized_graph_codec",
+                             &HnswIndexParams::quantized_graph_codec)
       .def_property_readonly(
           "m", &HnswIndexParams::m,
           "int: Maximum number of neighbors per node in upper layers.")
@@ -618,6 +632,8 @@ Examples:
             py::dict dict;
             dict["type"] = index_type_to_string(self.type());
             dict["metric_type"] = metric_type_to_string(self.metric_type());
+            dict["symphony_qg"] = self.symphony_qg();
+            dict["quantized_graph_codec"] = self.quantized_graph_codec();
             dict["m"] = self.m();
             dict["ef_construction"] = self.ef_construction();
             dict["quantize_type"] =
@@ -641,6 +657,10 @@ Examples:
                    ", \"m\":" + std::to_string(self.m()) +
                    ", \"ef_construction\":" +
                    std::to_string(self.ef_construction()) +
+                   ", \"symphony_qg\":" +
+                   (self.symphony_qg() ? "true" : "false") +
+                   ", \"quantized_graph_codec\":\"" +
+                   self.quantized_graph_codec() + "\"" +
                    ", \"quantize_type\":" +
                    quantize_type_to_string(self.quantize_type()) +
                    ", \"use_contiguous_memory\":" +
@@ -659,17 +679,20 @@ Examples:
                 self.metric_type(), self.m(), self.ef_construction(),
                 self.quantize_type(), self.use_contiguous_memory(),
                 self.quantizer_param().enable_rotate(),
-                self.use_flat_contiguous_memory(), self.flat_data_type());
+                self.use_flat_contiguous_memory(), self.flat_data_type(),
+                self.symphony_qg(), self.quantized_graph_codec());
           },
           [](py::tuple t) {
-            if (t.size() < 5 || t.size() > 8)
+            if (t.size() < 5 || t.size() > 10)
               throw std::runtime_error("Invalid state for HnswIndexParams");
             QuantizerParam qp(t.size() >= 6 ? t[5].cast<bool>() : false);
             return std::make_shared<HnswIndexParams>(
                 t[0].cast<MetricType>(), t[1].cast<int>(), t[2].cast<int>(),
                 t[3].cast<QuantizeType>(), t[4].cast<bool>(), qp,
                 t.size() >= 7 ? t[6].cast<bool>() : false,
-                t.size() >= 8 ? t[7].cast<DataType>() : DataType::VECTOR_FP32);
+                t.size() >= 8 ? t[7].cast<DataType>() : DataType::VECTOR_FP32,
+                t.size() >= 9 ? t[8].cast<bool>() : false,
+                t.size() >= 10 ? t[9].cast<std::string>() : "");
           }));
 
   // binding hnsw rabitq index params

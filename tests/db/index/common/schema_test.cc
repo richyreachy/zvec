@@ -1356,3 +1356,49 @@ TEST(FieldSchemaTest, HnswRabitqIndexValidation_UnsupportedDataTypes) {
         << status.message();
   }
 }
+
+TEST(FieldSchemaTest, SymphonyQGRejectsUnsupportedMetrics) {
+  for (auto metric : {MetricType::IP}) {
+    auto params = std::make_shared<HnswIndexParams>(metric);
+    params->set_symphony_qg(true);
+    FieldSchema field("qg", DataType::VECTOR_FP32, 128, false, params);
+    auto status = field.validate();
+    EXPECT_EQ(StatusCode::INVALID_ARGUMENT, status.code());
+    EXPECT_NE(std::string::npos, status.message().find("SymphonyQG"));
+  }
+}
+
+TEST(FieldSchemaTest, SymphonyQGAcceptsL2AndCosineWhenSupported) {
+  for (auto metric : {MetricType::L2, MetricType::COSINE}) {
+    auto params = std::make_shared<HnswIndexParams>(metric);
+    params->set_symphony_qg(true);
+    FieldSchema field("qg", DataType::VECTOR_FP32, 4096, false, params);
+#if RABITQ_SUPPORTED
+    EXPECT_TRUE(field.validate().ok());
+#else
+    EXPECT_EQ(StatusCode::INVALID_ARGUMENT, field.validate().code());
+#endif
+  }
+}
+
+TEST(FieldSchemaTest, QuantizedGraphCodecValidation) {
+  for (auto metric : {MetricType::L2, MetricType::COSINE}) {
+    auto params = std::make_shared<HnswIndexParams>(metric);
+    params->set_quantized_graph_codec("sq8");
+    FieldSchema field("qg", DataType::VECTOR_FP32, 128, false, params);
+    EXPECT_TRUE(field.validate().ok());
+    params->set_quantized_graph_codec("pq");
+    EXPECT_TRUE(field.validate().ok());
+    params->set_quantized_graph_codec("pq_residual");
+    EXPECT_TRUE(field.validate().ok());
+    params->set_symphony_qg(true);
+    EXPECT_EQ(StatusCode::INVALID_ARGUMENT, field.validate().code());
+    params->set_symphony_qg(false);
+    params->set_quantized_graph_codec("unknown");
+    EXPECT_EQ(StatusCode::INVALID_ARGUMENT, field.validate().code());
+  }
+  auto params = std::make_shared<HnswIndexParams>(MetricType::IP);
+  params->set_quantized_graph_codec("sq8");
+  FieldSchema field("qg", DataType::VECTOR_FP32, 128, false, params);
+  EXPECT_EQ(StatusCode::INVALID_ARGUMENT, field.validate().code());
+}
