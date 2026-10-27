@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-27T03:27:05.673757+00:00",
+  "updated_at": "2026-10-27T03:29:53.428851+00:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -286,7 +286,14 @@
     "phase81_formatted_export_binaries_byteidentical": 6,
     "phase81_formatted_analysis_bootstrap_byteidentical": true
   },
-  "latest_source_change": "Phase78 default-off verified model import;FP32 cosine768 Symphony only,short blocks native;no scan kernel changes.",
+  "latest_source_change": {
+    "stage": 41,
+    "commit": "d15bf5b5596bf5a4e187b3a5b9609b351889c6d9",
+    "file": "src/turbo/quantizer/symphony_qg_quantizer/symphony_qg_quantizer.h",
+    "sha256": "f8c4d20645133f16f2081016cd742661179efc20a5a8affd590180e43253f93d",
+    "default_off": true,
+    "description": "Fixedprefix partialnativecode scan prototype; end-to-end negative."
+  },
   "next_actions": [
     "Keep fixed-prefix q-dot extrapolation disabled by default.",
     "A finer cap sweep near90%, center-residual correction or progressive continuation would require a separately frozen follow-up; none claimed to work.",
@@ -300,10 +307,10 @@
   "primary_measurement_rows": 1362,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "7a5034e5d32bc6c6fb08e0a37dd96e106830e021",
+  "head": "d15bf5b5596bf5a4e187b3a5b9609b351889c6d9",
   "stage_commit_count": 41,
-  "extra_document_index_commits": 30,
-  "working_tree_status": "Stage41 evidence anddefaultoffprototype readyforlocalcommit.",
+  "extra_document_index_commits": 31,
+  "working_tree_status": "Stage41committed;indexupdate pending. Noexperimentrunning.",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -350,7 +357,7 @@
     "heldout_validated": false,
     "source_provenance_exception": "results/router60_prebuild_guard_change.json"
   },
-  "head_scope": "Actual local HEAD after stage40 and document-index/evidence completion commit; tracked state intentionally names preceding research commit.",
+  "head_scope": "Research stage41 commit; document index follows.",
   "diagnostic61": "Complete: three seeds fail5% prespecified reconstruction-error gate; local flip rates do not consistently improve.104ns incremental hot transform only; no search timing.",
   "directional62_probe": {
     "beta": 0.9359792556459329,
@@ -3987,7 +3994,7 @@
     "production_loader_implemented": false,
     "no_retrieval_qps_or_recall_claim": true
   },
-  "in_progress_phase": 83,
+  "in_progress_phase": null,
   "phase78_status": "Complete:4pairedrounds x3conditions x1/8threads x3seconds. Learned medianQPS31012.207855/229339.88135 atRecall.9069;gain -2.737%/-2.887% vsfrozenbaseline;no benefit;no extra-query gate.",
   "independent78_screen": {
     "passed_full_import": true,
@@ -4949,5 +4956,6 @@
     "exactly_matched_recall": false,
     "threshold_recall_all_ge_0_9": true,
     "breakthrough_verified": false
-  }
+  },
+  "latest_completed_phase": 83
 }

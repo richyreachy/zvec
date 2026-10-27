@@ -288,5 +288,12 @@
     "title": "test(qg): validate partial native-code scoring and sampling algebra",
     "validation": "64 exact Fraction populations/16320subsets;212000native bit gates;2120000actual partial FastScan scalar and tail-bound checks;v1 separate-round oracle failure preserved, v2 matches actual two-FMA binary;successful sources archive byte-identical.",
     "conclusion": "Partial native-code arithmetic feasible. Split-RaBitQ is direct prior art; fixed structured prefix has no inherited Haar guarantee. No new retrieval/Recall/QPS;1340timing rows,breakthrough unmet."
+  },
+  {
+    "stage": "41",
+    "commit": "d15bf5b5596bf5a4e187b3a5b9609b351889c6d9",
+    "title": "test(qg): benchmark partial native-code scans end to end",
+    "validation": "Sixactualcodecvariants passed;full768 primary10000ID/hex identity;40qualitypoints,4timedscreenpoints,3pairedrounds against2controls;independent540000ID/hex and22timingrows auditpassed;166archivegitblobs SHAverified.",
+    "conclusion": "Besteligiblepartial512/cap128 Recall.9406 gives8409.82/67670.85QPS vsnative.9032 at31791.07/236188.95;73.55%/71.35%slower. >=90thresholdnotexactrecallmatch. Reservegatefalse;defaultoff;1362timingrows,no breakthrough."
   }
 ]

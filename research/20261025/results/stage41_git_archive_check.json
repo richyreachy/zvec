@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "research_stage_commit": "d15bf5b5596bf5a4e187b3a5b9609b351889c6d9",
+  "archived_git_blobs_sha_verified": 166,
+  "executed_sources_unchanged_by_hooks": true,
+  "production_header_matches_frozen_builds": true,
+  "large_ID_files_remain_in_bench_with_hashes": 21
+}
