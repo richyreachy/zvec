@@ -281,5 +281,12 @@
     "title": "test(qg): compare decision and moment codes on heldout graph queries",
     "validation": "Frozen20centers/640edges/137candidates;all exact budgets;212000training+69856validation native score/truth bit checks;263040 direct radial checks;models sealed before validation;1024query independent integer counts exact;formatted bank/export/analysis replays exact.",
     "conclusion": "Local boundary errors native40.2795%,M2 34.7766%,hinge35.0721%;hinge-native -5.2074pp buthinge-M2 +0.2955pp. Third predeclared gate fails;no protocol-internal search integration;1340timingrows,no newRecall/QPS,no breakthrough."
+  },
+  {
+    "stage": "40",
+    "commit": "b24adb6666f5be03791fd17bc5e5a0114e89dd26",
+    "title": "test(qg): validate partial native-code scoring and sampling algebra",
+    "validation": "64 exact Fraction populations/16320subsets;212000native bit gates;2120000actual partial FastScan scalar and tail-bound checks;v1 separate-round oracle failure preserved, v2 matches actual two-FMA binary;successful sources archive byte-identical.",
+    "conclusion": "Partial native-code arithmetic feasible. Split-RaBitQ is direct prior art; fixed structured prefix has no inherited Haar guarantee. No new retrieval/Recall/QPS;1340timing rows,breakthrough unmet."
   }
 ]

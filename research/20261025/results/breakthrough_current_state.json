@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-27T02:35:22.777795+00:00",
+  "updated_at": "2026-10-27T02:37:21.591542+00:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -300,10 +300,10 @@
   "primary_measurement_rows": 1340,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "165372c2aaf3c7f2248f63f32345cb938a666791",
+  "head": "b24adb6666f5be03791fd17bc5e5a0114e89dd26",
   "stage_commit_count": 40,
-  "extra_document_index_commits": 29,
-  "working_tree_status": "Stage40 research archive pending local commit.",
+  "extra_document_index_commits": 30,
+  "working_tree_status": "Stage40 committed; document index and precise ignored log evidence pending.",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -350,7 +350,7 @@
     "heldout_validated": false,
     "source_provenance_exception": "results/router60_prebuild_guard_change.json"
   },
-  "head_scope": "Previous stage39 docs head; stage40 arithmetic evidence pending local commit.",
+  "head_scope": "Research stage40 commit; a document-index/evidence completion commit follows.",
   "diagnostic61": "Complete: three seeds fail5% prespecified reconstruction-error gate; local flip rates do not consistently improve.104ns incremental hot transform only; no search timing.",
   "directional62_probe": {
     "beta": 0.9359792556459329,

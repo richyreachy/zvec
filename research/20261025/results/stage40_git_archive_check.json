@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "source_archives_sha_match": true,
+  "exact_ignored_evidence_paths_added": [
+    "research/20261025/results/partial82_artifacts/partial82_mechanics_v2/logs/compile.log",
+    "research/20261025/results/partial82_artifacts/partial82_mechanics_v2/logs/compile_command.json",
+    "research/20261025/results/partial82_artifacts/partial82_mechanics_v2/logs/link.log",
+    "research/20261025/results/partial82_artifacts/partial82_mechanics_v2/logs/link_command.json",
+    "research/20261025/results/partial82_artifacts/partial82_mechanics_v2/logs/mechanics.log",
+    "research/20261025/results/partial82_artifacts/partial82_mechanics_v2/logs/mechanics_command.json",
+    "research/20261025/results/partial82_artifacts/partial82_mechanics_v1/logs/mechanics.log"
+  ],
+  "research_stage_commit": "b24adb6666f5be03791fd17bc5e5a0114e89dd26",
+  "files_checked": 24,
+  "notes": "Raw log/command paths were ignored by repository patterns; add only listed archive evidence, no broad ignore changes."
+}
