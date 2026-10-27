@@ -164,22 +164,27 @@ if(WIN32 AND (BUILD_ZVEC_CORE_SHARED OR BUILD_ZVEC_SHARED))
   endif()
 endif()
 
+set(ZVEC_TURBO_RABITQ_LIBS "")
+if(RABITQ_SUPPORTED)
+  # SymphonyQG uses FastScan; its core dependency also shares Eigen's ABI
+  # settings with the other RaBitQ consumers.
+  list(APPEND ZVEC_TURBO_RABITQ_LIBS rabitqlib::fastscan)
+endif()
+
 cc_library(
     NAME zvec_turbo STATIC STRICT ALWAYS_LINK PACKED
     ${ZVEC_TURBO_LIBRARY_OPTIONS}
     SRCS ${ALL_SRCS}
     DEFS ${ZVEC_TURBO_DEFS}
-    LIBS zvec_ailego rabitqlib
+    LIBS zvec_ailego ${ZVEC_TURBO_RABITQ_LIBS}
     INCS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/distance ${PROJECT_ROOT_DIR}/src/include
 )
 
 # Eigen (header-only, shipped inside the RaBitQ third-party tree) backs the OPQ
 # rotator. It must be a SYSTEM include: INCS above maps to a plain
 # target_include_directories, and STRICT turns Eigen's own warnings into errors.
-# SymphonyQG also exposes RaBitQ headers and links its runtime on supported
-# platforms through the rabitqlib dependency above.
 set(TURBO_EIGEN_INC
-    ${PROJECT_ROOT_DIR}/thirdparty/RaBitQ-Library/RaBitQ-Library-0.1/include)
+    ${PROJECT_ROOT_DIR}/thirdparty/RaBitQ-Library/RaBitQ-Library-0.7.0/include)
 foreach(_turbo_tgt zvec_turbo zvec_turbo_objects zvec_turbo_export_objects)
   if(TARGET ${_turbo_tgt})
     target_include_directories(${_turbo_tgt} SYSTEM PRIVATE ${TURBO_EIGEN_INC})

@@ -44,6 +44,12 @@ constexpr size_t kDefaultRabitqTotalBits = 7;
 constexpr int kMinRabitqDimSize = 64;
 constexpr int kMaxRabitqDimSize = 4095;
 
+// Reported wherever RaBitQ is compiled out. Keep in sync with RABITQ_SUPPORTED
+// in the top-level CMakeLists.txt.
+constexpr char kRabitqUnsupportedPlatform[] =
+    "RaBitQ is not supported on this platform (supported: Linux "
+    "x86_64/ARM64, macOS x86_64/ARM64, Windows x86_64, Android/iOS ARM64)";
+
 // Original vector dimension before converter (e.g., CosineNormalizeConverter)
 // modifies it. Used by IVF-RaBitQ to ignore extra dimensions from converter.
 static const std::string PARAM_RABITQ_GENERAL_DIMENSION(

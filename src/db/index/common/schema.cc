@@ -20,6 +20,7 @@
 #include <zvec/db/status.h>
 #include <zvec/db/type.h>
 #include "ailego/internal/cpu_features.h"
+#include "core/algorithm/hnsw_rabitq/rabitq_params.h"
 #include "db/common/constants.h"
 #include "db/common/typedef.h"
 #include "db/common/utils.h"
@@ -199,16 +200,16 @@ Status FieldSchema::validate() const {
               "L2/IP/COSINE metric");
         }
 #if !RABITQ_SUPPORTED
-        return Status::NotSupported(
-            "RabitQ is not supported on this platform (Linux x86_64 only)");
+        return Status::NotSupported(core::kRabitqUnsupportedPlatform);
 #endif
         auto &flags = zvec::ailego::internal::CpuFeatures::static_flags_;
         const bool supports_rabitq_avx2 = flags.AVX2 && flags.FMA;
         const bool supports_rabitq_avx512 =
             flags.AVX512F && flags.AVX512BW && flags.AVX512DQ;
-        if (!supports_rabitq_avx2 && !supports_rabitq_avx512) {
+        if (!supports_rabitq_avx2 && !supports_rabitq_avx512 && !flags.NEON) {
           return Status::NotSupported(
-              "RabitQ requires AVX2/FMA or AVX512F/BW/DQ to be supported");
+              "RabitQ requires AVX2/FMA, AVX512F/BW/DQ, or NEON to be "
+              "supported");
         }
       }
 

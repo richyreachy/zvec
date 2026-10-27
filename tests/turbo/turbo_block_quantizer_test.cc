@@ -529,6 +529,30 @@ TEST(TurboSymphonyQGTest, FusedScanRejectsUnsupportedLengthsWithoutWriting) {
   }
 }
 
+TEST(TurboSymphonyQGTest, PackedFactorsSupportUnalignedBatchStorage) {
+  constexpr size_t dim = 64, count = 17;
+  std::vector<float> center(dim, 0.25f), data(count * dim), query(dim, 0.5f);
+  for (size_t i = 0; i < data.size(); ++i) {
+    data[i] = static_cast<float>(i % 29) / 16.0f;
+  }
+  const size_t bytes = rabitqlib::QGBatchDataMap<float>::data_bytes(dim);
+  std::vector<char> aligned(bytes, 0), unaligned(bytes + 1, 0);
+  rabitqlib::quant::quantize_qg_batch(data.data(), center.data(), count, dim,
+                                      aligned.data(), rabitqlib::METRIC_L2);
+  // Shift the complete encoded batch, including both FP32 factor arrays.
+  std::copy(aligned.begin(), aligned.end(), unaligned.begin() + 1);
+  SymQuery prepared;
+  prepared.reset(query.data(), dim);
+  prepared.set_g_add(4.0f);
+  std::array<float, 32> expected, actual;
+  ScanSymphonyQGBatch(aligned.data(), prepared, dim, expected.data());
+  ScanSymphonyQGBatch(unaligned.data() + 1, prepared, dim, actual.data());
+  for (size_t i = 0; i < count; ++i) {
+    EXPECT_TRUE(std::isfinite(actual[i]));
+    EXPECT_EQ(expected[i], actual[i]);
+  }
+}
+
 TEST(TurboSymphonyQGTest, ReusedQueryMatchesReferenceLut) {
   if (!rabitqlib::cpu::has_avx2() && !rabitqlib::cpu::has_avx512_core()) {
     GTEST_SKIP() << "RaBitQ requires AVX2/FMA or AVX512";

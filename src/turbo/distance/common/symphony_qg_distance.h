@@ -22,8 +22,9 @@
 #include <vector>
 #include <turbo/distance/common/symphony_qg_kernels.h>
 #if RABITQ_SUPPORTED
-#include <rabitqlib/index/query.hpp>
-#include <rabitqlib/quantization/rabitq.hpp>
+#include <rabitqlib/fastscan/encoder.hpp>
+#include <rabitqlib/fastscan/fastscan.hpp>
+#include <rabitqlib/fastscan/query.hpp>
 #endif
 
 namespace zvec::turbo {
@@ -69,7 +70,8 @@ class SymQuery {
       lut_ = aligned_lut;
       return;
     }
-    ref_lut_.reset(rotated_query, padded_dim);
+    ref_lut_scratch_.resize(padded_dim * 4);
+    ref_lut_.reset(rotated_query, padded_dim, ref_lut_scratch_.data());
     lut_ = ref_lut_.lut();
     delta_ = ref_lut_.delta();
     sum_vl_ = ref_lut_.sum_vl();
@@ -100,6 +102,7 @@ class SymQuery {
  private:
   std::vector<uint8_t> lut_storage_;
   rabitqlib::Lut<float> ref_lut_;
+  std::vector<float> ref_lut_scratch_;
   const uint8_t *lut_ = nullptr;
   float delta_ = 0.0f;
   float sum_vl_ = 0.0f;
@@ -115,9 +118,13 @@ inline void ScanSymphonyQGBatch(const char *codes, const SymQuery &query,
                                 size_t padded_dim, float *distances) {
   constexpr size_t batch_size = rabitqlib::fastscan::kBatchSize;
   rabitqlib::ConstQGBatchDataMap<float> batch(codes, padded_dim);
-  if (symqg_scan(batch.bin_code(), query.lut(), padded_dim, batch.f_add(),
-                 batch.f_rescale(), query.g_add(), query.delta(),
-                 query.sum_vl_lut(), query.k1xsumq(), distances)) {
+  // RaBitQ 0.7 factors are packed byte views, not live float arrays.
+  std::array<float, batch_size> add, scale;
+  batch.f_add().copy_to(add.data(), batch_size);
+  batch.f_rescale().copy_to(scale.data(), batch_size);
+  if (symqg_scan(batch.bin_code(), query.lut(), padded_dim, add.data(),
+                 scale.data(), query.g_add(), query.delta(), query.sum_vl_lut(),
+                 query.k1xsumq(), distances)) {
     return;
   }
   std::array<uint32_t, batch_size> sums{};

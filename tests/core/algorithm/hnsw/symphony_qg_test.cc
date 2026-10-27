@@ -32,7 +32,7 @@
 #include "hnsw_context.h"
 #include "hnsw_symphony_qg.h"
 #if RABITQ_SUPPORTED
-#include <rabitqlib/quantization/rabitq.hpp>
+#include <rabitqlib/fastscan/encoder.hpp>
 #include <rabitqlib/utils/cpu_features.hpp>
 #include <turbo/quantizer/quantizer.h>
 #include <zvec/core/framework/index_factory.h>

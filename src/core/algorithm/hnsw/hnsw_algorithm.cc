@@ -343,9 +343,7 @@ class HnswExactGraphScan {
 
  private:
   void prefetch(const void *vector) const {
-    const auto *p = static_cast<const char *>(vector);
-    for (uint32_t cl = 0; cl < prefetch_lines_; ++cl)
-      ailego_prefetch(p + cl * 64);
+    ailego_prefetch_lines(vector, prefetch_lines_);
   }
   using Neighbors =
       decltype(std::declval<const EntityType &>().get_neighbors_typed(
@@ -387,8 +385,9 @@ void dual_heap_search_neighbors(const EntityType &entity, level_t level,
                                 node_id_t *entry_point, dist_t *dist,
                                 TopkHeap &topk, HnswContext *ctx,
                                 HnswDistCalculator &dc, FilterFn &&filter) {
+  const size_t vector_lines = ailego_cache_line_count(entity.vector_size());
   const uint32_t prefetch_lines =
-      ctx->pl() > 0 ? ctx->pl() : (entity.vector_size() + 63) / 64;
+      ctx->pl() > 0 ? std::min<size_t>(ctx->pl(), vector_lines) : vector_lines;
   VisitFilter &visit = ctx->visit_filter();
   CandidateHeap &candidates = ctx->candidates();
   candidates.clear();
@@ -467,8 +466,9 @@ template <typename EntityType>
 int HnswAlgorithm<EntityType>::dispatch_search_neighbors(
     node_id_t entry_point, dist_t entry_dist, HnswContext *ctx) const {
   const auto &entity = static_cast<const EntityType &>(ctx->get_entity());
+  const size_t vector_lines = ailego_cache_line_count(entity.vector_size());
   const uint32_t prefetch_lines =
-      ctx->pl() > 0 ? ctx->pl() : (entity.vector_size() + 63) / 64;
+      ctx->pl() > 0 ? std::min<size_t>(ctx->pl(), vector_lines) : vector_lines;
   const bool dispatched =
       dispatch_visit_filter(ctx->visit_filter(), [&](auto visit) {
         visit.clear();

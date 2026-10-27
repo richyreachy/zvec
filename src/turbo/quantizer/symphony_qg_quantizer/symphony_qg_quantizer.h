@@ -240,8 +240,8 @@ class SymphonyQGBlockQuantizer {
       }
       if (partial > 0) {
         const float ratio = float(full / partial);
-        projected.f_add()[i] *= ratio;
-        projected.f_rescale()[i] *= ratio;
+        projected.f_add()[i] = projected.f_add()[i] * ratio;
+        projected.f_rescale()[i] = projected.f_rescale()[i] * ratio;
       } else {
         // A zero projected residual contains no directional information.
         projected.f_add()[i] = float(full);
@@ -328,7 +328,7 @@ class SymphonyQGBlockQuantizer {
                                 encoded_dim()) *
                             (cosine_ ? 1.f : 2.f);
         correction[j * kBatchSize + i] = value;
-        native.f_add()[i] -= center_projection[j] * value;
+        native.f_add()[i] = native.f_add()[i] - center_projection[j] * value;
       }
     }
 #endif
@@ -349,7 +349,8 @@ class SymphonyQGBlockQuantizer {
                                               (half_l1 * half_l1) -
                                           norm2)
                       : 0.0;
-      adjusted.f_add()[i] +=
+      adjusted.f_add()[i] =
+          adjusted.f_add()[i] +
           float(QG_GEOM_BIAS * (cosine_ ? 0.5 : 1.0) * error2);
     }
 #endif
@@ -377,8 +378,11 @@ class SymphonyQGBlockQuantizer {
     // range, full residual denominator, cosine norms, and center correction.
     // Mapping the block with the prefix dimension would misaddress factors.
     rabitqlib::ConstQGBatchDataMap<float> batch(codes, encoded_dim());
+    std::array<float, kBatchSize> add, scale;
+    batch.f_add().copy_to(add.data(), kBatchSize);
+    batch.f_rescale().copy_to(scale.data(), kBatchSize);
     if (!symqg_scan(batch.bin_code(), query.lookup.lut(), QG_PARTIAL_SCAN_DIM,
-                    batch.f_add(), batch.f_rescale(), center_distance,
+                    add.data(), scale.data(), center_distance,
                     query.partial_delta, query.lookup.sum_vl_lut(),
                     query.partial_k1xsumq, distances))
       throw std::runtime_error(
@@ -418,12 +422,13 @@ class SymphonyQGBlockQuantizer {
   __attribute__((target("avx512f,fma"))) void apply_radial(
       const char *codes, float center_distance, float *distances) const {
     rabitqlib::ConstQGBatchDataMap<float> batch(codes, encoded_dim());
+    std::array<float, kBatchSize> add;
+    batch.f_add().copy_to(add.data(), kBatchSize);
     const __m512 center = _mm512_set1_ps(center_distance);
     for (size_t i = 0; i < kBatchSize; i += 16)
-      _mm512_storeu_ps(
-          distances + i,
-          _mm512_fnmadd_ps(_mm512_loadu_ps(batch.f_add() + i), center,
-                           _mm512_loadu_ps(distances + i)));
+      _mm512_storeu_ps(distances + i,
+                       _mm512_fnmadd_ps(_mm512_loadu_ps(add.data() + i), center,
+                                        _mm512_loadu_ps(distances + i)));
   }
 #endif
 #if defined(QG_LOWRANK)
