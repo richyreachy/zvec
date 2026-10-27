@@ -16,6 +16,10 @@
 #include <turbo/distance/common/symphony_qg_distance.h>
 #include <turbo/preprocessor/symphony_qg_rotator/symphony_qg_rotator.h>
 
+#if defined(QG_PARTIAL_CENTER_CORRECTION) && !defined(QG_PARTIAL_SCAN_DIM)
+#error Center correction requires a fixed partial scan dimension
+#endif
+
 #if defined(QG_PARTIAL_SCAN_DIM)
 #if QG_PARTIAL_SCAN_DIM != 128 && QG_PARTIAL_SCAN_DIM != 256 && \
     QG_PARTIAL_SCAN_DIM != 384 && QG_PARTIAL_SCAN_DIM != 512 && \
@@ -257,6 +261,25 @@ class SymphonyQGBlockQuantizer {
       ConvertSymphonyQGCosineFactors(center, vectors, count, encoded_dim(),
                                      batch.f_add(), batch.f_rescale());
     }
+#if defined(QG_PARTIAL_CENTER_CORRECTION) && QG_PARTIAL_SCAN_DIM < 768
+    // z = sign(v-c)/2 and rho = D/m. The native score is A + B*q.z.
+    // Folding B*(c.z - rho*c_prefix.z_prefix) into A makes the partial
+    // estimate sample (q-c).z instead of q.z. Codes and scales stay native.
+    rabitqlib::QGBatchDataMap<float> corrected(codes, encoded_dim());
+    constexpr double ratio = 768.0 / QG_PARTIAL_SCAN_DIM;
+    for (size_t i = 0; i < count; ++i) {
+      double full = 0, prefix = 0;
+      for (size_t j = 0; j < encoded_dim(); ++j) {
+        const float residual = vectors[i * encoded_dim() + j] - center[j];
+        const double term = double(center[j]) * (residual > 0 ? .5 : -.5);
+        full += term;
+        if (j < QG_PARTIAL_SCAN_DIM) prefix += term;
+      }
+      corrected.f_add()[i] =
+          float(double(corrected.f_add()[i]) +
+                double(corrected.f_rescale()[i]) * (full - ratio * prefix));
+    }
+#endif
 #if defined(QG_DIRECTION_BETA) || defined(QG_DIRECTION_MSE)
     if (cosine_) {
       rabitqlib::QGBatchDataMap<float> batch(codes, encoded_dim());
