@@ -1,4 +1,0 @@
-Ruff (lint + fix)........................................................Passed
-Ruff (format)............................................................Passed
-clang-format (C++)...................................(no files to check)Skipped
-Detect hardcoded secrets (gitleaks)......................................Passed

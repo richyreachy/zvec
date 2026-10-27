@@ -1,9 +1,0 @@
-{
-  "src/core/algorithm/hnsw/hnsw_quantized_graph.cc": "f845d4376960e89ae70cf1910ea42a60f561ca8f14b8d18f13df9948c700400b",
-  "src/core/algorithm/quantized_graph/quantized_graph.h": "b6fbe69f19331c1c914ec9b9a8d5c16abfe9a97ab906e4238f813f026ca58690",
-  "src/core/algorithm/quantized_graph/quantized_graph_beam.h": "b3d4cfe4b5f44a79040474f1e13c9455f5f80ae65766019da486b6e71e9ce299",
-  "src/core/algorithm/quantized_graph/quantized_graph_bucket.h": "34f79dc5649a7b0bb91a823f777be33c1274cffcaf5bdfa5cda754dff8f3f988",
-  "src/core/algorithm/quantized_graph/quantized_graph_half_center.h": "bc6651f31ca1defc1aeb48e7c34985bed915988f0f255be73dd1a6708d15a158",
-  "src/turbo/preprocessor/symphony_qg_rotator/symphony_qg_rotator.h": "e9624e6fab5524c26a6bc29e901c38ca58c166f7a22902ebb04cb4edc661e7f7",
-  "src/turbo/quantizer/symphony_qg_quantizer/symphony_qg_quantizer.h": "e35d24ae6e9824abc287159851874f025afbdc8d3a2d5e0341b365568084c7f6"
-}

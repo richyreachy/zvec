@@ -43,7 +43,7 @@
 
 全部156条计时记录、78,000次screen/recover查询评估、780,000条ID/分数完整；12个构建源码清单与当前源码一致。没有使用额外查询调参或验收，也没有重大突破。
 
-[结果汇总](../results/directional62_summary.json)、[选点](../results/directional62_selected_primary.json)、[实际审计](../results/directional62_actual_validation.json)、[初筛配置](../results/directional62_screen_plan.json)、[恢复召回网格](../results/directional62_recovery_plan.json)。原始实验目录为bench/experiments/screen62_*与recover62_*。
+结果汇总（本地实验文件：`../results/directional62_summary.json`）、选点（本地实验文件：`../results/directional62_selected_primary.json`）、实际审计（本地实验文件：`../results/directional62_actual_validation.json`）、初筛配置（本地实验文件：`../results/directional62_screen_plan.json`）、恢复召回网格（本地实验文件：`../results/directional62_recovery_plan.json`）。原始实验目录为bench/experiments/screen62_*与recover62_*。
 
 下一步应同时关注估计的均值偏差和停止条件，或转向完整图细化对照；[研究约束与已有工作](research63_options.md)。基础最小二乘、收缩与现有图细化均不能作为新颖性主张。
 

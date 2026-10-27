@@ -1,3 +1,0 @@
-algorithm,topk,degree,round,ef,threads,queries,seconds,qps,mean_us,p50_us,p95_us,p99_us,recall,rss_kib,peak_rss_kib,minor_faults,major_faults
-fusion69_native,10,32,1,20000,1,60887,3.000004154,20295.63856,49.1299887,44.87,87.184,105.968,0.9014,10057996,10057456,0,0
-fusion69_native,10,32,1,20000,8,474366,3.000047947,158119.4729,50.34620998,45.945,88.545,109.061,0.9014,10060684,10060008,1052,0

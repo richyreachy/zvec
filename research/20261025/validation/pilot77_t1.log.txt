@@ -1,2 +1,0 @@
-FULLBUILD77 completed=8192/8192 seconds=47.547
-{"centers":8192,"threads":1,"learned_blocks":8182,"native_blocks":10,"updates":2093896,"elapsed_seconds":47.597831750,"peak_rss_kib":3140096,"requires_independent_validation":true,"no_retrieval_qps_claim":true}

@@ -40,7 +40,7 @@ Cohere 1M，cosine，Top-10，原1,000条主查询，32边图、cap64、ef800；
 
 旧路由接口9,000项检查、新增大规模/原距离输出/禁用路由600项检查、默认28项回归均通过。路由关闭时1,000查询的10,000条ID/精确分数与int55_original完全一致。共17,000次查询评估、170,000条ID/分数记录已检查完整性，17组统计记录完整。两个构建清单逐文件核对与本阶段源码一致。
 
-[完整成本核算](../results/anchor58_accounting.json)、[验证摘要](../results/anchor58_validation.json)、[原始文件SHA-256](../results/anchor58_artifact_sha256.json)。原始逐查询数据保留在bench目录的experiments/anchor58_*和results/anchor58_*_stats.csv；不将诊断扫描混入计时汇总。主查询已经用于调参，额外查询仍未运行图检索。
+完整成本核算（本地实验文件：`../results/anchor58_accounting.json`）、验证摘要（本地实验文件：`../results/anchor58_validation.json`）、原始文件SHA-256（本地实验文件：`../results/anchor58_artifact_sha256.json`）。原始逐查询数据保留在bench目录的experiments/anchor58_*和results/anchor58_*_stats.csv；不将诊断扫描混入计时汇总。主查询已经用于调参，额外查询仍未运行图检索。
 
 ## 下一阶段
 

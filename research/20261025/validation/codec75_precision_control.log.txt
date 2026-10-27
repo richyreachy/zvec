@@ -1,1 +1,0 @@
-{"mode":"precision_control","centers":2048,"scores":2097152,"batch_bytes":3328,"scalar_lut_fma_bit_identical_scores":65536,"max_radial_error":3.1365510078096293e-08,"max_native_factor_difference":1.0970979928970337e-06}

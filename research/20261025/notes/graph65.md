@@ -54,4 +54,4 @@ Top10、degree32、cap64、实际ef800；先扫margin诊断召回，再在90%附
 
 不把本阶段的经典角度覆盖界称为新理论。先按[后续诊断计划](graph_refinement66_plan.md)比较精确/量化邻居打分，区分图结构与量化误差影响。用户要求更侧重数学基础，因此并行于研究路线（非并行计时）优先考察多次估计的相关性、选择偏差和停止条件，而非继续扩展补边参数网格。
 
-[全量构图验证](../results/graph65_full_validation.json) · [构图命令与输入哈希](../results/graph65_construction_commands.json) · [拓扑](../results/graph65_topology.json) · [计时摘要](../results/graph65_selected.json) · [搜索验证](../results/graph65_search_validation.json)。大型图、向量和原始逐ID结果保留在bench。
+全量构图验证（本地实验文件：`../results/graph65_full_validation.json`） · 构图命令与输入哈希（本地实验文件：`../results/graph65_construction_commands.json`） · 拓扑（本地实验文件：`../results/graph65_topology.json`） · 计时摘要（本地实验文件：`../results/graph65_selected.json`） · 搜索验证（本地实验文件：`../results/graph65_search_validation.json`）。大型图、向量和原始逐ID结果保留在bench。

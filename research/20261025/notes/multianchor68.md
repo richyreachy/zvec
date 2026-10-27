@@ -59,6 +59,6 @@
 
 ## 复现与局限
 
-大文件位于bench/models68，包括完整事件、配对列表、抽样ID、误差向量和查询残差；[哈希清单](../results/trace68_artifact_manifest.json)、[运行命令](../results/trace68_run_commands.json)、[验证汇总](../results/trace68_validation.json)、[主查询机会](../results/trace68_primary_availability.json)、[实际误差](../results/trace68_geometry.json)、[便宜尺度检查](../results/trace68_cheap_scale.json)。
+大文件位于bench/models68，包括完整事件、配对列表、抽样ID、误差向量和查询残差；哈希清单（本地实验文件：`../results/trace68_artifact_manifest.json`）、运行命令（本地实验文件：`../results/trace68_run_commands.json`）、验证汇总（本地实验文件：`../results/trace68_validation.json`）、主查询机会（本地实验文件：`../results/trace68_primary_availability.json`）、实际误差（本地实验文件：`../results/trace68_geometry.json`）、便宜尺度检查（本地实验文件：`../results/trace68_cheap_scale.json`）。
 
 分析初次误用未装NumPy的系统Python，随后用既有venv完成；主查询文本有尾随分号，严格解析器修正后完整分析。两个原失败日志保留。没有重启或覆盖已完成搜索，没有用额外查询验收。源代码仅新增默认关闭诊断，生产评分未改变；累计检索计时仍1288行，目标保持90%召回下稳定QPS提升至少25%。

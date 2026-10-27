@@ -1,9 +1,0 @@
-/usr/bin/ld: lib/libzvec_turbo.a(symphony_qg_kernels_avx512.cc.o): in function `zvec::turbo::symqg_lut_build(float const*, unsigned long, unsigned char*, float*, float*, float*)':
-symphony_qg_kernels_avx512.cc:(.text+0x271): undefined reference to `zvec::ailego::internal::CpuFeatures::static_flags_'
-/usr/bin/ld: lib/libzvec_turbo.a(symphony_qg_kernels_avx512.cc.o): in function `zvec::turbo::symqg_hadamard(float*, unsigned long)':
-symphony_qg_kernels_avx512.cc:(.text+0x45a): undefined reference to `zvec::ailego::internal::CpuFeatures::static_flags_'
-/usr/bin/ld: lib/libzvec_turbo.a(symphony_qg_kernels_avx512.cc.o): in function `zvec::turbo::symqg_mul(float const*, float*, unsigned long)':
-symphony_qg_kernels_avx512.cc:(.text+0x66a): undefined reference to `zvec::ailego::internal::CpuFeatures::static_flags_'
-/usr/bin/ld: lib/libzvec_turbo.a(symphony_qg_kernels_avx512.cc.o): in function `zvec::turbo::symqg_scan(unsigned char const*, unsigned char const*, unsigned long, float const*, float const*, float, float, float, float, float*)':
-symphony_qg_kernels_avx512.cc:(.text+0x94e): undefined reference to `zvec::ailego::internal::CpuFeatures::static_flags_'
-collect2: error: ld returned 1 exit status

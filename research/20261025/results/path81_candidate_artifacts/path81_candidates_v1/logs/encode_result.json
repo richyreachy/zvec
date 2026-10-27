@@ -1,9 +1,0 @@
-{
-  "argv": [
-    "/home/xingrui/bench/quantized_graph/research_20261025/path81_candidates_v1/prepare81_candidate_codes",
-    "/home/xingrui/bench/quantized_graph/research_20261025",
-    "/home/xingrui/bench/quantized_graph/research_20261025/path81_candidates_v1"
-  ],
-  "returncode": 0,
-  "elapsed_seconds": 0.6715288162231445
-}

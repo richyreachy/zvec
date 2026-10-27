@@ -29,12 +29,12 @@
 
 ## 证据位置
 
-- [原始主结果副本](../results/path80_matched_A_v1.json)
-- [冻结采样配置](../results/path80_matched_artifacts/path80_matched_v1/sampling_manifest.json)
-- [原评分证明](../results/path80_matched_artifacts/path80_matched_v1/score_v1/proof.json)
-- [1000 条逐 query 结果](../results/path80_matched_artifacts/path80_matched_v1/analysis_v1/per_query.json)
-- [3793 条逐 state 结果](../results/path80_matched_artifacts/path80_matched_v1/analysis_v1/per_state.csv)
-- [格式化复现证据](../results/stage37_mechanism_a_replay.json)
-- [归档显式清单](../results/stage37_mechanism_a_filelist.json)
+- 原始主结果副本（本地实验文件：`../results/path80_matched_A_v1.json`）
+- 冻结采样配置（本地实验文件：`../results/path80_matched_artifacts/path80_matched_v1/sampling_manifest.json`）
+- 原评分证明（本地实验文件：`../results/path80_matched_artifacts/path80_matched_v1/score_v1/proof.json`）
+- 1000 条逐 query 结果（本地实验文件：`../results/path80_matched_artifacts/path80_matched_v1/analysis_v1/per_query.json`）
+- 3793 条逐 state 结果（本地实验文件：`../results/path80_matched_artifacts/path80_matched_v1/analysis_v1/per_state.csv`）
+- 格式化复现证据（本地实验文件：`../results/stage37_mechanism_a_replay.json`）
+- 归档显式清单（本地实验文件：`../results/stage37_mechanism_a_filelist.json`）
 
 原报告副本保留原文和原相对链接；其 `../path80_matched_v1/` 引用指向 bench 原始实验目录。本补充提供仓库内可定位的归档链接。

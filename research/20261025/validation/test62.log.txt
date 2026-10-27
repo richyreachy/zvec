@@ -1,4 +1,0 @@
-identity PASSED
-trained PASSED
-mse PASSED
-TEST62 COMPLETE

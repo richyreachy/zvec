@@ -1,1 +1,0 @@
-rotated-center interval checks=8000 anchor/LUT checks=1000 raw_error_median=0.0201346 rotated_error_median=0.00700895 worst_rotation_norm_gap=4.14851e-08 passed

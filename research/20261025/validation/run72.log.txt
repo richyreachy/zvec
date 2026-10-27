@@ -1,9 +1,0 @@
-RUN rotate72_build
-RUN rotate72
-RUN validate_data72
-RUN codec72_build
-RUN codec72_baseline
-RUN codec72_70
-RUN codec72_71
-RUN codec72_72
-RUN72 COMPLETE

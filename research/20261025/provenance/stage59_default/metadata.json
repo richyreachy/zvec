@@ -1,8 +1,0 @@
-{
-  "name": "stage59_default",
-  "defines": [],
-  "baseline": "5a1c8a9852acd34c16114940b4cfc41e157dd9b7",
-  "patch_sha256": "da1c3cba18d3de6bf31a17879c69eeab7d933770ae75eb98bef7a3fa226a0fd4",
-  "immutable_build_source": "/home/xingrui/bench/quantized_graph/research_20261025/variants/stage59_default/build_source",
-  "research_head": "71c8566334022c7dd9be64576fd10cab91739ff6"
-}

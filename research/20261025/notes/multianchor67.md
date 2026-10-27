@@ -115,4 +115,4 @@ d\in[\widehat d_w+E²-E\sqrt{E²+2\widehat d_w},\ \widehat d_w+E²+E\sqrt{E²+2\
 4. 比较原多估计、首估计、简单平均、带余量融合；共同检查排名、提前停止、精排以及完整QPS/Recall。主查询只做已知调参评估，另保留额外查询验收。
 5. 若进入论文路线，需系统核对相关工作；贡献应落在量化图中的条件误差建模、决策规则与可实现算法，而不是上述经典公式本身。
 
-[原始几何与验证](../results/multianchor67_probe.json) · [训练校准及预留验证](../results/multianchor67_calibrated.json) · [正态模型核对](../results/multianchor67_gaussian_check.json)。所有数据在bench/models67；阶段编号67表示数学分支，66未执行。
+原始几何与验证（本地实验文件：`../results/multianchor67_probe.json`） · 训练校准及预留验证（本地实验文件：`../results/multianchor67_calibrated.json`） · 正态模型核对（本地实验文件：`../results/multianchor67_gaussian_check.json`）。所有数据在bench/models67；阶段编号67表示数学分支，66未执行。

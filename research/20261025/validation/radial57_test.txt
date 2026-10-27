@@ -1,1 +1,0 @@
-radial constraints=2000 great_circle_checks=8000 LUT_checks=8000 degeneracy_checks=4 sample_fallback=0 error_norm_worse=482 native_error2_mean=0.277757 adjusted_error2_mean=0.277367 max_constraint_error=2.22045e-16 max_circle_error=5.19417e-08 passed

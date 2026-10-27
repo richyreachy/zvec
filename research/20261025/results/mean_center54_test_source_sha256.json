@@ -1,5 +1,0 @@
-{
-  "source": "/home/xingrui/bench/quantized_graph/research_20261025/scripts/mean_center54_test.cc",
-  "sha256": "f70b68fe1a4327fa9fad04a1a9bc5e35f013c3ce3506cd15d239c0b524e5253f",
-  "note": "Repository test copy may be clang-formatted by hook; build command uses preserved bench source."
-}

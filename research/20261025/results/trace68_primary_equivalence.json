@@ -1,8 +1,0 @@
-{
-  "primary_queries": 1000,
-  "id_score_rows": 10000,
-  "matches_frozen_baseline": true,
-  "primary_queries_already_tuned_not_blind": true,
-  "gt_only_used_by_existing_recall_driver_not_training": true,
-  "no_model_fitted_from_primary_results": true
-}

@@ -1,7 +1,0 @@
-STAGE39 START training
-STAGE39 PASS training
-STAGE39 START validation
-STAGE39 PASS validation
-STAGE39 START independent_audit
-STAGE39 PASS independent_audit
-STAGE39 EXPORT REPLAY COMPLETE

@@ -1,8 +1,0 @@
-{
-  "name": "post_commit_default",
-  "defines": [],
-  "baseline": "5a1c8a9852acd34c16114940b4cfc41e157dd9b7",
-  "patch_sha256": "d253bfefb10ec1cd78c91d41cdd0d57f34baa63f86d00924d4064f899151d8d9",
-  "immutable_build_source": "/home/xingrui/bench/quantized_graph/research_20261025/variants/post_commit_default/build_source",
-  "research_head": "a5e2f9c6eabbd3b46cc34bb67e65c0d2fee6128a"
-}

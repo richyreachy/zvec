@@ -1,9 +1,0 @@
-{
-  "command": [
-    "/home/xingrui/bench/symphony_qg/.venv/bin/python",
-    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/prepare81_hot_centers.py"
-  ],
-  "cwd": "/home/xingrui/bench/quantized_graph/research_20261025",
-  "script_sha256": "0d0758235fe02042db3ab4905b062632fd16a3aff7209560390db843c2d7e624",
-  "purpose": "Frozen phase81 ID-only availability preflight; no training"
-}

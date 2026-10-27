@@ -1,1 +1,0 @@
-integer center checks=8500 interval checks=16000 query error checks=8000 max_distance_error=0.00360822 min_interval_slack=7.83221e-05 passed

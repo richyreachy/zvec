@@ -39,4 +39,4 @@ J是归一化残差的相对重建平方误差；局部比较把第三个邻居�
 
 这只是下一阶段候选，尚未修改编码器或测量搜索。它可利用已有浮点因子实现，不增加码长或在线变换，因此可以做有限的完整搜索检验；不能把离线MSE下降写成Recall或QPS提升。详见[数学、边界与实验设计](directional_shrink62_plan.md)。
 
-[训练与原始数据哈希](../results/rotation61_training.json)、[验证与门槛结论](../results/rotation61_validation.json)、[模型文件哈希](../results/rotation61_model_sha256.json)、[方向因子探针](../results/directional62_probe.json)、[局部翻转配对区间](../results/directional62_flip_ci.json)。数据和大型矩阵保存在bench/models61；本阶段不新增搜索计时行，额外查询结果未使用，重大突破目标未完成。
+训练与原始数据哈希（本地实验文件：`../results/rotation61_training.json`）、验证与门槛结论（本地实验文件：`../results/rotation61_validation.json`）、模型文件哈希（本地实验文件：`../results/rotation61_model_sha256.json`）、方向因子探针（本地实验文件：`../results/directional62_probe.json`）、局部翻转配对区间（本地实验文件：`../results/directional62_flip_ci.json`）。数据和大型矩阵保存在bench/models61；本阶段不新增搜索计时行，额外查询结果未使用，重大突破目标未完成。

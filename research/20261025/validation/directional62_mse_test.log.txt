@@ -1,1 +1,0 @@
-factor_checks=1024 LUT_checks=8192 endpoint_checks=2028 identity_blocks=8 unchanged_L2_blocks=1024 max_original_add_error=8.26999e-07 max_formula_error=5.21218e-07 max_endpoint_error=5.51832e-07 passed

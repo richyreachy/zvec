@@ -1,6 +1,0 @@
-[
-  "/home/xingrui/bench/quantized_graph/research_20261025/path80_query_probe_v3/probe",
-  "/home/xingrui/bench/quantized_graph/research_20261025/models68/primary/events.bin",
-  "/home/xingrui/bench/quantized_graph/research_20261025/models64/full_vectors.f32",
-  "/home/xingrui/bench/dataset/cohere/1m/cohere_test_vector_1m.1000.new.txt"
-]

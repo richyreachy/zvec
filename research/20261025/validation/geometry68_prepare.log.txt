@@ -1,2 +1,0 @@
-database 32768
-primary 31888

@@ -1,3 +1,0 @@
-START diag68_primary
-DONE diag68_primary
-PRIMARY68 COMPLETE

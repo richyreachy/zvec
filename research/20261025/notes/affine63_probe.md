@@ -14,4 +14,4 @@
 
 决定：不集成编码器，不继续扩大校准参数网格，没有新的QPS或Recall@10结论。邻居端点仍可能跨训练/验证分组共享；bootstrap区间不是独立泛化证书，基础回归公式不构成新颖性。
 
-[原始结果](../results/affine63_probe.json)。完整图细化控制实验优先级上升，见[下一阶段计划](graph_refinement64_plan.md)。
+原始结果（本地实验文件：`../results/affine63_probe.json`）。完整图细化控制实验优先级上升，见[下一阶段计划](graph_refinement64_plan.md)。

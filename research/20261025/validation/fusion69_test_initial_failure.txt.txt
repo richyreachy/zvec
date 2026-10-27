@@ -1,1 +1,0 @@
-Initial standalone unit compile failed: score(rng()) and normal(rng()) passed an engine result instead of the engine reference. No executable or tests ran; production source was not implicated. Corrected to score(rng) and normal(rng).

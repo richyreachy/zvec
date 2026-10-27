@@ -31,4 +31,4 @@
 
 下一阶段采用同一全量候选池，合并原有邻居、做初步NSG式筛选、合并反向边，再比较最近补齐与最大最小角度补齐；构图使用确定性顺序。先验证输出图和ID映射，再在相同搜索实现上做同期对照。重大突破仍要求Recall>=90%、稳定QPS提升>=25%和额外查询验收。
 
-[小规模验证](../results/graph64_pilot_validation.json) · [全量验证](../results/graph64_full_validation.json) · [兼容性与回归](../results/graph64_validation.json) · [失败配置记录](../results/graph64_unbounded_failure.json)。当前最佳搜索候选仍是proj60_384，本阶段不新增检索计时行。
+小规模验证（本地实验文件：`../results/graph64_pilot_validation.json`） · 全量验证（本地实验文件：`../results/graph64_full_validation.json`） · 兼容性与回归（本地实验文件：`../results/graph64_validation.json`） · 失败配置记录（本地实验文件：`../results/graph64_unbounded_failure.json`）。当前最佳搜索候选仍是proj60_384，本阶段不新增检索计时行。

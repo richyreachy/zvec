@@ -65,6 +65,6 @@
 
 这说明更宽路由确实改善了入口距离，但其额外成本仍不能被当前图搜索节省抵消，最近入口也不保证最佳搜索路径。
 
-[完整结果与验证](../results/router59_summary.json)、[训练元数据](../results/router59_training.json)、[入口质量](../results/router59_entry_quality.json)、[原始测量哈希](../results/router59_artifact_sha256.json)。60条计时记录，screen阶段31,000次主查询评估，另有audit/full共2,000次评估。原始模型、训练样本、二进制和全部ID/分数在bench目录保存，大型文件不进入Git。
+完整结果与验证（本地实验文件：`../results/router59_summary.json`）、训练元数据（本地实验文件：`../results/router59_training.json`）、入口质量（本地实验文件：`../results/router59_entry_quality.json`）、原始测量哈希（本地实验文件：`../results/router59_artifact_sha256.json`）。60条计时记录，screen阶段31,000次主查询评估，另有audit/full共2,000次评估。原始模型、训练样本、二进制和全部ID/分数在bench目录保存，大型文件不进入Git。
 
 下一步只做有控制的[固定树投影成本消融](projected_router60_plan.md)：复用已有旋转，降低路由模型流量和评分成本，同时观察入口质量损失；设计尚未实现。若仍无明显收益，则停止此树结构的参数扫描。全程未使用额外查询调参，尚无已验证重大突破，也未证明论文新颖性。

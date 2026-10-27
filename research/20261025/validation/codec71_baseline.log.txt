@@ -1,1 +1,0 @@
-CODEC71 COMPLETE centers=2048 scores=2097152 max_scale_error=1.7126298518244099e-08 max_add_error=1.0696487650896369e-06

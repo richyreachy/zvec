@@ -1,7 +1,0 @@
-{
-  "gradient_probes": 120,
-  "max_gradient_abs_error": 1.5434070085341978e-09,
-  "orthogonality_cases": 16,
-  "max_norm2_error": 2.220446049250313e-16,
-  "reconstruction_identity_cases": 16
-}

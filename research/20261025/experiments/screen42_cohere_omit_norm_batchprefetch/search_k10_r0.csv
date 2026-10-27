@@ -1,3 +1,0 @@
-algorithm,topk,degree,round,ef,threads,queries,seconds,qps,mean_us,p50_us,p95_us,p99_us,recall,rss_kib,peak_rss_kib,minor_faults,major_faults
-omit_norm_batchprefetch,10,32,0,800,1,58171,2.000012381,29085.31995,34.24092928,32.137,54.806,64.021,0.9032,9918908,9918092,344,0
-omit_norm_batchprefetch,10,32,0,800,8,465468,2.000026727,232730.8899,34.11819045,31.886,54.171,63.571,0.9032,9933436,9932776,3852,0

@@ -1,3 +1,0 @@
-PASS final=0 elapsed_seconds=2.673950352
-PASS final=1 elapsed_seconds=11.648082286
-DONE count=4096 threads=1 reverse_edges=59759 seconds=11.648698871

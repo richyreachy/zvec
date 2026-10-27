@@ -1,1 +1,0 @@
-GEOMETRY68 targets=32768 endpoint_max=1.5272075888937017e-15 identity_max=1.5272075888937017e-15

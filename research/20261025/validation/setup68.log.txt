@@ -1,9 +1,0 @@
-[01m[K/home/xingrui/bench/quantized_graph/research_20261025/scripts/trace68_driver.cc:[m[K In constructor ‘[01m[KQueries::[01;32m[KQueries[m[K()[m[K’:
-[01m[K/home/xingrui/bench/quantized_graph/research_20261025/scripts/trace68_driver.cc:90:22:[m[K [01;35m[Kwarning: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kstd::vector<long unsigned int>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} and ‘[01m[Kint[m[K’ [[01;35m[K-Wsign-compare[m[K]
-   90 |       check([01;35m[Kv.size() >= TOPK[m[K, "too few GT neighbors");
-      |             [01;35m[K~~~~~~~~~^~~~~~~[m[K
-[01m[K/home/xingrui/bench/quantized_graph/research_20261025/scripts/trace68_driver.cc:[m[K In function ‘[01m[Kvoid[01;32m[K verify[m[K()[m[K’:
-[01m[K/home/xingrui/bench/quantized_graph/research_20261025/scripts/trace68_driver.cc:155:23:[m[K [01;35m[Kwarning: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kstd::priority_queue<std::pair<double, long unsigned int> >::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} and ‘[01m[Kint[m[K’ [[01;35m[K-Wsign-compare[m[K]
-  155 |       if ([01;35m[Kbest.size() < TOPK[m[K) best.push(candidate);
-      |           [01;35m[K~~~~~~~~~~~~^~~~~~[m[K
-SETUP68 COMPLETE

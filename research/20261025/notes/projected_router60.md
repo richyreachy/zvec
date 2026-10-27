@@ -61,9 +61,9 @@
 
 ## 源码与证据
 
-64条计时记录、screen阶段33,000次查询评估完整；另有audit/full共6,000次评估。[完整结果](../results/router60_summary.json)、[入口质量](../results/router60_quality.json)、[准备与模型哈希](../results/router60_preparation.json)、[原始测量SHA-256](../results/router60_artifact_sha256.json)。
+64条计时记录、screen阶段33,000次查询评估完整；另有audit/full共6,000次评估。完整结果（本地实验文件：`../results/router60_summary.json`）、入口质量（本地实验文件：`../results/router60_quality.json`）、准备与模型哈希（本地实验文件：`../results/router60_preparation.json`）、原始测量SHA-256（本地实验文件：`../results/router60_artifact_sha256.json`）。
 
-3个计时变体的冻结源码早于兼容性保护；其余源码文件与最终版本完全一致，去掉记录的prebuild保护代码可恢复旧头文件SHA-256。6个audit/full与默认构建的源码清单全部与最终源码一致。实际查询输出对照通过，但不把不同快照冒充逐字节相同的编译输入。[精确差异](../results/router60_prebuild_guard_change.json)。所有实验开关默认关闭，原始zvec工作区未改动。
+3个计时变体的冻结源码早于兼容性保护；其余源码文件与最终版本完全一致，去掉记录的prebuild保护代码可恢复旧头文件SHA-256。6个audit/full与默认构建的源码清单全部与最终源码一致。实际查询输出对照通过，但不把不同快照冒充逐字节相同的编译输入。精确差异（本地实验文件：`../results/router60_prebuild_guard_change.json`）。所有实验开关默认关闭，原始zvec工作区未改动。
 
 ## 后续方向
 

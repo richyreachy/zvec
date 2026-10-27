@@ -6,7 +6,7 @@
 
 ## 机器验证
 
-[验证结果](../results/stage36_gitleaks_hash_verification.json)逐项记录了以下核对：
+验证结果（本地实验文件：`../results/stage36_gitleaks_hash_verification.json`）逐项记录了以下核对：
 
 1. 归档文件的工作区字节、Git index 字节和阶段36 seal 的 SHA256 一致。
 2. gitleaks 报告中的完整 Secret 等于告警行的 JSON 值，且该值属于 `frozen_source_sha256`，是完整的 64 位小写十六进制。

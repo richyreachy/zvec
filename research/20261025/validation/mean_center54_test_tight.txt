@@ -1,1 +1,0 @@
-mean-center interval checks=16000 projection identities=8000 anchor/LUT checks=1000 raw_error_median=0.0201267 shifted_error_median=0.00413544 max_identity_error=8.0863e-15 passed

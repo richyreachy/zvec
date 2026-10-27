@@ -292,7 +292,7 @@
 
 标签在 STOP_GRID 模式下编码 margin/patience，实际 ef=800；各实验 `config.json` 保存完整命令和环境变量。
 
-[逐行测量](results/breakthrough_screen_rows.json)、[摘要JSON](results/breakthrough_screen_summary.json)、[上一轮完整报告](cohere90_round3_report.md)。
+逐行测量（本地实验文件：`results/breakthrough_screen_rows.json`）、摘要JSON（本地实验文件：`results/breakthrough_screen_summary.json`）、[上一轮完整报告](cohere90_round3_report.md)。
 
 额外查询：已下载 [Big ANN 官方数据定义](https://github.com/harsha-simhadri/big-ann-benchmarks/blob/main/benchmark/datasets.py) 指向的 Wikipedia-Cohere 5,000 条查询，只做来源和格式核对。已按cosine归一化核对：与原1,000条查询无近重复（阈值0.999），最大相似度0.927826。原始范数差异本身不影响cosine，也不能证明模型不兼容；来源仍不足以确认同模型同分布，不能直接称为同分布盲测。详情见 [来源记录](holdout_sources/provenance.json)。未观察它们的召回结果或据此调参。
 
@@ -304,7 +304,7 @@
 
 量化感知剪枝的[数学推导与边界](notes/quantized_pruning.md)。所有局部性质均不能替代全局召回实测。
 
-最新自动核对：[证据JSON](results/breakthrough_correctness.json)，逐查询比较 59,000 次，ID/分数差异 0 次。
+最新自动核对：证据JSON（本地实验文件：`results/breakthrough_correctness.json`），逐查询比较 59,000 次，ID/分数差异 0 次。
 
 ## 精确邻居距离诊断
 

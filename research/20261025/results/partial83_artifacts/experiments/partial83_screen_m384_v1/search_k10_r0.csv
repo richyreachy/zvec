@@ -1,2 +1,0 @@
-algorithm,topk,degree,round,ef,threads,queries,seconds,qps,mean_us,p50_us,p95_us,p99_us,recall,rss_kib,peak_rss_kib,minor_faults,major_faults
-partial83_d384_v1,10,32,0,2999,1,8784,2.000118394,4391.740022,227.4583778,226.098,252.758,262.114,0.9497,9981328,9980632,268,0
