@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "python3",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/assemble81_models.py",
+    "--candidate-manifest",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_candidates_v1/manifest.json",
+    "--indices",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_assembly_control_v1/indices.json",
+    "--output",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_assembly_control_v1/assembled"
+  ],
+  "cwd": "/home/xingrui/bench/quantized_graph/research_20261025/path81_assembly_control_v1"
+}

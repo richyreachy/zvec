@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "all1024_query_identifiers_denominators_and_three_integer_error_counts_match": true,
+  "comparisons": 5120,
+  "primary_boundary_rows": 137384,
+  "notes": "Independent implementation received unsolicited effect summary before implementation;not a blinded audit. No analyst source/effect files were read by audit implementation. Root compared completed outputs only.",
+  "input_sha256": {
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_validation_analysis_v1/per_query.csv": "8bd270746d7cf0005a65f84045b44e90ff0a4d091756e976c4452e1242b415bb",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_independent_metrics_v1/per_query.json": "eca31cb314e08ecb08a1ea89444f806b263172e6d42f1e7e93a87213efac465a"
+  }
+}

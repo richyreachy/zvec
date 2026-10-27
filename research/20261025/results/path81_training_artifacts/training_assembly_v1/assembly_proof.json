@@ -1,0 +1,50 @@
+{
+  "passed": true,
+  "models": 2,
+  "centers": 20,
+  "lanes": 32,
+  "assembled_blocks_verified": 40,
+  "factor_recomputed": false,
+  "queries_or_labels_read": false,
+  "method_order": [
+    "second_moment",
+    "hinge"
+  ],
+  "protocol_sha256": "ced04e30f808f016156bacdabfd89ad27ddd238e8388a4ba798457b4eb849f29",
+  "candidate_manifest_sha256": "4b72ae11c27a6dac17642771c0753a684467896f94bb77d37e34afb1ee965868",
+  "training_export_proof_sha256": "1e10be6bec5d3faf4bce52a0b02a0b08b5887ff36fa7807840572ad4703fa1d0",
+  "indices_source_sha256": "54484ac7e5469139d9e49f55441edc49d2880030676504fe9fb3bcd7e02070db",
+  "binary_sha256": "32e792f7fab6982d2d405280f425ede2c7e438d301e52832d33c42ab230a9658",
+  "assembler_script_sha256": "ce0789250fd1703f388797d74cc77b96493e170f2a1a672bbba7e6a28d6450ae",
+  "artifacts_sha256": {
+    "selected_indices.json": "54484ac7e5469139d9e49f55441edc49d2880030676504fe9fb3bcd7e02070db",
+    "selected_indices.u32": "30d3f27b1babc4daf2e92747ea9021b478af94a31ceae69dcb2a9a7d8e09393f",
+    "selected_models.bin": "91c6c905bcd9e8d3f7aab1a020b31fde77efc297a3ab93f5284b4388f62f136a",
+    "assembly_result.json": "338b122233fdaa94a6100fda97ec326f3fc38cfd0062cb695943630f23218c13"
+  },
+  "selected_models_header_u32": [
+    1363627393,
+    1,
+    64,
+    768,
+    20,
+    2,
+    32,
+    3328,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "selected_models_payload_shape": [
+    2,
+    20,
+    3328
+  ],
+  "no_query_label_or_score_files_read": true,
+  "note": "geometry assembly only; parent must freeze all training artifacts before validation"
+}

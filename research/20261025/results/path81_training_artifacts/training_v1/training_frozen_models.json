@@ -1,0 +1,29 @@
+{
+  "phase": 81,
+  "version": 1,
+  "method_order": [
+    "second_moment",
+    "hinge"
+  ],
+  "created_at": "2026-10-26T22:59:23.461556+08:00",
+  "protocol_path": "/home/xingrui/bench/quantized_graph/research_20261025/path81_protocol_v1/config.json",
+  "protocol_sha256": "ced04e30f808f016156bacdabfd89ad27ddd238e8388a4ba798457b4eb849f29",
+  "candidate_manifest_path": "/home/xingrui/bench/quantized_graph/research_20261025/path81_candidates_v1/manifest.json",
+  "candidate_manifest_sha256": "4b72ae11c27a6dac17642771c0753a684467896f94bb77d37e34afb1ee965868",
+  "training_export_proof_path": "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_export_v1/proof.json",
+  "training_export_proof_sha256": "1e10be6bec5d3faf4bce52a0b02a0b08b5887ff36fa7807840572ad4703fa1d0",
+  "artifacts_root": "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_v1",
+  "artifacts_sha256": {
+    "selected_indices.json": "54484ac7e5469139d9e49f55441edc49d2880030676504fe9fb3bcd7e02070db",
+    "objectives.npz": "869fffde5395217612d4b4245b1d6dbc647014f59873a9c148821f3eaef44d46",
+    "selected_models.bin": "91c6c905bcd9e8d3f7aab1a020b31fde77efc297a3ab93f5284b4388f62f136a",
+    "training_result.json": "b966da6779dcd08ca592ca4ce5fc41a08267e9f02c00002547f44ad9a8e2a80c"
+  },
+  "assembly_proof_path": "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_assembly_v1/assembly_proof.json",
+  "assembly_proof_sha256": "f353bf61a60e123852eb4dab2b3fa635b25af3841b8662f2844d25ca407de8c2",
+  "saved_objectives_all640_argmin_verified": true,
+  "validation_authorized_after_freeze": true,
+  "no_validation_score_or_labels_read_before_freeze": true,
+  "training_result_scope": "frozen pre-assembly training result; assembly completion proved separately here",
+  "no_qps_or_recall_claim": true
+}

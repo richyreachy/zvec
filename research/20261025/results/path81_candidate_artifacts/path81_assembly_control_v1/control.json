@@ -1,0 +1,6 @@
+{
+  "mechanical_control_only": true,
+  "training_or_score_labels_read": false,
+  "not_a_training_export": true,
+  "selection": "model0 all native; model1 (center_row*32+lane)%137, geometry-only fixed formula"
+}

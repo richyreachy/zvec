@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "path": "research/20261025/results/path81_candidate_artifacts/path81_candidates_v1/manifest.json",
+      "line": 44,
+      "artifact": "/home/xingrui/bench/quantized_graph/research_20261025/path81_candidates_v1/center_keys.u64",
+      "sha256": "d4ac66825db98498077c7d98cbfc20a8034d560f4971c1b8db61a75315e326d6",
+      "index_equals_sealed_archive": true
+    },
+    {
+      "path": "research/20261025/results/path81_candidate_artifacts/path81_candidates_v1/manifest.json",
+      "line": 45,
+      "artifact": "/home/xingrui/bench/quantized_graph/research_20261025/path81_candidates_v1/neighbor_keys.u64",
+      "sha256": "b461f4c8623ed2c70e778e6c36e402358a3ea2021bb6c8376a7cd6228ed56dff",
+      "index_equals_sealed_archive": true
+    },
+    {
+      "path": "research/20261025/results/path81_candidate_artifacts/replay81_candidates_formatted_v1/candidate_bank/manifest.json",
+      "line": 44,
+      "artifact": "/home/xingrui/bench/quantized_graph/research_20261025/path81_candidates_v1/center_keys.u64",
+      "sha256": "d4ac66825db98498077c7d98cbfc20a8034d560f4971c1b8db61a75315e326d6",
+      "index_equals_sealed_archive": true
+    },
+    {
+      "path": "research/20261025/results/path81_candidate_artifacts/replay81_candidates_formatted_v1/candidate_bank/manifest.json",
+      "line": 45,
+      "artifact": "/home/xingrui/bench/quantized_graph/research_20261025/path81_candidates_v1/neighbor_keys.u64",
+      "sha256": "b461f4c8623ed2c70e778e6c36e402358a3ea2021bb6c8376a7cd6228ed56dff",
+      "index_equals_sealed_archive": true
+    },
+    {
+      "path": "research/20261025/results/stage39_candidates_replay.json",
+      "line": 18,
+      "artifact": "/home/xingrui/bench/quantized_graph/research_20261025/path81_candidates_v1/center_keys.u64",
+      "sha256": "d4ac66825db98498077c7d98cbfc20a8034d560f4971c1b8db61a75315e326d6",
+      "index_equals_sealed_archive": true
+    },
+    {
+      "path": "research/20261025/results/stage39_candidates_replay.json",
+      "line": 19,
+      "artifact": "/home/xingrui/bench/quantized_graph/research_20261025/path81_candidates_v1/neighbor_keys.u64",
+      "sha256": "b461f4c8623ed2c70e778e6c36e402358a3ea2021bb6c8376a7cd6228ed56dff",
+      "index_equals_sealed_archive": true
+    }
+  ],
+  "exact_fingerprints": [
+    "research/20261025/results/path81_candidate_artifacts/path81_candidates_v1/manifest.json:generic-api-key:44",
+    "research/20261025/results/path81_candidate_artifacts/path81_candidates_v1/manifest.json:generic-api-key:45",
+    "research/20261025/results/path81_candidate_artifacts/replay81_candidates_formatted_v1/candidate_bank/manifest.json:generic-api-key:44",
+    "research/20261025/results/path81_candidate_artifacts/replay81_candidates_formatted_v1/candidate_bank/manifest.json:generic-api-key:45",
+    "research/20261025/results/stage39_candidates_replay.json:generic-api-key:18",
+    "research/20261025/results/stage39_candidates_replay.json:generic-api-key:19"
+  ],
+  "sealed_evidence_unchanged": true
+}

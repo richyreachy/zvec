@@ -1,0 +1,37 @@
+{
+  "verified": true,
+  "original_returncode": 2,
+  "entries": [
+    {
+      "path": "research/20261025/results/path81_analysis_artifacts/formatted_validation/per_query.csv",
+      "attribute": "whitespace=cr-at-eol",
+      "warning_count": 1025,
+      "sha256": "8bd270746d7cf0005a65f84045b44e90ff0a4d091756e976c4452e1242b415bb"
+    },
+    {
+      "path": "research/20261025/results/path81_analysis_artifacts/original_validation/per_query.csv",
+      "attribute": "whitespace=cr-at-eol",
+      "warning_count": 1025,
+      "sha256": "8bd270746d7cf0005a65f84045b44e90ff0a4d091756e976c4452e1242b415bb"
+    },
+    {
+      "path": "research/20261025/results/path81_exports/formatted/source_diffs/audit81_primary_metrics_v1.py.diff",
+      "attribute": "whitespace=-blank-at-eol,-blank-at-eof",
+      "warning_count": 20,
+      "sha256": "e497a3263ce19ac976ed76807ac328d83c6d445b1af5f3074ceb607cdf6c1b87"
+    },
+    {
+      "path": "research/20261025/results/path81_exports/formatted/source_diffs/path81_actual_score.cc.diff",
+      "attribute": "whitespace=-blank-at-eol,-blank-at-eof",
+      "warning_count": 4,
+      "sha256": "1ca8de743125e3033ce202891e0066dfb53e65d8dda015cb33ad321e3fee0ae6"
+    },
+    {
+      "path": "research/20261025/results/path81_exports/formatted/source_diffs/path81_actual_score.py.diff",
+      "attribute": "whitespace=-blank-at-eol,-blank-at-eof",
+      "warning_count": 19,
+      "sha256": "5f05ff67c8bfd554d4b12aedfe779eb6d9abaff96fd6b0185ed033084fda7d25"
+    }
+  ],
+  "evidence_bytes_unchanged": true
+}

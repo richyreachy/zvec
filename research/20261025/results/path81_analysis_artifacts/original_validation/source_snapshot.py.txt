@@ -1,0 +1,428 @@
+#!/usr/bin/env python3
+"""Frozen phase81 validation analysis; --self-test never opens data inputs."""
+
+import argparse
+import csv
+import hashlib
+import json
+import struct
+from pathlib import Path
+
+import numpy as np
+
+
+PROTOCOL_SHA = "ced04e30f808f016156bacdabfd89ad27ddd238e8388a4ba798457b4eb849f29"
+METHODS = ["native", "second_moment", "hinge"]
+
+
+def need(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def sha(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def read_json(path):
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            need(key not in result, "duplicate JSON key")
+            result[key] = value
+        return result
+    return json.loads(path.read_text(), object_pairs_hook=unique)
+
+
+def save(path, value):
+    with path.open("x", encoding="utf-8") as stream:
+        json.dump(value, stream, indent=2, sort_keys=True, allow_nan=False)
+        stream.write("\n")
+
+
+def bits_float(bits):
+    return np.asarray(bits, dtype="<u4").view("<f4")
+
+
+def locate(scores, widths, allow_positive_infinity=False):
+    values, scales = np.broadcast_arrays(np.asarray(scores, dtype=np.float32),
+                                        np.asarray(widths, dtype=np.float32))
+    need(np.all(np.isfinite(scales) & (scales > 0)), "finite positive width")
+    valid = np.isfinite(values)
+    if allow_positive_infinity:
+        valid |= np.isposinf(values)
+    need(np.all(valid), "nonfinite actual score")
+    result = np.zeros(values.shape, dtype=np.uint32)
+    nonnegative = values >= np.float32(0)
+    with np.errstate(over="ignore", under="ignore"):
+        quotient = np.divide(values[nonnegative], scales[nonnegative], dtype=np.float32)
+    # Clamp before integer conversion, including finite-input division overflow.
+    result[nonnegative] = np.minimum(quotient, np.float32(2046)).astype(np.uint32) + 1
+    return result
+
+
+def aggregate(query_index, errors, mask, query_count):
+    selected_queries = query_index[mask]
+    denominators = np.bincount(selected_queries, minlength=query_count).astype(np.int64)
+    numerators = np.stack([np.bincount(selected_queries,
+                                      weights=errors[mask, method].astype(np.int64),
+                                      minlength=query_count).astype(np.int64)
+                           for method in range(3)], axis=1)
+    rates = np.zeros((query_count, 3), dtype=np.float64)
+    np.divide(numerators, denominators[:, None], out=rates,
+              where=denominators[:, None] > 0)
+    return denominators, numerators, rates
+
+
+def describe(denominators, numerators, rates):
+    return {"queries": len(denominators), "covered_queries": int(np.count_nonzero(denominators)),
+            "zero_queries": int(np.count_nonzero(denominators == 0)),
+            "raw_denominator": int(denominators.sum()),
+            "raw_error_counts": dict(zip(METHODS, numerators.sum(axis=0).tolist())),
+            "query_equal_error": dict(zip(METHODS, rates.mean(axis=0).tolist())),
+            "delta_hinge_native": float(np.mean(rates[:, 2] - rates[:, 0])),
+            "delta_hinge_second_moment": float(np.mean(rates[:, 2] - rates[:, 1]))}
+
+
+def paired_bootstrap(rates):
+    query_count = len(rates)
+    rng = np.random.default_rng(8103)
+    # One index tensor, reused for both contrasts and every method.
+    indices = rng.integers(0, query_count, size=(4000, query_count), dtype=np.int64)
+    contrasts = np.stack([rates[:, 2] - rates[:, 0], rates[:, 2] - rates[:, 1]], axis=1)
+    draws = contrasts[indices].mean(axis=1)
+    interval = np.quantile(draws, [.025, .975], axis=0, method="linear")
+    points = contrasts.mean(axis=0)
+    result = {"replicates": 4000, "seed": 8103, "rng": "numpy.default_rng PCG64",
+              "unit": "query", "confidence": .95, "quantile_method": "linear",
+              "same_query_indices_for_all_methods": True,
+              "index_tensor_sha256": hashlib.sha256(indices.astype("<i8").tobytes()).hexdigest(),
+              "point_hinge_native": float(points[0]),
+              "point_hinge_second_moment": float(points[1]),
+              "ci95_hinge_native": interval[:, 0].tolist(),
+              "ci95_hinge_second_moment": interval[:, 1].tolist()}
+    return result, draws, indices
+
+
+def gate(bootstrap):
+    conditions = {
+        "hinge_native_point_le_minus_0_005": bootstrap["point_hinge_native"] <= -.005,
+        "hinge_native_ci95_upper_lt_zero": bootstrap["ci95_hinge_native"][1] < 0,
+        "hinge_second_moment_point_le_zero": bootstrap["point_hinge_second_moment"] <= 0,
+    }
+    return {"conditions": conditions, "passed": all(conditions.values()),
+            "meaning": "advance to small actual-path integration only",
+            "not_a_recall_or_qps_result": True,
+            "second_moment_condition_is_point_comparison_not_statistical_noninferiority": True}
+
+
+def analyze_lanes(query_index, scores, truth, widths, native_bins, eligible,
+                  boundaries, center_rows, entry_mask, changed, query_count):
+    """Rows here are native-path proposals; boundaries have shape [rows,2,8]."""
+    need(scores.shape == (len(query_index), 3), "score shape")
+    actual_bins = locate(scores, widths[:, None])
+    truth_bins = locate(truth, widths)
+    need(np.array_equal(actual_bins[:, 0], native_bins), "native bucket identity")
+    flags = boundaries[:, :, 6]
+    need(np.all((flags == 0) | (flags == 7)), "boundary flags")
+    present = flags == 7
+    need(np.all(boundaries[~present] == 0), "absent boundary must be all zero")
+    need(np.all(boundaries[:, :, 7] == 0), "boundary reserved")
+    expected_right = np.stack([native_bins, native_bins + 1], axis=1)
+    meaningful = (expected_right >= 1) & (expected_right < 2048)
+    maximum_bucket = locate(np.full(len(widths), np.finfo(np.float32).max, dtype=np.float32), widths)
+    expected_presence = meaningful & (expected_right <= maximum_bucket[:, None])
+    need(np.array_equal(present, expected_presence), "complete finite adjacent boundaries")
+    at = bits_float(boundaries[:, :, 0])
+    previous = bits_float(boundaries[:, :, 1])
+    next_value = bits_float(boundaries[:, :, 2])
+    right = boundaries[:, :, 4]
+    need(np.all(np.isfinite(at[present])) and np.all(np.isfinite(previous[present])), "finite transition and predecessor")
+    need(np.array_equal(right[present], expected_right[present]), "adjacent right bucket")
+    with np.errstate(over="ignore", under="ignore"):
+        expected_previous = np.nextafter(at[present], np.float32(-np.inf), dtype=np.float32)
+        expected_next = np.nextafter(at[present], np.float32(np.inf), dtype=np.float32)
+    need(np.array_equal(previous[present].view("u4"), expected_previous.view("u4")), "predecessor FP32 bits")
+    need(np.array_equal(next_value[present].view("u4"), expected_next.view("u4")), "nextafter FP32 bits")
+    repeated_width = np.broadcast_to(widths[:, None], present.shape)
+    at_bins = locate(at[present], repeated_width[present])
+    prev_bins = locate(previous[present], repeated_width[present])
+    next_bins = locate(next_value[present], repeated_width[present], allow_positive_infinity=True)
+    need(np.array_equal(at_bins, right[present]) and np.all(prev_bins < right[present])
+         and np.all(next_bins >= right[present]), "transition machine predicates")
+    need(np.array_equal(prev_bins, boundaries[:, :, 3][present])
+         and np.array_equal(next_bins, boundaries[:, :, 5][present]), "stored neighbor bucket fields")
+    truth_side = truth_bins[:, None] >= right
+    prediction = actual_bins[:, None, :] >= right[:, :, None]
+    need(np.array_equal(truth_side[present], (truth[:, None] >= at)[present]), "truth right-inclusive equivalence")
+    need(np.array_equal(prediction[present], (scores[:, None, :] >= at[:, :, None])[present]), "candidate right-inclusive equivalence")
+    errors = (prediction != truth_side[:, :, None]).reshape(-1, 3)
+    row_query = np.repeat(query_index, 2)
+    finite = present.reshape(-1)
+    primary_mask = finite & np.repeat(eligible, 2)
+    primary = aggregate(row_query, errors, primary_mask, query_count)
+    # The unchanged native rule compared with itself must have identically zero contrasts.
+    native_control = aggregate(row_query, np.repeat(errors[:, :1], 3, axis=1), primary_mask, query_count)
+    need(np.all(native_control[2][:, 2] - native_control[2][:, 0] == 0), "native-vs-native negative control")
+    # Truth-as-prediction is exactly right even on true==transition rows.
+    exact_scores = np.repeat(truth[:, None], 3, axis=1)
+    exact_bins = locate(exact_scores, widths[:, None])
+    reference_errors = ((exact_bins[:, None, :] >= right[:, :, None])
+                        != truth_side[:, :, None]).reshape(-1, 3)
+    exact_control = aggregate(row_query, reference_errors, primary_mask, query_count)
+    need(np.all(exact_control[1] == 0), "exact-reference positive control")
+    tie_mask = finite & (truth[:, None] == at).reshape(-1)
+    descriptions = {
+        "all_lanes_boundary": describe(*aggregate(row_query, errors, finite, query_count)),
+        "primary_full_bucket_id": describe(*aggregate(query_index, actual_bins != truth_bins[:, None], eligible, query_count)),
+        "all_lanes_full_bucket_id": describe(*aggregate(query_index, actual_bins != truth_bins[:, None], np.ones(len(eligible), dtype=bool), query_count)),
+        "primary_entry": describe(*aggregate(row_query, errors, primary_mask & np.repeat(entry_mask, 2), query_count)),
+        "primary_nonentry": describe(*aggregate(row_query, errors, primary_mask & ~np.repeat(entry_mask, 2), query_count)),
+        "true_ties": describe(*aggregate(row_query, errors, primary_mask & tie_mask, query_count)),
+        "primary_true_tie_rows": int(np.count_nonzero(primary_mask & tie_mask)),
+        "all_lane_true_tie_rows": int(np.count_nonzero(tie_mask)),
+        "primary_prediction_ties": dict(zip(METHODS, np.sum((scores[:, None, :] == at[:, :, None]) & primary_mask.reshape(-1, 2, 1), axis=(0, 1)).tolist())),
+        "per_center": {}, "changed_code_support": {},
+    }
+    for center in np.unique(center_rows):
+        descriptions["per_center"][str(int(center))] = describe(*aggregate(
+            row_query, errors, primary_mask & np.repeat(center_rows == center, 2), query_count))
+    for method in range(2):
+        for state in [False, True]:
+            name = METHODS[method + 1] + ("_changed" if state else "_unchanged")
+            descriptions["changed_code_support"][name] = describe(*aggregate(
+                row_query, errors, primary_mask & np.repeat(changed[:, method] == state, 2), query_count))
+    return primary, descriptions, {"native_negative_control_passed": True,
+                                   "exact_reference_positive_control_passed": True,
+                                   "actual_score_bucket_predicates_verified": True,
+                                   "present_boundaries": int(np.count_nonzero(present)),
+                                   "eligible_proposals": int(np.count_nonzero(eligible)),
+                                   "visited_proposals_excluded": int(np.count_nonzero(~eligible))}
+
+
+def load_payload(path, magic, record_bytes, records, models, multiplier=1):
+    raw = path.read_bytes()
+    expected = (magic, 1, 64, record_bytes, 768, 32, records, models, 1) + (0,) * 7
+    need(len(raw) == 64 + records * record_bytes * multiplier, "file length: " + str(path))
+    need(struct.unpack_from("<16I", raw) == expected, "full header: " + str(path))
+    return raw[64:]
+
+
+def verify_hash(path, expected, protected):
+    actual = sha(path)
+    need(actual == expected, "SHA mismatch: " + str(path))
+    protected[str(path.resolve())] = actual
+
+
+def verify_artifacts(root, mapping, protected, required):
+    need(set(required) <= set(mapping), "missing artifact hashes")
+    for name in required:
+        relative = Path(name)
+        need(not relative.is_absolute() and ".." not in relative.parts, "artifact path traversal")
+        verify_hash(root / relative, mapping[name], protected)
+
+
+def load_validation(args):
+    protected = {}
+    verify_hash(args.config, PROTOCOL_SHA, protected)
+    config = read_json(args.config)
+    need(config["frozen"] and config["phase"] == 81, "frozen protocol")
+    manifest = read_json(args.training_manifest)
+    need(manifest["phase"] == 81 and manifest["version"] == 1
+         and manifest["method_order"] == METHODS[1:], "frozen method identity")
+    need(manifest["protocol_sha256"] == PROTOCOL_SHA
+         and manifest["validation_authorized_after_freeze"] is True
+         and manifest["no_validation_score_or_labels_read_before_freeze"] is True, "training freeze before validation")
+    model_root = Path(manifest["artifacts_root"])
+    need(model_root.resolve() == args.training_manifest.parent.resolve(), "model artifact root")
+    protected[str(args.training_manifest.resolve())] = sha(args.training_manifest)
+    verify_artifacts(model_root, manifest["artifacts_sha256"], protected,
+                     ["selected_indices.json", "objectives.npz", "selected_models.bin", "training_result.json"])
+    training_path = Path(manifest["training_export_proof_path"])
+    candidate_path = Path(manifest["candidate_manifest_path"])
+    verify_hash(training_path, manifest["training_export_proof_sha256"], protected)
+    verify_hash(candidate_path, manifest["candidate_manifest_sha256"], protected)
+    train_proof = read_json(training_path)
+    need(train_proof["passed"] is True and train_proof["partition"] == "training"
+         and train_proof["protocol_sha256"] == PROTOCOL_SHA
+         and train_proof["candidate_manifest_sha256"] == manifest["candidate_manifest_sha256"], "training export proof")
+    selection = read_json(model_root / "selected_indices.json")
+    need(selection["method_order"] == METHODS[1:], "selection method order")
+    for field in ["protocol_sha256", "candidate_manifest_sha256", "training_export_proof_sha256"]:
+        need(selection[field] == manifest[field], "selection provenance")
+    selected = np.asarray(selection["indices"])
+    need(selected.shape == (2, 20, 32) and selected.dtype.kind in "iu"
+         and np.all((selected >= 0) & (selected < 137)), "whole640 selected code indices")
+    candidate = read_json(candidate_path)
+    need(candidate["passed"] is True and candidate["geometry_only"] is True
+         and candidate["protocol_sha256"] == PROTOCOL_SHA, "candidate geometry proof")
+    verify_artifacts(candidate_path.parent, candidate["artifacts_sha256"], protected,
+                     ["centers.u32", "neighbors.u32", "valid.u8"])
+    centers = np.fromfile(candidate_path.parent / "centers.u32", dtype="<u4")
+    neighbors = np.fromfile(candidate_path.parent / "neighbors.u32", dtype="<u4").reshape(20, 32)
+    valid = np.fromfile(candidate_path.parent / "valid.u8", dtype="u1").reshape(20, 137, 32)
+    need(centers.tolist() == config["preflight"]["center_order"], "full center order")
+    need(np.all(valid[np.arange(20)[None, :, None], selected, np.arange(32)[None, None, :]] == 1), "selected candidates feasible")
+    proof_path = args.validation_export / "proof.json"
+    proof = read_json(proof_path)
+    protected[str(proof_path.resolve())] = sha(proof_path)
+    need(proof["passed"] is True and proof["partition"] == "validation"
+         and proof["protocol_sha256"] == PROTOCOL_SHA
+         and proof["candidate_manifest_sha256"] == manifest["candidate_manifest_sha256"]
+         and proof["training_frozen_models_sha256"] == sha(args.training_manifest), "validation export frozen linkage")
+    need(proof["full_frozen_partition_scope"] is True
+         and proof["only_native_path_states_not_actual_learned_path"] is True
+         and proof["native_gate_completed_before_candidate_scoring"] is True
+         and proof["state_count"] == 2183 and proof["native_edges_bit_identical"] == 2183 * 32
+         and proof["models_scored_per_state"] == 3, "full native bit gate")
+    verify_artifacts(args.validation_export, proof["artifacts_sha256"], protected,
+                     ["states.bin", "queries.bin", "scores.f32", "scorer_result.json"])
+    preflight = Path(config["preflight"]["root"])
+    for name in ["split.json", "validation_selected_states.json"]:
+        verify_hash(preflight / name, config["preflight"]["files_sha256"][name], protected)
+    split = read_json(preflight / "split.json")
+    query_ids = np.array(sorted(split["validation_query_serials"]), dtype=np.int64)
+    need(len(query_ids) == 1024 and len(set(query_ids.tolist())) == 1024, "all validation query IDs")
+    expected_states = read_json(preflight / "validation_selected_states.json")
+    need(len(expected_states) == 2183, "frozen state count")
+    state_payload = load_payload(args.validation_export / "states.bin", 0x51474181, 3136, 2183, 3)
+    state_words = np.frombuffer(state_payload, dtype="<u4").reshape(2183, 784)
+    headers = state_words[:, :16]
+    lanes = state_words[:, 16:].reshape(2183, 32, 24)
+    expected_identity = np.array([[s["query_serial"], s["query_internal_id"], s["center"], s["step"]]
+                                  for s in expected_states], dtype=np.uint32)
+    need(np.array_equal(headers[:, :4], expected_identity), "full frozen state identity/order")
+    need(np.all(headers[:, 4] == 32) and np.all(headers[:, 11] == 7)
+         and np.all(headers[:, 13] == 1) and np.all(headers[:, 15] == 3), "state flags/phase/degree")
+    need(np.all(np.isfinite(bits_float(headers[:, 5:8]))), "finite entry/width/center truth")
+    need(np.all(headers[:, 10] < 20) and np.array_equal(centers[headers[:, 10]], headers[:, 2]), "center row identity")
+    need(np.all((headers[:, 3] >= 1) & (headers[:, 3] <= 8)), "frozen early-step scope")
+    query_payload = load_payload(args.validation_export / "queries.bin", 0x51475181, 6164, 1024, 0)
+    queries = np.frombuffer(query_payload, dtype="<u4").reshape(1024, 1541)
+    need(np.array_equal(queries[:, 0], query_ids), "all query order")
+    need(np.all(queries[:, 1] == (query_ids * 2654435761 + 6819) % 1000000), "DB query mapping")
+    need(np.all(np.isfinite(bits_float(queries[:, 4:]))), "finite production query storage")
+    need(np.all(headers[:, 14] < 1024), "query row range")
+    qrows = queries[headers[:, 14]]
+    need(np.array_equal(qrows[:, :2], headers[:, :2])
+         and np.array_equal(qrows[:, 2:4], headers[:, 5:7]), "query-state entry/width linkage")
+    expected_width = np.maximum(bits_float(headers[:, 5]), np.float32(1e-6)) * np.float32(.016)
+    need(np.array_equal(expected_width.view("u4"), headers[:, 6]), "production entry-scaled width")
+    need(np.all(lanes[:, :, 6:8] == 0) and np.all(lanes[:, :, 4] <= 1), "lane metadata")
+    need(np.all((lanes[:, :, 5] >= 1) & (lanes[:, :, 5] <= 137)), "valid candidate counts")
+    need(np.array_equal(lanes[:, :, 0], neighbors[headers[:, 10]]), "actual neighbor lane order")
+    score_payload = load_payload(args.validation_export / "scores.f32", 0x51474581, 128, 2183, 3, multiplier=3)
+    score_bits = np.frombuffer(score_payload, dtype="<u4").reshape(2183, 3, 32)
+    need(np.array_equal(score_bits[:, 0], lanes[:, :, 1]), "all native score bits")
+    score_values = bits_float(score_bits).transpose(0, 2, 1).reshape(-1, 3)
+    qmap = {int(q): i for i, q in enumerate(query_ids)}
+    state_q = np.array([qmap[int(q)] for q in headers[:, 0]], dtype=np.int64)
+    center_rows = np.repeat(headers[:, 10], 32)
+    lane_ids = np.tile(np.arange(32), 2183)
+    changed = (selected[:, center_rows, lane_ids] != 0).T
+    arguments = {"query_index": np.repeat(state_q, 32), "scores": score_values,
+                 "truth": bits_float(lanes[:, :, 2]).reshape(-1),
+                 "widths": np.repeat(bits_float(headers[:, 6]), 32),
+                 "native_bins": lanes[:, :, 3].reshape(-1),
+                 "eligible": lanes[:, :, 4].reshape(-1).astype(bool),
+                 "boundaries": lanes[:, :, 8:].reshape(-1, 2, 8),
+                 "center_rows": center_rows,
+                 "entry_mask": np.repeat(headers[:, 2] == headers[:, 12], 32),
+                 "changed": changed, "query_count": 1024}
+    return query_ids, arguments, protected, selected
+
+
+def self_test():
+    query_index = np.array([0, 0, 1, 2], dtype=np.int64)
+    scores = np.array([[1.25, 1.5, 2.0], [1.25, .5, .5],
+                       [1.25, 1.25, 1.25], [1.25, 1.25, 2.0]], dtype=np.float32)
+    truth = np.array([2.0, .5, 2.5, 1.5], dtype=np.float32)
+    boundaries = np.zeros((4, 2, 8), dtype=np.uint32)
+    for side, at in enumerate([np.float32(1), np.float32(2)]):
+        previous = np.nextafter(at, np.float32(-np.inf), dtype=np.float32)
+        next_value = np.nextafter(at, np.float32(np.inf), dtype=np.float32)
+        values = np.array([at, previous, next_value], dtype=np.float32)
+        bins = locate(values, np.float32(1))
+        boundaries[:, side] = [*values.view("u4"), int(bins[1]), int(bins[0]), int(bins[2]), 7, 0]
+    primary, descriptive, checks = analyze_lanes(
+        query_index, scores, truth, np.ones(4, dtype=np.float32),
+        np.full(4, 2, dtype=np.uint32), np.array([True, True, False, True]),
+        boundaries, np.array([0, 1, 0, 1]), np.array([True, False, True, False]),
+        np.array([[False, True], [True, True], [False, False], [False, True]]), 4)
+    denom, numerator, rates = primary
+    need(denom.tolist() == [4, 0, 2, 0], "hand denominator includes true tie, excludes visited, retains empty")
+    need(numerator.tolist() == [[2, 1, 0], [0, 0, 0], [0, 0, 1], [0, 0, 0]], "hand error counts")
+    need(np.array_equal(rates, np.array([[.5, .25, 0], [0, 0, 0], [0, 0, .5], [0, 0, 0]])), "hand query equal errors")
+    need(descriptive["primary_true_tie_rows"] == 1, "machine true tie retained")
+    bootstrap, draws, indices = paired_bootstrap(rates)
+    means = rates[indices].mean(axis=1)
+    need(np.array_equal(draws[:, 0], means[:, 2] - means[:, 0])
+         and np.array_equal(draws[:, 1], means[:, 2] - means[:, 1]), "same bootstrap index tensor")
+    need(bootstrap["point_hinge_native"] == 0 and bootstrap["point_hinge_second_moment"] == .0625, "hand paired differences")
+    need(not gate(bootstrap)["passed"], "predefined gate hand control")
+    return {"status": "passed", "scope": "synthetic hand-calculated fixtures only; no input data read",
+            "query_denominators": denom.tolist(), "error_numerators": numerator.tolist(),
+            "query_rates": rates.tolist(), "bootstrap": bootstrap, "gate": gate(bootstrap),
+            "checks": checks, "true_ties_in_primary": descriptive["primary_true_tie_rows"]}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--config", type=Path)
+    parser.add_argument("--training-manifest", type=Path)
+    parser.add_argument("--validation-export", type=Path)
+    parser.add_argument("--out-dir", type=Path, required=True)
+    args = parser.parse_args()
+    args.out_dir.mkdir(parents=True, exist_ok=False)
+    try:
+        if args.self_test:
+            need(args.config is None and args.training_manifest is None
+                 and args.validation_export is None, "self-test must not accept data paths")
+            result = self_test()
+            result["source_sha256"] = sha(Path(__file__))
+            save(args.out_dir / "self_test.json", result)
+            print(json.dumps({"status": "passed", "self_test": str(args.out_dir / "self_test.json")}))
+            return
+        need(args.config is not None and args.training_manifest is not None
+             and args.validation_export is not None, "explicit sealed validation inputs required")
+        query_ids, arguments, protected, selected = load_validation(args)
+        primary, descriptive, checks = analyze_lanes(**arguments)
+        bootstrap, draws, _ = paired_bootstrap(primary[2])
+        result = {"status": "passed", "phase": 81, "protocol_sha256": PROTOCOL_SHA,
+                  "source_sha256": sha(Path(__file__)), "numpy_version": np.__version__,
+                  "method_order": METHODS, "primary": describe(*primary),
+                  "bootstrap": bootstrap, "gate": gate(bootstrap), "checks": checks,
+                  "scope": "all1024 heldout DB queries, fixed640 codes, forced-native/off-policy states",
+                  "not_measured": ["actual learned path", "external blind queries", "recall", "QPS"],
+                  "descriptive_only": descriptive,
+                  "selected_non_native_code_counts": dict(zip(METHODS[1:], np.count_nonzero(selected, axis=(1, 2)).tolist())),
+                  "training_objective_note": "actual-center-anchored C retains fixed-threshold linearization; M2 delta-dot-e is a distinct surrogate, not exact anchored-score MSE"}
+        for name, expected in protected.items():
+            need(sha(Path(name)) == expected, "protected input changed during analysis")
+        save(args.out_dir / "inputs.json", {"protected_sha256": protected,
+                                             "training_manifest_sha256": sha(args.training_manifest),
+                                             "validation_proof_sha256": sha(args.validation_export / "proof.json")})
+        with (args.out_dir / "per_query.csv").open("x", newline="") as stream:
+            writer = csv.writer(stream)
+            writer.writerow(["query_serial", "nq", "native_errors", "m2_errors", "hinge_errors",
+                             "native_rate", "m2_rate", "hinge_rate", "delta_hn", "delta_hm"])
+            for index, query in enumerate(query_ids):
+                rates = primary[2][index]
+                writer.writerow([int(query), int(primary[0][index]), *primary[1][index].tolist(),
+                                 *rates.tolist(), rates[2] - rates[0], rates[2] - rates[1]])
+        np.savez(args.out_dir / "bootstrap.npz", paired_contrasts=draws)
+        save(args.out_dir / "report.json", result)
+        print(json.dumps({"status": "passed", "gate": result["gate"], "report": str(args.out_dir / "report.json")}))
+    except BaseException as error:
+        save(args.out_dir / "failure.json", {"status": "failed", "error": repr(error),
+                                             "source_sha256": sha(Path(__file__))})
+        raise
+
+
+if __name__ == "__main__":
+    main()

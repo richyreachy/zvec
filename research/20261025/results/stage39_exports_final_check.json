@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "manifest_sha256": "d4d23b0ce64de9acdad9a60a9cb56599426e51f19346c7923b70bb21da974dfa",
+  "all_manifest_sources_targets_hash_match": true,
+  "all_executed_source_copies_match_archive": true,
+  "precommit_returncode": 0,
+  "precommit_log": "/home/xingrui/bench/quantized_graph/research_20261025/logs/stage39_exports_precommit_final.log",
+  "precommit_log_sha256": "6cfc319f15d9e42b37289866eac94f0f80a225007c53e6fcac669f28c4cc3888"
+}

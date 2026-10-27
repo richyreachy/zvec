@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "/home/xingrui/bench/symphony_qg/.venv/bin/python",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_run_v1/train81_candidates.py",
+    "--protocol",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_protocol_v1/config.json",
+    "--candidate-manifest",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_candidates_v1/manifest.json",
+    "--training-export",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_export_v1",
+    "--output",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_v1"
+  ],
+  "source_sha256": "7b5d9103702a5c68bfdb62f645afcef8a17adf6f123f293f3839cb41bc123be8",
+  "env": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1"
+  }
+}

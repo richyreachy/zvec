@@ -1,0 +1,13 @@
+{
+  "protected_sha256": {
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_protocol_v1/config.json": "ced04e30f808f016156bacdabfd89ad27ddd238e8388a4ba798457b4eb849f29",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_v1/training_frozen_models.json": "adb477c316f1e6af5ef8cedaf5143851711d747866198455c0cb1908b0734251",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_validation_export_v1/proof.json": "e3c86e7328382da932825fdb0a63654dfbad1b75065539a925d0a392f27afaea",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_validation_export_v1/states.bin": "eb5c2e8b84260e89cfcc6360942c143bdfde6ff6cdd9af49c9241a1a6ace1f26",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_validation_export_v1/queries.bin": "77c6597d56b211cd45ae7201a5b9bd36c3703982a3e9184eda2b924e2d4bfa00",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_validation_export_v1/scores.f32": "bd100bd4e5cb63a838a67094c0a3cbbc1744fba97e012ed64122bab21f25a51e",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_validation_export_v1/scorer_result.json": "6764de85e9cf849f25820e77e88eb83eb39ab7f44d0d5546b43dee5bc4c4990c",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_preflight_v1/split.json": "44c462ad9770344d67666a2402402974a0d908888fe1bdb12724b982d5789615",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_preflight_v1/validation_selected_states.json": "ea4c19b58ade5495899ca074c85d51eaeabf4639e0c97899b7b0fb7569121fb0"
+  }
+}

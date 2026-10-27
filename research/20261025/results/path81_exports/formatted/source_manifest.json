@@ -1,0 +1,83 @@
+{
+  "source_pairs": [
+    {
+      "archived": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/path81_actual_score.cc",
+      "archived_sha256": "0f36ea9452b6323b55769ac22df492a9ba004d46944983129357894463983f6f",
+      "executed_copy": "/home/xingrui/bench/quantized_graph/research_20261025/replay81_exports_formatted_v1/scripts/path81_actual_score.cc",
+      "executed_copy_sha256": "0f36ea9452b6323b55769ac22df492a9ba004d46944983129357894463983f6f"
+    },
+    {
+      "archived": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/path81_actual_score.py",
+      "archived_sha256": "71c50450cbfd19f2f39f7b0f88c56f2c3d8f351ffe321da534615bb31c1278d8",
+      "executed_copy": "/home/xingrui/bench/quantized_graph/research_20261025/replay81_exports_formatted_v1/scripts/path81_actual_score.py",
+      "executed_copy_sha256": "71c50450cbfd19f2f39f7b0f88c56f2c3d8f351ffe321da534615bb31c1278d8"
+    },
+    {
+      "archived": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/audit81_primary_metrics_v1.py",
+      "archived_sha256": "5dcb389092c37e4d907b4dee599d68455b26bcfda7749fb610bedd32851987f9",
+      "executed_copy": "/home/xingrui/bench/quantized_graph/research_20261025/replay81_exports_formatted_v1/scripts/audit81_primary_metrics_v1.py",
+      "executed_copy_sha256": "5dcb389092c37e4d907b4dee599d68455b26bcfda7749fb610bedd32851987f9"
+    },
+    {
+      "archived": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/path80_score.cc",
+      "archived_sha256": "f49c51adf1975f1f9949525fbe3679ee751022a676cf3ec85be316b95d6edbc5",
+      "executed_copy": "/home/xingrui/bench/quantized_graph/research_20261025/replay81_exports_formatted_v1/scripts/path80_score.cc",
+      "executed_copy_sha256": "f49c51adf1975f1f9949525fbe3679ee751022a676cf3ec85be316b95d6edbc5"
+    },
+    {
+      "archived": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/independent78_import.h",
+      "archived_sha256": "de8d451fd0319c6046b971d2ba2be81c51b3973bfee8b9b6aa3fadb4b7647d4e",
+      "executed_copy": "/home/xingrui/bench/quantized_graph/research_20261025/replay81_exports_formatted_v1/scripts/independent78_import.h",
+      "executed_copy_sha256": "de8d451fd0319c6046b971d2ba2be81c51b3973bfee8b9b6aa3fadb4b7647d4e"
+    },
+    {
+      "archived": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/candidate81_codec.h",
+      "archived_sha256": "07331d23b51ca349eb6f50c799802b9771097b26e28c82865faa95337bad5272",
+      "executed_copy": "/home/xingrui/bench/quantized_graph/research_20261025/replay81_exports_formatted_v1/scripts/candidate81_codec.h",
+      "executed_copy_sha256": "07331d23b51ca349eb6f50c799802b9771097b26e28c82865faa95337bad5272"
+    }
+  ],
+  "protected_input_sha256": {
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/path81_actual_score.cc": "e2dbd0bdd45dccc3c2a452cc754fc915fefeb836876684194afdf68602f0613a",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/path81_actual_score.cc": "0f36ea9452b6323b55769ac22df492a9ba004d46944983129357894463983f6f",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/path81_actual_score.py": "fd7265a567009c73bcb4f2148302e2d101ff860850adf8c28ba1d0a97f72c1ad",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/path81_actual_score.py": "71c50450cbfd19f2f39f7b0f88c56f2c3d8f351ffe321da534615bb31c1278d8",
+    "/home/xingrui/bench/quantized_graph/research_20261025/scripts/audit81_primary_metrics_v1.py": "8b4942e393c4a12c1e4e93cc5d4fb972f375dd48e0a0feccca7ef129875552e0",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/audit81_primary_metrics_v1.py": "5dcb389092c37e4d907b4dee599d68455b26bcfda7749fb610bedd32851987f9",
+    "/home/xingrui/bench/quantized_graph/research_20261025/notes/path81_actual_score_schema.md": "c6f0c8403ddd3b6d056f9563998eedf91c64471b5b7f4a50319dc2e7f0cb90b0",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/notes/path81_actual_score_schema.md": "c6f0c8403ddd3b6d056f9563998eedf91c64471b5b7f4a50319dc2e7f0cb90b0",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_export_v1/proof.json": "1e10be6bec5d3faf4bce52a0b02a0b08b5887ff36fa7807840572ad4703fa1d0",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_exports/path81_training_export_v1/proof.json": "1e10be6bec5d3faf4bce52a0b02a0b08b5887ff36fa7807840572ad4703fa1d0",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_export_v1/inputs.json": "dd136ed0b081c89433954d69fa6d68906c183ae5ed94d3911f14c96eb1f8d903",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_exports/path81_training_export_v1/inputs.json": "dd136ed0b081c89433954d69fa6d68906c183ae5ed94d3911f14c96eb1f8d903",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_export_v1/plan.json": "a8ae54fc36bdc638d4b8daee5242970fc5a8ed96b57b13c9ae384ec26ccc70a7",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_exports/path81_training_export_v1/plan.json": "a8ae54fc36bdc638d4b8daee5242970fc5a8ed96b57b13c9ae384ec26ccc70a7",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_export_v1/scorer_result.json": "f6c9fe8c3e35e31f9ce19b1a03c2ca56da326c4eb359f498c68a224af816144b",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_exports/path81_training_export_v1/scorer_result.json": "f6c9fe8c3e35e31f9ce19b1a03c2ca56da326c4eb359f498c68a224af816144b",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_validation_export_v1/proof.json": "e3c86e7328382da932825fdb0a63654dfbad1b75065539a925d0a392f27afaea",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_exports/path81_validation_export_v1/proof.json": "e3c86e7328382da932825fdb0a63654dfbad1b75065539a925d0a392f27afaea",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_validation_export_v1/inputs.json": "44e2d7789c0010d74768bd61f79785c627459b5e20b8a99cfb03afbbe5da67b9",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_exports/path81_validation_export_v1/inputs.json": "44e2d7789c0010d74768bd61f79785c627459b5e20b8a99cfb03afbbe5da67b9",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_validation_export_v1/plan.json": "5763c769243a7ea7a8187c78de2e22c777ca21d30fe26e340153cdee438b00ae",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_exports/path81_validation_export_v1/plan.json": "5763c769243a7ea7a8187c78de2e22c777ca21d30fe26e340153cdee438b00ae",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_validation_export_v1/scorer_result.json": "6764de85e9cf849f25820e77e88eb83eb39ab7f44d0d5546b43dee5bc4c4990c",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_exports/path81_validation_export_v1/scorer_result.json": "6764de85e9cf849f25820e77e88eb83eb39ab7f44d0d5546b43dee5bc4c4990c",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_independent_metrics_v1/config.json": "4616c39282869bb0bb76e311a30f2929cff36b82bc4f68e41f3b6b59f12d15ee",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_exports/path81_independent_metrics_v1/config.json": "4616c39282869bb0bb76e311a30f2929cff36b82bc4f68e41f3b6b59f12d15ee",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_independent_metrics_v1/report.json": "0316d12190ea22812f797f15e1f00773efdbe6280099de6217df869c074d0b22",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_exports/path81_independent_metrics_v1/report.json": "0316d12190ea22812f797f15e1f00773efdbe6280099de6217df869c074d0b22",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_independent_metrics_v1/per_query.json": "eca31cb314e08ecb08a1ea89444f806b263172e6d42f1e7e93a87213efac465a",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_exports/path81_independent_metrics_v1/per_query.json": "eca31cb314e08ecb08a1ea89444f806b263172e6d42f1e7e93a87213efac465a",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_independent_metrics_v1/inputs.json": "16096a2b602b1f1fe078ba615bb017c95112e38d48fbb1f72dbce94ae4bbaeb3",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_exports/path81_independent_metrics_v1/inputs.json": "16096a2b602b1f1fe078ba615bb017c95112e38d48fbb1f72dbce94ae4bbaeb3",
+    "/home/xingrui/bench/quantized_graph/research_20261025/results/path81_validation_export_v1_command.json": "7db4a104f5a5e0d2168b312d15ab49e301b69f3326a78c3d0734c22c68f1052c",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/results/path81_validation_export_v1_command.json": "7db4a104f5a5e0d2168b312d15ab49e301b69f3326a78c3d0734c22c68f1052c",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/path80_score.cc": "f49c51adf1975f1f9949525fbe3679ee751022a676cf3ec85be316b95d6edbc5",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/independent78_import.h": "de8d451fd0319c6046b971d2ba2be81c51b3973bfee8b9b6aa3fadb4b7647d4e",
+    "/home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/candidate81_codec.h": "07331d23b51ca349eb6f50c799802b9771097b26e28c82865faa95337bad5272"
+  },
+  "path_only_edits_in_archive": [
+    "scorer source dependencies resolved from invoked script directory, not raw root/scripts",
+    "independent audit accepts explicit --root/--export/--output; numerical protocol unchanged"
+  ]
+}

@@ -50,3 +50,17 @@ research/20261025/results/path80_artifacts/replay80_formatted_v1/scorer_inputs.j
 research/20261025/results/path80_artifacts/replay80_formatted_v1/scorer_inputs.json:generic-api-key:854
 research/20261025/results/path80_artifacts/replay80_formatted_v1/scorer_inputs.json:generic-api-key:860
 research/20261025/results/path80_artifacts/replay80_formatted_v1/scorer_inputs.json:generic-api-key:865
+
+# Stage39: verified frozen candidate center/neighbor ID-array SHA256 values.
+research/20261025/results/path81_exports/path81_training_export_v1/inputs.json:generic-api-key:41
+research/20261025/results/path81_exports/path81_training_export_v1/inputs.json:generic-api-key:42
+research/20261025/results/path81_exports/path81_validation_export_v1/inputs.json:generic-api-key:41
+research/20261025/results/path81_exports/path81_validation_export_v1/inputs.json:generic-api-key:42
+
+# Stage39 candidate/replay manifests: same verified ID-array SHA256 values.
+research/20261025/results/path81_candidate_artifacts/path81_candidates_v1/manifest.json:generic-api-key:44
+research/20261025/results/path81_candidate_artifacts/path81_candidates_v1/manifest.json:generic-api-key:45
+research/20261025/results/path81_candidate_artifacts/replay81_candidates_formatted_v1/candidate_bank/manifest.json:generic-api-key:44
+research/20261025/results/path81_candidate_artifacts/replay81_candidates_formatted_v1/candidate_bank/manifest.json:generic-api-key:45
+research/20261025/results/stage39_candidates_replay.json:generic-api-key:18
+research/20261025/results/stage39_candidates_replay.json:generic-api-key:19

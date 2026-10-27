@@ -1,0 +1,95 @@
+{
+  "bootstrap": {
+    "ci95_hinge_native": [
+      -0.375,
+      0.375
+    ],
+    "ci95_hinge_second_moment": [
+      -0.1875,
+      0.375
+    ],
+    "confidence": 0.95,
+    "index_tensor_sha256": "b215eeecdbe271850544f75d39de9ef65cda8c3edc7106a868236a1081f143f6",
+    "point_hinge_native": 0.0,
+    "point_hinge_second_moment": 0.0625,
+    "quantile_method": "linear",
+    "replicates": 4000,
+    "rng": "numpy.default_rng PCG64",
+    "same_query_indices_for_all_methods": true,
+    "seed": 8103,
+    "unit": "query"
+  },
+  "checks": {
+    "actual_score_bucket_predicates_verified": true,
+    "eligible_proposals": 3,
+    "exact_reference_positive_control_passed": true,
+    "native_negative_control_passed": true,
+    "present_boundaries": 8,
+    "visited_proposals_excluded": 1
+  },
+  "error_numerators": [
+    [
+      2,
+      1,
+      0
+    ],
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      0,
+      0
+    ]
+  ],
+  "gate": {
+    "conditions": {
+      "hinge_native_ci95_upper_lt_zero": false,
+      "hinge_native_point_le_minus_0_005": false,
+      "hinge_second_moment_point_le_zero": false
+    },
+    "meaning": "advance to small actual-path integration only",
+    "not_a_recall_or_qps_result": true,
+    "passed": false,
+    "second_moment_condition_is_point_comparison_not_statistical_noninferiority": true
+  },
+  "query_denominators": [
+    4,
+    0,
+    2,
+    0
+  ],
+  "query_rates": [
+    [
+      0.5,
+      0.25,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.5
+    ],
+    [
+      0.0,
+      0.0,
+      0.0
+    ]
+  ],
+  "scope": "synthetic hand-calculated fixtures only; no input data read",
+  "source_sha256": "9b6a3fe154efd57af9f47cb66f45616982edca36fd4636c1801387710bd1c0e6",
+  "status": "passed",
+  "true_ties_in_primary": 1
+}

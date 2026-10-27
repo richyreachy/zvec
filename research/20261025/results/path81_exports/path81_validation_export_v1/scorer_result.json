@@ -1,0 +1,19 @@
+{
+  "passed":true,
+  "partition":"validation",
+  "state_count":2183,
+  "active_query_count":1024,
+  "center_count":20,
+  "models_scored_per_state":3,
+  "native_edges_bit_identical":69856,
+  "actual_base_rotations_bit_identical":601,
+  "finite_boundaries_nextafter_verified":139712,
+  "absent_finite_boundaries":0,
+  "native_codec_blocks_byte_identical":20,
+  "native_gate_completed_before_candidate_scoring":true,
+  "validation_scores_read_in_training_mode":false,
+  "all_candidate_scores_in_validation":false,
+  "actual_db_driver_preparation_used":true,
+  "native_trace_only_off_policy_states":true,
+  "retrieval_or_training_performed":false
+}

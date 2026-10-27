@@ -1,0 +1,552 @@
+--- /home/xingrui/bench/quantized_graph/research_20261025/scripts/audit81_primary_metrics_v1.py
++++ /home/xingrui/workspace/quantized_graph/symphony_research_20261025/research/20261025/scripts/audit81_primary_metrics_v1.py
+@@ -4,31 +4,33 @@
+ subgroup selection or new acceptance gate. An unsolicited reviewer effect
+ summary was received before implementation; this audit does not claim blinding.
+ """
++
+ from __future__ import annotations
+ 
+-from fractions import Fraction
++import argparse
+ import hashlib
+ import json
+ import math
+ import mmap
++import struct
++from fractions import Fraction
+ from pathlib import Path
+-import struct
+ 
+ import numpy as np
+ 
+ R = Path(__file__).resolve().parent.parent
+-OUT = R / 'path81_independent_metrics_v1'
+-EXPORT = R / 'path81_validation_export_v1'
+-PROTOCOL = R / 'path81_protocol_v1/config.json'
+-FROZEN = R / 'path81_training_v1/training_frozen_models.json'
+-EXPECTED_PROTOCOL = 'ced04e30f808f016156bacdabfd89ad27ddd238e8388a4ba798457b4eb849f29'
+-EXPECTED_FROZEN = 'adb477c316f1e6af5ef8cedaf5143851711d747866198455c0cb1908b0734251'
+-METHODS = ['native', 'second_moment', 'hinge']
+-STATE_HEAD = struct.Struct('<8IQ6I')
+-LANE = struct.Struct('<24I')
+-F32 = struct.Struct('<f')
+-U32 = struct.Struct('<I')
+-HEADER = struct.Struct('<16I')
++OUT = R / "path81_independent_metrics_v1"
++EXPORT = R / "path81_validation_export_v1"
++PROTOCOL = R / "path81_protocol_v1/config.json"
++FROZEN = R / "path81_training_v1/training_frozen_models.json"
++EXPECTED_PROTOCOL = "ced04e30f808f016156bacdabfd89ad27ddd238e8388a4ba798457b4eb849f29"
++EXPECTED_FROZEN = "adb477c316f1e6af5ef8cedaf5143851711d747866198455c0cb1908b0734251"
++METHODS = ["native", "second_moment", "hinge"]
++STATE_HEAD = struct.Struct("<8IQ6I")
++LANE = struct.Struct("<24I")
++F32 = struct.Struct("<f")
++U32 = struct.Struct("<I")
++HEADER = struct.Struct("<16I")
+ 
+ 
+ def need(condition, message):
+@@ -37,8 +39,8 @@
+ 
+ 
+ def sha(path):
+-    with Path(path).open('rb') as stream:
+-        return hashlib.file_digest(stream, 'sha256').hexdigest()
++    with Path(path).open("rb") as stream:
++        return hashlib.file_digest(stream, "sha256").hexdigest()
+ 
+ 
+ def read(path):
+@@ -46,9 +48,9 @@
+ 
+ 
+ def save(path, value):
+-    with Path(path).open('x') as stream:
++    with Path(path).open("x") as stream:
+         json.dump(value, stream, indent=2, allow_nan=False)
+-        stream.write('\n')
++        stream.write("\n")
+ 
+ 
+ def fp32_bits(value):
+@@ -61,76 +63,146 @@
+ 
+ def locate(score, width):
+     """Independent translation of production bucket arithmetic, division in FP32."""
+-    need(math.isfinite(float(width)) and width > 0, 'Finite positive width')
+-    need(not math.isnan(float(score)), 'Bucket input cannot be NaN')
++    need(math.isfinite(float(width)) and width > 0, "Finite positive width")
++    need(not math.isnan(float(score)), "Bucket input cannot be NaN")
+     score32, width32 = np.float32(score), np.float32(width)
+     if score32 < np.float32(0):
+         return 0
+-    with np.errstate(over='ignore', under='ignore', divide='raise', invalid='raise'):
++    with np.errstate(over="ignore", under="ignore", divide="raise", invalid="raise"):
+         divided = np.divide(score32, width32, dtype=np.float32)
+     return 2047 if divided >= np.float32(2046) else int(divided) + 1
+ 
+ 
+ def file_header(path, magic, record_size, records, models):
+-    with path.open('rb') as stream:
++    with path.open("rb") as stream:
+         fields = HEADER.unpack(stream.read(64))
+-    need(fields == (magic, 1, 64, record_size, 768, 32, records, models, 1, 0, 0, 0, 0, 0, 0, 0), 'Validation binary header: ' + str(path))
++    need(
++        fields
++        == (
++            magic,
++            1,
++            64,
++            record_size,
++            768,
++            32,
++            records,
++            models,
++            1,
++            0,
++            0,
++            0,
++            0,
++            0,
++            0,
++            0,
++        ),
++        "Validation binary header: " + str(path),
++    )
+ 
+ 
+ def main():  # noqa: PLR0915 - explicit independent audit sequence
+-    OUT.mkdir(exist_ok=False)
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--root", type=Path, default=R)
++    parser.add_argument("--export", type=Path)
++    parser.add_argument("--output", type=Path)
++    args = parser.parse_args()
++    root = args.root.resolve()
++    output = (args.output or root / "path81_independent_metrics_v1").resolve()
++    export = (args.export or root / "path81_validation_export_v1").resolve()
++    protocol_path = root / "path81_protocol_v1/config.json"
++    frozen_path = root / "path81_training_v1/training_frozen_models.json"
++    output.mkdir(exist_ok=False)
+     source_sha = sha(Path(__file__))
+-    save(OUT / 'config.json', {
+-        'phase': 81, 'method_order': METHODS, 'source_sha256': source_sha,
+-        'primary': 'unexpanded target and finite adjacent boundary only',
+-        'machine_predicate': 'score >= transition; equality on right for truth and predictions',
+-        'denominator': 'all eligible state/lane/finite-boundary rows per query, including exact ties',
+-        'aggregate': 'query mean over all1024 fixed validation serials; nq0 gives error0',
+-        'bootstrap_run': False, 'new_acceptance_gate': False, 'training_run': False,
+-        'reviewer_code_or_effect_files_read': False,
+-        'unsolicited_reviewer_effect_summary_received_before_implementation': True,
+-        'blind_to_reviewer_summary': False,
+-    })
++    save(
++        output / "config.json",
++        {
++            "phase": 81,
++            "method_order": METHODS,
++            "source_sha256": source_sha,
++            "primary": "unexpanded target and finite adjacent boundary only",
++            "machine_predicate": "score >= transition; equality on right for truth and predictions",
++            "denominator": "all eligible state/lane/finite-boundary rows per query, including exact ties",
++            "aggregate": "query mean over all1024 fixed validation serials; nq0 gives error0",
++            "bootstrap_run": False,
++            "new_acceptance_gate": False,
++            "training_run": False,
++            "reviewer_code_or_effect_files_read": False,
++            "unsolicited_reviewer_effect_summary_received_before_implementation": True,
++            "blind_to_reviewer_summary": False,
++        },
++    )
+     try:
+-        need(sha(PROTOCOL) == EXPECTED_PROTOCOL and sha(FROZEN) == EXPECTED_FROZEN, 'Frozen protocol/model SHA')
+-        protocol = read(PROTOCOL)
+-        proof = read(EXPORT / 'proof.json')
+-        need(proof['passed'] and proof['partition'] == 'validation' and
+-             proof['protocol_sha256'] == EXPECTED_PROTOCOL and
+-             proof['training_frozen_models_sha256'] == EXPECTED_FROZEN,
+-             'Successful validation proof bound to frozen training')
+-        frozen = read(FROZEN)
+-        need(proof['candidate_manifest_sha256'] == frozen['candidate_manifest_sha256'], 'Candidate provenance')
+-        protected = {str(PROTOCOL): EXPECTED_PROTOCOL, str(FROZEN): EXPECTED_FROZEN,
+-                     str(EXPORT / 'proof.json'): sha(EXPORT / 'proof.json')}
+-        for name, digest in proof['artifacts_sha256'].items():
+-            need(sha(EXPORT / name) == digest, 'Export artifact SHA mismatch')
+-            protected[str(EXPORT / name)] = digest
+-        preflight = Path(protocol['preflight']['root'])
+-        for name in ['split.json', 'validation_selected_states.json']:
+-            expected = protocol['preflight']['files_sha256'][name]
+-            need(sha(preflight / name) == expected, 'Frozen validation metadata SHA')
++        need(
++            sha(protocol_path) == EXPECTED_PROTOCOL
++            and sha(frozen_path) == EXPECTED_FROZEN,
++            "Frozen protocol/model SHA",
++        )
++        protocol = read(protocol_path)
++        proof = read(export / "proof.json")
++        need(
++            proof["passed"]
++            and proof["partition"] == "validation"
++            and proof["protocol_sha256"] == EXPECTED_PROTOCOL
++            and proof["training_frozen_models_sha256"] == EXPECTED_FROZEN,
++            "Successful validation proof bound to frozen training",
++        )
++        frozen = read(frozen_path)
++        need(
++            proof["candidate_manifest_sha256"] == frozen["candidate_manifest_sha256"],
++            "Candidate provenance",
++        )
++        protected = {
++            str(protocol_path): EXPECTED_PROTOCOL,
++            str(frozen_path): EXPECTED_FROZEN,
++            str(export / "proof.json"): sha(export / "proof.json"),
++        }
++        for name, digest in proof["artifacts_sha256"].items():
++            need(sha(export / name) == digest, "Export artifact SHA mismatch")
++            protected[str(export / name)] = digest
++        preflight = Path(protocol["preflight"]["root"])
++        for name in ["split.json", "validation_selected_states.json"]:
++            expected = protocol["preflight"]["files_sha256"][name]
++            need(sha(preflight / name) == expected, "Frozen validation metadata SHA")
+             protected[str(preflight / name)] = expected
+-        split = read(preflight / 'split.json')
+-        query_ids = sorted(split['validation_query_serials'])
+-        need(len(query_ids) == 1024 and len(set(query_ids)) == 1024, 'Full validation query set')
++        split = read(preflight / "split.json")
++        query_ids = sorted(split["validation_query_serials"])
++        need(
++            len(query_ids) == 1024 and len(set(query_ids)) == 1024,
++            "Full validation query set",
++        )
+         query_to_row = {q: i for i, q in enumerate(query_ids)}
+-        expected_states = read(preflight / 'validation_selected_states.json')
++        expected_states = read(preflight / "validation_selected_states.json")
+         state_count = len(expected_states)
+-        need(state_count == 2183, 'Full frozen selected state set')
+-        file_header(EXPORT / 'states.bin', 0x51474181, 3136, state_count, 3)
+-        file_header(EXPORT / 'scores.f32', 0x51474581, 128, state_count, 3)
+-        need((EXPORT / 'states.bin').stat().st_size == 64 + state_count * 3136, 'State byte size')
+-        need((EXPORT / 'scores.f32').stat().st_size == 64 + state_count * 3 * 32 * 4, 'Score byte size')
++        need(state_count == 2183, "Full frozen selected state set")
++        file_header(export / "states.bin", 0x51474181, 3136, state_count, 3)
++        file_header(export / "scores.f32", 0x51474581, 128, state_count, 3)
++        need(
++            (export / "states.bin").stat().st_size == 64 + state_count * 3136,
++            "State byte size",
++        )
++        need(
++            (export / "scores.f32").stat().st_size == 64 + state_count * 3 * 32 * 4,
++            "Score byte size",
++        )
+         denominators = [0] * 1024
+         errors = [[0, 0, 0] for _ in query_ids]
+         truth_ties = [0] * 1024
+         prediction_ties = [[0, 0, 0] for _ in query_ids]
+-        counters = {'states': 0, 'full_lanes': 0, 'visited_lanes_excluded': 0,
+-                    'finite_boundaries_all_lanes': 0, 'absent_boundaries_all_lanes': 0,
+-                    'primary_boundary_rows': 0, 'score_threshold_locate_equivalence_checks': 0,
+-                    'transition_neighbor_checks': 0, 'native_score_bits_checked': 0}
+-        with (EXPORT / 'states.bin').open('rb') as state_stream, (EXPORT / 'scores.f32').open('rb') as score_stream:
++        counters = {
++            "states": 0,
++            "full_lanes": 0,
++            "visited_lanes_excluded": 0,
++            "finite_boundaries_all_lanes": 0,
++            "absent_boundaries_all_lanes": 0,
++            "primary_boundary_rows": 0,
++            "score_threshold_locate_equivalence_checks": 0,
++            "transition_neighbor_checks": 0,
++            "native_score_bits_checked": 0,
++        }
++        with (
++            (export / "states.bin").open("rb") as state_stream,
++            (export / "scores.f32").open("rb") as score_stream,
++        ):
+             states = mmap.mmap(state_stream.fileno(), 0, access=mmap.ACCESS_READ)
+             scores = mmap.mmap(score_stream.fileno(), 0, access=mmap.ACCESS_READ)
+             try:
+@@ -138,98 +210,213 @@
+                     offset = 64 + state_index * 3136
+                     h = STATE_HEAD.unpack_from(states, offset)
+                     qserial, internal_id, center, step, degree = h[:5]
+-                    need((qserial, internal_id, center, step) ==
+-                         (expected['query_serial'], expected['query_internal_id'], expected['center'], expected['step']),
+-                         'Frozen selected-state order')
+-                    need(qserial in query_to_row and degree == 32 and h[12] == 1 and h[14] == 3,
+-                         'State partition/method scope')
++                    need(
++                        (qserial, internal_id, center, step)
++                        == (
++                            expected["query_serial"],
++                            expected["query_internal_id"],
++                            expected["center"],
++                            expected["step"],
++                        ),
++                        "Frozen selected-state order",
++                    )
++                    need(
++                        qserial in query_to_row
++                        and degree == 32
++                        and h[12] == 1
++                        and h[14] == 3,
++                        "State partition/method scope",
++                    )
+                     qrow = query_to_row[qserial]
+                     entry, width = float_bits(h[5]), float_bits(h[6])
+-                    expected_width = np.multiply(np.maximum(np.float32(entry), np.float32(1e-6)), np.float32(.016), dtype=np.float32)
+-                    need(fp32_bits(expected_width) == h[6], 'Actual width FP32 derivation')
+-                    counters['states'] += 1
++                    expected_width = np.multiply(
++                        np.maximum(np.float32(entry), np.float32(1e-6)),
++                        np.float32(0.016),
++                        dtype=np.float32,
++                    )
++                    need(
++                        fp32_bits(expected_width) == h[6],
++                        "Actual width FP32 derivation",
++                    )
++                    counters["states"] += 1
+                     for lane_index in range(32):
+                         lane = LANE.unpack_from(states, offset + 64 + lane_index * 96)
+                         target, native_bits, truth_bits, native_bin, eligible = lane[:5]
+-                        need(target < 1000000 and eligible in (0, 1), 'Lane fields')
++                        need(target < 1000000 and eligible in (0, 1), "Lane fields")
+                         truth = float_bits(truth_bits)
+                         native = float_bits(native_bits)
+-                        method_scores = [F32.unpack_from(scores, 64 + ((state_index * 3 + method) * 32 + lane_index) * 4)[0]
+-                                         for method in range(3)]
+-                        need(all(math.isfinite(v) for v in [truth, *method_scores]), 'Actual finite truth/predictions')
+-                        need(fp32_bits(method_scores[0]) == native_bits, 'Native score bit identity')
+-                        need(locate(native, width) == native_bin, 'Native production bucket identity')
+-                        counters['native_score_bits_checked'] += 1
+-                        counters['full_lanes'] += 1
++                        method_scores = [
++                            F32.unpack_from(
++                                scores,
++                                64 + ((state_index * 3 + method) * 32 + lane_index) * 4,
++                            )[0]
++                            for method in range(3)
++                        ]
++                        need(
++                            all(math.isfinite(v) for v in [truth, *method_scores]),
++                            "Actual finite truth/predictions",
++                        )
++                        need(
++                            fp32_bits(method_scores[0]) == native_bits,
++                            "Native score bit identity",
++                        )
++                        need(
++                            locate(native, width) == native_bin,
++                            "Native production bucket identity",
++                        )
++                        counters["native_score_bits_checked"] += 1
++                        counters["full_lanes"] += 1
+                         if not eligible:
+-                            counters['visited_lanes_excluded'] += 1
++                            counters["visited_lanes_excluded"] += 1
+                         for side in range(2):
+-                            boundary = lane[8 + side * 8:16 + side * 8]
++                            boundary = lane[8 + side * 8 : 16 + side * 8]
+                             if boundary[6] == 0:
+-                                need(all(v == 0 for v in boundary), 'Absent boundary encoding')
+-                                counters['absent_boundaries_all_lanes'] += 1
++                                need(
++                                    all(v == 0 for v in boundary),
++                                    "Absent boundary encoding",
++                                )
++                                counters["absent_boundaries_all_lanes"] += 1
+                                 continue
+-                            need(boundary[6] == 7 and boundary[7] == 0, 'Boundary check flags')
+-                            threshold, before, after = (float_bits(v) for v in boundary[:3])
++                            need(
++                                boundary[6] == 7 and boundary[7] == 0,
++                                "Boundary check flags",
++                            )
++                            threshold, before, after = (
++                                float_bits(v) for v in boundary[:3]
++                            )
+                             left_bin, right_bin, after_bin = boundary[3:6]
+-                            need(math.isfinite(threshold) and math.isfinite(before) and 1 <= right_bin <= 2047,
+-                                 'Finite transition and predecessor')
+-                            need(locate(before, width) == left_bin < right_bin and
+-                                 locate(threshold, width) == right_bin and locate(after, width) == after_bin >= right_bin,
+-                                 'Transition/pred/successor production bucket check')
+-                            counters['transition_neighbor_checks'] += 3
+-                            counters['finite_boundaries_all_lanes'] += 1
++                            need(
++                                math.isfinite(threshold)
++                                and math.isfinite(before)
++                                and 1 <= right_bin <= 2047,
++                                "Finite transition and predecessor",
++                            )
++                            need(
++                                locate(before, width) == left_bin < right_bin
++                                and locate(threshold, width) == right_bin
++                                and locate(after, width) == after_bin >= right_bin,
++                                "Transition/pred/successor production bucket check",
++                            )
++                            counters["transition_neighbor_checks"] += 3
++                            counters["finite_boundaries_all_lanes"] += 1
+                             actual_truth = truth >= threshold
+-                            actual_predictions = [value >= threshold for value in method_scores]
+-                            for value, predicate in zip([truth, *method_scores], [actual_truth, *actual_predictions], strict=True):
+-                                need((locate(value, width) >= right_bin) == predicate, 'Independent FP32 locate/right-inclusive threshold equivalence')
+-                                counters['score_threshold_locate_equivalence_checks'] += 1
++                            actual_predictions = [
++                                value >= threshold for value in method_scores
++                            ]
++                            for value, predicate in zip(
++                                [truth, *method_scores],
++                                [actual_truth, *actual_predictions],
++                                strict=True,
++                            ):
++                                need(
++                                    (locate(value, width) >= right_bin) == predicate,
++                                    "Independent FP32 locate/right-inclusive threshold equivalence",
++                                )
++                                counters[
++                                    "score_threshold_locate_equivalence_checks"
++                                ] += 1
+                             if not eligible:
+                                 continue
+                             denominators[qrow] += 1
+-                            counters['primary_boundary_rows'] += 1
++                            counters["primary_boundary_rows"] += 1
+                             truth_ties[qrow] += int(truth == threshold)
+                             for method in range(3):
+-                                errors[qrow][method] += int(actual_predictions[method] != actual_truth)
+-                                prediction_ties[qrow][method] += int(method_scores[method] == threshold)
++                                errors[qrow][method] += int(
++                                    actual_predictions[method] != actual_truth
++                                )
++                                prediction_ties[qrow][method] += int(
++                                    method_scores[method] == threshold
++                                )
+             finally:
+                 states.close()
+                 scores.close()
+-        need(sum(denominators) == counters['primary_boundary_rows'], 'Perquery denominator sum')
+-        rational_means = [sum((Fraction(errors[row][method], denominators[row]) if denominators[row] else Fraction(0)
+-                               for row in range(1024)), Fraction(0)) / 1024 for method in range(3)]
+-        per_query = [{'query_serial': q, 'query_internal_id': split['query_serial_to_internal_id'][q],
+-                      'nq': denominators[row], 'errors': errors[row],
+-                      'mean_error': [float(Fraction(value, denominators[row])) if denominators[row] else 0.0 for value in errors[row]],
+-                      'truth_equal_threshold_rows': truth_ties[row], 'prediction_equal_threshold_rows': prediction_ties[row]}
+-                     for row, q in enumerate(query_ids)]
+-        save(OUT / 'per_query.json', {'method_order': METHODS, 'query_count': 1024, 'queries': per_query})
+-        result = {'passed': True, 'method_order': METHODS,
+-                  'mean_error': dict(zip(METHODS, map(float, rational_means), strict=True)),
+-                  'mean_error_exact_ratio': {name: str(value) for name, value in zip(METHODS, rational_means, strict=True)},
+-                  'delta_hinge_native': float(rational_means[2] - rational_means[0]),
+-                  'delta_hinge_second_moment': float(rational_means[2] - rational_means[1]),
+-                  'primary_total_rows': sum(denominators), 'denominator_per_query': denominators,
+-                  'query_serial_order': query_ids, 'empty_queries_retained_as_zero': sum(n == 0 for n in denominators),
+-                  'truth_equal_threshold_primary_rows': sum(truth_ties),
+-                  'prediction_equal_threshold_primary_rows': dict(zip(METHODS, [sum(row[m] for row in prediction_ties) for m in range(3)], strict=True)),
+-                  'counters': counters, 'protocol_sha256': EXPECTED_PROTOCOL, 'frozen_training_models_sha256': EXPECTED_FROZEN,
+-                  'validation_export_proof_sha256': protected[str(EXPORT / 'proof.json')],
+-                  'source_sha256': source_sha, 'per_query_sha256': sha(OUT / 'per_query.json'),
+-                  'independent_struct_parsing_and_integer_error_counts': True,
+-                  'mean_computed_by_exact_rational_sum_of_query_fractions': True,
+-                  'reviewer_code_or_effect_files_read': False,
+-                  'unsolicited_reviewer_effect_summary_received_before_implementation': True,
+-                  'blind_to_reviewer_summary': False,
+-                  'bootstrap_run': False, 'new_gate_or_subgroup_selection': False, 'training_or_QPS_run': False}
+-        for path, digest in protected.items(): need(sha(path) == digest, 'Protected input changed during audit')
+-        need(sha(Path(__file__)) == source_sha, 'Audit source changed during execution')
+-        save(OUT / 'report.json', result)
+-        save(OUT / 'inputs.json', {'protected_sha256': protected})
++        need(
++            sum(denominators) == counters["primary_boundary_rows"],
++            "Perquery denominator sum",
++        )
++        rational_means = [
++            sum(
++                (
++                    Fraction(errors[row][method], denominators[row])
++                    if denominators[row]
++                    else Fraction(0)
++                    for row in range(1024)
++                ),
++                Fraction(0),
++            )
++            / 1024
++            for method in range(3)
++        ]
++        per_query = [
++            {
++                "query_serial": q,
++                "query_internal_id": split["query_serial_to_internal_id"][q],
++                "nq": denominators[row],
++                "errors": errors[row],
++                "mean_error": [
++                    float(Fraction(value, denominators[row]))
++                    if denominators[row]
++                    else 0.0
++                    for value in errors[row]
++                ],
++                "truth_equal_threshold_rows": truth_ties[row],
++                "prediction_equal_threshold_rows": prediction_ties[row],
++            }
++            for row, q in enumerate(query_ids)
++        ]
++        save(
++            output / "per_query.json",
++            {"method_order": METHODS, "query_count": 1024, "queries": per_query},
++        )
++        result = {
++            "passed": True,
++            "method_order": METHODS,
++            "mean_error": dict(zip(METHODS, map(float, rational_means), strict=True)),
++            "mean_error_exact_ratio": {
++                name: str(value)
++                for name, value in zip(METHODS, rational_means, strict=True)
++            },
++            "delta_hinge_native": float(rational_means[2] - rational_means[0]),
++            "delta_hinge_second_moment": float(rational_means[2] - rational_means[1]),
++            "primary_total_rows": sum(denominators),
++            "denominator_per_query": denominators,
++            "query_serial_order": query_ids,
++            "empty_queries_retained_as_zero": sum(n == 0 for n in denominators),
++            "truth_equal_threshold_primary_rows": sum(truth_ties),
++            "prediction_equal_threshold_primary_rows": dict(
++                zip(
++                    METHODS,
++                    [sum(row[m] for row in prediction_ties) for m in range(3)],
++                    strict=True,
++                )
++            ),
++            "counters": counters,
++            "protocol_sha256": EXPECTED_PROTOCOL,
++            "frozen_training_models_sha256": EXPECTED_FROZEN,
++            "validation_export_proof_sha256": protected[str(export / "proof.json")],
++            "source_sha256": source_sha,
++            "per_query_sha256": sha(output / "per_query.json"),
++            "independent_struct_parsing_and_integer_error_counts": True,
++            "mean_computed_by_exact_rational_sum_of_query_fractions": True,
++            "reviewer_code_or_effect_files_read": False,
++            "unsolicited_reviewer_effect_summary_received_before_implementation": True,
++            "blind_to_reviewer_summary": False,
++            "bootstrap_run": False,
++            "new_gate_or_subgroup_selection": False,
++            "training_or_QPS_run": False,
++        }
++        for path, digest in protected.items():
++            need(sha(path) == digest, "Protected input changed during audit")
++        need(sha(Path(__file__)) == source_sha, "Audit source changed during execution")
++        save(output / "report.json", result)
++        save(output / "inputs.json", {"protected_sha256": protected})
+     except BaseException as error:
+-        save(OUT / 'failure.json', {'passed': False, 'error': repr(error), 'source_sha256': source_sha})
++        save(
++            output / "failure.json",
++            {"passed": False, "error": repr(error), "source_sha256": source_sha},
++        )
+         raise
+ 
+ 
+-if __name__ == '__main__':
++if __name__ == "__main__":
+     main()

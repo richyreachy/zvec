@@ -17,3 +17,10 @@ research/20261025/results/path80_matched_artifacts/replay80_matched_formatted_v1
 # Phase81 frozen source-diff context and captured hook-output terminator.
 research/20261025/results/stage38_prepare81_source.diff whitespace=-blank-at-eol,-blank-at-eof
 research/20261025/results/path81_artifacts/formatted_preflight_v1/stage38_precommit_round1.log whitespace=-blank-at-eof
+
+# Phase81 frozen CSV/diff/log evidence retains its original bytes.
+research/20261025/results/path81_analysis_artifacts/formatted_validation/per_query.csv whitespace=cr-at-eol
+research/20261025/results/path81_analysis_artifacts/original_validation/per_query.csv whitespace=cr-at-eol
+research/20261025/results/path81_exports/formatted/source_diffs/audit81_primary_metrics_v1.py.diff whitespace=-blank-at-eol,-blank-at-eof
+research/20261025/results/path81_exports/formatted/source_diffs/path81_actual_score.cc.diff whitespace=-blank-at-eol,-blank-at-eof
+research/20261025/results/path81_exports/formatted/source_diffs/path81_actual_score.py.diff whitespace=-blank-at-eol,-blank-at-eof

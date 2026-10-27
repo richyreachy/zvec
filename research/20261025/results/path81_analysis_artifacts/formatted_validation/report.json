@@ -1,0 +1,634 @@
+{
+  "bootstrap": {
+    "ci95_hinge_native": [
+      -0.05425538539333994,
+      -0.04991991945690146
+    ],
+    "ci95_hinge_second_moment": [
+      0.001560889308164295,
+      0.004310255150363051
+    ],
+    "confidence": 0.95,
+    "index_tensor_sha256": "5fd6913dc4777c23beff7e70f24f1fd511ed42eb6f44decc4b9a43f1bb802aaf",
+    "point_hinge_native": -0.05207446688834191,
+    "point_hinge_second_moment": 0.00295484346046437,
+    "quantile_method": "linear",
+    "replicates": 4000,
+    "rng": "numpy.default_rng PCG64",
+    "same_query_indices_for_all_methods": true,
+    "seed": 8103,
+    "unit": "query"
+  },
+  "checks": {
+    "actual_score_bucket_predicates_verified": true,
+    "eligible_proposals": 68692,
+    "exact_reference_positive_control_passed": true,
+    "native_negative_control_passed": true,
+    "present_boundaries": 139712,
+    "visited_proposals_excluded": 1164
+  },
+  "descriptive_only": {
+    "all_lane_true_tie_rows": 0,
+    "all_lanes_boundary": {
+      "covered_queries": 1024,
+      "delta_hinge_native": -0.051310221354166664,
+      "delta_hinge_second_moment": 0.002911376953125001,
+      "queries": 1024,
+      "query_equal_error": {
+        "hinge": 0.3518753051757813,
+        "native": 0.4031855265299479,
+        "second_moment": 0.34896392822265615
+      },
+      "raw_denominator": 139712,
+      "raw_error_counts": {
+        "hinge": 49283,
+        "native": 56338,
+        "second_moment": 48889
+      },
+      "zero_queries": 0
+    },
+    "all_lanes_full_bucket_id": {
+      "covered_queries": 1024,
+      "delta_hinge_native": -0.015475972493489582,
+      "delta_hinge_second_moment": 4.526774088541691e-05,
+      "queries": 1024,
+      "query_equal_error": {
+        "hinge": 0.7908950805664066,
+        "native": 0.8063710530598958,
+        "second_moment": 0.790849812825521
+      },
+      "raw_denominator": 69856,
+      "raw_error_counts": {
+        "hinge": 55283,
+        "native": 56338,
+        "second_moment": 55279
+      },
+      "zero_queries": 0
+    },
+    "changed_code_support": {
+      "hinge_changed": {
+        "covered_queries": 1024,
+        "delta_hinge_native": -0.05207446688834162,
+        "delta_hinge_second_moment": 0.0029548434604643728,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.3507209107251767,
+          "native": 0.40279537761352263,
+          "second_moment": 0.3477660672647126
+        },
+        "raw_denominator": 137384,
+        "raw_error_counts": {
+          "hinge": 48287,
+          "native": 55340,
+          "second_moment": 47893
+        },
+        "zero_queries": 0
+      },
+      "hinge_unchanged": {
+        "covered_queries": 0,
+        "delta_hinge_native": 0.0,
+        "delta_hinge_second_moment": 0.0,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.0,
+          "native": 0.0,
+          "second_moment": 0.0
+        },
+        "raw_denominator": 0,
+        "raw_error_counts": {
+          "hinge": 0,
+          "native": 0,
+          "second_moment": 0
+        },
+        "zero_queries": 1024
+      },
+      "second_moment_changed": {
+        "covered_queries": 1024,
+        "delta_hinge_native": -0.05207446688834162,
+        "delta_hinge_second_moment": 0.0029548434604643728,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.3507209107251767,
+          "native": 0.40279537761352263,
+          "second_moment": 0.3477660672647126
+        },
+        "raw_denominator": 137384,
+        "raw_error_counts": {
+          "hinge": 48287,
+          "native": 55340,
+          "second_moment": 47893
+        },
+        "zero_queries": 0
+      },
+      "second_moment_unchanged": {
+        "covered_queries": 0,
+        "delta_hinge_native": 0.0,
+        "delta_hinge_second_moment": 0.0,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.0,
+          "native": 0.0,
+          "second_moment": 0.0
+        },
+        "raw_denominator": 0,
+        "raw_error_counts": {
+          "hinge": 0,
+          "native": 0,
+          "second_moment": 0
+        },
+        "zero_queries": 1024
+      }
+    },
+    "per_center": {
+      "0": {
+        "covered_queries": 1024,
+        "delta_hinge_native": -0.0599365234375,
+        "delta_hinge_second_moment": 0.00238037109375,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.34368896484375,
+          "native": 0.40362548828125,
+          "second_moment": 0.34130859375
+        },
+        "raw_denominator": 65536,
+        "raw_error_counts": {
+          "hinge": 22524,
+          "native": 26452,
+          "second_moment": 22368
+        },
+        "zero_queries": 0
+      },
+      "1": {
+        "covered_queries": 189,
+        "delta_hinge_native": -0.0062058971774193545,
+        "delta_hinge_second_moment": 0.0008663054435483876,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.06648500504032254,
+          "native": 0.07269090221774203,
+          "second_moment": 0.06561869959677416
+        },
+        "raw_denominator": 11718,
+        "raw_error_counts": {
+          "hinge": 4221,
+          "native": 4615,
+          "second_moment": 4166
+        },
+        "zero_queries": 835
+      },
+      "10": {
+        "covered_queries": 43,
+        "delta_hinge_native": -0.002063382056451613,
+        "delta_hinge_second_moment": 0.00012600806451612925,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.014884702620967742,
+          "native": 0.016948084677419352,
+          "second_moment": 0.014758694556451608
+        },
+        "raw_denominator": 2666,
+        "raw_error_counts": {
+          "hinge": 945,
+          "native": 1076,
+          "second_moment": 937
+        },
+        "zero_queries": 981
+      },
+      "11": {
+        "covered_queries": 41,
+        "delta_hinge_native": -0.001686407930107527,
+        "delta_hinge_second_moment": -0.00014333417338709684,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.014263062836021502,
+          "native": 0.015949470766129032,
+          "second_moment": 0.014406397009408604
+        },
+        "raw_denominator": 2538,
+        "raw_error_counts": {
+          "hinge": 904,
+          "native": 1011,
+          "second_moment": 913
+        },
+        "zero_queries": 983
+      },
+      "12": {
+        "covered_queries": 56,
+        "delta_hinge_native": -0.0023626512096774194,
+        "delta_hinge_second_moment": 0.0002520161290322581,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.020114037298387094,
+          "native": 0.022476688508064505,
+          "second_moment": 0.019862021169354843
+        },
+        "raw_denominator": 3472,
+        "raw_error_counts": {
+          "hinge": 1277,
+          "native": 1427,
+          "second_moment": 1261
+        },
+        "zero_queries": 968
+      },
+      "13": {
+        "covered_queries": 39,
+        "delta_hinge_native": -0.002031880040322581,
+        "delta_hinge_second_moment": 0.0003465221774193549,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.01354586693548387,
+          "native": 0.015577746975806446,
+          "second_moment": 0.01319934475806451
+        },
+        "raw_denominator": 2418,
+        "raw_error_counts": {
+          "hinge": 860,
+          "native": 989,
+          "second_moment": 838
+        },
+        "zero_queries": 985
+      },
+      "14": {
+        "covered_queries": 23,
+        "delta_hinge_native": -0.0008348034274193549,
+        "delta_hinge_second_moment": -0.0003307711693548386,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.008017263104838709,
+          "native": 0.008852066532258063,
+          "second_moment": 0.008348034274193549
+        },
+        "raw_denominator": 1426,
+        "raw_error_counts": {
+          "hinge": 509,
+          "native": 562,
+          "second_moment": 530
+        },
+        "zero_queries": 1001
+      },
+      "15": {
+        "covered_queries": 36,
+        "delta_hinge_native": -0.0012915826612903227,
+        "delta_hinge_second_moment": -5.421010862427522e-20,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.012616557459677416,
+          "native": 0.013908140120967739,
+          "second_moment": 0.012616557459677415
+        },
+        "raw_denominator": 2232,
+        "raw_error_counts": {
+          "hinge": 801,
+          "native": 883,
+          "second_moment": 801
+        },
+        "zero_queries": 988
+      },
+      "16": {
+        "covered_queries": 21,
+        "delta_hinge_native": -0.0009450604838709676,
+        "delta_hinge_second_moment": 1.575100806451606e-05,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.0074659778225806455,
+          "native": 0.00841103830645161,
+          "second_moment": 0.007450226814516131
+        },
+        "raw_denominator": 1302,
+        "raw_error_counts": {
+          "hinge": 474,
+          "native": 534,
+          "second_moment": 473
+        },
+        "zero_queries": 1003
+      },
+      "17": {
+        "covered_queries": 22,
+        "delta_hinge_native": -0.0010868195564516128,
+        "delta_hinge_second_moment": -7.875504032258079e-05,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.007576234879032259,
+          "native": 0.00866305443548387,
+          "second_moment": 0.007654989919354839
+        },
+        "raw_denominator": 1364,
+        "raw_error_counts": {
+          "hinge": 481,
+          "native": 550,
+          "second_moment": 486
+        },
+        "zero_queries": 1002
+      },
+      "18": {
+        "covered_queries": 38,
+        "delta_hinge_native": -0.001590851814516129,
+        "delta_hinge_second_moment": 0.0001890120967741936,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.013498613911290322,
+          "native": 0.015089465725806448,
+          "second_moment": 0.013309601814516129
+        },
+        "raw_denominator": 2356,
+        "raw_error_counts": {
+          "hinge": 857,
+          "native": 958,
+          "second_moment": 845
+        },
+        "zero_queries": 986
+      },
+      "19": {
+        "covered_queries": 34,
+        "delta_hinge_native": -0.00039377520161290336,
+        "delta_hinge_second_moment": 0.00034599714381720415,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.012801894321236556,
+          "native": 0.013195669522849462,
+          "second_moment": 0.012455897177419354
+        },
+        "raw_denominator": 2106,
+        "raw_error_counts": {
+          "hinge": 812,
+          "native": 837,
+          "second_moment": 790
+        },
+        "zero_queries": 990
+      },
+      "2": {
+        "covered_queries": 131,
+        "delta_hinge_native": -0.006457913306451612,
+        "delta_hinge_second_moment": 0.0005985383064516133,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.04610320060483868,
+          "native": 0.052561113911290376,
+          "second_moment": 0.04550466229838707
+        },
+        "raw_denominator": 8122,
+        "raw_error_counts": {
+          "hinge": 2927,
+          "native": 3337,
+          "second_moment": 2889
+        },
+        "zero_queries": 893
+      },
+      "3": {
+        "covered_queries": 88,
+        "delta_hinge_native": -0.0034022177419354843,
+        "delta_hinge_second_moment": 6.30040322580644e-05,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.030210433467741937,
+          "native": 0.03361265120967741,
+          "second_moment": 0.030147429435483868
+        },
+        "raw_denominator": 5456,
+        "raw_error_counts": {
+          "hinge": 1918,
+          "native": 2134,
+          "second_moment": 1914
+        },
+        "zero_queries": 936
+      },
+      "4": {
+        "covered_queries": 83,
+        "delta_hinge_native": -0.0032457577284946233,
+        "delta_hinge_second_moment": 0.0008342783938172045,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.02976467993951613,
+          "native": 0.033010437668010734,
+          "second_moment": 0.028930401545698915
+        },
+        "raw_denominator": 5144,
+        "raw_error_counts": {
+          "hinge": 1889,
+          "native": 2095,
+          "second_moment": 1836
+        },
+        "zero_queries": 941
+      },
+      "5": {
+        "covered_queries": 79,
+        "delta_hinge_native": -0.002661920362903226,
+        "delta_hinge_second_moment": 0.00040952620967741926,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.028383316532258066,
+          "native": 0.03104523689516126,
+          "second_moment": 0.027973790322580648
+        },
+        "raw_denominator": 4898,
+        "raw_error_counts": {
+          "hinge": 1802,
+          "native": 1971,
+          "second_moment": 1776
+        },
+        "zero_queries": 945
+      },
+      "6": {
+        "covered_queries": 87,
+        "delta_hinge_native": -0.006001134072580645,
+        "delta_hinge_second_moment": -0.00020476310483870955,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.028556577620967735,
+          "native": 0.03455771169354838,
+          "second_moment": 0.028761340725806443
+        },
+        "raw_denominator": 5394,
+        "raw_error_counts": {
+          "hinge": 1813,
+          "native": 2194,
+          "second_moment": 1826
+        },
+        "zero_queries": 937
+      },
+      "7": {
+        "covered_queries": 53,
+        "delta_hinge_native": -0.0021736391129032256,
+        "delta_hinge_second_moment": -0.00022051411290322566,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.01844443044354838,
+          "native": 0.02061806955645161,
+          "second_moment": 0.018664944556451606
+        },
+        "raw_denominator": 3286,
+        "raw_error_counts": {
+          "hinge": 1171,
+          "native": 1309,
+          "second_moment": 1185
+        },
+        "zero_queries": 971
+      },
+      "8": {
+        "covered_queries": 48,
+        "delta_hinge_native": -0.0025359122983870967,
+        "delta_hinge_second_moment": 0.00044102822580645155,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.0168499033938172,
+          "native": 0.019385815692204298,
+          "second_moment": 0.016408875168010748
+        },
+        "raw_denominator": 2974,
+        "raw_error_counts": {
+          "hinge": 1069,
+          "native": 1230,
+          "second_moment": 1041
+        },
+        "zero_queries": 976
+      },
+      "9": {
+        "covered_queries": 48,
+        "delta_hinge_native": -0.0022523941532258066,
+        "delta_hinge_second_moment": 0.00023626512096774175,
+        "queries": 1024,
+        "query_equal_error": {
+          "hinge": 0.01627079133064516,
+          "native": 0.01852318548387097,
+          "second_moment": 0.016034526209677418
+        },
+        "raw_denominator": 2976,
+        "raw_error_counts": {
+          "hinge": 1033,
+          "native": 1176,
+          "second_moment": 1018
+        },
+        "zero_queries": 976
+      }
+    },
+    "primary_entry": {
+      "covered_queries": 1024,
+      "delta_hinge_native": -0.0599365234375,
+      "delta_hinge_second_moment": 0.00238037109375,
+      "queries": 1024,
+      "query_equal_error": {
+        "hinge": 0.34368896484375,
+        "native": 0.40362548828125,
+        "second_moment": 0.34130859375
+      },
+      "raw_denominator": 65536,
+      "raw_error_counts": {
+        "hinge": 22524,
+        "native": 26452,
+        "second_moment": 22368
+      },
+      "zero_queries": 0
+    },
+    "primary_full_bucket_id": {
+      "covered_queries": 1024,
+      "delta_hinge_native": -0.015701084441567235,
+      "delta_hinge_second_moment": 4.570057954533715e-05,
+      "queries": 1024,
+      "query_equal_error": {
+        "hinge": 0.789889670785475,
+        "native": 0.8055907552270453,
+        "second_moment": 0.7898439702059311
+      },
+      "raw_denominator": 68692,
+      "raw_error_counts": {
+        "hinge": 54286,
+        "native": 55340,
+        "second_moment": 54282
+      },
+      "zero_queries": 0
+    },
+    "primary_nonentry": {
+      "covered_queries": 905,
+      "delta_hinge_native": -0.0388187388362064,
+      "delta_hinge_second_moment": 0.0030900774067929527,
+      "queries": 1024,
+      "query_equal_error": {
+        "hinge": 0.31617083997652334,
+        "native": 0.35498957881272913,
+        "second_moment": 0.31308076256973016
+      },
+      "raw_denominator": 71848,
+      "raw_error_counts": {
+        "hinge": 25763,
+        "native": 28888,
+        "second_moment": 25525
+      },
+      "zero_queries": 119
+    },
+    "primary_prediction_ties": {
+      "hinge": 0,
+      "native": 0,
+      "second_moment": 0
+    },
+    "primary_true_tie_rows": 0,
+    "true_ties": {
+      "covered_queries": 0,
+      "delta_hinge_native": 0.0,
+      "delta_hinge_second_moment": 0.0,
+      "queries": 1024,
+      "query_equal_error": {
+        "hinge": 0.0,
+        "native": 0.0,
+        "second_moment": 0.0
+      },
+      "raw_denominator": 0,
+      "raw_error_counts": {
+        "hinge": 0,
+        "native": 0,
+        "second_moment": 0
+      },
+      "zero_queries": 1024
+    }
+  },
+  "gate": {
+    "conditions": {
+      "hinge_native_ci95_upper_lt_zero": true,
+      "hinge_native_point_le_minus_0_005": true,
+      "hinge_second_moment_point_le_zero": false
+    },
+    "meaning": "advance to small actual-path integration only",
+    "not_a_recall_or_qps_result": true,
+    "passed": false,
+    "second_moment_condition_is_point_comparison_not_statistical_noninferiority": true
+  },
+  "method_order": [
+    "native",
+    "second_moment",
+    "hinge"
+  ],
+  "not_measured": [
+    "actual learned path",
+    "external blind queries",
+    "recall",
+    "QPS"
+  ],
+  "numpy_version": "2.5.4",
+  "phase": 81,
+  "primary": {
+    "covered_queries": 1024,
+    "delta_hinge_native": -0.05207446688834162,
+    "delta_hinge_second_moment": 0.0029548434604643728,
+    "queries": 1024,
+    "query_equal_error": {
+      "hinge": 0.3507209107251767,
+      "native": 0.40279537761352263,
+      "second_moment": 0.3477660672647126
+    },
+    "raw_denominator": 137384,
+    "raw_error_counts": {
+      "hinge": 48287,
+      "native": 55340,
+      "second_moment": 47893
+    },
+    "zero_queries": 0
+  },
+  "protocol_sha256": "ced04e30f808f016156bacdabfd89ad27ddd238e8388a4ba798457b4eb849f29",
+  "scope": "all1024 heldout DB queries, fixed640 codes, forced-native/off-policy states",
+  "selected_non_native_code_counts": {
+    "hinge": 621,
+    "second_moment": 621
+  },
+  "source_sha256": "6bdc4ae7724f1977e88611838078c4719eeb5e73e24e8c777a4aaf606619b7e6",
+  "status": "passed",
+  "training_objective_note": "actual-center-anchored C retains fixed-threshold linearization; M2 delta-dot-e is a distinct surrogate, not exact anchored-score MSE"
+}
