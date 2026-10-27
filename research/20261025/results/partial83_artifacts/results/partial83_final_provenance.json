@@ -1,0 +1,55 @@
+{
+  "passed": true,
+  "checked_at_utc": "2026-10-27T03:22:52.054920+00:00",
+  "probe_protected_files_sha_unchanged": 48,
+  "all6_frozen_source_manifests_identical_and_match_worktree": true,
+  "frozen_source_files": 1117,
+  "driver_runner_helper_probe_sha_match_all3_phases": true,
+  "variant_libraries": {
+    "partial83_off_v1": {
+      "path": "/home/xingrui/bench/quantized_graph/research_20261025/variants/partial83_off_v1/libcore_knn_hnsw.so",
+      "sha256_collected_after_timing": "1d82c52114a84d8e6e99d3da041f897043a36c3e8db339fc73e81caa2f33bf9c",
+      "mtime_ns": 1793070054062630036,
+      "mtime_predates_quality": true
+    },
+    "partial83_d128_v1": {
+      "path": "/home/xingrui/bench/quantized_graph/research_20261025/variants/partial83_d128_v1/libcore_knn_hnsw.so",
+      "sha256_collected_after_timing": "757e7a73114851d9d446aafb8f7a6ecc96481a36e3b926b12ae526100562f0bf",
+      "mtime_ns": 1793069985386768170,
+      "mtime_predates_quality": true
+    },
+    "partial83_d256_v1": {
+      "path": "/home/xingrui/bench/quantized_graph/research_20261025/variants/partial83_d256_v1/libcore_knn_hnsw.so",
+      "sha256_collected_after_timing": "b3e622fabda611a208c7a681d32cf21a70aec50b582740e06359ad18701ecf63",
+      "mtime_ns": 1793069992550753763,
+      "mtime_predates_quality": true
+    },
+    "partial83_d384_v1": {
+      "path": "/home/xingrui/bench/quantized_graph/research_20261025/variants/partial83_d384_v1/libcore_knn_hnsw.so",
+      "sha256_collected_after_timing": "fcb4be78ede6028d086114868493d7b3eb568683746377b653c2c682beea0d8e",
+      "mtime_ns": 1793069999726739332,
+      "mtime_predates_quality": true
+    },
+    "partial83_d512_v1": {
+      "path": "/home/xingrui/bench/quantized_graph/research_20261025/variants/partial83_d512_v1/libcore_knn_hnsw.so",
+      "sha256_collected_after_timing": "57d26af1c3c4d7662dfa8b62afc55dcbeef3efe21fa1b2a8d089b12f5232c360",
+      "mtime_ns": 1793070006924724857,
+      "mtime_predates_quality": true
+    },
+    "partial83_d768_v1": {
+      "path": "/home/xingrui/bench/quantized_graph/research_20261025/variants/partial83_d768_v1/libcore_knn_hnsw.so",
+      "sha256_collected_after_timing": "54ec8652479af5d793995d8ffc6c540c23ae4501ef386d049edccb35b0153539",
+      "mtime_ns": 1793069978206782610,
+      "mtime_predates_quality": true
+    },
+    "bucket90_w16": {
+      "path": "/home/xingrui/bench/quantized_graph/research_20261025/variants/bucket90_w16/libcore_knn_hnsw.so",
+      "sha256_collected_after_timing": "f31d7cdde771d7c48211b38a04c6efa5e33025742afd1cf278cc893d9098fe28",
+      "mtime_ns": 1792943730826411274,
+      "mtime_predates_quality": true
+    }
+  },
+  "binary_hash_limitation": "Variant shared-library hashes were collected after timing; no pre/post digest equality is claimed for those libraries. Their mtimes predate the quality phase. Source snapshots, compiler commands and unchanged recorded dependencies are retained.",
+  "no_reserved_query_run": true,
+  "no_production_default_enable": true
+}

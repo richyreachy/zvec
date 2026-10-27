@@ -1,0 +1,15 @@
+CONFIG topk=10 m=50 efConstruction=500 degree=32 build_threads=8
+[ INFO 2026-10-27 11:06:26 139480588243776 hnsw_streamer.cc:370] HnswStreamer open
+[ INFO 2026-10-27 11:06:26 139480588243776 hnsw_streamer_entity.cc:519] Open index, l0NeighborCnt=100 upperNeighborCnt=50 efConstruction=500 curDocCnt=1000000 totalVecs=1000000 maxLevel=3
+[ INFO 2026-10-27 11:07:03 139480588243776 hnsw_streamer.cc:649] HnswStreamer quantized_graph prebuild done, cost_ms=36760
+OPEN_RESULT algorithm=symphony_qg seconds=36.9635 rss_kib=9979992 peak_rss_kib=9979088
+RECALL_RESULT ef=0 recall=0.7302
+RECALL_RESULT ef=10000 recall=0.7342
+RECALL_RESULT ef=20000 recall=0.7378
+RECALL_RESULT ef=40000 recall=0.7412
+RECALL_RESULT ef=80000 recall=0.7452
+RECALL_RESULT ef=160000 recall=0.7462
+RECALL_RESULT ef=320000 recall=0.7462
+RECALL_RESULT ef=999 recall=0.7462
+[ INFO 2026-10-27 11:07:03 139480588243776 hnsw_streamer.cc:663] HnswStreamer close
+[ INFO 2026-10-27 11:07:03 139480588243776 hnsw_streamer.cc:298] HnswStreamer cleanup

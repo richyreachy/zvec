@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-27T02:37:21.591542+00:00",
+  "updated_at": "2026-10-27T03:27:05.673757+00:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -288,22 +288,22 @@
   },
   "latest_source_change": "Phase78 default-off verified model import;FP32 cosine768 Symphony only,short blocks native;no scan kernel changes.",
   "next_actions": [
-    "Freeze a separate retrieval screening protocol for native-code partial scans with a full768bit-equivalent control.",
-    "Evaluate q-prefix and center-residual variants separately; keep prefetch policy and actual FMA semantics explicit.",
-    "Require matched Recall>=.90, repeated paired QPS timing and additional-query acceptance before a breakthrough claim.",
-    "Phase81 Hinge gate remains failed; its separate M2 fresh-query proposal remains unexecuted."
+    "Keep fixed-prefix q-dot extrapolation disabled by default.",
+    "A finer cap sweep near90%, center-residual correction or progressive continuation would require a separately frozen follow-up; none claimed to work.",
+    "Preserve reservedquery set;phase83 failed its entrygate.",
+    "Continue torequire>=25% stablematched-recallgain andadditional-query verification forbreakthrough."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "clean; original HEAD5a1c8a9852acd34c16114940b4cfc41e157dd9b7",
   "diagnostic47": "complete: no timing claims; original scalar full precision oracle lowest passing tested mean expansion27.268 vs30.763 baseline; fine-grid needed before strict optimality conclusions",
   "additional_queries_status": "Self-excluded database-query GT prepared, no graph results evaluated. External normalized query overlap0 atcos>0.999; max0.927826, model provenance still unverified.",
-  "primary_measurement_rows": 1340,
+  "primary_measurement_rows": 1362,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "b24adb6666f5be03791fd17bc5e5a0114e89dd26",
-  "stage_commit_count": 40,
+  "head": "7a5034e5d32bc6c6fb08e0a37dd96e106830e021",
+  "stage_commit_count": 41,
   "extra_document_index_commits": 30,
-  "working_tree_status": "Stage40 committed; document index and precise ignored log evidence pending.",
+  "working_tree_status": "Stage41 evidence anddefaultoffprototype readyforlocalcommit.",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -350,7 +350,7 @@
     "heldout_validated": false,
     "source_provenance_exception": "results/router60_prebuild_guard_change.json"
   },
-  "head_scope": "Research stage40 commit; a document-index/evidence completion commit follows.",
+  "head_scope": "Actual local HEAD after stage40 and document-index/evidence completion commit; tracked state intentionally names preceding research commit.",
   "diagnostic61": "Complete: three seeds fail5% prespecified reconstruction-error gate; local flip rates do not consistently improve.104ns incremental hot transform only; no search timing.",
   "directional62_probe": {
     "beta": 0.9359792556459329,
@@ -362,7 +362,7 @@
     "whole_search_gain": false
   },
   "diagnostic63": "Complete database-only two-parameter probe:6.02% local MSE gain;75 flips improve,70 worsen,paired interval crosseszero;unit endpoint bias coefficient0.05728 persists;not integrated.",
-  "latest_phase_result": "Phase82 partial native-code arithmetic verified; not a retrieval or performance result.",
+  "latest_phase_result": "Phase83 end-to-end negative atRecall>=90%;fixedprefixcode staysdefaultoff.",
   "diagnostic64": "Complete candidate preparation only:1M database queries,200M candidate pairs;8-thread search time41.1757s;new refined graph not built or searched. Failed unbounded-bucket configuration preserved,not counted as performance.",
   "graph64_inputs": {
     "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
@@ -882,7 +882,7 @@
     "metadata_bytes_per_edge": 2,
     "fixed_graph_entry_degree_cap_ef": true
   },
-  "latest_research_stage": 40,
+  "latest_research_stage": 41,
   "graph66_result": {
     "phase": 66,
     "executed_after_phase69": true,
@@ -3987,7 +3987,7 @@
     "production_loader_implemented": false,
     "no_retrieval_qps_or_recall_claim": true
   },
-  "in_progress_phase": 82,
+  "in_progress_phase": 83,
   "phase78_status": "Complete:4pairedrounds x3conditions x1/8threads x3seconds. Learned medianQPS31012.207855/229339.88135 atRecall.9069;gain -2.737%/-2.887% vsfrozenbaseline;no benefit;no extra-query gate.",
   "independent78_screen": {
     "passed_full_import": true,
@@ -4917,5 +4917,37 @@
     "residual_center_correction_integrated": false,
     "prior_art": "https://arxiv.org/html/2610.02652v1#S3",
     "proof_sha256": "63374a9a17d750ca7ac4c5caeb02d01a9d3756efeb717276b482f0c36181901c"
+  },
+  "phase83_status": "Completed fixedprotocol end-to-end test;bestpartial512/cap128 slower thanbothcontrols inall3rounds. Independent auditpassed. Reservegatefalse;noextraqueries. Defaultoff;originalrepo untouched.",
+  "phase83_protocol_sha256": "319876ae1ae6a251a84c11c40f0d53347a0ef7af18e6c605671dc73982e507da",
+  "phase83_codec_probe_sha256": "b50cb93fcd4783ff92e6507a0ee267fd5c793626e053a0ffdc899bbbd41cda2f",
+  "phase83_result": {
+    "recall": {
+      "baseline": 0.9032,
+      "full768": 0.9032,
+      "partial512": 0.9406
+    },
+    "median_qps": {
+      "1": {
+        "baseline": 31791.07044,
+        "full768": 30962.10468,
+        "partial": 8409.817627
+      },
+      "8": {
+        "baseline": 236188.9499,
+        "full768": 232624.5332,
+        "partial": 67670.84903
+      }
+    },
+    "gain_vs_baseline": {
+      "1": -0.7354660440618999,
+      "8": -0.7134885054586544
+    },
+    "confirmation_rounds": 3,
+    "new_timing_rows": 22,
+    "reserve_gate": false,
+    "exactly_matched_recall": false,
+    "threshold_recall_all_ge_0_9": true,
+    "breakthrough_verified": false
   }
 }

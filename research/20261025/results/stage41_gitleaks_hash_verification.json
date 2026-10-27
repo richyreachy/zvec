@@ -1,0 +1,159 @@
+{
+  "passed": true,
+  "all25_findings_are_source_file_hashes": true,
+  "manifest_sha256": "552f5d5edae361502a233b4b9e5ccad0339fc4487b315c96369f7ae2c877cb42",
+  "index_worktree_frozen_sources_agree": true,
+  "exact_fingerprints_only": true,
+  "findings": [
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:306",
+      "line": 306,
+      "source_file": "src/core/utility/ordinal_access_holder.h",
+      "verified_sha256": "9a0974bc6324a2edfd705db39e0691c7712cefa8916429dd8e0e2ab24f0cb12e"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:672",
+      "line": 672,
+      "source_file": "src/db/sqlengine/antlr/gen/SQLParser.tokens",
+      "verified_sha256": "2556343b09431e9634489f43bbdd90e6e30a07038e8836ec3d88e31216eace3e"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:677",
+      "line": 677,
+      "source_file": "src/db/sqlengine/antlr/gen/SQLLexer.tokens",
+      "verified_sha256": "2556343b09431e9634489f43bbdd90e6e30a07038e8836ec3d88e31216eace3e"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:795",
+      "line": 795,
+      "source_file": "src/db/index/column/fts_column/tokenizer/tokenizer_factory.h",
+      "verified_sha256": "8823cdd83bd5e0a29439f5540eb07d3bc5ba78bac786016b0110ac198b3756bb"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:796",
+      "line": 796,
+      "source_file": "src/db/index/column/fts_column/tokenizer/jieba_tokenizer.h",
+      "verified_sha256": "bb1085c37ca97e7544e6f7894b1b38dfe752d3dbb79a40adbe48cc0f7ead84b7"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:798",
+      "line": 798,
+      "source_file": "src/db/index/column/fts_column/tokenizer/token_filter.cc",
+      "verified_sha256": "52a9c44a460818cf4d4857f980eea8bad944466ca8ca93e754107d4aa47ea7eb"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:799",
+      "line": 799,
+      "source_file": "src/db/index/column/fts_column/tokenizer/standard_tokenizer.cc",
+      "verified_sha256": "3f9a7ee811e9fac253bac363d5b208b9e7a03cc1bb51b771221e9417bc8864e9"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:800",
+      "line": 800,
+      "source_file": "src/db/index/column/fts_column/tokenizer/tokenizer_factory.cc",
+      "verified_sha256": "fd7784245af5697276f404cd7f014c88bc69f9449ba346d91a4bef80bdc1821b"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:801",
+      "line": 801,
+      "source_file": "src/db/index/column/fts_column/tokenizer/tokenizer.h",
+      "verified_sha256": "7b4ff80674117f396ceea28195824577fc18f0fcc9d38e6906ec6d0635ff1eed"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:803",
+      "line": 803,
+      "source_file": "src/db/index/column/fts_column/tokenizer/whitespace_tokenizer.cc",
+      "verified_sha256": "6b7d9192412977d1c1543703e1a2de908448432ac37aba836693c3eb4444d14e"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:804",
+      "line": 804,
+      "source_file": "src/db/index/column/fts_column/tokenizer/stemmer_token_filter.h",
+      "verified_sha256": "db25ee73a8c6b92a5367edde11ce9667b398486e58b12a0e7719c73b186765e7"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:805",
+      "line": 805,
+      "source_file": "src/db/index/column/fts_column/tokenizer/ngram_tokenizer.h",
+      "verified_sha256": "6d279319bfd13958e782ca3516b670b5defd8eed4e4ea1177e9d29f0c454b716"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:806",
+      "line": 806,
+      "source_file": "src/db/index/column/fts_column/tokenizer/ascii_folding_token_filter.cc",
+      "verified_sha256": "1b0962633ddcd1d703d7d86cd5257566b4ebafee8a8c546ba0b4eed4cb151307"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:807",
+      "line": 807,
+      "source_file": "src/db/index/column/fts_column/tokenizer/ascii_folding_token_filter.h",
+      "verified_sha256": "d1b9d6cd964d2d7bceb538424ce022c3e676784ff47c02400942e00367fc9454"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:808",
+      "line": 808,
+      "source_file": "src/db/index/column/fts_column/tokenizer/ngram_tokenizer.cc",
+      "verified_sha256": "106f58aa34dc0a3d718e1131656edffcadfca51d5700628287259be2986e7785"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:809",
+      "line": 809,
+      "source_file": "src/db/index/column/fts_column/tokenizer/standard_tokenizer.h",
+      "verified_sha256": "b51f6c0c556808b5dfdc9e6f5542fbb1172a2f2d9d4e9a2b9a30bfd09d68f851"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:811",
+      "line": 811,
+      "source_file": "src/db/index/column/fts_column/tokenizer/jieba_tokenizer.cc",
+      "verified_sha256": "b5092a63528a3bd4faf6e31c156217d5dddccb678cb829569b87cb63e6218edd"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:812",
+      "line": 812,
+      "source_file": "src/db/index/column/fts_column/tokenizer/stemmer_token_filter.cc",
+      "verified_sha256": "8958f54f93148d162b4c4a2efbe36c5e6e5a22bd3bb24ec15a7568397ac498ec"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:813",
+      "line": 813,
+      "source_file": "src/db/index/column/fts_column/tokenizer/standard_tokenizer_unicode.inc",
+      "verified_sha256": "3d666796d24191c9708fb3a183d7ce0f61962da0b34dacfdc73d03061f342722"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:815",
+      "line": 815,
+      "source_file": "src/db/index/column/fts_column/tokenizer/token_filter.h",
+      "verified_sha256": "b09408f2b66c50a7bb7e32c960aefdeb06f59493b1242af91c8c09d367348b75"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:816",
+      "line": 816,
+      "source_file": "src/db/index/column/fts_column/tokenizer/whitespace_tokenizer.h",
+      "verified_sha256": "5b9c7dd37e21bd6099a9212ee73da092de9bff5c483718c2039aef4717705185"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:822",
+      "line": 822,
+      "source_file": "src/db/index/column/fts_column/gen/FtsLexer.tokens",
+      "verified_sha256": "3e0919eb0b12636c7cd2975e92a12a2a768425da18905ab9e664f6694e3fcbcb"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:827",
+      "line": 827,
+      "source_file": "src/db/index/column/fts_column/gen/FtsParser.tokens",
+      "verified_sha256": "3e0919eb0b12636c7cd2975e92a12a2a768425da18905ab9e664f6694e3fcbcb"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:1001",
+      "line": 1001,
+      "source_file": "src/binding/c/c_api.cc",
+      "verified_sha256": "c7aaedd3b2739b97e800e799dbbb77b2cc23f9f8cf0ace92fd7fb475573fbc26"
+    },
+    {
+      "fingerprint": "research/20261025/results/partial83_artifacts/variants/partial83_d768_v1/build_source_sha256.json:generic-api-key:1023",
+      "line": 1023,
+      "source_file": "src/include/zvec/c_api.h",
+      "verified_sha256": "f8dfcf4a5d3cc59b3f8ee7c2a87599051341555b6a0b5ca0669b115bc15e4c49"
+    }
+  ]
+}

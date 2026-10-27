@@ -16,6 +16,37 @@
 #include <turbo/distance/common/symphony_qg_distance.h>
 #include <turbo/preprocessor/symphony_qg_rotator/symphony_qg_rotator.h>
 
+#if defined(QG_PARTIAL_SCAN_DIM)
+#if QG_PARTIAL_SCAN_DIM != 128 && QG_PARTIAL_SCAN_DIM != 256 && \
+    QG_PARTIAL_SCAN_DIM != 384 && QG_PARTIAL_SCAN_DIM != 512 && \
+    QG_PARTIAL_SCAN_DIM != 768
+#error Partial scanning supports only 128, 256, 384, 512, or 768 dimensions
+#endif
+#if !RABITQ_SUPPORTED || !defined(QG_ROTATION_768)
+#error Partial scanning requires RaBitQ and the native 768-dimensional rotation
+#endif
+#if defined(QG_PROJECT_DIM) || defined(QG_RESIDUAL_TWO_STAGE) ||    \
+    defined(QG_LOWRANK) || defined(QG_RADIAL_CALIBRATION) ||        \
+    defined(QG_DIRECTION_BETA) || defined(QG_DIRECTION_MSE) ||      \
+    defined(QG_GEOM_BIAS) || defined(QG_INDEPENDENT_CODE_IMPORT) || \
+    defined(QG_FUSION) || defined(QG_CENTER_QUANTIZED) ||           \
+    defined(QG_CENTER_FP16) || defined(QG_CENTER_SQ8) ||            \
+    defined(QG_INTEGER_CENTER) || defined(QG_CENTER_SHIFT) ||       \
+    defined(QG_CENTER_CONTROL_VARIATE) || defined(QG_REANCHOR) ||   \
+    defined(QG_ROTATED_CENTER) || defined(QG_OMIT_COSINE_NORM)
+#error Partial scanning requires native codes, factors, and exact FP32 centers
+#endif
+#if QG_PARTIAL_SCAN_DIM < 768
+#if !(defined(__GNUC__) || defined(__clang__)) || \
+    !(defined(__x86_64__) || defined(__i386__))
+#error Partial scanning requires the x86 AVX512 query kernel
+#endif
+#include <immintrin.h>
+#include <stdexcept>
+#include <ailego/internal/cpu_features.h>
+#endif
+#endif
+
 #if defined(QG_LOWRANK)
 #include <immintrin.h>
 #include <cstdlib>
@@ -61,6 +92,10 @@ class SymphonyQGBlockQuantizer {
   struct Query {
     std::vector<float> rotated;
     SymQuery lookup;
+#if defined(QG_PARTIAL_SCAN_DIM) && QG_PARTIAL_SCAN_DIM < 768
+    float partial_delta = 0;
+    float partial_k1xsumq = 0;
+#endif
 #if defined(QG_LOWRANK)
     std::array<float, QG_LOWRANK> projection{};
 #endif
@@ -68,6 +103,17 @@ class SymphonyQGBlockQuantizer {
 
   explicit SymphonyQGBlockQuantizer(size_t dimension, bool cosine = false)
       : rotation_(dimension), cosine_(cosine) {
+#if defined(QG_PARTIAL_SCAN_DIM) && QG_PARTIAL_SCAN_DIM < 768
+    static_assert(kBatchSize == 32, "Partial scanning requires 32-lane blocks");
+    if (dimension != 768 || encoded_dim() != 768 || !cosine_)
+      throw std::invalid_argument(
+          "Partial scanning requires 768-dimensional cosine vectors");
+    // Use the same runtime features as symqg_lut_build and symqg_scan.
+    if (!ailego::internal::CpuFeatures::static_flags_.AVX512F ||
+        !ailego::internal::CpuFeatures::static_flags_.AVX512BW)
+      throw std::invalid_argument(
+          "Partial scanning requires AVX512F and AVX512BW");
+#endif
 #if defined(QG_LOWRANK)
     const char *path = std::getenv("QG_LOWRANK_BASIS");
     if (!path) throw std::runtime_error("QG_LOWRANK_BASIS is required");
@@ -311,6 +357,11 @@ class SymphonyQGBlockQuantizer {
   void prepare_query(const void *vector, Query &query) const {
     transform(vector, query.rotated);
     query.lookup.reset(query.rotated.data(), quantized_dim());
+#if defined(QG_PARTIAL_SCAN_DIM) && QG_PARTIAL_SCAN_DIM < 768
+    constexpr float ratio = 768.0f / QG_PARTIAL_SCAN_DIM;
+    query.partial_delta = ratio * query.lookup.delta();
+    query.partial_k1xsumq = ratio * prefix_k1xsumq(query.rotated.data());
+#endif
 #if defined(QG_LOWRANK)
     for (size_t j = 0; j < QG_LOWRANK; ++j)
       query.projection[j] =
@@ -321,7 +372,20 @@ class SymphonyQGBlockQuantizer {
   void scan(const char *codes, Query &query, float center_distance,
             float *distances) const {
     query.lookup.set_g_add(center_distance);
+#if defined(QG_PARTIAL_SCAN_DIM) && QG_PARTIAL_SCAN_DIM < 768
+    // Only the signed query dot product is extrapolated. Keep the full LUT
+    // range, full residual denominator, cosine norms, and center correction.
+    // Mapping the block with the prefix dimension would misaddress factors.
+    rabitqlib::ConstQGBatchDataMap<float> batch(codes, encoded_dim());
+    if (!symqg_scan(batch.bin_code(), query.lookup.lut(), QG_PARTIAL_SCAN_DIM,
+                    batch.f_add(), batch.f_rescale(), center_distance,
+                    query.partial_delta, query.lookup.sum_vl_lut(),
+                    query.partial_k1xsumq, distances))
+      throw std::runtime_error(
+          "Partial scanning could not execute AVX512 kernel");
+#else
     ScanSymphonyQGBatch(codes, query.lookup, quantized_dim(), distances);
+#endif
 #if defined(QG_RADIAL_CALIBRATION)
     if (cosine_) apply_radial(codes, center_distance, distances);
 #endif
@@ -339,6 +403,17 @@ class SymphonyQGBlockQuantizer {
   }
 
  private:
+#if defined(QG_PARTIAL_SCAN_DIM) && QG_PARTIAL_SCAN_DIM < 768
+  // Same 16-coordinate reduction tree and sequential FP32 accumulation as
+  // symqg_lut_build: computing only k1 avoids an unused second query LUT.
+  __attribute__((target("avx512f,avx512bw"))) static float prefix_k1xsumq(
+      const float *query) {
+    float sum = 0;
+    for (size_t i = 0; i < QG_PARTIAL_SCAN_DIM; i += 16)
+      sum += _mm512_reduce_add_ps(_mm512_loadu_ps(query + i));
+    return sum * -0.5f;
+  }
+#endif
 #if defined(QG_RADIAL_CALIBRATION)
   __attribute__((target("avx512f,fma"))) void apply_radial(
       const char *codes, float center_distance, float *distances) const {

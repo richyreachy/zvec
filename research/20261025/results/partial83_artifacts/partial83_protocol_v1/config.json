@@ -1,0 +1,118 @@
+{
+  "phase": 83,
+  "frozen_at_utc": "2026-10-27T02:57:54.772871+00:00",
+  "scope": "End-to-end fixed-prefix native-code partial query-dot scoring; no center control variate or progressive stop implementation.",
+  "source_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
+  "original_repo_untouched": true,
+  "dataset": "Cohere 1M primary1000 queries; already used for tuning, not blind",
+  "dimension": 768,
+  "topk": 10,
+  "degree": 32,
+  "actual_ef_search": 800,
+  "prefix_lengths": [
+    128,
+    256,
+    384,
+    512,
+    768
+  ],
+  "baseline_variant": "bucket90_w16",
+  "variant_template": "partial83_d{m}_v1",
+  "base_defines": [
+    "QG_BUCKET=1",
+    "QG_BUCKET_WIDTH=.016f",
+    "QG_ADAPTIVE=1",
+    "QG_RUNTIME_ADAPTIVE=1",
+    "QG_STOP_MIN=10",
+    "QG_STOP_PATIENCE=0",
+    "QG_STOP_MARGIN=.04f",
+    "QG_ROTATION_768=1",
+    "QG_AUGMENT=3"
+  ],
+  "partial_define": "QG_PARTIAL_SCAN_DIM={m}",
+  "identity_control": {
+    "prefix_m": 768,
+    "label": 20000,
+    "cap": 64,
+    "margin": 0.02,
+    "patience": 0,
+    "reference": "experiments/time65_control_pre/search_k10_r0_ids.csv",
+    "reference_sha256": "cbeb48145134d2f5f926b52d8285cf0dd78bd9a6496a81832872c7e74662fd0e",
+    "require_byte_identical_top10_ids_hex_scores": true
+  },
+  "quality": {
+    "duration": -1,
+    "threads": "1",
+    "cap64_labels": [
+      0,
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      999
+    ],
+    "label_decode": "margin=(label//1000)/1000;patience=label%1000;realef800",
+    "rescue_only_if_no_cap64_point_reaches_0_90": true,
+    "rescue_labels": {
+      "1999": 128,
+      "2999": 256
+    },
+    "rescue_meaning": "patience999 prevents margin stopping within cap; explicit cap still applies",
+    "target_recall": 0.9
+  },
+  "screen": {
+    "duration_seconds": 2,
+    "rounds": 1,
+    "threads": "1",
+    "points": "All eligible cap64 points; if none, eligible prespecified rescue points.",
+    "selection": "Highest single-thread measured QPS among eligible partial points; exact ties prefer larger m then smaller cap then smaller label; freeze one candidate for all confirmations."
+  },
+  "confirmation": {
+    "duration_seconds": 3,
+    "threads": "1,8",
+    "orders": [
+      [
+        "baseline",
+        "partial",
+        "full768"
+      ],
+      [
+        "full768",
+        "baseline",
+        "partial"
+      ],
+      [
+        "partial",
+        "full768",
+        "baseline"
+      ]
+    ],
+    "all_ids_scores_must_match_quality_or_baseline": true,
+    "interpretation": "Three paired rounds are confirmation pilot, not statistical significance or breakthrough proof."
+  },
+  "reserve": {
+    "only_if": "At least one thread count has positive median gain and all three positive paired gains over both baseline and full768.",
+    "candidate_parameters_frozen_before_reserve": true,
+    "dataset": "additional_queries_self_excluded",
+    "scope": "1000 same-database self-excluded queries; not external IID holdout.",
+    "driver": "research_benchmark_self_excluded; STOP_GRID disabled, realef800 and actual margin/patience/cap set explicitly.",
+    "no_retuning_after_result": true
+  },
+  "breakthrough": "Still requires >=25% matched-recall gain, extended repeats and additional-query checks; this protocol alone is not sufficient.",
+  "cpu_pool": "0,2,4,6,8,10,12,14",
+  "individual_worker_pinning": false,
+  "prefetch_policy": "unchanged; fullcode prefetched",
+  "fullrotation_and_full_LUT": "unchanged; only prefix correction may be added to query preparation",
+  "no_heavy_work_during_timing": true,
+  "environment_scrub": [
+    "QG_*",
+    "BENCH_*",
+    "GTEST_*",
+    "LD_PRELOAD",
+    "PYTHONPATH",
+    "PYTHONOPTIMIZE"
+  ],
+  "failure_policy": "Preserve successful and failed output dirs; no overwrite or gate relaxation; corrections use new versions."
+}

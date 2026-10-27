@@ -1,0 +1,13 @@
+{
+  "variant": "partial83_d512_v1",
+  "step": "probe",
+  "argv": [
+    "/home/xingrui/bench/quantized_graph/research_20261025/partial83_codec_probe_v1/partial83_d512_v1/probe",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_export_v1/states.bin",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_export_v1/queries.bin",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_training_export_v1/scores.f32",
+    "/home/xingrui/bench/quantized_graph/research_20261025/path81_candidates_v1/native_blocks.bin",
+    "/home/xingrui/bench/quantized_graph/research_20261025/partial83_codec_probe_v1/partial83_d512_v1"
+  ],
+  "returncode": 0
+}

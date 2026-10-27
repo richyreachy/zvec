@@ -1,0 +1,19 @@
+{
+  "variant": "partial83_d384_v1",
+  "step": "link",
+  "argv": [
+    "/usr/bin/c++",
+    "-march=x86-64",
+    "-O3",
+    "-DNDEBUG",
+    "/home/xingrui/bench/quantized_graph/research_20261025/partial83_codec_probe_v1/partial83_d384_v1/probe.o",
+    "-o",
+    "/home/xingrui/bench/quantized_graph/research_20261025/partial83_codec_probe_v1/partial83_d384_v1/probe",
+    "/home/xingrui/bench/quantized_graph/research_20261025/lib/libzvec_turbo.a",
+    "/home/xingrui/bench/quantized_graph/research_20261025/lib/librabitqlib_runtime.a",
+    "/home/xingrui/bench/quantized_graph/research_20261025/lib/libzvec_ailego.a",
+    "-ldl",
+    "-pthread"
+  ],
+  "returncode": 0
+}

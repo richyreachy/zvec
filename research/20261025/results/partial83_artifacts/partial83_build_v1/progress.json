@@ -1,0 +1,102 @@
+[
+  {
+    "m": 768,
+    "variant": "partial83_d768_v1",
+    "argv": [
+      "/usr/bin/python3",
+      "/home/xingrui/bench/quantized_graph/research_20261025/scripts/compile_variant.py",
+      "partial83_d768_v1",
+      "QG_BUCKET=1",
+      "QG_BUCKET_WIDTH=.016f",
+      "QG_ADAPTIVE=1",
+      "QG_RUNTIME_ADAPTIVE=1",
+      "QG_STOP_MIN=10",
+      "QG_STOP_PATIENCE=0",
+      "QG_STOP_MARGIN=.04f",
+      "QG_ROTATION_768=1",
+      "QG_AUGMENT=3",
+      "QG_PARTIAL_SCAN_DIM=768"
+    ],
+    "returncode": 0
+  },
+  {
+    "m": 128,
+    "variant": "partial83_d128_v1",
+    "argv": [
+      "/usr/bin/python3",
+      "/home/xingrui/bench/quantized_graph/research_20261025/scripts/compile_variant.py",
+      "partial83_d128_v1",
+      "QG_BUCKET=1",
+      "QG_BUCKET_WIDTH=.016f",
+      "QG_ADAPTIVE=1",
+      "QG_RUNTIME_ADAPTIVE=1",
+      "QG_STOP_MIN=10",
+      "QG_STOP_PATIENCE=0",
+      "QG_STOP_MARGIN=.04f",
+      "QG_ROTATION_768=1",
+      "QG_AUGMENT=3",
+      "QG_PARTIAL_SCAN_DIM=128"
+    ],
+    "returncode": 0
+  },
+  {
+    "m": 256,
+    "variant": "partial83_d256_v1",
+    "argv": [
+      "/usr/bin/python3",
+      "/home/xingrui/bench/quantized_graph/research_20261025/scripts/compile_variant.py",
+      "partial83_d256_v1",
+      "QG_BUCKET=1",
+      "QG_BUCKET_WIDTH=.016f",
+      "QG_ADAPTIVE=1",
+      "QG_RUNTIME_ADAPTIVE=1",
+      "QG_STOP_MIN=10",
+      "QG_STOP_PATIENCE=0",
+      "QG_STOP_MARGIN=.04f",
+      "QG_ROTATION_768=1",
+      "QG_AUGMENT=3",
+      "QG_PARTIAL_SCAN_DIM=256"
+    ],
+    "returncode": 0
+  },
+  {
+    "m": 384,
+    "variant": "partial83_d384_v1",
+    "argv": [
+      "/usr/bin/python3",
+      "/home/xingrui/bench/quantized_graph/research_20261025/scripts/compile_variant.py",
+      "partial83_d384_v1",
+      "QG_BUCKET=1",
+      "QG_BUCKET_WIDTH=.016f",
+      "QG_ADAPTIVE=1",
+      "QG_RUNTIME_ADAPTIVE=1",
+      "QG_STOP_MIN=10",
+      "QG_STOP_PATIENCE=0",
+      "QG_STOP_MARGIN=.04f",
+      "QG_ROTATION_768=1",
+      "QG_AUGMENT=3",
+      "QG_PARTIAL_SCAN_DIM=384"
+    ],
+    "returncode": 0
+  },
+  {
+    "m": 512,
+    "variant": "partial83_d512_v1",
+    "argv": [
+      "/usr/bin/python3",
+      "/home/xingrui/bench/quantized_graph/research_20261025/scripts/compile_variant.py",
+      "partial83_d512_v1",
+      "QG_BUCKET=1",
+      "QG_BUCKET_WIDTH=.016f",
+      "QG_ADAPTIVE=1",
+      "QG_RUNTIME_ADAPTIVE=1",
+      "QG_STOP_MIN=10",
+      "QG_STOP_PATIENCE=0",
+      "QG_STOP_MARGIN=.04f",
+      "QG_ROTATION_768=1",
+      "QG_AUGMENT=3",
+      "QG_PARTIAL_SCAN_DIM=512"
+    ],
+    "returncode": 0
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "name": "partial83_d512_v1",
+  "defines": [
+    "QG_BUCKET=1",
+    "QG_BUCKET_WIDTH=.016f",
+    "QG_ADAPTIVE=1",
+    "QG_RUNTIME_ADAPTIVE=1",
+    "QG_STOP_MIN=10",
+    "QG_STOP_PATIENCE=0",
+    "QG_STOP_MARGIN=.04f",
+    "QG_ROTATION_768=1",
+    "QG_AUGMENT=3",
+    "QG_PARTIAL_SCAN_DIM=512"
+  ],
+  "baseline": "5a1c8a9852acd34c16114940b4cfc41e157dd9b7",
+  "patch_sha256": "c69e9ac4571d5fbc1b6bdb0a13bc3f45dc9528283ae90f56d735d2e7ee36a241",
+  "immutable_build_source": "/home/xingrui/bench/quantized_graph/research_20261025/variants/partial83_d512_v1/build_source",
+  "research_head": "7a5034e5d32bc6c6fb08e0a37dd96e106830e021"
+}
