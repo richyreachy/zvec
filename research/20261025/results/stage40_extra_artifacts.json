@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "files": [
+    {
+      "source": "/home/xingrui/bench/quantized_graph/research_20261025/notes/partial82_mechanics_v2.md",
+      "archive": "notes/partial82_mechanics_v2.md",
+      "sha256": "53a3abdcbe27c73eef69a71ca45b46ffbdc77a485eb4c11751d8ce5e286a7b21"
+    },
+    {
+      "source": "/home/xingrui/bench/quantized_graph/research_20261025/results/partial82_mechanics_handoff.json",
+      "archive": "results/partial82_mechanics_handoff.json",
+      "sha256": "ee45f2c41c7dbf39e599bad24821a3a81c8cdd2e43de86bee953f04d5e6f668f"
+    },
+    {
+      "source": "/home/xingrui/bench/quantized_graph/research_20261025/partial82_diagnose_v1/commands.json",
+      "archive": "results/partial82_artifacts/partial82_diagnose_v1/commands.json",
+      "sha256": "99a5f05fbedd85b1939687e75e73893dcb392f48623b0d5a3fbb8782e406f355"
+    }
+  ]
+}

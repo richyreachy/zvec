@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "seed": 8202,
+  "arithmetic": "fractions.Fraction; exact exhaustive subsets",
+  "random_cases": 64,
+  "population_units": [
+    "one coordinate",
+    "four-coordinate LUT group"
+  ],
+  "subset_algebra_checks": 16320,
+  "fixed_size_mean_and_variance_checks": 1024,
+  "fixed_prefix_counterexample": {
+    "estimate": 4,
+    "full_sum": 2
+  },
+  "optional_stopping_counterexample": {
+    "mean_estimate": "3/2",
+    "full_sum": 1
+  },
+  "control_variate_can_help_or_hurt": true,
+  "no_original_rabitq_or_fp32_error_bound_claim": true,
+  "no_cohere_scoring_search_or_timing": true,
+  "source_sha256": "c4bc0b02ac3b3ced07711f707d70a24419fce13da8ea2fef88dbb267c1eb4127"
+}

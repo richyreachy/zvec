@@ -24,3 +24,6 @@ research/20261025/results/path81_analysis_artifacts/original_validation/per_quer
 research/20261025/results/path81_exports/formatted/source_diffs/audit81_primary_metrics_v1.py.diff whitespace=-blank-at-eol,-blank-at-eof
 research/20261025/results/path81_exports/formatted/source_diffs/path81_actual_score.cc.diff whitespace=-blank-at-eol,-blank-at-eof
 research/20261025/results/path81_exports/formatted/source_diffs/path81_actual_score.py.diff whitespace=-blank-at-eol,-blank-at-eof
+
+# Preserve objdump's exact wrapped opcode bytes in this frozen evidence file.
+research/20261025/results/partial82_artifacts/partial82_mechanics_v2/v1_native_scan_disassembly.txt whitespace=-blank-at-eol

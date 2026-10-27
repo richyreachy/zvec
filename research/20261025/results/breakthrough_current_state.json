@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-27T10:05:02.029927+08:00",
+  "updated_at": "2026-10-27T02:35:22.777795+00:00",
   "goal_active": true,
   "breakthrough_verified": false,
   "threshold": ">=25% stable QPS gain over frozen bucket90_w16 at Recall@10>=90%, same hardware/thread count, repeated correctness and extra-query validation",
@@ -288,10 +288,10 @@
   },
   "latest_source_change": "Phase78 default-off verified model import;FP32 cosine768 Symphony only,short blocks native;no scan kernel changes.",
   "next_actions": [
-    "Inspect existing4096DBquery IDs andreserved additional-query metadata;freeze new2048DBquery replication sample withnoeffect-based selection.",
-    "Freeze independentphase82 replication protocol forunchanged phase81M2selectedcodes;native trace/scorer must matchactualproductionbitwise.",
-    "Only afternewreplicationgatepasses consider honest load-time modelprofile andallnative+20center overlay for realpath study;phase81hinge notadvanced.",
-    "Finalbreakthrough stillrequiresstable>=25%matchedRecall>=.90QPS,repeatedtimings andadditionalqueryendtoendverification."
+    "Freeze a separate retrieval screening protocol for native-code partial scans with a full768bit-equivalent control.",
+    "Evaluate q-prefix and center-residual variants separately; keep prefetch policy and actual FMA semantics explicit.",
+    "Require matched Recall>=.90, repeated paired QPS timing and additional-query acceptance before a breakthrough claim.",
+    "Phase81 Hinge gate remains failed; its separate M2 fresh-query proposal remains unexecuted."
   ],
   "research_worktree": "/home/xingrui/workspace/quantized_graph/symphony_research_20261025",
   "original_repo_status": "clean; original HEAD5a1c8a9852acd34c16114940b4cfc41e157dd9b7",
@@ -300,10 +300,10 @@
   "primary_measurement_rows": 1340,
   "user_preference": "Commit each meaningful validated research stage; explicitly distinguish gains, diagnostics and negative results.",
   "branch": "feat/symphony-qg-research-20261025",
-  "head": "73381fc5c78e3b769454e8656eb866fbea8c1099",
-  "stage_commit_count": 39,
+  "head": "165372c2aaf3c7f2248f63f32345cb938a666791",
+  "stage_commit_count": 40,
   "extra_document_index_commits": 29,
-  "working_tree_status": "Stage39 committed; document index pending; production source unchanged since stage34.",
+  "working_tree_status": "Stage40 research archive pending local commit.",
   "compile_provenance": "compile_variant.py now diffs fixed BASELINE -- src rather than HEAD, so stage commits do not omit existing research changes. Full immutable src snapshots remain compiled inputs.",
   "last_results": "proj60_384:35,725.54 single-thread QPS and258,918.37 eight-thread at90.42%;about11.35% above contemporary frozen controls;no stable25% or extra-query acceptance",
   "completed_diagnostics": [
@@ -350,7 +350,7 @@
     "heldout_validated": false,
     "source_provenance_exception": "results/router60_prebuild_guard_change.json"
   },
-  "head_scope": "Latest research stage39; following document index commit will be tracked in bench runtime state.",
+  "head_scope": "Previous stage39 docs head; stage40 arithmetic evidence pending local commit.",
   "diagnostic61": "Complete: three seeds fail5% prespecified reconstruction-error gate; local flip rates do not consistently improve.104ns incremental hot transform only; no search timing.",
   "directional62_probe": {
     "beta": 0.9359792556459329,
@@ -362,7 +362,7 @@
     "whole_search_gain": false
   },
   "diagnostic63": "Complete database-only two-parameter probe:6.02% local MSE gain;75 flips improve,70 worsen,paired interval crosseszero;unit endpoint bias coefficient0.05728 persists;not integrated.",
-  "latest_phase_result": "Native/M2/Hinge local errors40.2795%/34.7766%/35.0721%;hinge-native-5.2074pp,hinge-M2+0.2955pp;1340retrievaltimings unchanged.",
+  "latest_phase_result": "Phase82 partial native-code arithmetic verified; not a retrieval or performance result.",
   "diagnostic64": "Complete candidate preparation only:1M database queries,200M candidate pairs;8-thread search time41.1757s;new refined graph not built or searched. Failed unbounded-bucket configuration preserved,not counted as performance.",
   "graph64_inputs": {
     "models64/full_graph.bin": "c04308b5445a666026bd460100ef0a649fd3dfd7e75a1b57561ab40a1e7dc53b",
@@ -882,7 +882,7 @@
     "metadata_bytes_per_edge": 2,
     "fixed_graph_entry_degree_cap_ef": true
   },
-  "latest_research_stage": "Stage39 full frozen real-data objective comparison andindependent/archived replay. Hinge gatefailed;M2only an observational followup hypothesis.",
+  "latest_research_stage": 40,
   "graph66_result": {
     "phase": 66,
     "executed_after_phase69": true,
@@ -4888,7 +4888,7 @@
   "phase81_training_exec_session_status": "30238 completed normally,exit0;do not restart",
   "phase81_candidate_status": "Candidate exec82728completed normally;20x137x32allvalid exactbudget;601rotations/2740blockreassemblies",
   "phase81_validation_export_status": "One export complete;no QPS/newpath;analysis must use frozenquerysplit andgate",
-  "phase82_status": "Separate fresh-query replication proposed forunchanged M2code;notyetfrozen orrun;do not relabelphase81failedgate aspass.",
+  "phase82_status": "Partial native-code scoring feasibility and mechanics complete. V1 separate-mul/add oracle failure preserved; v2 actual two-FMA oracle all gates pass. No new retrieval or timing. Prior M2 new-query proposal unexecuted.",
   "phase81_result": {
     "protocol_sha256": "ced04e30f808f016156bacdabfd89ad27ddd238e8388a4ba798457b4eb849f29",
     "training_frozen_models_sha256": "adb477c316f1e6af5ef8cedaf5143851711d747866198455c0cb1908b0734251",
@@ -4906,5 +4906,16 @@
     "independent_query_integer_counts_match": true,
     "independent_auditor_blind_to_effect_summary": false,
     "new_querytiming_rows": 0
+  },
+  "phase82_result": {
+    "mechanics_passed": true,
+    "native_score_bits": 212000,
+    "actual_partial_scan_checks": 2120000,
+    "native_tail_containment_checks": 2120000,
+    "exact_fraction_subsets": 16320,
+    "qps_or_recall_measured": false,
+    "residual_center_correction_integrated": false,
+    "prior_art": "https://arxiv.org/html/2610.02652v1#S3",
+    "proof_sha256": "63374a9a17d750ca7ac4c5caeb02d01a9d3756efeb717276b482f0c36181901c"
   }
 }
