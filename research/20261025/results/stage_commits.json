@@ -274,5 +274,12 @@
     "title": "test(qg): validate decision-code dual bounds and freeze query preflight",
     "validation": "ID-only seed8101 split3072/1024;20 early centers frozen beforevalidationcoverage;6archive replay outputs byteidentical. Exact Fraction68 problems/324certificates/4090codes;4942global+33383conditional checks;archive replay numericallyidentical.",
     "conclusion": "Budgeted hinge dual and safe coordinate screening validated onsynthetic problems;not a new universal theorem or768D optimum. Nonentry905/1024validationquerycoverage;no Cohere training,realFP32 guarantee or newRecall/QPS;no breakthrough."
+  },
+  {
+    "stage": "39",
+    "commit": "73381fc5c78e3b769454e8656eb866fbea8c1099",
+    "title": "test(qg): compare decision and moment codes on heldout graph queries",
+    "validation": "Frozen20centers/640edges/137candidates;all exact budgets;212000training+69856validation native score/truth bit checks;263040 direct radial checks;models sealed before validation;1024query independent integer counts exact;formatted bank/export/analysis replays exact.",
+    "conclusion": "Local boundary errors native40.2795%,M2 34.7766%,hinge35.0721%;hinge-native -5.2074pp buthinge-M2 +0.2955pp. Third predeclared gate fails;no protocol-internal search integration;1340timingrows,no newRecall/QPS,no breakthrough."
   }
 ]
