@@ -72,12 +72,20 @@ class QuantizedGraph {
   template <class Graph>
   int prebuild(const Graph &graph, size_t doc_cnt, size_t threads);
   template <class Graph, class Context>
-  int search(NodeId entry, const Graph &graph, Context &ctx) const;
+  int search(NodeId entry, const Graph &graph, Context &ctx) const {
+    return cosine_ ? search_impl<true>(entry, graph, ctx)
+                   : search_impl<false>(entry, graph, ctx);
+  }
   NodeId entry() const {
     return entry_;
   }
 
  private:
+  template <bool Cosine, class Graph, class Context>
+  __attribute__((
+      target("avx512f,avx512bw,avx512dq,avx512vl,avx512vnni,fma"))) int
+  search_impl(NodeId entry, const Graph &graph, Context &ctx) const;
+
   using Bucket = QuantizedGraphBucket;
   class LocalVisitSet {
    public:
@@ -641,9 +649,9 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
 }
 
 template <class Codec>
-template <class Graph, class Context>
-int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
-                                  Context &ctx) const {
+template <bool Cosine, class Graph, class Context>
+int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
+                                       Context &ctx) const {
   auto &results = ctx.reset_results();
   results.clear();
   if (entry == kInvalidNodeId || ctx.topk() == 0) return 0;
@@ -656,9 +664,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   beam.insert(entry, std::numeric_limits<float>::max());
   auto &batch_query = state.query;
   codec_.prepare_query(ctx.query(), batch_query);
-  if (cosine_ && !IntegerCenter::prepare(
-                     static_cast<const float *>(ctx.query()),
-                     center_shift_.data(), dimension_, state.integer_query))
+  if (Cosine && !IntegerCenter::prepare(static_cast<const float *>(ctx.query()),
+                                        center_shift_.data(), dimension_,
+                                        state.integer_query))
     return IndexError_Mismatch;
   auto &expanded = state.expanded;
   expanded.clear();
@@ -697,9 +705,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
   state.best_exact.clear();
   StopState stopping{state.best_exact, ctx.topk()};
   stopping.margin =
-      options.margin >= 0 ? options.margin : (cosine_ ? .02f : .085f);
+      options.margin >= 0 ? options.margin : (Cosine ? .02f : .085f);
   stopping.cap =
-      options.max_expansions ? options.max_expansions : (cosine_ ? 64 : 256);
+      options.max_expansions ? options.max_expansions : (Cosine ? 64 : 256);
   struct Scan {
     enum { kVisitOnExpansion = true };
     const QuantizedGraph &index;
@@ -730,14 +738,15 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       // Fetch the row header and the start of its packed codes while the
       // exact center distance is being computed. The layout is fixed for
       // both arena and lazy blocks, so this needs no dependent header load.
-      __builtin_prefetch(block, 0, 2);
+      __builtin_prefetch(block, 0, 3);
       const size_t code_offset = codes - reinterpret_cast<const char *>(block);
       const size_t bytes = std::min(size_t{4096}, index.stride_ - code_offset);
+#pragma GCC unroll 8
       for (size_t offset = 0; offset < bytes; offset += 64)
-        __builtin_prefetch(codes + offset, 0, 2);
+        __builtin_prefetch(codes + offset, 0, 3);
 #endif
       bool refined = true;
-      if (index.cosine_) {
+      if (Cosine) {
         exact = IntegerCenter::distance(
             integer_query, reinterpret_cast<const uint8_t *>(block->center()),
             index.dimension_, block->center_offset, block->center_scale,
@@ -759,19 +768,13 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
             exact;  // Neighbor codes use the reconstructed center.
         const float lower = SQ8Center::l2_lower_bound(
             exact, block->center_error, index.dimension_);
-        refined = !ctx.excluded(id) && (stopping->best.size() < stopping->k ||
-                                        lower <= stopping->best.back());
-        if (refined) {
-          typename Graph::Vector raw;
-          const int rc = entity.get_vector(id, raw);
-          if (rc != 0 || raw.data() == nullptr) return IndexError_Mismatch;
-          exact = ctx.distance(raw.data());
-        }
+        refined = false;
+        if (!ctx.excluded(id)) refine_candidates.emplace_back(lower, id);
       }
       if (expanded.size() == 1) bucket->set_scale(exact, bucket_width);
       // Heuristic navigation threshold; interval bounds still certify terminal
       // Top-K over expanded nodes, not navigation/global recall.
-      stopping->observe(exact, !ctx.excluded(id) && (index.cosine_ || refined));
+      stopping->observe(exact, !ctx.excluded(id));
       if (refined && !ctx.excluded(id)) {
         output.emplace(id, exact);
       }
@@ -805,7 +808,7 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
          state.integer_query,
          expanded,
          options.bucket_width > 0 ? options.bucket_width
-                                  : (cosine_ ? .016f : .002f),
+                                  : (Cosine ? .016f : .002f),
          state.refine_candidates,
          &beam,
          &stopping};
@@ -837,9 +840,14 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
     bool accepts(float distance) const {
       return !beam.is_full(distance) && std::isfinite(distance);
     }
-    void push(NodeId id, float distance) {
-      beam.insert(id, distance);
-      prefetch_next();
+    void push_batch(const NodeId *ids, const float *distances, size_t count) {
+      std::array<uint32_t, Codec::kBatchSize> bins;
+      beam.locate_batch(distances, bins.data(), count);
+      for (size_t i = 0; i < count; ++i) {
+        if (!accepts(distances[i]) || visited->visited(ids[i])) continue;
+        beam.insert_at(ids[i], bins[i]);
+        prefetch_next();
+      }
     }
     void prefetch_next() {
 #if defined(__GNUC__) || defined(__clang__)
@@ -852,8 +860,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
               reinterpret_cast<const char *>(index.slot(next)->center());
           const size_t bytes =
               std::min(size_t{640}, index.stride_ - Block::kCenterOffset);
+#pragma GCC unroll 8
           for (size_t offset = 0; offset < bytes; offset += 64) {
-            __builtin_prefetch(center + offset, 0, 2);
+            __builtin_prefetch(center + offset, 0, 3);
           }
         }
       }
@@ -879,8 +888,9 @@ int QuantizedGraph<Codec>::search(NodeId entry, const Graph &entity,
       if (ret) return ret;
       if (raw[count].data() == nullptr) return IndexError_Mismatch;
       const char *ptr = static_cast<const char *>(raw[count].data());
+#pragma GCC unroll 8
       for (size_t off = 0; off < stored_dimension_ * sizeof(float); off += 64)
-        __builtin_prefetch(ptr + off, 0, 2);
+        __builtin_prefetch(ptr + off, 0, 3);
     }
     for (size_t i = 0; i < count; ++i) {
       const auto &candidate = refine[first + i];

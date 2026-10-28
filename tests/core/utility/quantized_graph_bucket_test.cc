@@ -44,4 +44,30 @@ TEST(QuantizedGraphBucket, TinyWidthFallsBackToFiniteQuotients) {
   bucket.reset(10);
   EXPECT_EQ(2u, bucket.locate(1.0f));
 }
+TEST(QuantizedGraphBucket, BatchBinsMatchScalarAtBoundariesAndExtremes) {
+  QuantizedGraphBucket bucket;
+  for (float coefficient : {0.016f, 0.004f, 1e-34f}) {
+    bucket.reset(10);
+    bucket.set_scale(coefficient == 1e-34f ? 1e-6f : 1.0f, coefficient);
+    std::vector<float> scores = {0.f,
+                                 -0.f,
+                                 -1.f,
+                                 std::numeric_limits<float>::max(),
+                                 std::numeric_limits<float>::infinity(),
+                                 -std::numeric_limits<float>::infinity(),
+                                 std::numeric_limits<float>::quiet_NaN()};
+    for (size_t bin = 0; bin < QuantizedGraphBucket::N + 2; ++bin) {
+      const float boundary = float(bin) * bucket.width();
+      scores.push_back(
+          std::nextafter(boundary, -std::numeric_limits<float>::infinity()));
+      scores.push_back(boundary);
+      scores.push_back(
+          std::nextafter(boundary, std::numeric_limits<float>::infinity()));
+    }
+    std::vector<uint32_t> bins(scores.size());
+    bucket.locate_batch(scores.data(), bins.data(), scores.size());
+    for (size_t i = 0; i < scores.size(); ++i)
+      ASSERT_EQ(bucket.locate(scores[i]), bins[i]) << i;
+  }
+}
 }  // namespace zvec::core

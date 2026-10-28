@@ -5480,6 +5480,7 @@ class QuantizedGraphBudgetTest : public testing::TestWithParam<MetricType> {
     for (uint32_t id = 0; id < 128; ++id) {
       for (float &v : vector) v = random(rng);
       if (id == 0) query_ = vector;
+      vectors_.push_back(vector);
       ASSERT_EQ(0, builder.add({DenseVector{vector.data()}}, id));
     }
     ASSERT_EQ(0, builder.flush());
@@ -5512,6 +5513,7 @@ class QuantizedGraphBudgetTest : public testing::TestWithParam<MetricType> {
   static constexpr size_t kDimension = 64;
   const std::string path_ = "test_quantized_graph_budget.index";
   std::array<float, kDimension> query_{};
+  std::vector<std::array<float, kDimension>> vectors_;
   BudgetHnswIndex index_;
   SearchResult result_;
 };
@@ -5543,6 +5545,37 @@ TEST_P(QuantizedGraphBudgetTest, SmallCapsOverrideMinimumExpansions) {
           EXPECT_FALSE(result_.doc_list_.empty());
         }
       }
+    }
+  }
+}
+
+TEST_P(QuantizedGraphBudgetTest, RefinementMatchesExactTopKAfterFullTraversal) {
+  for (bool filtered : {false, true}) {
+    auto excluded = [filtered](uint64_t key) {
+      return filtered && key % 7 == 0;
+    };
+    search(128, 10, excluded);
+    std::vector<std::pair<double, uint64_t>> expected;
+    for (size_t id = 0; id < vectors_.size(); ++id) {
+      if (excluded(id)) continue;
+      double squared = 0, dot = 0, qnorm = 0, vnorm = 0;
+      for (size_t d = 0; d < kDimension; ++d) {
+        const double q = query_[d], v = vectors_[id][d];
+        squared += (q - v) * (q - v);
+        dot += q * v;
+        qnorm += q * q;
+        vnorm += v * v;
+      }
+      const double distance = GetParam() == MetricType::kCosine
+                                  ? 1. - dot / std::sqrt(qnorm * vnorm)
+                                  : squared;
+      expected.emplace_back(distance, id);
+    }
+    std::sort(expected.begin(), expected.end());
+    ASSERT_EQ(10u, result_.doc_list_.size());
+    for (size_t i = 0; i < result_.doc_list_.size(); ++i) {
+      EXPECT_EQ(expected[i].second, result_.doc_list_[i].key());
+      EXPECT_NEAR(expected[i].first, result_.doc_list_[i].score(), 1e-4);
     }
   }
 }

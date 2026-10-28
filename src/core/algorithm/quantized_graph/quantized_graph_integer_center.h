@@ -134,9 +134,23 @@ struct IntegerCenter {
   }
   __attribute__((target("avx512f,avx512bw,avx512vnni"))) static int32_t dot(
       const uint8_t *c, const int8_t *q, size_t n) {
-    __m512i acc = _mm512_setzero_si512();
+    __m512i a0 = _mm512_setzero_si512(), a1 = _mm512_setzero_si512();
+    __m512i a2 = _mm512_setzero_si512(), a3 = _mm512_setzero_si512();
     const size_t blocks = n / 64;
-    for (size_t b = 0; b < blocks; ++b)
+    size_t b = 0;
+    for (; b + 4 <= blocks; b += 4) {
+      a0 = _mm512_dpbusd_epi32(a0, _mm512_loadu_si512(c + 64 * b),
+                               _mm512_loadu_si512(q + 64 * b));
+      a1 = _mm512_dpbusd_epi32(a1, _mm512_loadu_si512(c + 64 * (b + 1)),
+                               _mm512_loadu_si512(q + 64 * (b + 1)));
+      a2 = _mm512_dpbusd_epi32(a2, _mm512_loadu_si512(c + 64 * (b + 2)),
+                               _mm512_loadu_si512(q + 64 * (b + 2)));
+      a3 = _mm512_dpbusd_epi32(a3, _mm512_loadu_si512(c + 64 * (b + 3)),
+                               _mm512_loadu_si512(q + 64 * (b + 3)));
+    }
+    __m512i acc =
+        _mm512_add_epi32(_mm512_add_epi32(a0, a1), _mm512_add_epi32(a2, a3));
+    for (; b < blocks; ++b)
       acc = _mm512_dpbusd_epi32(acc, _mm512_loadu_si512(c + 64 * b),
                                 _mm512_loadu_si512(q + 64 * b));
     int32_t sum = _mm512_reduce_add_epi32(acc);

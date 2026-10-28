@@ -32,6 +32,7 @@ class QuantizedGraphBucket {
     touched_.clear();
     bits_.fill(0);
     summary_ = 0;
+    first_ = N;
     width_ = 1.0f;
     inverse_width_ = 1.0f;
     finite_inverse_ = true;
@@ -54,24 +55,39 @@ class QuantizedGraphBucket {
     }
     return b;
   }
+  // Scores stay in their original lane order; only bin arithmetic is batched.
+  void locate_batch(const float *distances, uint32_t *bins,
+                    size_t count) const {
+    if (!finite_inverse_) {
+      for (size_t i = 0; i < count; ++i) bins[i] = locate(distances[i]);
+      return;
+    }
+    for (size_t i = 0; i < count; ++i) {
+      const float x = distances[i] * inverse_width_;
+      const float bounded = std::max(0.f, std::min(float(N - 2), x));
+      bins[i] = distances[i] >= 0 ? uint32_t(bounded) + 1 : 0;
+    }
+  }
   float lower_bound(float d) const {
     size_t b = locate(d);
     return b == 0 ? -std::numeric_limits<float>::infinity()
                   : float(b - 1) * width_;
   }
   void insert(uint32_t id, float d) {
-    size_t b = locate(d);
+    insert_at(id, locate(d));
+  }
+  void insert_at(uint32_t id, size_t b) {
     if (bins_[b].empty()) touched_.push_back(b);
     bins_[b].push_back(id);
     bits_[b / 64] |= uint64_t{1} << (b % 64);
     summary_ |= uint64_t{1} << (b / 64);
+    first_ = std::min(first_, b);
   }
   bool has_next() const {
     return summary_ != 0;
   }
   size_t first() const {
-    size_t w = __builtin_ctzll(summary_);
-    return 64 * w + __builtin_ctzll(bits_[w]);
+    return first_;
   }
   uint32_t next_id_at(size_t) const {
     return bins_[first()].back();
@@ -88,6 +104,12 @@ class QuantizedGraphBucket {
     if (bins_[b].empty()) {
       bits_[b / 64] &= ~(uint64_t{1} << (b % 64));
       if (bits_[b / 64] == 0) summary_ &= ~(uint64_t{1} << (b / 64));
+      if (summary_) {
+        const size_t word = __builtin_ctzll(summary_);
+        first_ = 64 * word + __builtin_ctzll(bits_[word]);
+      } else {
+        first_ = N;
+      }
     }
     return id;
   }
@@ -99,6 +121,7 @@ class QuantizedGraphBucket {
   std::array<std::vector<uint32_t>, N> bins_;
   std::array<uint64_t, N / 64> bits_{};
   uint64_t summary_ = 0;
+  size_t first_ = N;
   std::vector<size_t> touched_;
   float width_ = 1;
   float inverse_width_ = 1;
