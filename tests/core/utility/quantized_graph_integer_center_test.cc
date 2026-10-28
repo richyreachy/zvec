@@ -5,8 +5,57 @@
 #if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
 #include <random>
 #include "algorithm/quantized_graph/quantized_graph_integer_center.h"
+#include "algorithm/quantized_graph/quantized_graph_integer_router.h"
 #include "algorithm/quantized_graph/quantized_graph_sq8_center.h"
 namespace zvec::core {
+namespace {
+__attribute__((target("avx512f"))) void check_row_reduction() {
+  std::mt19937 random(80);
+  alignas(64) uint32_t values[16][16], actual[16];
+  for (size_t trial = 0; trial < 1000; ++trial) {
+    uint32_t expected[16]{};
+    for (size_t row = 0; row < 16; ++row)
+      for (size_t col = 0; col < 16; ++col) {
+        values[row][col] = random();
+        expected[row] += values[row][col];
+      }
+    __m512i rows[16];
+    for (size_t row = 0; row < 16; ++row)
+      rows[row] = _mm512_load_si512(values[row]);
+    _mm512_store_si512(actual,
+                       QuantizedGraphIntegerRouter::reduce_products(rows));
+    for (size_t row = 0; row < 16; ++row) EXPECT_EQ(expected[row], actual[row]);
+  }
+}
+}  // namespace
+TEST(QuantizedGraphIntegerCenter, RouterRowReductionMatchesScalar) {
+  if (!__builtin_cpu_supports("avx512f")) GTEST_SKIP();
+  check_row_reduction();
+}
+
+TEST(QuantizedGraphIntegerCenter, NormBoundContainsGeometricProduct) {
+  const auto check = [](double q, float c2) {
+    const long double reference =
+        static_cast<long double>(q) * std::sqrt(static_cast<long double>(c2));
+    EXPECT_GE(
+        static_cast<long double>(IntegerCenter::norm_product_bound(q, c2)),
+        reference)
+        << q << ":" << c2;
+  };
+  for (double q : {0., 1e-12, 1., 1e12, 1e40})
+    for (float c2 : {0.f, std::numeric_limits<float>::denorm_min(), 1e-12f, 1.f,
+                     1e12f, std::numeric_limits<float>::max()})
+      check(q, c2);
+  std::mt19937 random(79);
+  std::uniform_real_distribution<float> exponent(-30.f, 30.f);
+  for (size_t i = 0; i < 100000; ++i) {
+    const float c2 = std::pow(10.f, exponent(random));
+    const double q =
+        i % 2 ? std::pow(10., double(exponent(random))) : std::sqrt(double(c2));
+    check(q, c2);
+  }
+}
+
 TEST(QuantizedGraphIntegerCenter, NextDownMatchesLibm) {
   const auto check = [](uint32_t bits) {
     float value;
@@ -171,6 +220,64 @@ TEST(QuantizedGraphIntegerCenter, ShiftedCosineBoundsIncludeExactDistances) {
       const float distance =
           IntegerCenter::distance(prepared, codes.data(), n, offset, scale,
                                   mean_dot, mean_norm, coded, reconstructed);
+      const float lower = IntegerCenter::lower_bound(
+          distance, prepared, error, residual, coded, norm, mean_dot, mean_norm,
+          n, reconstructed);
+      double exact = 1;
+      float dot = 0;
+      for (size_t j = 0; j < n; ++j) {
+        exact -= double(query[j]) * center[j];
+        dot += query[j] * center[j];
+      }
+      ASSERT_TRUE(std::isfinite(lower));
+      EXPECT_LE(lower, exact);
+      EXPECT_LE(lower, 1.f - dot);
+    }
+  }
+}
+TEST(QuantizedGraphIntegerCenter,
+     WideShiftedCosineBoundsIncludeExactDistances) {
+  if (!__builtin_cpu_supports("avx512f") ||
+      !__builtin_cpu_supports("avx512bw") ||
+      !__builtin_cpu_supports("avx512dq") ||
+      !__builtin_cpu_supports("avx512vnni") || !__builtin_cpu_supports("fma"))
+    GTEST_SKIP();
+  std::mt19937 random(74);
+  std::normal_distribution<float> value;
+  for (size_t n : {1, 15, 16, 63, 64, 65, 768, 960, 4096}) {
+    for (int trial = 0; trial < 80; ++trial) {
+      SCOPED_TRACE(testing::Message() << n << ":" << trial);
+      std::vector<float> center(n), query(n), mean(n);
+      std::vector<uint8_t> codes(n);
+      double center_norm = 0, query_norm = 0, mean_norm = 0;
+      for (size_t j = 0; j < n; ++j) {
+        center[j] = value(random);
+        query[j] = trial % 3 ? center[j] + .01f * value(random) : value(random);
+        center_norm += double(center[j]) * center[j];
+        query_norm += double(query[j]) * query[j];
+      }
+      constexpr float shifts[] = {0, .1f, 1, 1e4f};
+      for (size_t j = 0; j < n; ++j) {
+        center[j] /= std::sqrt(center_norm);
+        query[j] = trial % 19 ? query[j] / std::sqrt(query_norm) : 0;
+        mean[j] = shifts[trial % 4] * value(random) / std::sqrt(float(n));
+        mean_norm += double(mean[j]) * mean[j];
+      }
+      float error, norm, offset, scale, residual, coded, projection,
+          projection_error;
+      double mean_dot;
+      ASSERT_TRUE(SQ8Center::encode_shifted(
+          center.data(), mean.data(), n, codes.data(), error, norm, offset,
+          scale, projection, projection_error));
+      IntegerCenter::annotate(center.data(), mean.data(), codes.data(), n,
+                              offset, scale, error, residual, coded, mean_dot);
+      IntegerCenter::Query prepared;
+      ASSERT_TRUE(
+          IntegerCenter::prepare<true>(query.data(), mean.data(), n, prepared));
+      double reconstructed;
+      const float distance = IntegerCenter::distance<true>(
+          prepared, codes.data(), n, offset, scale, mean_dot, mean_norm, coded,
+          reconstructed);
       const float lower = IntegerCenter::lower_bound(
           distance, prepared, error, residual, coded, norm, mean_dot, mean_norm,
           n, reconstructed);

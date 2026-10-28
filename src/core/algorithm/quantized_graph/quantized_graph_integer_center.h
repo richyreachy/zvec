@@ -21,8 +21,8 @@
 #include <vector>
 
 namespace zvec::core {
-// Integer center estimates for normalized cosine and squared L2. L2 uses
-// wider query codes to keep its terminal refinement intervals tight. The
+// Integer center estimates for normalized cosine and squared L2. Wider query
+// codes keep terminal refinement intervals tight without enlarging centers. The
 // adapter checks dimensions <= 4096 and VNNI before any query executes.
 struct IntegerCenter {
   struct Query {
@@ -51,7 +51,7 @@ struct IntegerCenter {
     return std::nextafter(float(std::sqrt(squared) + 1e-12),
                           std::numeric_limits<float>::infinity());
   }
-  // Keep cosine and router queries at 8 bits; L2 requests 16-bit codes.
+  // Router queries use 8 bits; full-dimensional search uses 16-bit codes.
   template <bool Wide = false>
   __attribute__((target("avx512f,avx512bw,fma"))) static bool prepare(
       const float *q, const float *mean, size_t n, Query &out) {
@@ -191,11 +191,13 @@ struct IntegerCenter {
     for (size_t j = blocks * 64; j < n; ++j) sum += int32_t(c[j]) * q[j];
     return sum;
   }
+  template <bool Wide = false>
   static float distance(const Query &q, const uint8_t *c, size_t n,
                         float offset, float scale, double center_mean_dot,
                         double mean_norm2, float coded_norm,
                         double &reconstructed) {
-    const int32_t product = dot(c, q.codes.data(), n);
+    const int64_t product =
+        Wide ? dot16(c, q.codes16.data(), n) : dot(c, q.codes.data(), n);
     const double residual_dot = double(q.scale) * (double(scale) * product +
                                                    double(offset) * q.code_sum);
     reconstructed = double(q.coded_norm) * q.coded_norm +
@@ -277,6 +279,12 @@ struct IntegerCenter {
                          4. * (n + 4.) * std::numeric_limits<float>::min();
     return std::max(0.f, next_down(float(lower)));
   }
+  // AM-GM bounds the product of norms without a per-center square root.
+  // Roundoff slack covers the products and addition in the upper bound.
+  static double norm_product_bound(double query_norm, float center_norm2) {
+    return (.5 * query_norm * query_norm + .5 * double(center_norm2)) *
+           (1. + 4. * std::numeric_limits<double>::epsilon());
+  }
   static float lower_bound(float approximate, const Query &q, float error,
                            float residual_norm, float coded_norm,
                            float original_norm2, double center_mean_dot,
@@ -286,7 +294,7 @@ struct IntegerCenter {
         double(error) * q.residual_norm + double(coded_norm) * q.error);
     const double a =
         (2. * n + 16) * (.5 * std::numeric_limits<float>::epsilon());
-    const double norm_product = q.norm * std::sqrt(double(original_norm2));
+    const double norm_product = norm_product_bound(q.norm, original_norm2);
     const double arithmetic =
         a / (1 - a) * norm_product +
         64. * (n + 16) * std::numeric_limits<double>::epsilon() *

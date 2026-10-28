@@ -162,6 +162,37 @@ class QuantizedGraphIntegerRouter {
     }
     return ok;
   }
+  // Sum all sixteen dot-product rows together, keeping partial sums in SIMD
+  // registers instead of reducing each row through scalar registers.
+  __attribute__((target("avx512f"))) static __m512i reduce_products(
+      const __m512i *rows) {
+    __m512i halves[8], quarters[4], pairs[2];
+#pragma GCC unroll 8
+    for (size_t i = 0; i < 8; ++i)
+      halves[i] = _mm512_add_epi32(
+          _mm512_shuffle_i32x4(rows[2 * i], rows[2 * i + 1], 0x44),
+          _mm512_shuffle_i32x4(rows[2 * i], rows[2 * i + 1], 0xEE));
+#pragma GCC unroll 4
+    for (size_t i = 0; i < 4; ++i)
+      quarters[i] = _mm512_add_epi32(
+          _mm512_shuffle_i32x4(halves[2 * i], halves[2 * i + 1], 0x88),
+          _mm512_shuffle_i32x4(halves[2 * i], halves[2 * i + 1], 0xDD));
+#pragma GCC unroll 2
+    for (size_t i = 0; i < 2; ++i)
+      pairs[i] = _mm512_add_epi32(
+          _mm512_unpacklo_epi64(quarters[2 * i], quarters[2 * i + 1]),
+          _mm512_unpackhi_epi64(quarters[2 * i], quarters[2 * i + 1]));
+    const __m512i sums = _mm512_add_epi32(
+        _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(pairs[0]),
+                                              _mm512_castsi512_ps(pairs[1]),
+                                              0x88)),
+        _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(pairs[0]),
+                                              _mm512_castsi512_ps(pairs[1]),
+                                              0xDD)));
+    return _mm512_permutexvar_epi32(
+        _mm512_setr_epi32(0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15),
+        sums);
+  }
   template <size_t FixedStride = 0>
   __attribute__((target("avx512f,avx512bw,avx512vnni,fma"))) void score_impl(
       const Group &g, const IntegerCenter::Query &q, float *scores,
@@ -177,14 +208,12 @@ class QuantizedGraphIntegerRouter {
         acc[i] = _mm512_dpbusd_epi32(
             acc[i], _mm512_loadu_si512(g.codes.data() + i * stride + d), query);
     }
-    alignas(64) int32_t dots[16];
-#pragma GCC unroll 16
-    for (size_t i = 0; i < 16; ++i) dots[i] = _mm512_reduce_add_epi32(acc[i]);
-    if (products) std::memcpy(products, dots, sizeof(dots));
-    const __m512 residual = _mm512_fmadd_ps(
-        _mm512_loadu_ps(g.scale), _mm512_cvtepi32_ps(_mm512_load_si512(dots)),
-        _mm512_mul_ps(_mm512_loadu_ps(g.offset),
-                      _mm512_set1_ps(float(q.code_sum))));
+    const __m512i dots = reduce_products(acc);
+    if (products) _mm512_storeu_si512(products, dots);
+    const __m512 residual =
+        _mm512_fmadd_ps(_mm512_loadu_ps(g.scale), _mm512_cvtepi32_ps(dots),
+                        _mm512_mul_ps(_mm512_loadu_ps(g.offset),
+                                      _mm512_set1_ps(float(q.code_sum))));
     const float factor = float(format_.rotated) / format_.projected;
     const __m512 value = _mm512_fmadd_ps(
         _mm512_set1_ps(q.scale * factor * (cosine() ? 1.f : -2.f)), residual,

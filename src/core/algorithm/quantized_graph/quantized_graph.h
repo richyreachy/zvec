@@ -689,7 +689,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
   auto &beam = state.beam;
   auto &batch_query = state.query;
   codec_.prepare_query(ctx.query(), batch_query);
-  if (!IntegerCenter::prepare<!Cosine>(
+  if (!IntegerCenter::prepare<true>(
           static_cast<const float *>(ctx.query()),
           Cosine ? center_shift_.data() : integer_shift_.data(), dimension_,
           state.integer_query))
@@ -776,7 +776,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       const bool eligible = !ctx.excluded(id);
       if (Cosine) {
         double reconstructed;
-        exact = IntegerCenter::distance(
+        exact = IntegerCenter::distance<true>(
             integer_query, reinterpret_cast<const uint8_t *>(block->center()),
             index.dimension_, block->center_offset, block->center_scale,
             block->center_mean_dot, index.center_shift_norm2_,
