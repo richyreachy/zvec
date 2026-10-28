@@ -27,9 +27,12 @@ class QuantizedGraphBucket {
  public:
   static constexpr size_t N = 2048;
   static_assert(N >= 64 && N <= 4096 && N % 64 == 0);
+  QuantizedGraphBucket() {
+    heads_.fill(kEmpty);
+  }
   void reset(size_t) {
-    for (size_t b : touched_) bins_[b].clear();
-    touched_.clear();
+    heads_.fill(kEmpty);
+    used_ = 0;
     bits_.fill(0);
     summary_ = 0;
     first_ = N;
@@ -77,8 +80,21 @@ class QuantizedGraphBucket {
     insert_at(id, locate(d));
   }
   void insert_at(uint32_t id, size_t b) {
-    if (bins_[b].empty()) touched_.push_back(b);
-    bins_[b].push_back(id);
+    reserve_insertions(1);
+    insert_reserved(id, b);
+  }
+  void reserve_insertions(size_t count) {
+    if (count > size_t(kEmpty) - used_)
+      throw std::length_error("Quantized graph frontier too large");
+    const size_t needed = size_t(used_) + count;
+    if (needed > pool_.size())
+      pool_.resize(
+          std::max(needed, std::min(size_t(kEmpty), pool_.size() * 2 + 64)));
+  }
+  // reserve_insertions must cover the complete upcoming batch.
+  void insert_reserved(uint32_t id, size_t b) {
+    pool_[used_] = {id, heads_[b]};
+    heads_[b] = used_++;
     bits_[b / 64] |= uint64_t{1} << (b % 64);
     summary_ |= uint64_t{1} << (b / 64);
     first_ = std::min(first_, b);
@@ -90,7 +106,7 @@ class QuantizedGraphBucket {
     return first_;
   }
   uint32_t next_id_at(size_t) const {
-    return bins_[first()].back();
+    return pool_[heads_[first()]].id;
   }
   float next_distance() const {
     size_t b = first();
@@ -99,9 +115,10 @@ class QuantizedGraphBucket {
   }
   uint32_t pop() {
     size_t b = first();
-    uint32_t id = bins_[b].back();
-    bins_[b].pop_back();
-    if (bins_[b].empty()) {
+    const auto item = pool_[heads_[b]];
+    uint32_t id = item.id;
+    heads_[b] = item.next;
+    if (heads_[b] == kEmpty) {
       bits_[b / 64] &= ~(uint64_t{1} << (b % 64));
       if (bits_[b / 64] == 0) summary_ &= ~(uint64_t{1} << (b / 64));
       if (summary_) {
@@ -118,11 +135,16 @@ class QuantizedGraphBucket {
   }
 
  private:
-  std::array<std::vector<uint32_t>, N> bins_;
+  static constexpr uint32_t kEmpty = std::numeric_limits<uint32_t>::max();
+  struct Item {
+    uint32_t id, next;
+  };
+  std::array<uint32_t, N> heads_;
+  std::vector<Item> pool_;
+  uint32_t used_ = 0;
   std::array<uint64_t, N / 64> bits_{};
   uint64_t summary_ = 0;
   size_t first_ = N;
-  std::vector<size_t> touched_;
   float width_ = 1;
   float inverse_width_ = 1;
   bool finite_inverse_ = true;

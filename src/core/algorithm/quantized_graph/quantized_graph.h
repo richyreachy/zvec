@@ -27,7 +27,6 @@
 #include <numeric>
 #include <string>
 #include <thread>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 #include <zvec/core/framework/index_error.h>
@@ -36,6 +35,7 @@
 #include "quantized_graph_integer_center.h"
 #include "quantized_graph_integer_router.h"
 #include "quantized_graph_sq8_center.h"
+#include "quantized_graph_visit_set.h"
 #if defined(__linux__)
 #include <sys/mman.h>
 #endif
@@ -48,16 +48,16 @@ namespace zvec::core {
 // exposes it. IDs occupy [0, doc_cnt), with holes reported by valid(). Reads
 // must be safe across prebuild workers and concurrent searches. Codec:
 // kBatchSize, encoded_dim(), batch_bytes(), transform(), encode(), and
-// Query/prepare_query()/scan(). Estimates and exact scores must use the same
-// metric; centroid selection and diversity pruning use squared L2 on the
-// first dimension coordinates. Optional trailing FP32 metadata is retained
-// in cached centers for exact scoring but excluded from graph geometry.
-// Context: reset_results() returns a bounded heap with limit/size/emplace;
-// query(), topk(), distance(), excluded(id), reach_scan_limit(), on_expand(),
-// quantized_graph_options().
-// distance() accounts for the exact scan budget; excluded() means EXCLUDE.
-// The caller serializes prebuild/clear against searches. The source graph
-// remains immutable while this snapshot is active.
+// Query/prepare_query()/scan(..., uncertainty_bonus). Estimates and exact
+// scores must use the same metric; centroid selection and diversity pruning use
+// squared L2 on the first dimension coordinates. Optional trailing FP32
+// metadata is retained in cached centers for exact scoring but excluded from
+// graph geometry. Context: reset_results() returns a bounded heap with
+// limit/size/emplace; query(), topk(), distance(), excluded(id),
+// reach_scan_limit(), on_expand(), quantized_graph_options(). distance()
+// accounts for the exact scan budget; excluded() means EXCLUDE. The caller
+// serializes prebuild/clear against searches. The source graph remains
+// immutable while this snapshot is active.
 template <class Codec>
 class QuantizedGraph {
  public:
@@ -87,51 +87,43 @@ class QuantizedGraph {
   search_impl(NodeId entry, const Graph &graph, Context &ctx) const;
 
   using Bucket = QuantizedGraphBucket;
-  class LocalVisitSet {
-   public:
-    void reset(size_t expect) {
-      size_t cap = 64;
-      while (cap < expect * 8) cap *= 2;
-      if (table_.size() != cap)
-        table_.assign(cap, kEmpty);
-      else
-        std::fill(table_.begin(), table_.end(), kEmpty);
-      mask_ = cap - 1;
-      overflow_.clear();
-    }
+  using LocalVisitSet = QuantizedGraphVisitSet;
 
-    bool visited(NodeId id) const {
-      size_t i = id & mask_;
-      for (size_t n = 0; n <= mask_; ++n) {
-        const NodeId v = table_[i];
-        if (v == id) return true;
-        if (v == kEmpty) return false;
-        i = (i + 1) & mask_;
-      }
-      // Table completely full: entries beyond it live in the overflow set.
-      return overflow_.find(id) != overflow_.end();
+  template <size_t Lines>
+  __attribute__((always_inline)) static inline void prefetch_fixed(
+      const char *ptr) {
+#pragma GCC unroll 64
+    for (size_t line = 0; line < Lines; ++line)
+      __builtin_prefetch(ptr + line * 64, 0, 3);
+  }
+  __attribute__((always_inline)) static inline void prefetch_span(
+      const char *ptr, size_t bytes) {
+    // Unroll common center, vector and code spans; retain arbitrary lengths.
+    switch ((bytes + 63) / 64) {
+      case 10:
+        prefetch_fixed<10>(ptr);
+        break;
+      case 48:
+        prefetch_fixed<48>(ptr);
+        break;
+      case 49:
+        prefetch_fixed<49>(ptr);
+        break;
+      case 52:
+        prefetch_fixed<52>(ptr);
+        break;
+      case 60:
+        prefetch_fixed<60>(ptr);
+        break;
+      case 64:
+        prefetch_fixed<64>(ptr);
+        break;
+      default:
+#pragma GCC unroll 8
+        for (size_t offset = 0; offset < bytes; offset += 64)
+          __builtin_prefetch(ptr + offset, 0, 3);
     }
-
-    void set_visited(NodeId id) {
-      size_t i = id & mask_;
-      for (size_t n = 0; n <= mask_; ++n) {
-        const NodeId v = table_[i];
-        if (v == id) return;
-        if (v == kEmpty) {
-          table_[i] = id;
-          return;
-        }
-        i = (i + 1) & mask_;
-      }
-      overflow_.insert(id);
-    }
-
-   private:
-    static constexpr NodeId kEmpty = 0xFFFFFFFFu;
-    std::vector<NodeId> table_;
-    std::unordered_set<NodeId> overflow_;
-    size_t mask_{0};
-  };
+  }
 
   // Resolve TLS once at the query boundary. In particular, probing the visit
   // table must not call __tls_get_addr for every candidate in a shared build.
@@ -749,11 +741,11 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     const QuantizedGraph &index;
     const Graph &entity;
     Context &ctx;
-    decltype(results) output;
     typename Codec::Query &query;
     const IntegerCenter::Query &integer_query;
     std::vector<NodeId> &expanded;
     float bucket_width;
+    float uncertainty_bonus;
     std::vector<std::pair<float, NodeId>> &refine_candidates;
     Bucket *bucket;
     StopState *stopping;
@@ -777,11 +769,13 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       __builtin_prefetch(block, 0, 3);
       const size_t code_offset = codes - reinterpret_cast<const char *>(block);
       const size_t bytes = std::min(size_t{4096}, index.stride_ - code_offset);
-#pragma GCC unroll 8
-      for (size_t offset = 0; offset < bytes; offset += 64)
-        __builtin_prefetch(codes + offset, 0, 3);
+      index.prefetch_span(codes, bytes);
+      const size_t batch_bytes = index.codec_.batch_bytes();
+      // The end of the first block contains SymphonyQG's score factors.
+      if (batch_bytes > bytes && batch_bytes >= 256)
+        index.template prefetch_fixed<4>(codes + batch_bytes - 256);
 #endif
-      bool refined = true;
+      const bool eligible = !ctx.excluded(id);
       if (Cosine) {
         double reconstructed;
         exact = IntegerCenter::distance(
@@ -795,8 +789,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
             block->center_residual_norm, block->center_coded_norm,
             block->center_norm2, block->center_mean_dot,
             index.center_shift_norm2_, index.dimension_, reconstructed);
-        refined = false;
-        if (!ctx.excluded(id)) refine_candidates.emplace_back(lower, id);
+        if (eligible) refine_candidates.emplace_back(lower, id);
       } else {
         double reconstructed;
         exact = IntegerCenter::l2_distance(
@@ -808,16 +801,12 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
         const float lower = IntegerCenter::l2_lower_bound(
             reconstructed, integer_query, block->center_error,
             block->center_coded_norm, index.dimension_);
-        refined = false;
-        if (!ctx.excluded(id)) refine_candidates.emplace_back(lower, id);
+        if (eligible) refine_candidates.emplace_back(lower, id);
       }
       if (expanded.size() == 1) bucket->set_scale(exact, bucket_width);
       // Heuristic navigation threshold; interval bounds still certify terminal
       // Top-K over expanded nodes, not navigation/global recall.
-      stopping->observe(exact, !ctx.excluded(id));
-      if (refined && !ctx.excluded(id)) {
-        output.emplace(id, exact);
-      }
+      stopping->observe(exact, eligible);
       ctx.on_expand();
       return 0;
     }
@@ -833,22 +822,20 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     void prepare_batch(size_t) {}
     void stage(NodeId, size_t, size_t) {}
     int score(size_t offset, const NodeId *, size_t, float *distances) {
-      float center_score = exact;
-      if (index.compressed_center_) center_score = navigation_center;
       index.codec_.scan(
           codes + (offset / Codec::kBatchSize) * index.codec_.batch_bytes(),
-          query, center_score, distances);
+          query, navigation_center, distances, uncertainty_bonus);
       return 0;
     }
   } scan{*this,
          entity,
          ctx,
-         results,
          batch_query,
          state.integer_query,
          expanded,
          options.bucket_width > 0 ? options.bucket_width
                                   : (Cosine ? .016f : .002f),
+         options.uncertainty_bonus,
          state.refine_candidates,
          &beam,
          &stopping};
@@ -877,15 +864,17 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     NodeId pop() {
       return beam.pop();
     }
-    bool accepts(float distance) const {
-      return !beam.is_full(distance) && std::isfinite(distance);
-    }
     void push_batch(const NodeId *ids, const float *distances, size_t count) {
+      static_assert(Codec::kBatchSize <= 32);
       std::array<uint32_t, Codec::kBatchSize> bins;
       beam.locate_batch(distances, bins.data(), count);
-      for (size_t i = 0; i < count; ++i) {
-        if (!accepts(distances[i]) || visited->visited(ids[i])) continue;
-        beam.insert_at(ids[i], bins[i]);
+      uint32_t accepted = visited->unvisited_batch(ids, distances, count);
+      beam.reserve_insertions(count);
+      while (accepted) {
+        const unsigned i = __builtin_ctz(accepted);
+        accepted &= accepted - 1;
+        if (beam.is_full(distances[i])) continue;
+        beam.insert_reserved(ids[i], bins[i]);
         prefetch_next();
       }
     }
@@ -896,14 +885,12 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
         // Only prefetch published arena slots.
         if (next < index.arena_count_ && next != prefetched) {
           prefetched = next;
+          __builtin_prefetch(index.slot(next), 0, 3);
           const char *center =
               reinterpret_cast<const char *>(index.slot(next)->center());
           const size_t bytes =
               std::min(size_t{640}, index.stride_ - Block::kCenterOffset);
-#pragma GCC unroll 8
-          for (size_t offset = 0; offset < bytes; offset += 64) {
-            __builtin_prefetch(center + offset, 0, 3);
-          }
+          index.prefetch_span(center, bytes);
         }
       }
 #endif
@@ -928,9 +915,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       raw[count] = raw_arena_.get() +
                    static_cast<size_t>(candidate.second) * raw_stride_;
       const char *ptr = static_cast<const char *>(raw[count]);
-#pragma GCC unroll 8
-      for (size_t off = 0; off < stored_dimension_ * sizeof(float); off += 64)
-        __builtin_prefetch(ptr + off, 0, 3);
+      prefetch_span(ptr, stored_dimension_ * sizeof(float));
     }
     for (size_t i = 0; i < count; ++i) {
       const auto &candidate = refine[first + i];

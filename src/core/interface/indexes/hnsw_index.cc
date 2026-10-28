@@ -298,14 +298,16 @@ int HNSWIndex::_prepare_for_search(
 
   const float margin = hnsw_search_param->quantized_graph_margin;
   const float width = hnsw_search_param->quantized_graph_bucket_width;
+  const float bonus = hnsw_search_param->quantized_graph_uncertainty_bonus;
   if (!std::isfinite(margin) || (margin < 0 && margin != -1) ||
       !std::isfinite(width) || width < 0 || width > 1 ||
+      !std::isfinite(bonus) || bonus < 0 || bonus > 1 ||
       hnsw_search_param->quantized_graph_route_beam > 4)
     return core::IndexError_InvalidArgument;
   if (auto *ctx = dynamic_cast<core::HnswContext *>(context.get())) {
     ctx->set_quantized_graph_options(
         {margin, width, hnsw_search_param->quantized_graph_max_expansions,
-         hnsw_search_param->quantized_graph_route_beam});
+         hnsw_search_param->quantized_graph_route_beam, bonus});
   }
 
   // Set group state first so set_topk() derives the effective candidate count.

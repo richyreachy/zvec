@@ -4,9 +4,42 @@
 #include "algorithm/quantized_graph/quantized_graph_bucket.h"
 #include <cmath>
 #include <limits>
+#include <map>
+#include <random>
 #include <gtest/gtest.h>
 
 namespace zvec::core {
+TEST(QuantizedGraphBucket, BatchStoragePreservesOrderThroughGrowthAndReuse) {
+  QuantizedGraphBucket bucket;
+  std::mt19937 random(61);
+  std::map<size_t, std::vector<uint32_t>> reference;
+  for (uint32_t iteration = 0; iteration < 4000; ++iteration) {
+    if (iteration % 101 == 0) {
+      bucket.reset(10);
+      reference.clear();
+    }
+    const size_t count = random() % 33;
+    bucket.reserve_insertions(count);
+    for (size_t i = 0; i < count; ++i) {
+      const size_t bin = random() % QuantizedGraphBucket::N;
+      const uint32_t id = random();
+      bucket.insert_reserved(id, bin);
+      reference[bin].push_back(id);
+    }
+    const size_t pops = iteration % 7 == 0 ? 1000 : random() % 32;
+    for (size_t i = 0; i < pops && !reference.empty(); ++i) {
+      auto first = reference.begin();
+      ASSERT_TRUE(bucket.has_next());
+      ASSERT_EQ(first->first, bucket.first());
+      ASSERT_EQ(first->second.back(), bucket.next_id_at(0));
+      ASSERT_EQ(first->second.back(), bucket.pop());
+      first->second.pop_back();
+      if (first->second.empty()) reference.erase(first);
+    }
+    ASSERT_EQ(!reference.empty(), bucket.has_next());
+  }
+}
+
 TEST(QuantizedGraphBucket, OrdersBinsAndRetainsAllCandidatesAcrossReset) {
   QuantizedGraphBucket bucket;
   for (float width : {0.5f, 0.125f}) {

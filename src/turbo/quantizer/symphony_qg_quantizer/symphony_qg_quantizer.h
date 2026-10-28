@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <cmath>
 #include <turbo/distance/common/symphony_qg_distance.h>
 #include <turbo/preprocessor/symphony_qg_rotator/symphony_qg_rotator.h>
 
@@ -58,8 +59,13 @@ class SymphonyQGBlockQuantizer {
     query.lookup.reset(query.rotated.data(), quantized_dim());
   }
   void scan(const char *codes, Query &query, float center_distance,
-            float *distances) const {
+            float *distances, float uncertainty_bonus = 0) const {
     query.lookup.set_g_add(center_distance);
+    query.lookup.set_priority_bonus(
+        cosine_ && uncertainty_bonus > 0
+            ? uncertainty_bonus *
+                  std::sqrt(std::max(0.f, 2.f * center_distance))
+            : 0.f);
     ScanSymphonyQGBatch(codes, query.lookup, quantized_dim(), distances);
   }
 

@@ -5436,6 +5436,27 @@ TEST(IndexInterface, NativeFp16CandidateBatchAroundTwelveIsExact) {
 
 namespace {
 // Observe the real search before Index::search resets its pooled context.
+TEST(QuantizedGraphOptions, UncertaintyBonusRoundTripAndValidation) {
+  HNSWQueryParam param;
+  param.quantized_graph_uncertainty_bonus = 0.15f;
+  auto decoded = IndexFactory::QueryParamDeserializeFromJson<HNSWQueryParam>(
+      IndexFactory::QueryParamSerializeToJson(param));
+  ASSERT_NE(nullptr, decoded);
+  EXPECT_FLOAT_EQ(0.15f, decoded->quantized_graph_uncertainty_bonus);
+  auto cloned = std::dynamic_pointer_cast<HNSWQueryParam>(decoded->clone());
+  ASSERT_NE(nullptr, cloned);
+  EXPECT_FLOAT_EQ(0.15f, cloned->quantized_graph_uncertainty_bonus);
+  for (const char *value : {"-0.1", "1.01", "\"invalid\""}) {
+    const std::string json = std::string(
+                                 "{\"index_type\":\"kHNSW\",\"quantized_graph_"
+                                 "uncertainty_bonus\":") +
+                             value + "}";
+    EXPECT_EQ(
+        nullptr,
+        IndexFactory::QueryParamDeserializeFromJson<HNSWQueryParam>(json));
+  }
+}
+
 class BudgetHnswIndex : public HNSWIndex {
  public:
   using HNSWIndex::init;
@@ -5497,13 +5518,14 @@ class QuantizedGraphBudgetTest : public testing::TestWithParam<MetricType> {
     zvec::test_util::RemoveTestFiles(path_ + "*");
   }
   void search(uint32_t cap, uint32_t topk,
-              std::function<bool(uint64_t)> excluded) {
+              std::function<bool(uint64_t)> excluded, float bonus = 0) {
     auto param = std::make_shared<HNSWQueryParam>();
     param->topk = topk;
     param->ef_search = 800;
     param->quantized_graph_max_expansions = cap;
     // Disable distance-based early stopping to exercise the expansion cap.
     param->quantized_graph_margin = 1e6f;
+    param->quantized_graph_uncertainty_bonus = bonus;
     param->filter = std::make_shared<IndexFilter>();
     param->filter->set(std::move(excluded));
     result_.doc_list_.clear();
@@ -5523,6 +5545,29 @@ TEST_P(QuantizedGraphBudgetTest, AllFilteredHonorsExpansionCap) {
   EXPECT_TRUE(result_.doc_list_.empty());
   // Filtered nodes do not consume the exact-distance scan budget.
   EXPECT_EQ(0u, index_.comparisons);
+}
+
+TEST_P(QuantizedGraphBudgetTest, BonusPreservesFilteredBudgets) {
+  for (float bonus : {0.15f, 1.f}) {
+    for (uint32_t cap : {1u, 9u, 16u}) {
+      search(cap, 10, [](uint64_t) { return true; }, bonus);
+      EXPECT_TRUE(result_.doc_list_.empty());
+      EXPECT_EQ(0u, index_.comparisons);
+      search(cap, 10, [](uint64_t key) { return key >= 3; }, bonus);
+      EXPECT_LE(result_.doc_list_.size(), 3u);
+      for (const auto &doc : result_.doc_list_) EXPECT_LT(doc.key(), 3u);
+    }
+  }
+}
+
+TEST_P(QuantizedGraphBudgetTest, InvalidBonusIsRejected) {
+  for (float bonus : {-0.1f, 1.01f, std::numeric_limits<float>::infinity(),
+                      std::numeric_limits<float>::quiet_NaN()}) {
+    auto param = std::make_shared<HNSWQueryParam>();
+    param->quantized_graph_uncertainty_bonus = bonus;
+    EXPECT_EQ(zvec::core::IndexError_InvalidArgument,
+              index_.search({DenseVector{query_.data()}}, param, &result_));
+  }
 }
 
 TEST_P(QuantizedGraphBudgetTest, FewerThanTopKHonorsExpansionCap) {
@@ -5550,32 +5595,34 @@ TEST_P(QuantizedGraphBudgetTest, SmallCapsOverrideMinimumExpansions) {
 }
 
 TEST_P(QuantizedGraphBudgetTest, RefinementMatchesExactTopKAfterFullTraversal) {
-  for (bool filtered : {false, true}) {
-    auto excluded = [filtered](uint64_t key) {
-      return filtered && key % 7 == 0;
-    };
-    search(128, 10, excluded);
-    std::vector<std::pair<double, uint64_t>> expected;
-    for (size_t id = 0; id < vectors_.size(); ++id) {
-      if (excluded(id)) continue;
-      double squared = 0, dot = 0, qnorm = 0, vnorm = 0;
-      for (size_t d = 0; d < kDimension; ++d) {
-        const double q = query_[d], v = vectors_[id][d];
-        squared += (q - v) * (q - v);
-        dot += q * v;
-        qnorm += q * q;
-        vnorm += v * v;
+  for (float bonus : {0.f, 0.15f, 1.f}) {
+    for (bool filtered : {false, true}) {
+      auto excluded = [filtered](uint64_t key) {
+        return filtered && key % 7 == 0;
+      };
+      search(128, 10, excluded, bonus);
+      std::vector<std::pair<double, uint64_t>> expected;
+      for (size_t id = 0; id < vectors_.size(); ++id) {
+        if (excluded(id)) continue;
+        double squared = 0, dot = 0, qnorm = 0, vnorm = 0;
+        for (size_t d = 0; d < kDimension; ++d) {
+          const double q = query_[d], v = vectors_[id][d];
+          squared += (q - v) * (q - v);
+          dot += q * v;
+          qnorm += q * q;
+          vnorm += v * v;
+        }
+        const double distance = GetParam() == MetricType::kCosine
+                                    ? 1. - dot / std::sqrt(qnorm * vnorm)
+                                    : squared;
+        expected.emplace_back(distance, id);
       }
-      const double distance = GetParam() == MetricType::kCosine
-                                  ? 1. - dot / std::sqrt(qnorm * vnorm)
-                                  : squared;
-      expected.emplace_back(distance, id);
-    }
-    std::sort(expected.begin(), expected.end());
-    ASSERT_EQ(10u, result_.doc_list_.size());
-    for (size_t i = 0; i < result_.doc_list_.size(); ++i) {
-      EXPECT_EQ(expected[i].second, result_.doc_list_[i].key());
-      EXPECT_NEAR(expected[i].first, result_.doc_list_[i].score(), 1e-4);
+      std::sort(expected.begin(), expected.end());
+      ASSERT_EQ(10u, result_.doc_list_.size());
+      for (size_t i = 0; i < result_.doc_list_.size(); ++i) {
+        EXPECT_EQ(expected[i].second, result_.doc_list_[i].key());
+        EXPECT_NEAR(expected[i].first, result_.doc_list_[i].score(), 1e-4);
+      }
     }
   }
 }

@@ -32,6 +32,9 @@ bool parse_quantized_graph_query(const ailego::JsonObject &json,
                                param.quantized_graph_margin, value) ||
       !extract_value_from_json(json, "quantized_graph_bucket_width",
                                param.quantized_graph_bucket_width, value) ||
+      !extract_value_from_json(json, "quantized_graph_uncertainty_bonus",
+                               param.quantized_graph_uncertainty_bonus,
+                               value) ||
       !extract_value_from_json(json, "quantized_graph_route_beam", beam,
                                value) ||
       !extract_value_from_json(json, "quantized_graph_max_expansions", cap,
@@ -43,7 +46,10 @@ bool parse_quantized_graph_query(const ailego::JsonObject &json,
       !std::isfinite(param.quantized_graph_bucket_width) ||
       param.quantized_graph_bucket_width < 0 ||
       param.quantized_graph_bucket_width > 1 || beam < 0 || beam > 4 ||
-      cap < 0 || cap > std::numeric_limits<uint32_t>::max()) {
+      !std::isfinite(param.quantized_graph_uncertainty_bonus) ||
+      param.quantized_graph_uncertainty_bonus < 0 ||
+      param.quantized_graph_uncertainty_bonus > 1 || cap < 0 ||
+      cap > std::numeric_limits<uint32_t>::max()) {
     LOG_ERROR("Invalid quantized graph query options");
     return false;
   }
@@ -216,6 +222,10 @@ std::string IndexFactory::QueryParamSerializeToJson(const QueryParamType &param,
     // index_type
     index_type = IndexType::kFlat;
   } else if constexpr (std::is_same_v<QueryParamType, HNSWQueryParam>) {
+    if (!omit_empty_value || param.quantized_graph_uncertainty_bonus != 0) {
+      json_obj.set("quantized_graph_uncertainty_bonus",
+                   ailego::JsonValue(param.quantized_graph_uncertainty_bonus));
+    }
     if (!omit_empty_value || param.quantized_graph_margin != -1) {
       json_obj.set("quantized_graph_margin",
                    ailego::JsonValue(param.quantized_graph_margin));

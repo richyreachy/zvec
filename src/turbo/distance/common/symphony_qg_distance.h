@@ -61,6 +61,7 @@ class SymQuery {
  public:
   void reset(const float *rotated_query, size_t padded_dim) {
     g_add_ = 0;
+    priority_bonus_ = 0;
     lut_storage_.resize((padded_dim << 2) + 63);
     auto *aligned_lut = reinterpret_cast<uint8_t *>(
         (reinterpret_cast<uintptr_t>(lut_storage_.data()) + 63) &
@@ -90,7 +91,12 @@ class SymQuery {
     return sum_vl_;
   }
   [[nodiscard]] float k1xsumq() const {
-    return k1xsumq_;
+    return k1xsumq_ + priority_bonus_;
+  }
+  // f_rescale is negative: a positive term gives optimistic navigation
+  // scores. This heuristic is separate from certified terminal bounds.
+  void set_priority_bonus(float value) {
+    priority_bonus_ = value;
   }
   [[nodiscard]] float g_add() const {
     return g_add_;
@@ -107,6 +113,7 @@ class SymQuery {
   float delta_ = 0.0f;
   float sum_vl_ = 0.0f;
   float k1xsumq_ = 0.0f;
+  float priority_bonus_ = 0.0f;
   float g_add_ = 0.0f;
 };
 

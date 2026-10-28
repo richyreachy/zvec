@@ -22,5 +22,6 @@ struct QuantizedGraphSearchOptions {
   // Hard cap on expanded nodes, including filtered nodes; 0 uses the preset.
   uint32_t max_expansions = 0;
   uint32_t route_beam = 1;
+  float uncertainty_bonus = 0;
 };
 }  // namespace zvec::core
