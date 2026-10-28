@@ -13,6 +13,10 @@
 // limitations under the License.
 #pragma once
 #include <algorithm>
+#include <cassert>
+#if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+#include <immintrin.h>
+#endif
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -71,6 +75,51 @@ class QuantizedGraphBucket {
       bins[i] = distances[i] >= 0 ? uint32_t(bounded) + 1 : 0;
     }
   }
+  // Keep a superset of bins that can pass the current stopping threshold.
+  // Step the product down before subtraction to stay conservative even if
+  // the caller's scalar stop expression contracts its multiply/subtract.
+#if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+  __attribute__((target("avx512f"))) uint32_t admissible_mask(
+      const uint32_t *bins, size_t count, float worst, float allowance) const {
+    assert(count <= 32);
+    uint32_t keep = 0;
+    for (size_t offset = 0; offset < count; offset += 16) {
+      const size_t lanes = std::min(size_t{16}, count - offset);
+      const __mmask16 valid = __mmask16((uint32_t{1} << lanes) - 1);
+      const __m512i b = _mm512_maskz_loadu_epi32(valid, bins + offset);
+      const __m512 product = _mm512_mul_ps(
+          _mm512_cvtepi32_ps(_mm512_sub_epi32(b, _mm512_set1_epi32(1))),
+          _mm512_set1_ps(width_));
+      const __mmask16 ordinary =
+          _mm512_cmp_ps_mask(product, _mm512_setzero_ps(), _CMP_GT_OQ) &
+          _mm512_cmp_ps_mask(
+              product, _mm512_set1_ps(std::numeric_limits<float>::infinity()),
+              _CMP_LT_OQ);
+      const __m512 lower = _mm512_castsi512_ps(
+          _mm512_sub_epi32(_mm512_castps_si512(product), _mm512_set1_epi32(1)));
+      const __mmask16 rejected =
+          ordinary &
+          _mm512_cmp_ps_mask(_mm512_sub_ps(lower, _mm512_set1_ps(worst)),
+                             _mm512_set1_ps(allowance), _CMP_GE_OQ);
+      keep |= uint32_t(valid & ~rejected) << offset;
+    }
+    return keep;
+  }
+#else
+  uint32_t admissible_mask(const uint32_t *bins, size_t count, float worst,
+                           float allowance) const {
+    assert(count <= 32);
+    uint32_t keep = 0;
+    for (size_t i = 0; i < count; ++i) {
+      const float product = float(bins[i]) - 1.f;
+      const float lower = std::nextafter(
+          product * width_, -std::numeric_limits<float>::infinity());
+      if (bins[i] == 0 || !(lower - worst >= allowance))
+        keep |= uint32_t{1} << i;
+    }
+    return keep;
+  }
+#endif
   float lower_bound(float d) const {
     size_t b = locate(d);
     return b == 0 ? -std::numeric_limits<float>::infinity()

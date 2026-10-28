@@ -866,13 +866,25 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       beam.locate_batch(distances, bins.data(), count);
       uint32_t accepted = visited->unvisited_batch(ids, distances, count);
       beam.reserve_insertions(count);
+      // The estimated Top-K threshold can only decrease. Once stopping is
+      // enabled, a bin that fails the stop rule now can never be expanded.
+      // Visits are marked on expansion, so later better estimates still enter.
+      const bool prune =
+          stopping->best.size() == stopping->k && stopping->expanded >= 10;
+      const float worst = prune ? stopping->best.back() : 0.f;
+      const float allowance = stopping->margin * std::max(worst, 1e-6f);
+      if (prune)
+        accepted &= beam.admissible_mask(bins.data(), count, worst, allowance);
       while (accepted) {
         const unsigned i = __builtin_ctz(accepted);
         accepted &= accepted - 1;
         if (beam.is_full(distances[i])) continue;
+        const bool changes_first = bins[i] <= beam.first();
         beam.insert_reserved(ids[i], bins[i]);
-        prefetch_next();
+        if (changes_first) prefetch_next();
       }
+      // Even when all lanes were pruned, prefetch the next queued node.
+      prefetch_next();
     }
     void prefetch_next() {
 #if defined(__GNUC__) || defined(__clang__)

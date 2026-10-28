@@ -5462,6 +5462,7 @@ class BudgetHnswIndex : public HNSWIndex {
   using HNSWIndex::init;
   uint32_t expanded = 0;
   size_t comparisons = 0;
+  uint32_t exact_scan_budget = 0;
 
  protected:
   int _dense_search(const VectorData &query,
@@ -5471,8 +5472,9 @@ class BudgetHnswIndex : public HNSWIndex {
     context->set_debug_mode(true);
     // Small fixtures otherwise take the streamer's brute-force shortcut.
     context->set_bruteforce_threshold(0);
-    const int ret = HNSWIndex::_dense_search(query, param, result, context);
     auto *ctx = dynamic_cast<zvec::core::HnswContext *>(context.get());
+    if (ctx && exact_scan_budget) ctx->set_max_scan_num(exact_scan_budget);
+    const int ret = HNSWIndex::_dense_search(query, param, result, context);
     if (ctx) {
       expanded = *ctx->mutable_stats_get_neighbors();
       comparisons = ctx->get_scan_num();
@@ -5539,6 +5541,15 @@ class QuantizedGraphBudgetTest : public testing::TestWithParam<MetricType> {
   BudgetHnswIndex index_;
   SearchResult result_;
 };
+
+TEST_P(QuantizedGraphBudgetTest, ExactRefinementHonorsPartialBatchBudgets) {
+  for (uint32_t budget : {1u, 3u, 4u, 5u, 7u, 8u, 9u, 10u}) {
+    index_.exact_scan_budget = budget;
+    search(16, 10, [](uint64_t) { return false; });
+    EXPECT_EQ(budget, index_.comparisons);
+    EXPECT_EQ(budget, result_.doc_list_.size());
+  }
+}
 
 TEST_P(QuantizedGraphBudgetTest, AllFilteredHonorsExpansionCap) {
   search(16, 10, [](uint64_t) { return true; });

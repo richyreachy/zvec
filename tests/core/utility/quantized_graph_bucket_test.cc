@@ -9,6 +9,52 @@
 #include <gtest/gtest.h>
 
 namespace zvec::core {
+TEST(QuantizedGraphBucket, AdmissionMaskNeverPrunesAnExpandableBin) {
+#if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+  if (!__builtin_cpu_supports("avx512f")) GTEST_SKIP();
+#endif
+  QuantizedGraphBucket bucket;
+  std::array<uint32_t, 32> bins{};
+  bins[0] = 0;
+  bins[1] = 1;
+  bins[2] = 11;
+  bins[3] = 100;
+  bucket.set_scale(1.f, .01f);
+  EXPECT_EQ(3u, bucket.admissible_mask(bins.data(), 4, .05f, 0.f));
+  std::mt19937 random(62);
+  for (float width :
+       {0.f, std::numeric_limits<float>::denorm_min(), 1e-30f, .004f, .008f,
+        1.f, 1e30f, std::numeric_limits<float>::max()}) {
+    bucket.set_scale(1.f, width);
+    for (size_t count = 0; count <= 32; ++count) {
+      for (size_t trial = 0; trial < 32; ++trial) {
+        for (auto &bin : bins) bin = random() % QuantizedGraphBucket::N;
+        const float worst = float(random() % 2048) * width;
+        const float margin = trial % 2 ? .085f : 0.f;
+        const float allowance = margin * std::max(worst, 1e-6f);
+        const uint32_t mask =
+            bucket.admissible_mask(bins.data(), count, worst, allowance);
+        const uint32_t valid =
+            count == 32 ? ~uint32_t{0} : (uint32_t{1} << count) - 1;
+        EXPECT_EQ(0u, mask & ~valid);
+        for (size_t j = 0; j < count; ++j) {
+          // Use the actual queue's externally visible stopping score as the
+          // reference, including zero, infinite and rounded bin boundaries.
+          bucket.insert_at(uint32_t(j), bins[j]);
+          const float next = bucket.next_distance();
+          EXPECT_EQ(j, bucket.pop());
+          if (!(mask & (uint32_t{1} << j))) {
+            EXPECT_TRUE(next - worst >= allowance)
+                << width << ":" << bins[j] << ":" << worst;
+            EXPECT_TRUE(std::fma(float(bins[j]) - 1.f, width, -worst) >=
+                        allowance);
+          }
+        }
+      }
+    }
+  }
+}
+
 TEST(QuantizedGraphBucket, BatchStoragePreservesOrderThroughGrowthAndReuse) {
   QuantizedGraphBucket bucket;
   std::mt19937 random(61);
