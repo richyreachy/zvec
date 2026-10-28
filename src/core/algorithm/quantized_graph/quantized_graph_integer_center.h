@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <vector>
 
@@ -31,6 +32,21 @@ struct IntegerCenter {
     int32_t code_sum = 0;
     double mean_dot = 0, norm = 0;
   };
+  // Adjacent normal floats can be stepped using their ordered IEEE bits.
+  // Retain libm for zero, subnormals and nonfinite values, including its
+  // exceptional underflow/overflow behavior at the normal-range boundary.
+  static float next_down(float value) {
+    static_assert(std::numeric_limits<float>::is_iec559 && sizeof(float) == 4);
+    uint32_t bits;
+    std::memcpy(&bits, &value, sizeof(bits));
+    const uint32_t magnitude = bits & 0x7fffffffU;
+    if (magnitude > 0x00800000U && magnitude < 0x7f7fffffU) {
+      bits += (bits >> 31) ? 1U : uint32_t(-1);
+      std::memcpy(&value, &bits, sizeof(value));
+      return value;
+    }
+    return std::nextafter(value, -std::numeric_limits<float>::infinity());
+  }
   static float upper_norm(double squared) {
     return std::nextafter(float(std::sqrt(squared) + 1e-12),
                           std::numeric_limits<float>::infinity());
@@ -259,9 +275,7 @@ struct IntegerCenter {
     const double a = (n + 4.) * std::numeric_limits<float>::epsilon();
     const double lower = radius * radius * (1. - a / (1. - a)) -
                          4. * (n + 4.) * std::numeric_limits<float>::min();
-    return std::max(
-        0.f,
-        std::nextafter(float(lower), -std::numeric_limits<float>::infinity()));
+    return std::max(0.f, next_down(float(lower)));
   }
   static float lower_bound(float approximate, const Query &q, float error,
                            float residual_norm, float coded_norm,
@@ -287,10 +301,8 @@ struct IntegerCenter {
     const double triangle =
         1. - .5 * (q.norm * q.norm + original_norm2) +
         .5 * l2_lower_bound(reconstructed, q, error, coded_norm, n);
-    return std::nextafter(
-        float(std::max(double(approximate) - quantization, triangle) -
-              arithmetic),
-        -std::numeric_limits<float>::infinity());
+    return next_down(float(
+        std::max(double(approximate) - quantization, triangle) - arithmetic));
   }
 };
 }  // namespace zvec::core

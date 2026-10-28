@@ -687,8 +687,6 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
   auto &visited = state.visited;
   visited.reset(results.limit());
   auto &beam = state.beam;
-  beam.reset(std::max(size_t{1}, results.limit()));
-  beam.insert(entry, std::numeric_limits<float>::max());
   auto &batch_query = state.query;
   codec_.prepare_query(ctx.query(), batch_query);
   if (!IntegerCenter::prepare<!Cosine>(
@@ -708,9 +706,9 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
         integer_router_.choose(state.projected_route_query, route_beam);
     if (chosen == kInvalidNodeId) return IndexError_Mismatch;
     entry = chosen;
-    beam.reset(std::max(size_t{1}, results.limit()));
-    beam.insert(entry, std::numeric_limits<float>::max());
   }
+  beam.reset(std::max(size_t{1}, results.limit()));
+  beam.insert(entry, std::numeric_limits<float>::max());
   state.refine_candidates.clear();
   state.refine_best.clear();
   struct StopState {
@@ -816,11 +814,9 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     size_t batch_size() const {
       return Codec::kBatchSize;
     }
-    NodeId neighbor(size_t i) const {
-      return neighbors[i];
+    const NodeId *neighbor_data(size_t offset) const {
+      return neighbors + offset;
     }
-    void prepare_batch(size_t) {}
-    void stage(NodeId, size_t, size_t) {}
     int score(size_t offset, const NodeId *, size_t, float *distances) {
       index.codec_.scan(
           codes + (offset / Codec::kBatchSize) * index.codec_.batch_bytes(),

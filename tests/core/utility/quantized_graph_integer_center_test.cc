@@ -7,6 +7,32 @@
 #include "algorithm/quantized_graph/quantized_graph_integer_center.h"
 #include "algorithm/quantized_graph/quantized_graph_sq8_center.h"
 namespace zvec::core {
+TEST(QuantizedGraphIntegerCenter, NextDownMatchesLibm) {
+  const auto check = [](uint32_t bits) {
+    float value;
+    std::memcpy(&value, &bits, sizeof(value));
+    const float expected =
+        std::nextafter(value, -std::numeric_limits<float>::infinity());
+    const float actual = IntegerCenter::next_down(value);
+    if (std::isnan(expected)) {
+      EXPECT_TRUE(std::isnan(actual));
+    } else {
+      uint32_t expected_bits, actual_bits;
+      std::memcpy(&expected_bits, &expected, sizeof(expected_bits));
+      std::memcpy(&actual_bits, &actual, sizeof(actual_bits));
+      EXPECT_EQ(expected_bits, actual_bits) << bits;
+    }
+  };
+  for (uint32_t bits :
+       {0U, 1U, 0x007fffffU, 0x00800000U, 0x00800001U, 0x3f800000U, 0x7f7ffffeU,
+        0x7f7fffffU, 0x7f800000U, 0x7f800001U, 0x7fc00000U}) {
+    check(bits);
+    check(bits | 0x80000000U);
+  }
+  std::mt19937 random(75);
+  for (size_t i = 0; i < 100000; ++i) check(random());
+}
+
 TEST(QuantizedGraphIntegerCenter, DotMatchesWideReferenceIncludingTails) {
   if (!__builtin_cpu_supports("avx512f") ||
       !__builtin_cpu_supports("avx512bw") ||

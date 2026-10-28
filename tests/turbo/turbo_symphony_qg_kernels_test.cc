@@ -12,6 +12,39 @@
 #include <turbo/distance/common/symphony_qg_kernels.h>
 
 namespace zvec::turbo {
+TEST(SymphonyQGKernels, ScanAcceptsUnalignedPackedFactors) {
+  std::mt19937 random(77);
+  std::uniform_real_distribution<float> value(-10.f, 10.f);
+  std::array<float, 32> add, scale, expected, actual;
+  std::array<char, 32 * sizeof(float) + 3> packed_add, packed_scale;
+  for (size_t n : {16, 64, 768, 1024, 2048, 4096}) {
+    std::vector<uint8_t> codes(n * 4), lut(n * 4);
+    for (int trial = 0; trial < 16; ++trial) {
+      for (auto &x : codes) x = random();
+      for (auto &x : lut) x = random();
+      for (size_t j = 0; j < 32; ++j) {
+        add[j] = value(random);
+        scale[j] = value(random);
+      }
+      std::memcpy(packed_add.data() + 1, add.data(), sizeof(add));
+      std::memcpy(packed_scale.data() + 3, scale.data(), sizeof(scale));
+      if (!symqg_scan(codes.data(), lut.data(), n, add.data(), scale.data(),
+                      .25f, .03f, -.75f, .125f, expected.data()))
+        GTEST_SKIP();
+      ASSERT_TRUE(symqg_scan(codes.data(), lut.data(), n, packed_add.data() + 1,
+                             packed_scale.data() + 3, .25f, .03f, -.75f, .125f,
+                             actual.data()));
+      EXPECT_EQ(0, std::memcmp(expected.data(), actual.data(), sizeof(actual)));
+    }
+  }
+  actual.fill(17.f);
+  for (size_t n : {0, 1, 15, 17}) {
+    EXPECT_FALSE(symqg_scan(nullptr, nullptr, n, nullptr, nullptr, 0, 0, 0, 0,
+                            actual.data()));
+    for (float x : actual) EXPECT_EQ(17.f, x);
+  }
+}
+
 TEST(SymphonyQGKernels, HadamardMatchesScalarRounding) {
   std::array<float, 64> probe{};
   if (!symqg_hadamard(probe.data(), probe.size())) GTEST_SKIP();

@@ -125,13 +125,14 @@ inline void ScanSymphonyQGBatch(const char *codes, const SymQuery &query,
                                 size_t padded_dim, float *distances) {
   constexpr size_t batch_size = rabitqlib::fastscan::kBatchSize;
   rabitqlib::ConstQGBatchDataMap<float> batch(codes, padded_dim);
-  // RaBitQ 0.7 factors are packed byte views, not live float arrays.
-  std::array<float, batch_size> add, scale;
-  batch.f_add().copy_to(add.data(), batch_size);
-  batch.f_rescale().copy_to(scale.data(), batch_size);
-  if (symqg_scan(batch.bin_code(), query.lut(), padded_dim, add.data(),
-                 scale.data(), query.g_add(), query.delta(), query.sum_vl_lut(),
-                 query.k1xsumq(), distances)) {
+  // RaBitQ 0.7 stores factors as packed bytes. Load them directly through
+  // the SIMD byte-addressed interface without creating float objects here.
+  using Offsets = rabitqlib::detail::BatchCodeOffsets<float>;
+  if (symqg_scan(batch.bin_code(), query.lut(), padded_dim,
+                 codes + Offsets::add(padded_dim),
+                 codes + Offsets::rescale(padded_dim), query.g_add(),
+                 query.delta(), query.sum_vl_lut(), query.k1xsumq(),
+                 distances)) {
     return;
   }
   std::array<uint32_t, batch_size> sums{};

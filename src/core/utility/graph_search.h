@@ -51,6 +51,8 @@ struct GraphSearchPoolFrontier {
 //
 // Scan owns/pins the current adjacency via begin(id), exposes neighbor_count(),
 // neighbor(i), and batch_size(), and supplies prepare_batch/stage/score.
+// Expansion-marking scans expose contiguous neighbor_data(offset); these lanes
+// need no staging or compaction and are submitted directly from the adjacency.
 // score(offset, ids, count, distances) must preserve lane order. It may write
 // a full batch, including padded lanes; scratch always reserves batch_size().
 // begin and score return zero on success or a caller-defined error code.
@@ -78,29 +80,41 @@ int SearchGraph(Scan &scan, Frontier &frontier, Visit &visit,
     const size_t size = scan.neighbor_count();
     if (size == 0) continue;
     const size_t capacity = scan.batch_size();  // positive for a nonempty row
-    scratch.reserve_batch(capacity);
-    scan.prepare_batch(capacity);
+    if constexpr (Scan::kVisitOnExpansion) {
+      if (scratch.distances.size() < capacity)
+        scratch.distances.resize(capacity);
+    } else {
+      scratch.reserve_batch(capacity);
+      scan.prepare_batch(capacity);
+    }
     for (size_t offset = 0; offset < size; offset += capacity) {
       const size_t lanes = std::min(capacity, size - offset);
-      size_t count = 0;
-      for (size_t i = 0; i < lanes; ++i) {
-        const uint32_t neighbor = scan.neighbor(offset + i);
-        if constexpr (!Scan::kVisitOnExpansion) {
+      if constexpr (Scan::kVisitOnExpansion) {
+        const uint32_t *ids = scan.neighbor_data(offset);
+        const int error =
+            scan.score(offset, ids, lanes, scratch.distances.data());
+        if (error != 0) return error;
+        frontier.push_batch(ids, scratch.distances.data(), lanes);
+      } else {
+        size_t count = 0;
+        for (size_t i = 0; i < lanes; ++i) {
+          const uint32_t neighbor = scan.neighbor(offset + i);
           if (visit.visited(neighbor)) {
             scan.on_duplicate();
             continue;
           }
           visit.set_visited(neighbor);
+          scratch.ids[count] = neighbor;
+          scan.stage(neighbor, offset + i, count);
+          ++count;
         }
-        scratch.ids[count] = neighbor;
-        scan.stage(neighbor, offset + i, count);
-        ++count;
+        if (count == 0) continue;
+        const int error = scan.score(offset, scratch.ids.data(), count,
+                                     scratch.distances.data());
+        if (error != 0) return error;
+        frontier.push_batch(scratch.ids.data(), scratch.distances.data(),
+                            count);
       }
-      if (count == 0) continue;
-      const int error = scan.score(offset, scratch.ids.data(), count,
-                                   scratch.distances.data());
-      if (error != 0) return error;
-      frontier.push_batch(scratch.ids.data(), scratch.distances.data(), count);
     }
   }
   return 0;

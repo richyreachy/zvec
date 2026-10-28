@@ -270,7 +270,7 @@ bool symqg_mul(const float *factors, float *v, size_t n) {
 }
 
 bool symqg_scan(const uint8_t *codes, const uint8_t *lut, size_t padded_dim,
-                const float *add, const float *scale, float center_distance,
+                const void *add, const void *scale, float center_distance,
                 float delta, float sum_vl, float k1xsumq, float *distances) {
   if (!symqg_avx512_available() || padded_dim == 0 || (padded_dim & 15) != 0)
     return false;
@@ -320,8 +320,12 @@ bool symqg_scan(const uint8_t *codes, const uint8_t *lut, size_t padded_dim,
         _mm512_mul_ps(width, _mm512_cvtepi32_ps(i == 0 ? sums0 : sums1));
     estimate = _mm512_add_ps(estimate, vl);
     estimate = _mm512_add_ps(estimate, sq);
-    estimate = _mm512_mul_ps(_mm512_loadu_ps(scale + i), estimate);
-    const __m512 base = _mm512_add_ps(_mm512_loadu_ps(add + i), center);
+    estimate = _mm512_mul_ps(
+        _mm512_loadu_ps(static_cast<const char *>(scale) + i * sizeof(float)),
+        estimate);
+    const __m512 base = _mm512_add_ps(
+        _mm512_loadu_ps(static_cast<const char *>(add) + i * sizeof(float)),
+        center);
     _mm512_storeu_ps(distances + i, _mm512_add_ps(base, estimate));
   }
   return true;
@@ -350,8 +354,8 @@ bool symqg_mul(const float *, float *, size_t) {
   return false;
 }
 
-bool symqg_scan(const uint8_t *, const uint8_t *, size_t, const float *,
-                const float *, float, float, float, float, float *) {
+bool symqg_scan(const uint8_t *, const uint8_t *, size_t, const void *,
+                const void *, float, float, float, float, float *) {
   return false;
 }
 
