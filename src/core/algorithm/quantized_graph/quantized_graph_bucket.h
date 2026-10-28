@@ -33,9 +33,13 @@ class QuantizedGraphBucket {
     bits_.fill(0);
     summary_ = 0;
     width_ = 1.0f;
+    inverse_width_ = 1.0f;
+    finite_inverse_ = true;
   }
   void set_scale(float distance, float coefficient = .016f) {
     width_ = std::max(distance, 1e-6f) * coefficient;
+    inverse_width_ = 1.0f / width_;
+    finite_inverse_ = std::isfinite(inverse_width_);
   }
   float width() const {
     return width_;
@@ -43,7 +47,9 @@ class QuantizedGraphBucket {
   size_t locate(float d) const {
     size_t b = 0;
     if (d >= 0) {
-      const float x = d / width_;
+      // Extremely small widths can have an infinite reciprocal. Preserve
+      // direct division there, including zero distances.
+      const float x = finite_inverse_ ? d * inverse_width_ : d / width_;
       b = x >= float(N - 2) ? N - 1 : size_t(x) + 1;
     }
     return b;
@@ -95,5 +101,7 @@ class QuantizedGraphBucket {
   uint64_t summary_ = 0;
   std::vector<size_t> touched_;
   float width_ = 1;
+  float inverse_width_ = 1;
+  bool finite_inverse_ = true;
 };
 }  // namespace zvec::core
