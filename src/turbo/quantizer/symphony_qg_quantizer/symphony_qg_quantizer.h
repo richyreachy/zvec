@@ -54,7 +54,7 @@ class SymphonyQGBlockQuantizer {
     }
   }
   void prepare_query(const void *vector, Query &query) const {
-    transform(vector, query.rotated);
+    rotation_.rotate(vector, query.rotated, true);
     query.lookup.reset(query.rotated.data(), quantized_dim());
   }
   void scan(const char *codes, Query &query, float center_distance,

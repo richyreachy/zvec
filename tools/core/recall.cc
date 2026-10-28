@@ -82,7 +82,7 @@ class Recall {
     } else {
       cout << "Loading internal ground truth file" << endl;
 
-      if (!load_gt_dense(index, gt_count)) {
+      if (!load_gt_dense(index, query_param, gt_count)) {
         LOG_ERROR("Load ground truth file failed!");
         return;
       }
@@ -284,7 +284,10 @@ class Recall {
     return std::string(crc_str);
   }
 
-  bool load_gt_dense(core_interface::Index::Pointer index, size_t gt_count) {
+  bool load_gt_dense(
+      core_interface::Index::Pointer index,
+      const core_interface::BaseIndexQueryParam::Pointer &source_param,
+      size_t gt_count) {
     std::string crc_str = compute_crc(gt_count);
 
     string gt_file = string("gt.") + crc_str;
@@ -354,7 +357,9 @@ class Recall {
         core_interface::VectorData query_data;
         query_data.vector = dense_query;
 
-        auto query_param = std::make_shared<core_interface::FlatQueryParam>();
+        // Backend validation still requires its matching query type when
+        // linear search is requested (for example HNSWQueryParam).
+        auto query_param = source_param->clone();
         query_param->topk = gt_count;
         query_param->is_linear = true;
         query_param->filter = filter_ptr;

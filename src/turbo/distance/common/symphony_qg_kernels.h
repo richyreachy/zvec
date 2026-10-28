@@ -34,6 +34,9 @@ bool symqg_lut_build(const float *rotated_query, size_t padded_dim,
 // padded_dim % 16 == 0. Bit-identical to the scalar butterfly loop.
 bool symqg_hadamard(float *v, size_t padded_dim);
 
+// Paley H12 tensor Sylvester H64 with shared sums and differences.
+bool symqg_hadamard768(float *v);
+
 // Element-wise multiply v[i] *= factors[i].
 bool symqg_mul(const float *factors, float *v, size_t n);
 

@@ -231,6 +231,7 @@ class QuantizedGraph {
   size_t stored_center_bytes_;
   bool compressed_center_{false};
   std::vector<float> center_shift_;
+  std::vector<float> integer_shift_;
   double center_shift_norm2_{0};
   bool cosine_{false};
   size_t max_neighbors_{32};
@@ -241,6 +242,10 @@ class QuantizedGraph {
   std::unique_ptr<char[], ArenaDeleter> arena_;
   NodeId arena_count_{0};
   size_t stride_{0};
+  // Full stored FP32 vectors, including auxiliary fields, for exact
+  // refinement. This trades an extra raw-vector copy for contiguous access.
+  std::unique_ptr<char[], ArenaDeleter> raw_arena_;
+  size_t raw_stride_{0};
   NodeId entry_{kInvalidNodeId};
 };
 
@@ -254,6 +259,7 @@ QuantizedGraph<Codec>::QuantizedGraph(size_t dimension, Codec codec,
       stored_dimension_(std::max(dimension, stored_dimension)),
       codec_(std::move(codec)) {
   cosine_ = cosine;
+  raw_stride_ = (stored_dimension_ * sizeof(float) + 63) & ~size_t{63};
   stored_center_bytes_ = stored_dimension_ * sizeof(float);
   compressed_center_ = true;
   if (compressed_center_) {
@@ -275,6 +281,7 @@ template <class Codec>
 void QuantizedGraph<Codec>::clear() {
   // Called under the caller's exclusive lock; no concurrent searches.
   arena_.reset();
+  raw_arena_.reset();
   arena_count_ = 0;
   entry_ = kInvalidNodeId;
   integer_router_.clear();
@@ -445,6 +452,16 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
           block->center_residual_norm, block->center_coded_norm,
           block->center_mean_dot);
     }
+    if (encoded && !cosine_) {
+      IntegerCenter::annotate(
+          storage_values, integer_shift_.data(),
+          reinterpret_cast<const uint8_t *>(block->center()), dimension_,
+          block->center_offset, block->center_scale, block->center_error,
+          block->center_residual_norm, block->center_coded_norm,
+          block->center_mean_dot);
+      block->center_mean_dot =
+          double(block->center_coded_norm) * block->center_coded_norm;
+    }
     if (!encoded || !std::isfinite(block->center_error) ||
         !std::isfinite(block->center_norm2)) {
       error = IndexError_Mismatch;
@@ -507,6 +524,7 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
   static_assert(sizeof(Block) <= Block::kCenterOffset,
                 "Block header overlaps center");
   center_shift_.assign(dimension_, 0.f);
+  integer_shift_.assign(dimension_, 0.f);
   if (!model_data_.empty() &&
       !QuantizedGraphIntegerRouter::read_mean_data(
           model_data_, doc_cnt, center_shift_, dimension_, cosine_))
@@ -527,6 +545,19 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
       threads == 0 ? std::max(1u, std::thread::hardware_concurrency())
                    : threads;
   std::unique_ptr<char[], ArenaDeleter> arena;
+  std::unique_ptr<char[], ArenaDeleter> raw_arena;
+  if (doc_cnt > kInvalidNodeId ||
+      doc_cnt > std::numeric_limits<size_t>::max() / raw_stride_)
+    return IndexError_Mismatch;
+  const size_t raw_total = raw_stride_ * doc_cnt;
+  if (raw_total > 0) {
+    void *mem =
+        ::operator new(raw_total, std::align_val_t{ArenaDeleter::kAlignment});
+#if defined(__linux__)
+    ::madvise(mem, raw_total, MADV_HUGEPAGE);
+#endif
+    raw_arena.reset(static_cast<char *>(mem));
+  }
   const size_t total = stride_ * doc_cnt;
   if (total > 0) {
     void *mem =
@@ -574,6 +605,9 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
         return;
       }
       const auto *values = static_cast<const float *>(raw.data());
+      std::copy_n(values, stored_dimension_,
+                  reinterpret_cast<float *>(
+                      raw_arena.get() + static_cast<size_t>(id) * raw_stride_));
       for (size_t d = 0; d < dimension_; ++d) centroid[d] += values[d];
       ++valid_counts[part];
       int error = 0;
@@ -644,6 +678,7 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
   // Published under the caller's exclusive lock; searches only
   // start afterwards, so reads need no synchronization.
   arena_ = std::move(arena);
+  raw_arena_ = std::move(raw_arena);
   arena_count_ = static_cast<NodeId>(doc_cnt);
   return 0;
 }
@@ -664,9 +699,10 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
   beam.insert(entry, std::numeric_limits<float>::max());
   auto &batch_query = state.query;
   codec_.prepare_query(ctx.query(), batch_query);
-  if (Cosine && !IntegerCenter::prepare(static_cast<const float *>(ctx.query()),
-                                        center_shift_.data(), dimension_,
-                                        state.integer_query))
+  if (!IntegerCenter::prepare<!Cosine>(
+          static_cast<const float *>(ctx.query()),
+          Cosine ? center_shift_.data() : integer_shift_.data(), dimension_,
+          state.integer_query))
     return IndexError_Mismatch;
   auto &expanded = state.expanded;
   expanded.clear();
@@ -747,27 +783,31 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
 #endif
       bool refined = true;
       if (Cosine) {
+        double reconstructed;
         exact = IntegerCenter::distance(
             integer_query, reinterpret_cast<const uint8_t *>(block->center()),
             index.dimension_, block->center_offset, block->center_scale,
-            block->center_mean_dot, index.center_shift_norm2_);
+            block->center_mean_dot, index.center_shift_norm2_,
+            block->center_coded_norm, reconstructed);
         navigation_center = exact;
         float lower = IntegerCenter::lower_bound(
             exact, integer_query, block->center_error,
             block->center_residual_norm, block->center_coded_norm,
             block->center_norm2, block->center_mean_dot,
-            index.center_shift_norm2_, index.dimension_);
+            index.center_shift_norm2_, index.dimension_, reconstructed);
         refined = false;
         if (!ctx.excluded(id)) refine_candidates.emplace_back(lower, id);
       } else {
-        exact = SQ8Center::distance(
-            static_cast<const float *>(ctx.query()),
-            reinterpret_cast<const uint8_t *>(block->center()),
-            index.dimension_, block->center_offset, block->center_scale);
+        double reconstructed;
+        exact = IntegerCenter::l2_distance(
+            integer_query, reinterpret_cast<const uint8_t *>(block->center()),
+            index.dimension_, block->center_offset, block->center_scale,
+            block->center_norm2, block->center_coded_norm, reconstructed);
         navigation_center =
-            exact;  // Neighbor codes use the reconstructed center.
-        const float lower = SQ8Center::l2_lower_bound(
-            exact, block->center_error, index.dimension_);
+            float(double(exact) + block->center_mean_dot - block->center_norm2);
+        const float lower = IntegerCenter::l2_lower_bound(
+            reconstructed, integer_query, block->center_error,
+            block->center_coded_norm, index.dimension_);
         refined = false;
         if (!ctx.excluded(id)) refine_candidates.emplace_back(lower, id);
       }
@@ -879,15 +919,15 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
   for (size_t first = 0; first < refine.size(); first += 4) {
     if (best.size() == ctx.topk() && refine[first].first > best.back()) break;
     if (ctx.reach_scan_limit()) break;
-    std::array<typename Graph::Vector, 4> raw;
+    std::array<const void *, 4> raw;
     size_t count = 0;
     for (; count < 4 && first + count < refine.size(); ++count) {
       const auto &candidate = refine[first + count];
       if (best.size() == ctx.topk() && candidate.first > best.back()) break;
-      int ret = entity.get_vector(candidate.second, raw[count]);
-      if (ret) return ret;
-      if (raw[count].data() == nullptr) return IndexError_Mismatch;
-      const char *ptr = static_cast<const char *>(raw[count].data());
+      if (candidate.second >= arena_count_) return IndexError_Mismatch;
+      raw[count] = raw_arena_.get() +
+                   static_cast<size_t>(candidate.second) * raw_stride_;
+      const char *ptr = static_cast<const char *>(raw[count]);
 #pragma GCC unroll 8
       for (size_t off = 0; off < stored_dimension_ * sizeof(float); off += 64)
         __builtin_prefetch(ptr + off, 0, 3);
@@ -896,7 +936,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       const auto &candidate = refine[first + i];
       if (best.size() == ctx.topk() && candidate.first > best.back()) break;
       if (ctx.reach_scan_limit()) break;
-      const float exact = ctx.distance(raw[i].data());
+      const float exact = ctx.distance(raw[i]);
       results.emplace(candidate.second, exact);
       best.insert(std::lower_bound(best.begin(), best.end(), exact), exact);
       if (best.size() > ctx.topk()) best.pop_back();

@@ -43,7 +43,8 @@ class SymphonyQGRotation {
   size_t padded_dim() const {
     return padded_;
   }
-  void rotate(const void *data, std::vector<float> &out) const {
+  void rotate(const void *data, std::vector<float> &out,
+              bool fast_query = false) const {
     const auto *values = static_cast<const float *>(data);
     out.assign(padded_, 0.0f);
     std::copy(values, values + dimension_, out.begin());
@@ -53,6 +54,9 @@ class SymphonyQGRotation {
         for (size_t i = 0; i < padded_; ++i) out[i] *= signs[i];
       }
       if (padded_ == 768) {
+        // Query reassociation may change rounding. Keep the canonical path
+        // for database/model transforms and byte-exact model validation.
+        if (fast_query && symqg_hadamard768(out.data())) continue;
         // Paley H12 tensor Sylvester H64: H H^T = 768 I.
         // The normalization is already included in signs_. No zero padding.
         for (size_t block = 0; block < 12; ++block) {

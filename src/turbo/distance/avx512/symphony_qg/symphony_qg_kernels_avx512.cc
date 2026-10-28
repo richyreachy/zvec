@@ -35,6 +35,30 @@ bool symqg_avx512_available() {
   return available;
 }
 
+inline __m512 hadamard16(__m512 value) {
+  __m512 other = _mm512_shuffle_ps(value, value, 0xB1);
+  value = _mm512_mask_sub_ps(_mm512_add_ps(value, other), 0xAAAA, other, value);
+  other = _mm512_shuffle_ps(value, value, 0x4E);
+  value = _mm512_mask_sub_ps(_mm512_add_ps(value, other), 0xCCCC, other, value);
+  other = _mm512_shuffle_f32x4(value, value, 0xB1);
+  value = _mm512_mask_sub_ps(_mm512_add_ps(value, other), 0xF0F0, other, value);
+  other = _mm512_shuffle_f32x4(value, value, 0x4E);
+  return _mm512_mask_sub_ps(_mm512_add_ps(value, other), 0xFF00, other, value);
+}
+
+inline void hadamard64(float *v) {
+  const __m512 a = hadamard16(_mm512_loadu_ps(v));
+  const __m512 b = hadamard16(_mm512_loadu_ps(v + 16));
+  const __m512 c = hadamard16(_mm512_loadu_ps(v + 32));
+  const __m512 d = hadamard16(_mm512_loadu_ps(v + 48));
+  const __m512 ab = _mm512_add_ps(a, b), cd = _mm512_add_ps(c, d);
+  const __m512 ba = _mm512_sub_ps(a, b), dc = _mm512_sub_ps(c, d);
+  _mm512_storeu_ps(v, _mm512_add_ps(ab, cd));
+  _mm512_storeu_ps(v + 16, _mm512_add_ps(ba, dc));
+  _mm512_storeu_ps(v + 32, _mm512_sub_ps(ab, cd));
+  _mm512_storeu_ps(v + 48, _mm512_sub_ps(ba, dc));
+}
+
 }  // namespace
 
 bool symqg_lut_build(const float *__restrict q, size_t padded_dim, uint8_t *lut,
@@ -87,52 +111,149 @@ bool symqg_lut_build(const float *__restrict q, size_t padded_dim, uint8_t *lut,
 }
 
 bool symqg_hadamard(float *v, size_t padded_dim) {
-  if (!symqg_avx512_available() || (padded_dim & 0xF) != 0) return false;
-
-  for (size_t stride = 1; stride < padded_dim; stride *= 2) {
-    if (stride >= 16) {
-      for (size_t offset = 0; offset < padded_dim; offset += 2 * stride) {
-        for (size_t i = 0; i < stride; i += 16) {
-          const __m512 a = _mm512_loadu_ps(v + offset + i);
-          const __m512 b = _mm512_loadu_ps(v + offset + i + stride);
-          _mm512_storeu_ps(v + offset + i, _mm512_add_ps(a, b));
-          _mm512_storeu_ps(v + offset + i + stride, _mm512_sub_ps(a, b));
-        }
+  if (!symqg_avx512_available() || padded_dim < 16 ||
+      (padded_dim & (padded_dim - 1)) != 0)
+    return false;
+  size_t first_stride = 16;
+  if (padded_dim >= 64) {
+    for (size_t i = 0; i < padded_dim; i += 64) hadamard64(v + i);
+    first_stride = 64;
+  } else {
+    for (size_t i = 0; i < padded_dim; i += 16)
+      _mm512_storeu_ps(v + i, hadamard16(_mm512_loadu_ps(v + i)));
+  }
+  for (size_t stride = first_stride; stride < padded_dim; stride *= 2)
+    for (size_t offset = 0; offset < padded_dim; offset += 2 * stride)
+      for (size_t i = 0; i < stride; i += 16) {
+        const __m512 a = _mm512_loadu_ps(v + offset + i);
+        const __m512 b = _mm512_loadu_ps(v + offset + i + stride);
+        _mm512_storeu_ps(v + offset + i, _mm512_add_ps(a, b));
+        _mm512_storeu_ps(v + offset + i + stride, _mm512_sub_ps(a, b));
       }
-      continue;
+  return true;
+}
+
+bool symqg_hadamard768(float *v) {
+  if (!symqg_avx512_available()) return false;
+  for (size_t block = 0; block < 12; ++block) hadamard64(v + block * 64);
+  for (size_t k = 0; k < 64; k += 16) {
+    const __m512 x0 = _mm512_loadu_ps(v + 0 + k);
+    const __m512 x1 = _mm512_loadu_ps(v + 64 + k);
+    const __m512 x2 = _mm512_loadu_ps(v + 128 + k);
+    const __m512 x3 = _mm512_loadu_ps(v + 192 + k);
+    const __m512 x4 = _mm512_loadu_ps(v + 256 + k);
+    const __m512 x5 = _mm512_loadu_ps(v + 320 + k);
+    const __m512 x6 = _mm512_loadu_ps(v + 384 + k);
+    const __m512 x7 = _mm512_loadu_ps(v + 448 + k);
+    const __m512 x8 = _mm512_loadu_ps(v + 512 + k);
+    const __m512 x9 = _mm512_loadu_ps(v + 576 + k);
+    const __m512 x10 = _mm512_loadu_ps(v + 640 + k);
+    const __m512 x11 = _mm512_loadu_ps(v + 704 + k);
+    const __m512 x12 = _mm512_add_ps(x0, x1);
+    const __m512 x13 = _mm512_add_ps(x2, x3);
+    const __m512 x14 = _mm512_add_ps(x4, x5);
+    const __m512 x15 = _mm512_add_ps(x6, x7);
+    const __m512 x16 = _mm512_add_ps(x8, x9);
+    const __m512 x17 = _mm512_add_ps(x10, x11);
+    const __m512 x18 = _mm512_sub_ps(x0, x1);
+    const __m512 x19 = _mm512_sub_ps(x2, x3);
+    const __m512 x20 = _mm512_sub_ps(x6, x7);
+    const __m512 x21 = _mm512_sub_ps(x10, x11);
+    const __m512 x22 = _mm512_sub_ps(x4, x5);
+    const __m512 x23 = _mm512_sub_ps(x8, x9);
+    const __m512 x24 = _mm512_add_ps(x12, x13);
+    const __m512 x25 = _mm512_add_ps(x14, x16);
+    const __m512 x26 = _mm512_add_ps(x15, x17);
+    const __m512 x27 = _mm512_sub_ps(x14, x16);
+    const __m512 x28 = _mm512_sub_ps(x18, x19);
+    const __m512 x29 = _mm512_add_ps(x20, x21);
+    const __m512 x30 = _mm512_sub_ps(x12, x13);
+    const __m512 x31 = _mm512_sub_ps(x15, x22);
+    const __m512 x32 = _mm512_add_ps(x15, x23);
+    const __m512 x33 = _mm512_sub_ps(x17, x22);
+    const __m512 x34 = _mm512_add_ps(x18, x19);
+    const __m512 x35 = _mm512_sub_ps(x13, x23);
+    const __m512 x36 = _mm512_add_ps(x18, x20);
+    const __m512 x37 = _mm512_sub_ps(x14, x21);
+    {
+      __m512 sum = x24;
+      sum = _mm512_add_ps(sum, x25);
+      sum = _mm512_add_ps(sum, x26);
+      _mm512_storeu_ps(v + 0 + k, sum);
     }
-    // A whole butterfly group fits in one vector: permute pairs lane i with
-    // i XOR stride, then a masked subtract yields both (a+b, a-b) outputs in
-    // a single pass, bit-identical to the scalar formulation.
-    __m512i partner;
-    __mmask16 high;
-    switch (stride) {
-      case 8:
-        partner = _mm512_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4,
-                                    5, 6, 7);
-        high = 0xFF00;
-        break;
-      case 4:
-        partner = _mm512_setr_epi32(4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15, 8,
-                                    9, 10, 11);
-        high = 0xF0F0;
-        break;
-      case 2:
-        partner = _mm512_setr_epi32(2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14,
-                                    15, 12, 13);
-        high = 0xCCCC;
-        break;
-      default:
-        partner = _mm512_setr_epi32(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13,
-                                    12, 15, 14);
-        high = 0xAAAA;
-        break;
+    {
+      __m512 sum = x28;
+      sum = _mm512_sub_ps(sum, x27);
+      sum = _mm512_sub_ps(sum, x29);
+      _mm512_storeu_ps(v + 64 + k, sum);
     }
-    for (size_t i = 0; i < padded_dim; i += 16) {
-      const __m512 t = _mm512_loadu_ps(v + i);
-      const __m512 u = _mm512_permutexvar_ps(partner, t);
-      _mm512_storeu_ps(v + i,
-                       _mm512_mask_sub_ps(_mm512_add_ps(t, u), high, u, t));
+    {
+      __m512 sum = x16;
+      sum = _mm512_add_ps(sum, x21);
+      sum = _mm512_add_ps(sum, x30);
+      sum = _mm512_sub_ps(sum, x31);
+      _mm512_storeu_ps(v + 128 + k, sum);
+    }
+    {
+      __m512 sum = x33;
+      sum = _mm512_add_ps(sum, x34);
+      sum = _mm512_sub_ps(sum, x32);
+      _mm512_storeu_ps(v + 192 + k, sum);
+    }
+    {
+      __m512 sum = x12;
+      sum = _mm512_add_ps(sum, x17);
+      sum = _mm512_add_ps(sum, x20);
+      sum = _mm512_sub_ps(sum, x19);
+      sum = _mm512_sub_ps(sum, x25);
+      _mm512_storeu_ps(v + 256 + k, sum);
+    }
+    {
+      __m512 sum = x12;
+      sum = _mm512_add_ps(sum, x19);
+      sum = _mm512_add_ps(sum, x22);
+      sum = _mm512_sub_ps(sum, x16);
+      sum = _mm512_sub_ps(sum, x29);
+      _mm512_storeu_ps(v + 320 + k, sum);
+    }
+    {
+      __m512 sum = x23;
+      sum = _mm512_add_ps(sum, x24);
+      sum = _mm512_sub_ps(sum, x22);
+      sum = _mm512_sub_ps(sum, x26);
+      _mm512_storeu_ps(v + 384 + k, sum);
+    }
+    {
+      __m512 sum = x35;
+      sum = _mm512_add_ps(sum, x36);
+      sum = _mm512_sub_ps(sum, x33);
+      _mm512_storeu_ps(v + 448 + k, sum);
+    }
+    {
+      __m512 sum = x21;
+      sum = _mm512_add_ps(sum, x27);
+      sum = _mm512_add_ps(sum, x28);
+      sum = _mm512_sub_ps(sum, x20);
+      _mm512_storeu_ps(v + 512 + k, sum);
+    }
+    {
+      __m512 sum = x36;
+      sum = _mm512_add_ps(sum, x37);
+      sum = _mm512_sub_ps(sum, x35);
+      _mm512_storeu_ps(v + 576 + k, sum);
+    }
+    {
+      __m512 sum = x30;
+      sum = _mm512_add_ps(sum, x31);
+      sum = _mm512_sub_ps(sum, x17);
+      sum = _mm512_sub_ps(sum, x23);
+      _mm512_storeu_ps(v + 640 + k, sum);
+    }
+    {
+      __m512 sum = x32;
+      sum = _mm512_add_ps(sum, x34);
+      sum = _mm512_sub_ps(sum, x37);
+      _mm512_storeu_ps(v + 704 + k, sum);
     }
   }
   return true;
@@ -218,6 +339,10 @@ bool symqg_lut_build(const float *, size_t, uint8_t *, float *, float *,
 }
 
 bool symqg_hadamard(float *, size_t) {
+  return false;
+}
+
+bool symqg_hadamard768(float *) {
   return false;
 }
 
