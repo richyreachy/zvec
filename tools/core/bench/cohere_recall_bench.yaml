@@ -1,4 +1,5 @@
-# Cohere 1M, cosine, Top10: starting configuration targeting >=90% recall.
+# Cohere 1M, cosine, Top10: selected from the published implementation's
+# measured parameter sweeps targeting >=90% recall, not experimental kernels.
 # Rebuilt graphs and different datasets can change recall; measure it first.
 # Replace /data/cohere paths and use the snapshot from cohere_build.yaml.
 # Query/ground-truth text uses an ID followed by ';' and space-separated values.
