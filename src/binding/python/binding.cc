@@ -23,6 +23,10 @@
 
 namespace zvec {
 
+#ifdef ZVEC_PYTHON4BENCH
+void BindPython4Bench(pybind11::module_ &m);
+#endif
+
 PYBIND11_MODULE(_zvec, m) {
   m.doc() = "Zvec core module";
 
@@ -33,5 +37,8 @@ PYBIND11_MODULE(_zvec, m) {
   ZVecPyConfig::Initialize(m);
   ZVecPyDoc::Initialize(m);
   ZVecPyCollection::Initialize(m);
+#ifdef ZVEC_PYTHON4BENCH
+  BindPython4Bench(m);
+#endif
 }
 }  // namespace zvec
