@@ -31,10 +31,10 @@ set(SRC_LISTS
 
 pybind11_add_module(_zvec ${SRC_LISTS})
 
-option(BUILD_PYTHON4BENCH "Build experimental benchmark Python bindings" OFF)
-if(BUILD_PYTHON4BENCH)
-    target_sources(_zvec PRIVATE ${PROJECT_ROOT_DIR}/python4bench/native/searcher.cc)
-    target_compile_definitions(_zvec PRIVATE ZVEC_PYTHON4BENCH)
+option(BUILD_PY4BENCH "Build experimental benchmark Python bindings" OFF)
+if(BUILD_PY4BENCH)
+    target_sources(_zvec PRIVATE ${PROJECT_ROOT_DIR}/py4bench/native/searcher.cc)
+    target_compile_definitions(_zvec PRIVATE ZVEC_PY4BENCH)
 endif()
 
 # Ensure any change to the linker version script (exports.map) triggers a

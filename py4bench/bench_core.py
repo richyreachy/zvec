@@ -8,8 +8,8 @@ import time
 from pathlib import Path
 
 import numpy as np
-from python4bench import CoreSearcher
-from python4bench.adapters import ANNSearchAdapter, VectorDBSearchAdapter
+from py4bench import CoreSearcher
+from py4bench.adapters import ANNSearchAdapter, VectorDBSearchAdapter
 
 
 def main():

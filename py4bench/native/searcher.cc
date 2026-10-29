@@ -39,7 +39,7 @@ QueryParams::Ptr clone_params(const QueryParams::Ptr &p) {
   COPY_PARAM(IvfRabitqQueryParams);
   COPY_PARAM(DiskAnnQueryParams);
 #undef COPY_PARAM
-  throw std::invalid_argument("python4bench: unsupported query parameter type");
+  throw std::invalid_argument("py4bench: unsupported query parameter type");
 }
 
 template <class T> py::array_t<T> own(std::vector<T> values) {
@@ -86,11 +86,11 @@ class Searcher {
     query_.filter_ = std::move(filter);
     py::gil_scoped_release release;
     if (!take(collection_->options()).read_only_)
-      throw std::invalid_argument("python4bench requires a read-only collection");
+      throw std::invalid_argument("py4bench requires a read-only collection");
     auto schema = take(collection_->schema());
     const auto *f = schema.get_vector_field(query_.target_.field_name_);
     if (!f || f->data_type() != DataType::VECTOR_FP32)
-      throw std::invalid_argument("python4bench requires a dense FP32 vector field");
+      throw std::invalid_argument("py4bench requires a dense FP32 vector field");
     dimension_ = f->dimension();
 
     // Numeric primary keys are benchmark dataset IDs, never insertion offsets.
@@ -105,7 +105,7 @@ class Searcher {
       int64_t id = -1;
       auto parsed = std::from_chars(pk.data(), pk.data() + pk.size(), id);
       if (parsed.ec != std::errc{} || parsed.ptr != pk.data() + pk.size() || id < 0)
-        throw std::invalid_argument("python4bench requires non-negative int64 primary keys");
+        throw std::invalid_argument("py4bench requires non-negative int64 primary keys");
       if (!unique.insert(id).second)
         throw std::invalid_argument("primary keys must map to unique integer IDs");
       sparse_ids_.emplace(doc->doc_id(), id);
@@ -284,7 +284,7 @@ void build_core(const std::string &path, const py::array &vectors,
 }
 }  // namespace
 
-void BindPython4Bench(pybind11::module_ &m) {
+void BindPy4Bench(pybind11::module_ &m) {
   py::class_<Searcher>(m, "_BenchSearcher")
       .def(py::init<const std::string &, const std::string &, const std::string &>(),
            py::arg("path"), py::arg("index_json"), py::arg("query_json"))

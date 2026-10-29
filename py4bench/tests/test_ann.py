@@ -3,7 +3,7 @@ import pytest
 from pathlib import Path
 
 pytest.importorskip("ann_benchmarks")
-from python4bench.ann.module import SymQGBench, ZvecBench
+from py4bench.ann.module import SymQGBench, ZvecBench
 
 
 def test_framework_config():

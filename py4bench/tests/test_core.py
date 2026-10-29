@@ -3,8 +3,8 @@ import os
 import numpy as np
 import pytest
 
-from python4bench import CoreSearcher
-from python4bench.adapters import ANNSearchAdapter, VectorDBSearchAdapter
+from py4bench import CoreSearcher
+from py4bench.adapters import ANNSearchAdapter, VectorDBSearchAdapter
 
 
 def test_core_build_search_and_batch(tmp_path):

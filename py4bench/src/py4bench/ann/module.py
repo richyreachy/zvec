@@ -24,7 +24,7 @@ class ZvecBench(BaseANN):
         self.collection = None
         self.directory = None
         self.adapter = None
-        self.name = f"Zvec-python4bench({metric},{index_type},{self.index_params},threads={threads})"
+        self.name = f"Zvec-py4bench({metric},{index_type},{self.index_params},threads={threads})"
 
     def fit(self, X):
         self.done()
@@ -63,7 +63,7 @@ class ZvecBench(BaseANN):
         self.adapter = ANNSearchAdapter(
             self.collection, param=cls(**params), threads=self.threads
         )
-        self.name = (f"Zvec-python4bench({self.index_type},{self.index_params},"
+        self.name = (f"Zvec-py4bench({self.index_type},{self.index_params},"
                      f"query={params},threads={self.threads})")
 
     def query(self, q, n):
@@ -99,7 +99,7 @@ class SymQGBench(BaseANN):
         self.threads = threads
         self.directory = None
         self.adapter = None
-        self.name = f"SymQG-python4bench({self.params},threads={threads})"
+        self.name = f"SymQG-py4bench({self.params},threads={threads})"
 
     def fit(self, X):
         self.done()
@@ -117,7 +117,7 @@ class SymQGBench(BaseANN):
         self.adapter = ANNSearchAdapter.from_searcher(
             CoreSearcher(self.path, self.params, params), self.threads
         )
-        self.name = f"SymQG-python4bench({self.params},query={params},threads={self.threads})"
+        self.name = f"SymQG-py4bench({self.params},query={params},threads={self.threads})"
 
     def query(self, q, n):
         return self.adapter.query(q, n)

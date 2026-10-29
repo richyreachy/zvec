@@ -1,4 +1,4 @@
-# python4bench
+# py4bench
 
 实验性 benchmark 专用封装，适用于只读 collection、FP32 dense query，以及
 可解析为非负 int64 的唯一主键。代码集中在此目录，生产 Python API 不变。
@@ -6,25 +6,94 @@
 
 ## 构建与测试
 
-在仓库根目录执行，先构建本分支的 Zvec，再安装这个独立 Python 包：
+需要配套安装两个包：
+
+- `zvec`：启用 benchmark C++ 绑定的原生包。
+- `zvec-py4bench`：独立 Python 封装和适配器，导入名为 `py4bench`。
+
+默认 `BUILD_PY4BENCH=OFF`。开启时把 `native/searcher.cc` 编译进 `_zvec`，
+共享现有 Collection 类型和引擎，避免额外链接一份引擎及跨扩展 ABI 问题。
+普通 Zvec wheel 不包含新绑定；仅安装 `zvec-py4bench` 不会自动启用它们。
+
+### 环境准备
+
+以下命令均在本分支的仓库根目录执行。示例使用已验证的 Python 3.11，
+系统需要可用的 C/C++ 编译器和 Git；构建隔离环境会自动安装 CMake、Ninja、
+pybind11 等 Python 构建依赖。首次构建还需要联网获取第三方依赖。
 
 ```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
 git submodule update --init --recursive
-python -m pip install . -Ccmake.define.BUILD_PYTHON4BENCH=ON
-python -m pip install ./python4bench --no-deps
-python -m pytest -o addopts='' python4bench/tests
 ```
 
-默认 `BUILD_PYTHON4BENCH=OFF`。开启时把 `native/searcher.cc` 编译进 `_zvec`，
-共享现有 Collection 类型和引擎，避免额外链接一份引擎及跨扩展 ABI 问题。
-`python4bench` 是单独安装的包；普通 Zvec wheel 不包含它。
+### 构建可分发的 wheel
+
+```bash
+# 原生 Zvec wheel：必须显式开启 benchmark 绑定
+python -m pip wheel . --no-deps \
+  -w dist/py4bench \
+  -Ccmake.define.BUILD_PY4BENCH=ON \
+  -Cbuild-dir=build-py4bench \
+  -Cbuild.tool-args=-j6
+
+# 独立 Python 封装 wheel
+python -m pip wheel ./py4bench --no-deps \
+  -w dist/py4bench
+```
+
+`-j6` 是原生构建的并行度，可按机器资源调整。独立构建目录用于复用编译缓存；
+切换 Python 版本、平台或工具链时应选用新的构建目录。
+
+输出目录中应有一个带 Python/平台标签的 `zvec-*.whl` 和一个
+`zvec_py4bench-0.1.0-py3-none-any.whl`。建议配套分发同次构建的两个 wheel。
+安装时确保该目录仅含本次需要的两个 wheel；若保留了多个版本，请显式指定文件名。
+
+```bash
+python -m pip install numpy
+python -m pip install --force-reinstall --no-deps dist/py4bench/*.whl
+```
+
+原生 wheel 必须匹配目标操作系统、CPU 架构和 Python ABI。用于 Linux/x86
+SymQG 测试时，应在对应 Linux/x86 环境构建；macOS ARM wheel 不能直接使用。
+跨 Linux 发行版分发还需匹配 libc 等运行时环境；本命令不自动保证 manylinux 兼容性。
+SymQG 执行本身仍要求 AVX512/VNNI 支持。
+
+### 直接从源码安装
+
+如果只用于本机，不需要保留 wheel，在完成环境准备后执行：
+
+```bash
+python -m pip install . -Ccmake.define.BUILD_PY4BENCH=ON
+python -m pip install ./py4bench --no-deps
+```
+
+### 验证安装与运行测试
+
+```bash
+python -c "from zvec._zvec import _BenchSearcher; from py4bench import Searcher, CoreSearcher; print('OK')"
+
+python -m pip install pytest
+python -m pytest -o addopts='' py4bench/tests
+```
+
+若无法导入 `_BenchSearcher`，通常是当前环境仍加载普通 Zvec wheel，或构建时
+没有开启 `BUILD_PY4BENCH`；请用上面构建出的原生 wheel 重新安装。
+可通过 `python -c "import zvec; print(zvec.__file__)"` 确认实际加载位置。
+
+ANN-Benchmarks 生命周期测试需要该框架可导入，否则会跳过；框架源码可通过
+`PYTHONPATH` 加入，同时安装其测试所需的 `psutil` 和 `PyYAML`。
+在支持 AVX512/VNNI 的机器上执行
+`ZVEC_TEST_SYMQG=1 python -m pytest -o addopts='' py4bench/tests`
+可同时启用 SymQG 专项测试。
 
 ## 使用
 
 ```python
 import numpy as np
 import zvec
-from python4bench import Searcher
+from py4bench import Searcher
 
 collection = zvec.open("index", zvec.CollectionOption(read_only=True))
 searcher = Searcher(collection, field="vector", param=zvec.HnswQueryParam(ef=100))
@@ -55,7 +124,7 @@ rows = searcher.search_batch(q[None, :], 100, threads=1)
 因此额外提供 `CoreSearcher`，直接加载 native bench 的索引和 core JSON 参数：
 
 ```python
-from python4bench import CoreSearcher
+from py4bench import CoreSearcher
 params = dict(index_type="kHNSW", data_type="DT_FP32", metric_type="kCosine",
               dimension=768, use_id_map=True, use_quantized_graph=True)
 search = CoreSearcher("graph.index", params,
@@ -69,11 +138,11 @@ ids = search.search(q, 100)
 或外部 reference-index refine。SymQG 内部的精确打分仍由原算法执行。
 SymQG 本身要求支持 AVX512/VNNI 的机器，ARM 上仅能测试普通 HNSW core 路径。
 
-ANN-Benchmarks 使用 `module: python4bench.ann`、`constructor: SymQGBench`，
+ANN-Benchmarks 使用 `module: py4bench.ann`、`constructor: SymQGBench`，
 `base_args: ['@metric', {m: 16, ef_construction: 200}, 1]`，以及
 `query_arg_groups: [{ef_search: [100, 200], quantized_graph_max_expansions: [200]}]`。
 完整配置见 `integrations/symqg/config.yml`；复制到框架算法配置目录后，在对应
-Docker 镜像中安装本分支 Zvec 和 python4bench 包（或使用框架本地运行模式）。
+Docker 镜像中安装本分支 Zvec 和 py4bench 包（或使用框架本地运行模式）。
 每次参数切换重新打开只读图；准备成本在查询计时之外，应另行记录。
 `ANNSearchAdapter.from_searcher(search)` 和
 `VectorDBSearchAdapter.from_searcher(search)` 可复用这一入口；后者只用于
@@ -81,13 +150,13 @@ VectorDBBench 调用路径的 core-only 诊断，不能标为完整数据库过�
 
 ### Collection
 
-完整算法入口为 `python4bench.ann.module.ZvecBench`，继承框架的 `BaseANN`。
+完整算法入口为 `py4bench.ann.module.ZvecBench`，继承框架的 `BaseANN`。
 构造参数依次是 metric、index_type、index_params、threads。
 支持 `euclidean/angular`、`hnsw/vamana`；`fit` 使用训练集行号作为主键。
 例如配置中的关键字段：
 
 ```yaml
-module: python4bench.ann
+module: py4bench.ann
 constructor: ZvecBench
 base_args: ['@metric', 'hnsw', {m: 16, ef_construction: 200}, 1]
 run_groups:
@@ -114,9 +183,9 @@ list→float32、输出 Python int 构造都在调用内计时，不能宣称为
 
 ```python
 from vectordb_bench.backend.clients.zvec.zvec import Zvec
-from python4bench.adapters import VectorDBBenchMixin
+from py4bench.adapters import VectorDBBenchMixin
 
-class ZvecPython4Bench(VectorDBBenchMixin, Zvec):
+class ZvecPy4Bench(VectorDBBenchMixin, Zvec):
     pass
 ```
 
@@ -131,7 +200,7 @@ query_param、expr 属性及 init 上下文管理器的上游客户端；它在�
 SymQG/core 索引可直接对照同一个 C++ `run()` 循环（单线程）：
 
 ```bash
-python python4bench/bench_core.py --path graph.index --index-params index.json \
+python py4bench/bench_core.py --path graph.index --index-params index.json \
   --queries queries.npy --k 100 \
   --query-params '{"ef_search":100,"quantized_graph_max_expansions":200}'
 ```
@@ -144,7 +213,7 @@ python python4bench/bench_core.py --path graph.index --index-params index.json \
 Collection 路径：
 
 ```bash
-python python4bench/bench.py --path index --queries queries.npy \
+python py4bench/bench.py --path index --queries queries.npy \
   --field vector --k 100 --threads 8 --index-type hnsw \
   --query-params '{"ef":100}' --repeats 5
 ```

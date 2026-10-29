@@ -1,9 +1,9 @@
 float:
   any:
-    - name: symqg-python4bench
-      module: python4bench.ann
+    - name: symqg-py4bench
+      module: py4bench.ann
       constructor: SymQGBench
-      docker_tag: ann-benchmarks-symqg-python4bench
+      docker_tag: ann-benchmarks-symqg-py4bench
       disabled: false
       base_args: ['@metric', {m: 16, ef_construction: 200}, 1]
       run_groups:

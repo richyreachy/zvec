@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 import zvec
 
-from python4bench import Searcher
-from python4bench.adapters import ANNSearchAdapter, VectorDBSearchAdapter
+from py4bench import Searcher
+from py4bench.adapters import ANNSearchAdapter, VectorDBSearchAdapter
 
 
 @pytest.fixture(params=["flat", "hnsw", "vamana"])

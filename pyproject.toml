@@ -123,7 +123,7 @@ sdist.include = [
     "pyproject.toml",
     "CMakeLists.txt",
     "src/**/*",
-    "python4bench/**/*",
+    "py4bench/**/*",
     "stub/zvec/**/*",
     "python/zvec/py.typed",
 ]

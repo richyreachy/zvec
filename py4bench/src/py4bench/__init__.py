@@ -1,4 +1,4 @@
-"""Experimental FP32 search bindings; build Zvec with BUILD_PYTHON4BENCH=ON."""
+"""Experimental FP32 search bindings; build Zvec with BUILD_PY4BENCH=ON."""
 from __future__ import annotations
 
 
@@ -16,8 +16,8 @@ class Searcher:
             from zvec._zvec import _BenchSearcher
         except ImportError as exc:
             raise ImportError(
-                "Rebuild this branch of zvec with BUILD_PYTHON4BENCH=ON; "
-                "see python4bench/README.md"
+                "Rebuild this branch of zvec with BUILD_PY4BENCH=ON; "
+                "see py4bench/README.md"
             ) from exc
         self._collection = collection
         self._native = _BenchSearcher(collection._obj, field, param, filter or "")
