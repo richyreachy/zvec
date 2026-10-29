@@ -26,8 +26,7 @@ namespace zvec::core {
 // adapter checks dimensions <= 4096 and VNNI before any query executes.
 struct IntegerCenter {
   struct Query {
-    std::vector<int8_t> codes;
-    std::vector<int16_t> codes16;
+    std::vector<int16_t> codes;
     float scale = 0, error = 0, residual_norm = 0, coded_norm = 0;
     int32_t code_sum = 0;
     double mean_dot = 0, norm = 0;
@@ -51,15 +50,11 @@ struct IntegerCenter {
     return std::nextafter(float(std::sqrt(squared) + 1e-12),
                           std::numeric_limits<float>::infinity());
   }
-  // Router queries use 8 bits; full-dimensional search uses 16-bit codes.
-  template <bool Wide = false>
+  // Full-dimensional queries use 16-bit codes against 8-bit centers.
   __attribute__((target("avx512f,avx512bw,fma"))) static bool prepare(
       const float *q, const float *mean, size_t n, Query &out) {
-    if constexpr (Wide)
-      out.codes16.resize(n);
-    else
-      out.codes.resize(n);
-    constexpr int maximum_code = Wide ? 32767 : 127;
+    out.codes.resize(n);
+    constexpr int maximum_code = 32767;
     const size_t blocks = n / 16;
     __m512 maximum_vector = _mm512_setzero_ps();
     for (size_t block = 0; block < blocks; ++block) {
@@ -92,12 +87,8 @@ struct IntegerCenter {
       k = _mm512_max_epi32(
           _mm512_set1_epi32(-maximum_code),
           _mm512_min_epi32(_mm512_set1_epi32(maximum_code), k));
-      if constexpr (Wide)
-        _mm256_storeu_si256(reinterpret_cast<__m256i *>(out.codes16.data() + j),
-                            _mm512_cvtsepi32_epi16(k));
-      else
-        _mm_storeu_si128(reinterpret_cast<__m128i *>(out.codes.data() + j),
-                         _mm512_cvtsepi32_epi8(k));
+      _mm256_storeu_si256(reinterpret_cast<__m256i *>(out.codes.data() + j),
+                          _mm512_cvtsepi32_epi16(k));
       sum_acc = _mm512_add_epi32(sum_acc, k);
       alignas(64) int32_t unpacked[16];
       _mm512_store_si512(unpacked, k);
@@ -129,10 +120,7 @@ struct IntegerCenter {
       const double k = out.scale > 0 ? std::round(r / out.scale) : 0;
       const int code =
           int(std::clamp(k, -double(maximum_code), double(maximum_code)));
-      if constexpr (Wide)
-        out.codes16[j] = int16_t(code);
-      else
-        out.codes[j] = int8_t(code);
+      out.codes[j] = int16_t(code);
       out.code_sum += code;
       const double u = double(out.scale) * code;
       error += (r - u) * (r - u);
@@ -166,38 +154,11 @@ struct IntegerCenter {
     residual_norm = upper_norm(residual);
     coded_norm = upper_norm(coded);
   }
-  __attribute__((target("avx512f,avx512bw,avx512vnni"))) static int32_t dot(
-      const uint8_t *c, const int8_t *q, size_t n) {
-    __m512i a0 = _mm512_setzero_si512(), a1 = _mm512_setzero_si512();
-    __m512i a2 = _mm512_setzero_si512(), a3 = _mm512_setzero_si512();
-    const size_t blocks = n / 64;
-    size_t b = 0;
-    for (; b + 4 <= blocks; b += 4) {
-      a0 = _mm512_dpbusd_epi32(a0, _mm512_loadu_si512(c + 64 * b),
-                               _mm512_loadu_si512(q + 64 * b));
-      a1 = _mm512_dpbusd_epi32(a1, _mm512_loadu_si512(c + 64 * (b + 1)),
-                               _mm512_loadu_si512(q + 64 * (b + 1)));
-      a2 = _mm512_dpbusd_epi32(a2, _mm512_loadu_si512(c + 64 * (b + 2)),
-                               _mm512_loadu_si512(q + 64 * (b + 2)));
-      a3 = _mm512_dpbusd_epi32(a3, _mm512_loadu_si512(c + 64 * (b + 3)),
-                               _mm512_loadu_si512(q + 64 * (b + 3)));
-    }
-    __m512i acc =
-        _mm512_add_epi32(_mm512_add_epi32(a0, a1), _mm512_add_epi32(a2, a3));
-    for (; b < blocks; ++b)
-      acc = _mm512_dpbusd_epi32(acc, _mm512_loadu_si512(c + 64 * b),
-                                _mm512_loadu_si512(q + 64 * b));
-    int32_t sum = _mm512_reduce_add_epi32(acc);
-    for (size_t j = blocks * 64; j < n; ++j) sum += int32_t(c[j]) * q[j];
-    return sum;
-  }
-  template <bool Wide = false>
   static float distance(const Query &q, const uint8_t *c, size_t n,
                         float offset, float scale, double center_mean_dot,
                         double mean_norm2, float coded_norm,
                         double &reconstructed) {
-    const int64_t product =
-        Wide ? dot16(c, q.codes16.data(), n) : dot(c, q.codes.data(), n);
+    const int64_t product = dot16(c, q.codes.data(), n);
     const double residual_dot = double(q.scale) * (double(scale) * product +
                                                    double(offset) * q.code_sum);
     reconstructed = double(q.coded_norm) * q.coded_norm +
@@ -253,7 +214,7 @@ struct IntegerCenter {
   static float l2_distance(const Query &q, const uint8_t *c, size_t n,
                            float offset, float scale, float original_norm2,
                            float coded_norm, double &reconstructed) {
-    const int64_t product = dot16(c, q.codes16.data(), n);
+    const int64_t product = dot16(c, q.codes.data(), n);
     const double inner = double(q.scale) * (double(scale) * product +
                                             double(offset) * q.code_sum);
     reconstructed = double(q.coded_norm) * q.coded_norm +

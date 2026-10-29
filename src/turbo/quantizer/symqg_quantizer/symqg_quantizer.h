@@ -14,22 +14,22 @@
 #pragma once
 
 #include <cmath>
-#include <turbo/distance/common/symphony_qg_distance.h>
-#include <turbo/preprocessor/symphony_qg_rotator/symphony_qg_rotator.h>
+#include <turbo/distance/common/symqg_distance.h>
+#include <turbo/preprocessor/symqg_rotator/symqg_rotator.h>
 
 
 namespace zvec::turbo {
 #if RABITQ_SUPPORTED
 // Node-centered RaBitQ blocks with the SymphonyQG rotation and FastScan layout.
-class SymphonyQGBlockQuantizer {
+class SymQGBlockQuantizer {
  public:
   static constexpr size_t kBatchSize = rabitqlib::fastscan::kBatchSize;
   struct Query {
     std::vector<float> rotated;
-    SymQuery lookup;
+    SymQGQuery lookup;
   };
 
-  explicit SymphonyQGBlockQuantizer(size_t dimension, bool cosine = false)
+  explicit SymQGBlockQuantizer(size_t dimension, bool cosine = false)
       : rotation_(dimension), cosine_(cosine) {}
 
   size_t encoded_dim() const {
@@ -50,8 +50,8 @@ class SymphonyQGBlockQuantizer {
                                         codes, rabitqlib::METRIC_L2);
     if (cosine_) {
       rabitqlib::QGBatchDataMap<float> batch(codes, quantized_dim());
-      ConvertSymphonyQGCosineFactors(center, vectors, count, encoded_dim(),
-                                     batch.f_add(), batch.f_rescale());
+      ConvertSymQGCosineFactors(center, vectors, count, encoded_dim(),
+                                batch.f_add(), batch.f_rescale());
     }
   }
   void prepare_query(const void *vector, Query &query) const {
@@ -66,11 +66,11 @@ class SymphonyQGBlockQuantizer {
             ? uncertainty_bonus *
                   std::sqrt(std::max(0.f, 2.f * center_distance))
             : 0.f);
-    ScanSymphonyQGBatch(codes, query.lookup, quantized_dim(), distances);
+    ScanSymQGBatch(codes, query.lookup, quantized_dim(), distances);
   }
 
  private:
-  SymphonyQGRotation rotation_;
+  SymQGRotation rotation_;
   bool cosine_;
 };
 #endif

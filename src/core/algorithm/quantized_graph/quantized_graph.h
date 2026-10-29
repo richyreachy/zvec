@@ -64,7 +64,7 @@ class QuantizedGraph {
   using NodeId = uint32_t;
   static constexpr NodeId kInvalidNodeId = std::numeric_limits<NodeId>::max();
 
-  // stored_dimension defaults to dimension; larger values preserve auxiliary
+  // stored_dimension may exceed dimension to preserve auxiliary
   // fields following the coordinates (e.g. cosine storage's original norm).
   QuantizedGraph(size_t dimension, Codec codec, size_t max_neighbors,
                  size_t stored_dimension, bool cosine, std::string model_data);
@@ -132,12 +132,12 @@ class QuantizedGraph {
     Bucket beam;
     typename Codec::Query query;
     IntegerCenter::Query integer_query;
-    IntegerCenter::Query projected_route_query;
+    QuantizedGraphIntegerRouter::Query projected_route_query;
     std::vector<NodeId> expanded;
     std::vector<std::pair<float, NodeId>> refine_candidates;
     std::vector<float> refine_best;
     GraphSearchScratch scratch;
-    std::vector<float> best_exact;
+    std::vector<float> best_estimated;
   };
 
   // A call boundary prevents the compiler from rematerializing the TLS
@@ -162,24 +162,24 @@ class QuantizedGraph {
     static constexpr size_t kCenterOffset = 64;
 
     uint32_t neighbor_cnt;
-    uint32_t center_floats;
-    uint32_t code_bytes;
+    uint32_t center_bytes;
     // Rounded-up capacity of the neighbor region so the codes offset does
     // not depend on the actual degree.
     uint32_t neighbor_bytes;
     float center_error, center_norm2;
     float center_offset, center_scale;
     double center_mean_dot;
-    float center_residual_norm, center_coded_norm, integer_anchor_projection;
+    float center_residual_norm, center_coded_norm;
 
-    const float *center() const {
-      return reinterpret_cast<const float *>(
-          reinterpret_cast<const char *>(this) + kCenterOffset);
+    const uint8_t *center() const {
+      return reinterpret_cast<const uint8_t *>(this) + kCenterOffset;
+    }
+    uint8_t *center() {
+      return const_cast<uint8_t *>(std::as_const(*this).center());
     }
     const NodeId *neighbors() const {
       return reinterpret_cast<const NodeId *>(
-          reinterpret_cast<const char *>(this) + kCenterOffset +
-          center_floats * sizeof(float));
+          reinterpret_cast<const char *>(this) + kCenterOffset + center_bytes);
     }
     const char *codes() const {
       return reinterpret_cast<const char *>(neighbors()) + neighbor_bytes;
@@ -207,8 +207,7 @@ class QuantizedGraph {
   }
 
   // Prebuilt blocks are immutable for the lifetime of the snapshot.
-  template <class Graph>
-  const Block *get_block(const Graph &, NodeId id) const {
+  const Block *get_block(NodeId id) const {
     return id < arena_count_ ? slot(id) : nullptr;
   }
   // Writes one fixed-stride block into slot; false on error, with no cleanup
@@ -221,7 +220,6 @@ class QuantizedGraph {
   size_t dimension_;
   size_t stored_dimension_;
   size_t stored_center_bytes_;
-  bool compressed_center_{false};
   std::vector<float> center_shift_;
   std::vector<float> integer_shift_;
   double center_shift_norm2_{0};
@@ -252,11 +250,7 @@ QuantizedGraph<Codec>::QuantizedGraph(size_t dimension, Codec codec,
       codec_(std::move(codec)) {
   cosine_ = cosine;
   raw_stride_ = (stored_dimension_ * sizeof(float) + 63) & ~size_t{63};
-  stored_center_bytes_ = stored_dimension_ * sizeof(float);
-  compressed_center_ = true;
-  if (compressed_center_) {
-    stored_center_bytes_ = (dimension_ + 63) & ~size_t{63};
-  }
+  stored_center_bytes_ = (dimension_ + 63) & ~size_t{63};
   static_assert(Codec::kBatchSize > 0, "Codec batch size must be positive");
   constexpr size_t batch_size = Codec::kBatchSize;
   max_neighbors_ =
@@ -411,57 +405,36 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
   auto *block = new (slot) Block{};
   const auto *center = static_cast<const float *>(center_ptr);
   block->neighbor_cnt = static_cast<uint32_t>(neighbor_cnt);
-  block->center_floats =
-      static_cast<uint32_t>(stored_center_bytes_ / sizeof(float));
-  block->code_bytes = static_cast<uint32_t>(code_bytes);
+  block->center_bytes = static_cast<uint32_t>(stored_center_bytes_);
   block->neighbor_bytes = static_cast<uint32_t>(neighbor_bytes_);
-  if (compressed_center_) {
-    const float *storage_values = center;
-    if (center_shift_.size() != dimension_) {
-      error = IndexError_Mismatch;
-      return false;
-    }
-    float projection = 0, projection_error = 0;
-    const bool encoded =
-        cosine_ ? SQ8Center::encode_shifted(
-                      storage_values, center_shift_.data(), dimension_,
-                      reinterpret_cast<uint8_t *>(
-                          const_cast<float *>(block->center())),
-                      block->center_error, block->center_norm2,
-                      block->center_offset, block->center_scale, projection,
-                      projection_error)
-                : SQ8Center::encode(storage_values, dimension_,
-                                    reinterpret_cast<uint8_t *>(
-                                        const_cast<float *>(block->center())),
-                                    block->center_error, block->center_norm2,
-                                    block->center_offset, block->center_scale);
-    if (encoded && cosine_) {
-      block->integer_anchor_projection = projection;
-      IntegerCenter::annotate(
-          storage_values, center_shift_.data(),
-          reinterpret_cast<const uint8_t *>(block->center()), dimension_,
-          block->center_offset, block->center_scale, block->center_error,
-          block->center_residual_norm, block->center_coded_norm,
-          block->center_mean_dot);
-    }
-    if (encoded && !cosine_) {
-      IntegerCenter::annotate(
-          storage_values, integer_shift_.data(),
-          reinterpret_cast<const uint8_t *>(block->center()), dimension_,
-          block->center_offset, block->center_scale, block->center_error,
-          block->center_residual_norm, block->center_coded_norm,
-          block->center_mean_dot);
+  if (center_shift_.size() != dimension_) {
+    error = IndexError_Mismatch;
+    return false;
+  }
+  auto *center_codes = block->center();
+  const bool encoded =
+      cosine_ ? SQ8Center::encode_shifted(
+                    center, center_shift_.data(), dimension_, center_codes,
+                    block->center_error, block->center_norm2,
+                    block->center_offset, block->center_scale)
+              : SQ8Center::encode(center, dimension_, center_codes,
+                                  block->center_error, block->center_norm2,
+                                  block->center_offset, block->center_scale);
+  if (encoded) {
+    IntegerCenter::annotate(
+        center, cosine_ ? center_shift_.data() : integer_shift_.data(),
+        center_codes, dimension_, block->center_offset, block->center_scale,
+        block->center_error, block->center_residual_norm,
+        block->center_coded_norm, block->center_mean_dot);
+    if (!cosine_)
       block->center_mean_dot =
           double(block->center_coded_norm) * block->center_coded_norm;
-    }
-    if (!encoded || !std::isfinite(block->center_error) ||
-        !std::isfinite(block->center_norm2)) {
-      error = IndexError_Mismatch;
-      return false;
-    }
-  } else
-    std::copy(center, center + stored_dimension_,
-              const_cast<float *>(block->center()));
+  }
+  if (!encoded || !std::isfinite(block->center_error) ||
+      !std::isfinite(block->center_norm2)) {
+    error = IndexError_Mismatch;
+    return false;
+  }
   std::copy(scratch.neighbors.begin(), scratch.neighbors.end(),
             const_cast<NodeId *>(block->neighbors()));
 
@@ -474,9 +447,8 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
   std::vector<float> reconstructed;
   if (!cosine_) {
     reconstructed.resize(dimension_);
-    SQ8Center::decode(reinterpret_cast<const uint8_t *>(block->center()),
-                      dimension_, reconstructed.data(), block->center_offset,
-                      block->center_scale);
+    SQ8Center::decode(block->center(), dimension_, reconstructed.data(),
+                      block->center_offset, block->center_scale);
     encoding_center = reconstructed.data();
   }
   codec_.transform(encoding_center, scratch.encoded_center);
@@ -579,11 +551,9 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
         // Deleted ids never become expandable (blocks only store valid keys),
         // but leave their slots as defined empty blocks instead of garbage.
         auto *empty = new (slot) Block{};
-        empty->center_floats =
-            static_cast<uint32_t>(stored_center_bytes_ / sizeof(float));
+        empty->center_bytes = static_cast<uint32_t>(stored_center_bytes_);
         empty->neighbor_bytes = static_cast<uint32_t>(neighbor_bytes_);
-        std::fill_n(const_cast<float *>(empty->center()),
-                    stored_center_bytes_ / sizeof(float), 0.0f);
+        std::fill_n(empty->center(), stored_center_bytes_, uint8_t{0});
         continue;
       }
       typename Graph::Vector raw;
@@ -689,7 +659,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
   auto &beam = state.beam;
   auto &batch_query = state.query;
   codec_.prepare_query(ctx.query(), batch_query);
-  if (!IntegerCenter::prepare<true>(
+  if (!IntegerCenter::prepare(
           static_cast<const float *>(ctx.query()),
           Cosine ? center_shift_.data() : integer_shift_.data(), dimension_,
           state.integer_query))
@@ -707,7 +677,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     if (chosen == kInvalidNodeId) return IndexError_Mismatch;
     entry = chosen;
   }
-  beam.reset(std::max(size_t{1}, results.limit()));
+  beam.reset();
   beam.insert(entry, std::numeric_limits<float>::max());
   state.refine_candidates.clear();
   state.refine_best.clear();
@@ -728,8 +698,8 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
              next - best.back() >= margin * std::max(best.back(), 1e-6f);
     }
   };
-  state.best_exact.clear();
-  StopState stopping{state.best_exact, ctx.topk()};
+  state.best_estimated.clear();
+  StopState stopping{state.best_estimated, ctx.topk()};
   stopping.margin =
       options.margin >= 0 ? options.margin : (Cosine ? .02f : .085f);
   stopping.cap =
@@ -737,7 +707,6 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
   struct Scan {
     enum { kVisitOnExpansion = true };
     const QuantizedGraph &index;
-    const Graph &entity;
     Context &ctx;
     typename Codec::Query &query;
     const IntegerCenter::Query &integer_query;
@@ -750,11 +719,10 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     const Block *block = nullptr;
     const NodeId *neighbors = nullptr;
     const char *codes = nullptr;
-    float exact = 0;
     float navigation_center = 0;
     int begin(NodeId id) {
       expanded.push_back(id);
-      block = index.get_block(entity, id);
+      block = index.get_block(id);
       if (block == nullptr) return IndexError_Mismatch;
       neighbors = reinterpret_cast<const NodeId *>(
           reinterpret_cast<const char *>(block->center()) +
@@ -774,37 +742,37 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
         index.template prefetch_fixed<4>(codes + batch_bytes - 256);
 #endif
       const bool eligible = !ctx.excluded(id);
-      if (Cosine) {
+      float estimate;
+      if constexpr (Cosine) {
         double reconstructed;
-        exact = IntegerCenter::distance<true>(
-            integer_query, reinterpret_cast<const uint8_t *>(block->center()),
-            index.dimension_, block->center_offset, block->center_scale,
-            block->center_mean_dot, index.center_shift_norm2_,
-            block->center_coded_norm, reconstructed);
-        navigation_center = exact;
+        estimate = IntegerCenter::distance(
+            integer_query, block->center(), index.dimension_,
+            block->center_offset, block->center_scale, block->center_mean_dot,
+            index.center_shift_norm2_, block->center_coded_norm, reconstructed);
+        navigation_center = estimate;
         float lower = IntegerCenter::lower_bound(
-            exact, integer_query, block->center_error,
+            estimate, integer_query, block->center_error,
             block->center_residual_norm, block->center_coded_norm,
             block->center_norm2, block->center_mean_dot,
             index.center_shift_norm2_, index.dimension_, reconstructed);
         if (eligible) refine_candidates.emplace_back(lower, id);
       } else {
         double reconstructed;
-        exact = IntegerCenter::l2_distance(
-            integer_query, reinterpret_cast<const uint8_t *>(block->center()),
-            index.dimension_, block->center_offset, block->center_scale,
-            block->center_norm2, block->center_coded_norm, reconstructed);
-        navigation_center =
-            float(double(exact) + block->center_mean_dot - block->center_norm2);
+        estimate = IntegerCenter::l2_distance(
+            integer_query, block->center(), index.dimension_,
+            block->center_offset, block->center_scale, block->center_norm2,
+            block->center_coded_norm, reconstructed);
+        navigation_center = float(double(estimate) + block->center_mean_dot -
+                                  block->center_norm2);
         const float lower = IntegerCenter::l2_lower_bound(
             reconstructed, integer_query, block->center_error,
             block->center_coded_norm, index.dimension_);
         if (eligible) refine_candidates.emplace_back(lower, id);
       }
-      if (expanded.size() == 1) bucket->set_scale(exact, bucket_width);
+      if (expanded.size() == 1) bucket->set_scale(estimate, bucket_width);
       // Heuristic navigation threshold; interval bounds still certify terminal
       // Top-K over expanded nodes, not navigation/global recall.
-      stopping->observe(exact, eligible);
+      stopping->observe(estimate, eligible);
       ctx.on_expand();
       return 0;
     }
@@ -824,7 +792,6 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       return 0;
     }
   } scan{*this,
-         entity,
          ctx,
          batch_query,
          state.integer_query,
@@ -847,7 +814,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       // Filtered nodes need not fill best or consume the exact-scan budget.
       if (stopping->expanded >= stopping->cap) return false;
       while (beam.has_next()) {
-        const NodeId next = beam.next_id_at(0);
+        const NodeId next = beam.next_id();
         if (visited->visited(next)) {
           beam.pop();
           continue;
@@ -878,7 +845,6 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       while (accepted) {
         const unsigned i = __builtin_ctz(accepted);
         accepted &= accepted - 1;
-        if (beam.is_full(distances[i])) continue;
         const bool changes_first = bins[i] <= beam.first();
         beam.insert_reserved(ids[i], bins[i]);
         if (changes_first) prefetch_next();
@@ -889,7 +855,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     void prefetch_next() {
 #if defined(__GNUC__) || defined(__clang__)
       if (beam.has_next()) {
-        const NodeId next = beam.next_id_at(0);
+        const NodeId next = beam.next_id();
         // Only prefetch published arena slots.
         if (next < index.arena_count_ && next != prefetched) {
           prefetched = next;

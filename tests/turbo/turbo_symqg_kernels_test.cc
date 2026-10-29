@@ -9,10 +9,10 @@
 #include <random>
 #include <vector>
 #include <gtest/gtest.h>
-#include <turbo/distance/common/symphony_qg_kernels.h>
+#include <turbo/distance/common/symqg_kernels.h>
 
 namespace zvec::turbo {
-TEST(SymphonyQGKernels, ScanAcceptsUnalignedPackedFactors) {
+TEST(SymQGKernels, ScanAcceptsUnalignedPackedFactors) {
   std::mt19937 random(77);
   std::uniform_real_distribution<float> value(-10.f, 10.f);
   std::array<float, 32> add, scale, expected, actual;
@@ -45,7 +45,7 @@ TEST(SymphonyQGKernels, ScanAcceptsUnalignedPackedFactors) {
   }
 }
 
-TEST(SymphonyQGKernels, HadamardMatchesScalarRounding) {
+TEST(SymQGKernels, HadamardMatchesScalarRounding) {
   std::array<float, 64> probe{};
   if (!symqg_hadamard(probe.data(), probe.size())) GTEST_SKIP();
   std::mt19937 random(75);
@@ -77,7 +77,7 @@ TEST(SymphonyQGKernels, HadamardMatchesScalarRounding) {
   }
 }
 
-TEST(SymphonyQGKernels, PaleyTensorMatchesIndependentMatrix) {
+TEST(SymQGKernels, PaleyTensorMatchesIndependentMatrix) {
   std::array<float, 768> probe{};
   if (!symqg_hadamard768(probe.data())) GTEST_SKIP();
   // Independent tensor matrix: H12[i/64,j/64] * (-1)^popcount((i%64)&(j%64)).

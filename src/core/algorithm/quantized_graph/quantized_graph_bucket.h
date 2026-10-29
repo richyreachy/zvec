@@ -34,7 +34,7 @@ class QuantizedGraphBucket {
   QuantizedGraphBucket() {
     heads_.fill(kEmpty);
   }
-  void reset(size_t) {
+  void reset() {
     heads_.fill(kEmpty);
     used_ = 0;
     bits_.fill(0);
@@ -154,7 +154,7 @@ class QuantizedGraphBucket {
   size_t first() const {
     return first_;
   }
-  uint32_t next_id_at(size_t) const {
+  uint32_t next_id() const {
     return pool_[heads_[first()]].id;
   }
   float next_distance() const {
@@ -178,9 +178,6 @@ class QuantizedGraphBucket {
       }
     }
     return id;
-  }
-  bool is_full(float) const {
-    return false;
   }
 
  private:

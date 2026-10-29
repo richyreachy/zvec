@@ -17,11 +17,11 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
 #include <limits>
+#include <string_view>
+#include <utility>
 #include <vector>
-#include "quantized_graph_integer_center.h"
 #include "quantized_graph_router_format.h"
 
 namespace zvec::core {
@@ -29,11 +29,15 @@ namespace zvec::core {
 // they provide no recall guarantee and do not replace terminal refinement.
 class QuantizedGraphIntegerRouter {
  public:
-  static constexpr size_t kDim = 384;
-  static constexpr uint32_t kVersion = 2, kTransform = 0x53514701;
-  static constexpr float kFactor = 768.f / float(kDim);
+  static constexpr uint32_t kTransform = 0x53514701;
   static constexpr size_t kWidth = 16, kMaxBeam = 4;
   static constexpr int32_t kInvalid = INT32_MIN;
+  // Routing needs only projected 8-bit codes, not refinement error bounds.
+  struct Query {
+    std::vector<int8_t> codes;
+    float scale = 0;
+    int32_t code_sum = 0;
+  };
   struct alignas(64) Group {
     std::vector<uint8_t> codes;
     float scale[kWidth]{}, offset[kWidth]{}, mean_dot[kWidth]{};
@@ -46,29 +50,8 @@ class QuantizedGraphIntegerRouter {
   bool empty() const {
     return groups_.empty();
   }
-  size_t group_count() const {
-    return groups_.size();
-  }
-  const Group &group(size_t i) const {
-    return groups_[i];
-  }
-  size_t dimension() const {
-    return format_.dimension;
-  }
-  size_t projected_dimension() const {
-    return format_.projected;
-  }
-  size_t code_stride() const {
-    return format_.stride;
-  }
   bool cosine() const {
     return format_.metric == 0;
-  }
-  static bool read_mean(const char *path, size_t docs, std::vector<float> &mean,
-                        size_t dimension = 768, bool cosine = true) {
-    std::string data;
-    return ReadQuantizedGraphRouterFile(path, data) &&
-           read_mean_data(data, docs, mean, dimension, cosine);
   }
   static bool read_mean_data(std::string_view data, size_t docs,
                              std::vector<float> &mean, size_t dimension = 768,
@@ -83,18 +66,6 @@ class QuantizedGraphIntegerRouter {
     for (float value : parsed) ok = ok && std::isfinite(value);
     if (ok) mean = std::move(parsed);
     return ok;
-  }
-  template <class Graph>
-  bool load(const char *path, const std::vector<float> &mean,
-            const Graph &entity, size_t docs,
-            const std::vector<float> *rotated_mean = nullptr,
-            bool cosine = true) {
-    std::string data;
-    if (!ReadQuantizedGraphRouterFile(path, data)) {
-      clear();
-      return false;
-    }
-    return load_data(data, mean, entity, docs, rotated_mean, cosine);
   }
   template <class Graph>
   bool load_data(std::string_view data, const std::vector<float> &mean,
@@ -195,8 +166,7 @@ class QuantizedGraphIntegerRouter {
   }
   template <size_t FixedStride = 0>
   __attribute__((target("avx512f,avx512bw,avx512vnni,fma"))) void score_impl(
-      const Group &g, const IntegerCenter::Query &q, float *scores,
-      int32_t *products = nullptr) const {
+      const Group &g, const Query &q, float *scores) const {
     const size_t stride = FixedStride ? FixedStride : format_.stride;
     __m512i acc[16];
 #pragma GCC unroll 16
@@ -209,7 +179,6 @@ class QuantizedGraphIntegerRouter {
             acc[i], _mm512_loadu_si512(g.codes.data() + i * stride + d), query);
     }
     const __m512i dots = reduce_products(acc);
-    if (products) _mm512_storeu_si512(products, dots);
     const __m512 residual =
         _mm512_fmadd_ps(_mm512_loadu_ps(g.scale), _mm512_cvtepi32_ps(dots),
                         _mm512_mul_ps(_mm512_loadu_ps(g.offset),
@@ -223,30 +192,29 @@ class QuantizedGraphIntegerRouter {
     for (size_t i = g.count; i < 16; ++i)
       scores[i] = std::numeric_limits<float>::infinity();
   }
-  void score(const Group &g, const IntegerCenter::Query &q, float *scores,
-             int32_t *products = nullptr) const {
+  void score(const Group &g, const Query &q, float *scores) const {
     switch (format_.stride) {
       case 384:
-        score_impl<384>(g, q, scores, products);
+        score_impl<384>(g, q, scores);
         break;
       case 512:
-        score_impl<512>(g, q, scores, products);
+        score_impl<512>(g, q, scores);
         break;
       case 768:
-        score_impl<768>(g, q, scores, products);
+        score_impl<768>(g, q, scores);
         break;
       case 1024:
-        score_impl<1024>(g, q, scores, products);
+        score_impl<1024>(g, q, scores);
         break;
       default:
-        score_impl(g, q, scores, products);
+        score_impl(g, q, scores);
         break;
     }
   }
   // Heuristic routing codes only: no terminal-refinement error bound is
   // implied.
   __attribute__((target("avx512f,avx512bw"))) bool prepare_projected(
-      const float *rotated_query, IntegerCenter::Query &q) const {
+      const float *rotated_query, Query &q) const {
     if (!rotated_query || empty()) return false;
     const size_t projected = format_.projected;
     const size_t vectorized = projected & ~size_t{15};
@@ -295,12 +263,11 @@ class QuantizedGraphIntegerRouter {
     }
     return true;
   }
-  uint32_t choose(const IntegerCenter::Query &q, size_t beam,
-                  size_t *groups_scored = nullptr) const {
+  uint32_t choose(const Query &q, size_t beam) const {
     if (empty() || q.codes.size() != format_.stride) return UINT32_MAX;
     beam = std::clamp(beam, size_t{1}, kMaxBeam);
     std::array<uint32_t, kMaxBeam> current{};
-    size_t count = 1, visits = 0;
+    size_t count = 1;
     std::pair<float, uint32_t> best{std::numeric_limits<float>::infinity(),
                                     UINT32_MAX};
     for (size_t level = 0; level < 16 && count; ++level) {
@@ -310,7 +277,6 @@ class QuantizedGraphIntegerRouter {
         const Group &g = groups_[current[i]];
         alignas(64) float values[16];
         score(g, q, values);
-        ++visits;
         for (size_t j = 0; j < g.count; ++j) {
           if (g.target[j] < 0) {
             best = std::min(
@@ -333,7 +299,6 @@ class QuantizedGraphIntegerRouter {
       for (size_t j = 0; j < beam && next[j].second != UINT32_MAX; ++j)
         current[count++] = next[j].second;
     }
-    if (groups_scored) *groups_scored = visits;
     return best.second;
   }
 

@@ -61,7 +61,7 @@ TEST(QuantizedGraphBucket, BatchStoragePreservesOrderThroughGrowthAndReuse) {
   std::map<size_t, std::vector<uint32_t>> reference;
   for (uint32_t iteration = 0; iteration < 4000; ++iteration) {
     if (iteration % 101 == 0) {
-      bucket.reset(10);
+      bucket.reset();
       reference.clear();
     }
     const size_t count = random() % 33;
@@ -77,7 +77,7 @@ TEST(QuantizedGraphBucket, BatchStoragePreservesOrderThroughGrowthAndReuse) {
       auto first = reference.begin();
       ASSERT_TRUE(bucket.has_next());
       ASSERT_EQ(first->first, bucket.first());
-      ASSERT_EQ(first->second.back(), bucket.next_id_at(0));
+      ASSERT_EQ(first->second.back(), bucket.next_id());
       ASSERT_EQ(first->second.back(), bucket.pop());
       first->second.pop_back();
       if (first->second.empty()) reference.erase(first);
@@ -89,7 +89,7 @@ TEST(QuantizedGraphBucket, BatchStoragePreservesOrderThroughGrowthAndReuse) {
 TEST(QuantizedGraphBucket, OrdersBinsAndRetainsAllCandidatesAcrossReset) {
   QuantizedGraphBucket bucket;
   for (float width : {0.5f, 0.125f}) {
-    bucket.reset(10);
+    bucket.reset();
     bucket.set_scale(1.0f, width);
     bucket.insert(1, 2.5f * width);
     bucket.insert(2, -width);
@@ -103,13 +103,13 @@ TEST(QuantizedGraphBucket, OrdersBinsAndRetainsAllCandidatesAcrossReset) {
     EXPECT_FALSE(bucket.has_next());
     bucket.insert(6, 0.0f);
   }
-  bucket.reset(10);
+  bucket.reset();
   EXPECT_FALSE(bucket.has_next());
 }
 
 TEST(QuantizedGraphBucket, TinyWidthFallsBackToFiniteQuotients) {
   QuantizedGraphBucket bucket;
-  bucket.reset(10);
+  bucket.reset();
   bucket.set_scale(1e-6f, 1e-34f);
   const float width = bucket.width();
   ASSERT_GT(width, 0.0f);
@@ -120,13 +120,13 @@ TEST(QuantizedGraphBucket, TinyWidthFallsBackToFiniteQuotients) {
   EXPECT_EQ(0u, bucket.locate(-width));
   EXPECT_EQ(QuantizedGraphBucket::N - 1,
             bucket.locate(std::numeric_limits<float>::max()));
-  bucket.reset(10);
+  bucket.reset();
   EXPECT_EQ(2u, bucket.locate(1.0f));
 }
 TEST(QuantizedGraphBucket, BatchBinsMatchScalarAtBoundariesAndExtremes) {
   QuantizedGraphBucket bucket;
   for (float coefficient : {0.016f, 0.004f, 1e-34f}) {
-    bucket.reset(10);
+    bucket.reset();
     bucket.set_scale(coefficient == 1e-34f ? 1e-6f : 1.0f, coefficient);
     std::vector<float> scores = {0.f,
                                  -0.f,
