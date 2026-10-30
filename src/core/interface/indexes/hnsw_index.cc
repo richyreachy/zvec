@@ -279,6 +279,31 @@ int HNSWIndex::create_and_init_streamer(const BaseIndexParam &param) {
 }
 
 
+int HNSWIndex::_dense_search(const VectorData &query,
+                             const BaseIndexQueryParam::Pointer &search_param,
+                             SearchResult *result,
+                             core::IndexContext::Pointer &context) {
+  // Quantized-graph FP16 refinement consumes the original FP32 query. Avoid
+  // allocating, normalizing and rounding an unused FP16 query in this path.
+  // Explicit BF and grouped searches still use the quantizer's query layout.
+  if ((!param_.use_quantized_graph && param_.quantized_graph_model.empty()) ||
+      !turbo_quantizer_ ||
+      turbo_quantizer_->type() != turbo::QuantizeType::kFp16 ||
+      search_param->is_linear || search_param->bf_pks ||
+      (search_param->group_by_param &&
+       search_param->group_by_param->group_by)) {
+    return Index::_dense_search(query, search_param, result, context);
+  }
+  if (!std::holds_alternative<DenseVector>(query.vector))
+    return core::IndexError_InvalidArgument;
+  const int ret =
+      _execute_dense_search(std::get<DenseVector>(query.vector).data,
+                            input_vector_meta_, search_param, context);
+  if (ret != 0) return ret;
+  return _collect_dense_result(query, input_vector_meta_, search_param, result,
+                               context);
+}
+
 int HNSWIndex::_prepare_for_search(
     const VectorData &vector_data,
     const BaseIndexQueryParam::Pointer &search_param,

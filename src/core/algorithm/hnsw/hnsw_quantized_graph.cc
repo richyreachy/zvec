@@ -22,8 +22,7 @@
 #if RABITQ_SUPPORTED && defined(__x86_64__) && \
     (defined(__GNUC__) || defined(__clang__))
 #define ZVEC_PROJECTED_QG_SUPPORTED 1
-#include <turbo/distance/avx512/fp32/cosine.h>
-#include <turbo/distance/avx512/fp32/squared_euclidean.h>
+#include <turbo/distance/avx512/fp16/fp32_query.h>
 #include <turbo/quantizer/symqg_quantizer/symqg_quantizer.h>
 #include "algorithm/quantized_graph/quantized_graph.h"
 #include "algorithm/quantized_graph/quantized_graph_router_builder.h"
@@ -114,18 +113,14 @@ struct HnswFp16QueryAdapter : HnswQueryAdapter {
   }
   float distance(const void *vector) {
     ctx.dist_calculator().record_comparison();
-    // Decode only after the graph has fetched/prefetched the batch of storage
-    // handles, preserving independent memory requests for refinement.
-    std::array<float, 4096> decoded;
-    ailego::FloatHelper::ToFP32(static_cast<const uint16_t *>(vector),
-                                dimension, decoded.data());
+    // Widen in registers after the graph has prefetched the storage batch.
     float score;
     if (cosine)
-      turbo::avx512::cosine_fp32_distance_avx512(decoded.data(), values,
-                                                 dimension, &score);
+      turbo::avx512::cosine_fp16_fp32_distance_avx512(vector, values, dimension,
+                                                      &score);
     else
-      turbo::avx512::squared_euclidean_fp32_distance_avx512(
-          decoded.data(), values, dimension, &score);
+      turbo::avx512::squared_euclidean_fp16_fp32_distance_avx512(
+          vector, values, dimension, &score);
     return score;
   }
 };
@@ -151,19 +146,20 @@ struct HnswQuantizedGraph::Model final : Impl {
   int search(uint32_t entry_id, HnswContext &ctx) const override {
     if constexpr (Fp16) {
       std::array<float, 4096> values;
-      if (const float *original = ctx.quantized_graph_fp32_query()) {
-        std::copy_n(original, dimension_, values.data());
-        if (cosine_) {
-          float norm;
-          ailego::Normalizer<float>::L2(values.data(), dimension_, &norm);
-        }
-      } else {
+      const float *query_values = ctx.quantized_graph_fp32_query();
+      if (!query_values) {
         // Direct streamer callers supply a stored-format FP16 query.
         ailego::FloatHelper::ToFP32(
             static_cast<const uint16_t *>(ctx.dist_calculator().query()),
             dimension_, values.data());
+        query_values = values.data();
+      } else if (cosine_) {
+        std::copy_n(query_values, dimension_, values.data());
+        float norm;
+        ailego::Normalizer<float>::L2(values.data(), dimension_, &norm);
+        query_values = values.data();
       }
-      HnswFp16QueryAdapter query{{ctx}, values.data(), dimension_, cosine_};
+      HnswFp16QueryAdapter query{{ctx}, query_values, dimension_, cosine_};
       return graph.search(entry_id, HnswGraphAdapter{ctx.get_entity()}, query);
     } else {
       HnswQueryAdapter query{ctx};

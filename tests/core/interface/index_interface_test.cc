@@ -5464,6 +5464,9 @@ class BudgetHnswIndex : public HNSWIndex {
   size_t comparisons = 0;
   uint32_t exact_scan_budget = 0;
   bool force_graph_search = true;
+  zvec::core::IndexStreamer *native_streamer() {
+    return streamer_.get();
+  }
   int train_router(size_t anchors, size_t projected) {
     auto *streamer = dynamic_cast<zvec::core::HnswStreamer *>(streamer_.get());
     return streamer ? streamer->train_quantized_graph_router(anchors, projected)
@@ -5763,6 +5766,140 @@ TEST_P(QuantizedGraphFp16Test, BudgetsAndStorageReopens) {
     }
     index_.exact_scan_budget = 0;
   }
+}
+
+TEST_P(QuantizedGraphFp16Test, NativeFp32BatchRestoresStoredQueryContext) {
+  auto *streamer = index_.native_streamer();
+  ASSERT_NE(nullptr, streamer);
+  auto context = streamer->create_context();
+  auto *ctx = dynamic_cast<zvec::core::HnswContext *>(context.get());
+  ASSERT_NE(nullptr, ctx);
+  ctx->set_topk(10);
+  ctx->set_ef(800);
+  ctx->set_quantized_graph_options({1e6f, 0, 128, 0, 0});
+  zvec::core::IndexQueryMeta fp32_meta(zvec::core::IndexMeta::DT_FP32,
+                                       kDimension);
+  std::vector<float> queries(2 * kDimension);
+  std::copy(query_.begin(), query_.end(), queries.begin());
+  for (size_t d = 0; d < kDimension; ++d)
+    queries[kDimension + d] = .137123f + float(d % 19) * .0312345f;
+  const auto original_queries = queries;
+
+  auto codec = zvec::core::IndexFactory::CreateQuantizer("Fp16Quantizer");
+  zvec::core::IndexMeta meta(zvec::core::IndexMeta::DT_FP32, kDimension);
+  meta.set_metric(
+      GetParam() == MetricType::kCosine ? "Cosine" : "SquaredEuclidean", 0,
+      zvec::ailego::Params{});
+  ASSERT_EQ(0, codec->init(meta, {}));
+  std::string encoded;
+  zvec::core::IndexQueryMeta stored_meta;
+  ASSERT_EQ(0,
+            codec->quantize(queries.data(), fp32_meta, &encoded, &stored_meta));
+  ASSERT_EQ(0, streamer->search_impl(encoded.data(), stored_meta, 1, context));
+  std::vector<std::pair<uint64_t, float>> stored_results;
+  for (const auto &doc : context->result())
+    stored_results.emplace_back(doc.key(), doc.score());
+  ASSERT_EQ(10u, stored_results.size());
+
+  auto param = std::make_shared<HNSWQueryParam>();
+  param->ef_search = 800;
+  param->quantized_graph_margin = 1e6f;
+  param->quantized_graph_max_expansions = 128;
+  param->quantized_graph_route_beam = 0;
+  std::vector<std::vector<std::pair<uint64_t, float>>> expected(2);
+  for (size_t q = 0; q < 2; ++q) {
+    SearchResult result;
+    ASSERT_EQ(0, index_.search({DenseVector{queries.data() + q * kDimension}},
+                               param, &result));
+    for (const auto &doc : result.doc_list_)
+      expected[q].emplace_back(doc.key(), doc.score());
+  }
+  ASSERT_EQ(0, streamer->search_impl(queries.data(), fp32_meta, 2, context));
+  EXPECT_EQ(nullptr, ctx->quantized_graph_fp32_query());
+  EXPECT_EQ(original_queries, queries);
+  for (size_t q = 0; q < 2; ++q) {
+    const auto &actual = context->result(q);
+    ASSERT_EQ(expected[q].size(), actual.size());
+    for (size_t i = 0; i < actual.size(); ++i) {
+      EXPECT_EQ(expected[q][i].first, actual[i].key());
+      EXPECT_EQ(expected[q][i].second, actual[i].score());
+    }
+  }
+  ASSERT_EQ(0, streamer->search_impl(encoded.data(), stored_meta, 1, context));
+  ASSERT_EQ(stored_results.size(), context->result().size());
+  for (size_t i = 0; i < stored_results.size(); ++i) {
+    EXPECT_EQ(stored_results[i].first, context->result()[i].key());
+    EXPECT_EQ(stored_results[i].second, context->result()[i].score());
+  }
+  EXPECT_EQ(
+      zvec::core::IndexError_Mismatch,
+      streamer->search_impl(queries.data(),
+                            zvec::core::IndexQueryMeta(
+                                zvec::core::IndexMeta::DT_FP32, kDimension + 1),
+                            1, context));
+  EXPECT_EQ(zvec::core::IndexError_InvalidArgument,
+            streamer->search_impl(nullptr, fp32_meta, 1, context));
+}
+
+TEST_P(QuantizedGraphFp16Test, FallbackSearchesPreserveStoredQueryScores) {
+  HNSWIndexParam config(GetParam(), kDimension, 16, 100);
+  config.data_type = DataType::DT_FP32;
+  config.use_id_map = true;
+  config.quantizer_param = quantizer();
+  BudgetHnswIndex reference;
+  ASSERT_EQ(0, reference.init(config));
+  StorageOptions storage;
+  storage.type = StorageOptions::StorageType::kMMAP;
+  storage.read_only = true;
+  ASSERT_EQ(0, reference.open(path_, storage));
+  for (int mode = 0; mode < 3; ++mode) {
+    auto param = std::make_shared<HNSWQueryParam>();
+    param->ef_search = 800;
+    param->fetch_vector = true;
+    if (mode == 1) {
+      param->bf_pks = std::make_shared<std::vector<uint64_t>>();
+      for (uint64_t id = 0; id < vectors_.size(); id += 3)
+        param->bf_pks->push_back(id);
+    } else if (mode == 0) {
+      param->is_linear = true;
+    } else {
+      param->group_by_param = std::make_shared<GroupByParam>();
+      param->group_by_param->group_topk = 2;
+      param->group_by_param->group_count = 3;
+      param->group_by_param->group_by = [](uint64_t key) {
+        return std::to_string(key % 3);
+      };
+    }
+    SearchResult expected, actual;
+    ASSERT_EQ(0,
+              reference.search({DenseVector{query_.data()}}, param, &expected));
+    ASSERT_EQ(0, index_.search({DenseVector{query_.data()}}, param, &actual));
+    if (mode == 2) {
+      ASSERT_EQ(3u, actual.group_doc_list_.size());
+      ASSERT_EQ(expected.group_doc_list_.size(), actual.group_doc_list_.size());
+      EXPECT_EQ(expected.group_reverted_vector_list_,
+                actual.group_reverted_vector_list_);
+      for (size_t g = 0; g < actual.group_doc_list_.size(); ++g) {
+        const auto &a = actual.group_doc_list_[g];
+        const auto &e = expected.group_doc_list_[g];
+        EXPECT_EQ(e.group_id(), a.group_id());
+        ASSERT_EQ(e.docs().size(), a.docs().size());
+        for (size_t i = 0; i < a.docs().size(); ++i) {
+          EXPECT_EQ(e.docs()[i].key(), a.docs()[i].key());
+          EXPECT_EQ(e.docs()[i].score(), a.docs()[i].score());
+        }
+      }
+      continue;
+    }
+    ASSERT_EQ(10u, actual.doc_list_.size());
+    ASSERT_EQ(expected.doc_list_.size(), actual.doc_list_.size());
+    EXPECT_EQ(expected.reverted_vector_list_, actual.reverted_vector_list_);
+    for (size_t i = 0; i < actual.doc_list_.size(); ++i) {
+      EXPECT_EQ(expected.doc_list_[i].key(), actual.doc_list_[i].key());
+      EXPECT_EQ(expected.doc_list_[i].score(), actual.doc_list_[i].score());
+    }
+  }
+  ASSERT_EQ(0, reference.close());
 }
 
 TEST(QuantizedGraphFp16, RouterTrainingNormalizesRoundedDirections) {

@@ -1135,10 +1135,6 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
 int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
                               uint32_t count,
                               IndexStreamer::Context::Pointer &context) const {
-  int ret = check_params(query, qmeta);
-  if (ailego_unlikely(ret != 0)) {
-    return ret;
-  }
   HnswContext *ctx = dynamic_cast<HnswContext *>(context.get());
   ailego_do_if_false(ctx) {
     LOG_ERROR("Cast context to HnswContext failed");
@@ -1148,6 +1144,11 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
   std::shared_lock<std::shared_mutex> qg_lock(quantized_graph_mutex_,
                                               std::defer_lock);
   if (quantized_graph_enabled_) qg_lock.lock();
+  const bool fp32_query =
+      quantized_graph_ && meta_.data_type() == IndexMeta::DT_FP16 &&
+      qmeta.data_type() == IndexMeta::DT_FP32 && !ctx->group_by_search();
+  int ret = check_params(query, qmeta, fp32_query);
+  if (ailego_unlikely(ret != 0)) return ret;
   if (entity_->doc_cnt() <= ctx->get_bruteforce_threshold() &&
       !(quantized_graph_enabled_ && meta_.data_type() == IndexMeta::DT_FP16)) {
     return search_bf_impl(query, qmeta, count, context);
@@ -1167,8 +1168,17 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
   ctx->resize_results(count);
   ctx->check_need_adjuct_ctx(entity_->doc_cnt());
   for (size_t q = 0; q < count; ++q) {
-    ctx->reset_query(query, meta_);
+    const float *original = ctx->quantized_graph_fp32_query();
+    if (fp32_query) {
+      ctx->set_quantized_graph_fp32_query(static_cast<const float *>(query));
+      // The QG adapter owns mixed-precision scoring; the calculator only
+      // tracks the scan budget. Do not run a stored-FP16 query preprocessor.
+      ctx->reset_query_raw(query, meta_);
+    } else {
+      ctx->reset_query(query, meta_);
+    }
     ret = alg_->search(ctx);
+    if (fp32_query) ctx->set_quantized_graph_fp32_query(original);
     if (ailego_unlikely(ret != 0)) {
       LOG_ERROR("Hnsw searcher fast search failed");
       return ret;
