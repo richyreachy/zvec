@@ -1,4 +1,5 @@
 # GIST 1M: 960-dimensional FP32 vectors, squared L2 distance.
+# Usage and validation: TESTING.zh-CN.md; algorithm: ALGORITHM.zh-CN.md.
 # Replace /data/gist paths with local paths. BuildFile must be in the
 # local_builder .zvec.vecs format; a .fvecs or text file is not interchangeable.
 # From the repository root:

@@ -5638,6 +5638,37 @@ TEST_P(QuantizedGraphBudgetTest, RefinementMatchesExactTopKAfterFullTraversal) {
   }
 }
 
+// Refinement now reads storage-owned vectors instead of a private FP32 copy.
+// Exercise both mapped pointers and buffer-pool handles across index reopens.
+TEST_P(QuantizedGraphBudgetTest, RefinementMatchesAcrossStorageReopens) {
+  search(128, 10, [](uint64_t key) { return key % 7 == 0; });
+  std::vector<std::pair<uint64_t, float>> expected;
+  for (const auto &doc : result_.doc_list_)
+    expected.emplace_back(doc.key(), doc.score());
+  ASSERT_EQ(10u, expected.size());
+  for (auto type : {StorageOptions::StorageType::kBufferPool,
+                    StorageOptions::StorageType::kMMAP}) {
+    ASSERT_EQ(0, index_.close());
+    HNSWIndexParam param(GetParam(), kDimension, 16, 100);
+    param.data_type = DataType::DT_FP32;
+    param.use_id_map = true;
+    param.use_quantized_graph = true;
+    ASSERT_EQ(0, index_.init(param));
+    StorageOptions storage;
+    storage.type = type;
+    storage.read_only = true;
+    ASSERT_EQ(0, index_.open(path_, storage));
+    for (size_t repeat = 0; repeat < 4; ++repeat) {
+      search(128, 10, [](uint64_t key) { return key % 7 == 0; });
+      ASSERT_EQ(expected.size(), result_.doc_list_.size());
+      for (size_t j = 0; j < expected.size(); ++j) {
+        EXPECT_EQ(expected[j].first, result_.doc_list_[j].key());
+        EXPECT_EQ(expected[j].second, result_.doc_list_[j].score());
+      }
+    }
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(CosineAndL2, QuantizedGraphBudgetTest,
                          testing::Values(MetricType::kCosine,
                                          MetricType::kL2sq),
