@@ -20,6 +20,8 @@
 #include <random>
 #include <vector>
 #include <ailego/pattern/defer.h>
+#include <zvec/ailego/utility/time_helper.h>
+#include "algorithm/cluster/vector_mean.h"
 #include "diskann_builder.h"
 #include "diskann_params.h"
 #include "diskann_util.h"
@@ -207,6 +209,10 @@ struct DiskAnnPartitionBuild::Impl {
   std::vector<uint32_t> entrypoints;
   std::vector<uint8_t> sample;
   std::vector<uint32_t> sample_ids;
+  // Global mean in the raw element layout; the medoid is the vector nearest
+  // to it, matching DiskAnnBuilder::calculate_entry_point without an
+  // in-memory copy of the dataset.
+  std::vector<uint8_t> centroid;
 
   int sort_keys(std::unique_ptr<ScratchFile> runs) {
     for (uint64_t width = capacity; width < count; width *= 2) {
@@ -255,6 +261,15 @@ struct DiskAnnPartitionBuild::Impl {
     sample_ids.resize(sample_count);
     std::vector<KeyId> key_run;
     key_run.reserve(capacity);
+    const size_t dimension = owner.build_meta_.dimension();
+    const bool fp16 = owner.build_meta_.data_type() == IndexMeta::DT_FP16;
+    const size_t mean_bytes =
+        dimension * (fp16 ? sizeof(ailego::Float16) : sizeof(float));
+    std::unique_ptr<VectorMean> accumulator;
+    if (fp16)
+      accumulator.reset(new NumericalVectorMean<ailego::Float16>(dimension));
+    else
+      accumulator.reset(new NumericalVectorMean<float>(dimension));
     std::mt19937 random(42);
     size_t id = 0;
     for (; iter->is_valid(); iter->next(), ++id) {
@@ -264,6 +279,7 @@ struct DiskAnnPartitionBuild::Impl {
       const void *data = iter->data();
       PARTITION_TRY(iter->status());
       if (!data || !iter->is_valid()) return IndexError_ReadData;
+      if (!accumulator->plus(data, mean_bytes)) return IndexError_Mismatch;
       PARTITION_TRY(vectors.write(data, element));
       PARTITION_TRY(keys.write(&key, sizeof(key)));
       key_run.push_back({key, static_cast<uint32_t>(id), 0});
@@ -284,6 +300,9 @@ struct DiskAnnPartitionBuild::Impl {
     PARTITION_TRY(iter->status());
     if (id != count) return IndexError_Mismatch;
     iter.reset();
+    centroid.assign(element, 0);
+    if (count && !accumulator->mean(centroid.data(), mean_bytes))
+      return IndexError_Mismatch;
     PARTITION_TRY(vectors.flush());
     PARTITION_TRY(keys.flush());
     PARTITION_TRY(runs->flush());
@@ -373,8 +392,6 @@ struct DiskAnnPartitionBuild::Impl {
       }
       next = farthest_id;
     }
-    *owner.entity_.mutable_medoid() = sample_ids[centers[0]];
-    for (size_t center : centers) entrypoints.push_back(sample_ids[center]);
     std::vector<std::unique_ptr<ScratchFile>> shards;
     std::vector<size_t> sizes(shard_count, 0);
     for (size_t c = 0; c < shard_count; ++c) {
@@ -382,9 +399,17 @@ struct DiskAnnPartitionBuild::Impl {
       if (!shards.back()->valid()) return IndexError_OpenFile;
     }
     std::vector<uint8_t> vector(element);
+    uint32_t medoid = 0;
+    float medoid_dist = std::numeric_limits<float>::infinity();
     PARTITION_TRY(vectors.seek(0));
     for (uint32_t id = 0; id < count; ++id) {
       PARTITION_TRY(vectors.read(vector.data(), element));
+      float centroid_dist = distance.dist(vector.data(), centroid.data());
+      if (!std::isfinite(centroid_dist)) return IndexError_InvalidArgument;
+      if (centroid_dist < medoid_dist) {
+        medoid_dist = centroid_dist;
+        medoid = id;
+      }
       std::pair<float, size_t> first{std::numeric_limits<float>::infinity(), 0},
           second = first;
       for (size_t c = 0; c < shard_count; ++c) {
@@ -405,8 +430,10 @@ struct DiskAnnPartitionBuild::Impl {
         ++sizes[second.second];
       }
     }
+    *owner.entity_.mutable_medoid() = medoid;
     std::vector<uint8_t>().swap(sample);
     std::vector<uint32_t>().swap(sample_ids);
+    std::vector<uint8_t>().swap(centroid);
     for (auto &shard : shards) PARTITION_TRY(shard->flush());
 
     // Initialize fixed-width rows on disk, never as an N*R in-memory array.
@@ -464,6 +491,7 @@ struct DiskAnnPartitionBuild::Impl {
           PARTITION_TRY(shard.entity_.add_vector(id, data));
         }
         PARTITION_TRY(shard.calculate_entry_point());
+        entrypoints.push_back(ids[shard.entity_.medoid()]);
         PARTITION_TRY(shard.build_internal(threads));
         PARTITION_TRY(shard.prune_internal(threads));
         PARTITION_TRY(merge_shard(shard, ids, *merge_vectors, merge_context));
@@ -473,10 +501,11 @@ struct DiskAnnPartitionBuild::Impl {
     }
     LOG_INFO(
         "Partitioned DiskAnn: %zu vectors, capacity %zu, %zu centers, %zu "
-        "shard builds",
-        count, capacity, shard_count, built_shards);
+        "shard builds, medoid %u",
+        count, capacity, shard_count, built_shards, medoid);
     // Preserve one deterministic global cycle after pruning. This guarantees
     // reachability even for identical vectors or disconnected partitions.
+    ailego::ElapsedTime timer;
     std::vector<uint32_t> row(degree + 1);
     const size_t stride = row.size() * sizeof(uint32_t);
     for (uint32_t id = 0; id < count; ++id) {
@@ -491,7 +520,10 @@ struct DiskAnnPartitionBuild::Impl {
       PARTITION_TRY(graph.write_at(static_cast<uint64_t>(id) * stride,
                                    row.data(), stride));
     }
-    return graph.flush();
+    PARTITION_TRY(graph.flush());
+    LOG_INFO("Partitioned DiskAnn: global cycle pass done, time: %zu ms",
+             static_cast<size_t>(timer.milli_seconds()));
+    return 0;
   }
 
   int build(IndexThreads::Pointer threads, IndexHolder::Pointer holder) {
@@ -525,8 +557,12 @@ struct DiskAnnPartitionBuild::Impl {
         count, (owner.build_memory_budget_ - fixed) / 2 / per_node);
     if (capacity < 2 && count > 1) return IndexError_NoMemory;
     capacity = std::max<size_t>(1, capacity);
+    ailego::ElapsedTime timer;
     PARTITION_TRY(snapshot(holder));
+    LOG_INFO("Partitioned DiskAnn: snapshot done, time: %zu ms",
+             static_cast<size_t>(timer.milli_seconds()));
     PARTITION_TRY(build_graph(threads));
+    timer.reset();
     // Encode once using the globally trained codebook; never concatenate
     // independently trained shard PQ codes.
     PARTITION_TRY(vectors.seek(0));
@@ -540,15 +576,35 @@ struct DiskAnnPartitionBuild::Impl {
     for (size_t start = 0; start < count; start += batch_size) {
       size_t rows = std::min(batch_size, count - start);
       PARTITION_TRY(vectors.read(batch.data(), rows * element));
-      for (size_t i = 0; i < rows; ++i)
-        owner.quantizer_->quantize_data(
-            batch.data() + i * element,
-            encoded.data() + i * owner.pq_chunk_num_);
+      if (workers > 1) {
+        auto group = threads->make_group();
+        if (!group) return IndexError_Runtime;
+        const size_t stripe = DiskAnnUtil::div_round_up(rows, workers);
+        for (size_t t = 0; t < workers; ++t) {
+          size_t begin = t * stripe, end = std::min(begin + stripe, rows);
+          if (begin >= end) break;
+          group->submit(ailego::Closure::New(this, &Impl::encode_rows,
+                                             batch.data(), encoded.data(),
+                                             begin, end));
+        }
+        group->wait_finish();
+      } else {
+        encode_rows(batch.data(), encoded.data(), 0, rows);
+      }
       PARTITION_TRY(codes.write(encoded.data(), rows * owner.pq_chunk_num_));
     }
     PARTITION_TRY(codes.flush());
+    LOG_INFO("Partitioned DiskAnn: PQ encode done, time: %zu ms",
+             static_cast<size_t>(timer.milli_seconds()));
     *owner.entity_.mutable_doc_cnt() = count;
     return 0;
+  }
+
+  void encode_rows(const uint8_t *batch, uint8_t *encoded, size_t begin,
+                   size_t end) {
+    for (size_t i = begin; i < end; ++i)
+      owner.quantizer_->quantize_data(batch + i * element,
+                                      encoded + i * owner.pq_chunk_num_);
   }
 
   int dump_file(ScratchFile &file, const std::string &name, uint64_t size,
