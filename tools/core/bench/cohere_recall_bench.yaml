@@ -1,8 +1,6 @@
 # Cohere 1M, cosine, Top10: best measured preset for the embedded-router
 # snapshot; revalidated with storage-backed refinement and initial bucket range.
 # See TESTING.zh-CN.md for results and ALGORITHM.zh-CN.md for the algorithm.
-# The original frozen graph uses margin=0.002 instead; its separate comparison
-# config is cohere_reference_recall_bench.yaml. Do not mix snapshot results.
 # Rebuilt graphs and different datasets can change recall; measure it first.
 # Replace /data/cohere paths and use the snapshot from cohere_build.yaml.
 # Query/ground-truth text uses an ID followed by ';' and space-separated values.

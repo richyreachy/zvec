@@ -16,20 +16,18 @@ FP32/FP16 的统一配置、精度语义和测试见 [存储精度说明](FP16.z
 
 文件名中的 `fp32` / `fp16` 表示数据库存储精度，接口输入均为 FP32。四组配置使用独立的工作索引、dump 和召回日志路径。旧的 `cohere_build.yaml`、`cohere_recall_bench.yaml`、`gist_build.yaml`、`gist_recall_bench.yaml` 继续保留兼容已有命令。
 
-历史复现专用：[cohere_reference_recall_bench.yaml](cohere_reference_recall_bench.yaml) 仅用于归档的原冻结图与外部路由模型配对，复核早期性能对照；常规新建索引不使用它。
-
 下表记录 FP32 参数；FP16 参数以对应 YAML 和 [存储精度说明](FP16.zh-CN.md) 为准。
 
-| 参数 | Cohere 嵌入路由 | GIST 嵌入路由 | Cohere 原冻结图对照 |
-|---|---:|---:|---:|
-| ef_search | 64 | 2048 | 64 |
-| margin | 0.001 | 0.085 | 0.002 |
-| bucket_width | 0.004 | 0.002 | 0.004 |
-| max_expansions | 64 | 256 | 64 |
-| route_beam | 1 | 1 | 1 |
-| uncertainty_bonus | 0.15 | 0 | 0.15 |
+| 参数 | Cohere FP32 嵌入路由 | GIST FP32 嵌入路由 |
+|---|---:|---:|
+| ef_search | 64 | 2048 |
+| margin | 0.001 | 0.085 |
+| bucket_width | 0.004 | 0.002 |
+| max_expansions | 64 | 256 |
+| route_beam | 1 | 1 |
+| uncertainty_bonus | 0.15 | 0 |
 
-新建图使用前两组配置起步。两组 Cohere 配置不能混同：旧图直接使用 margin=0.001 曾只有89.93%召回。
+新建图按数据集和存储精度选择上方四组配置。
 构建均为 M=50、ef_construction=500；训练 seed=202610261259，路由尺寸见[算法说明](ALGORITHM.zh-CN.md)。
 固定 seed 不保证多线程图构建在所有运行中逐字节一致，重建后必须先检查召回。
 
@@ -65,7 +63,7 @@ Cohere 使用 cosine 转换器；GIST 保留 L2 原始值，不做 cosine 归一
 
 构建成功应包含 `Router trained for embedded snapshot` 日志。检索不会补训练缺失模型。
 `QueryParam` 是 JSON 字符串；`QueryParams` 列表会覆盖它，常规单配置不要额外添加该列表。
-推荐配置运行1/8线程各5轮、每轮6秒；冻结对照配置为各3轮。
+推荐配置运行1/8线程各5轮、每轮6秒。
 先确认 Recall@10≥90%，再比较同硬件、同快照、同参数和线程数下的 QPS。
 在本次机器上使用 `taskset -c 0,2,4,6,8,10,12,14`；换机器应先核对物理核拓扑，不能机械照抄。
 
@@ -109,7 +107,8 @@ RSS 取 `/proc/PID/status` 搜索期间样本，不是 PSS、整机占用或磁�
 | 8 | 267,380.20 | 392,061.10 | +46.63% | +46.14% |
 
 ABBA四个独立进程，每进程各线程3轮×6秒，共每版本每线程6个样本，全部保留。
-旧版使用 ef800、width=.016、margin=.02、cap64、默认入口；当前配置见 reference YAML。
+旧版使用 ef800、width=.016、margin=.02、cap64、默认入口；该次实验的完整配置和命令保存在本地归档
+`bucket90_audit_20261030/zero_copy_paired/`。
 旧基线10000个有序ID与历史一致，分数符合官方文本输出精度；原冻结二进制也另行复现。
 没有把不同 benchmark 的 QPS 相除。这约47%是路由、中心估计、精排、内核等累计改进，
 不能归因于本轮两项修改，也不是相对更新后的 `34f2f19a` 再提升20%的证明。
@@ -148,10 +147,10 @@ cmake --build build --target index_interface_test quantized_graph_visit_set_test
 
 ## 归档与复现边界
 
-提交前再次构建工具并运行上述98项测试，全部通过。直接读取本目录三份检索 YAML，仅将路径替换为本机归档路径，
+历史验收阶段再次构建工具并运行上述98项测试，全部通过。当时使用三组检索配置（含归档的冻结图对照），
 召回复核分别为 Cohere 90.09%、GIST 90.15%、Cohere 冻结图90.32%。配置语法和文档内相对链接检查通过。
 重新构建的 `bench`、`recall`、`libcore_knn_hnsw.so` 的 SHA256 与性能验收时完全相同；
-本次清理没有再次计时，沿用上文已验证二进制的 ABBA 结果。
+上述历史验收没有再次计时，沿用已验证二进制的 ABBA 结果。
 
 原始数据、模型、库、日志和全部计时不提交仓库。本次机器的本地归档位于 `~/bench/quantized_graph/`：
 
