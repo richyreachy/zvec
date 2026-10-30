@@ -250,6 +250,10 @@ class HnswDistCalculator {
     error_ = true;
   }
 
+  void record_comparison() {
+    ++compare_cnt_;
+  }
+
   //! Get distances compute times
   inline uint32_t compare_cnt() const {
     return compare_cnt_;

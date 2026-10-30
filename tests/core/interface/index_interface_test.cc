@@ -5463,6 +5463,12 @@ class BudgetHnswIndex : public HNSWIndex {
   uint32_t expanded = 0;
   size_t comparisons = 0;
   uint32_t exact_scan_budget = 0;
+  bool force_graph_search = true;
+  int train_router(size_t anchors, size_t projected) {
+    auto *streamer = dynamic_cast<zvec::core::HnswStreamer *>(streamer_.get());
+    return streamer ? streamer->train_quantized_graph_router(anchors, projected)
+                    : zvec::core::IndexError_Unsupported;
+  }
 
  protected:
   int _dense_search(const VectorData &query,
@@ -5471,7 +5477,7 @@ class BudgetHnswIndex : public HNSWIndex {
                     zvec::core::IndexContext::Pointer &context) override {
     context->set_debug_mode(true);
     // Small fixtures otherwise take the streamer's brute-force shortcut.
-    context->set_bruteforce_threshold(0);
+    context->set_bruteforce_threshold(force_graph_search ? 0 : 1000);
     auto *ctx = dynamic_cast<zvec::core::HnswContext *>(context.get());
     if (ctx && exact_scan_budget) ctx->set_max_scan_num(exact_scan_budget);
     const int ret = HNSWIndex::_dense_search(query, param, result, context);
@@ -5486,6 +5492,9 @@ class BudgetHnswIndex : public HNSWIndex {
 
 class QuantizedGraphBudgetTest : public testing::TestWithParam<MetricType> {
  protected:
+  virtual QuantizerParam::Pointer quantizer() const {
+    return nullptr;
+  }
   void SetUp() override {
     if (!zvec::core::HnswQuantizedGraph::supported())
       GTEST_SKIP() << "Quantized graph requires AVX512/VNNI";
@@ -5493,6 +5502,7 @@ class QuantizedGraphBudgetTest : public testing::TestWithParam<MetricType> {
     HNSWIndexParam param(GetParam(), kDimension, 16, 100);
     param.data_type = DataType::DT_FP32;
     param.use_id_map = true;
+    param.quantizer_param = quantizer();
     BudgetHnswIndex builder;
     ASSERT_EQ(0, builder.init(param));
     ASSERT_EQ(0, builder.open(path_, {StorageOptions::StorageType::kMMAP,
@@ -5509,6 +5519,7 @@ class QuantizedGraphBudgetTest : public testing::TestWithParam<MetricType> {
     ASSERT_EQ(0, builder.flush());
     ASSERT_EQ(0, builder.close());
     param.use_quantized_graph = true;
+    param.quantizer_param = quantizer();
     ASSERT_EQ(0, index_.init(param));
     StorageOptions storage;
     storage.type = StorageOptions::StorageType::kMMAP;
@@ -5653,6 +5664,7 @@ TEST_P(QuantizedGraphBudgetTest, RefinementMatchesAcrossStorageReopens) {
     param.data_type = DataType::DT_FP32;
     param.use_id_map = true;
     param.use_quantized_graph = true;
+    param.quantizer_param = quantizer();
     ASSERT_EQ(0, index_.init(param));
     StorageOptions storage;
     storage.type = type;
@@ -5668,6 +5680,117 @@ TEST_P(QuantizedGraphBudgetTest, RefinementMatchesAcrossStorageReopens) {
     }
   }
 }
+
+class QuantizedGraphFp16Test : public QuantizedGraphBudgetTest {
+ protected:
+  QuantizerParam::Pointer quantizer() const override {
+    return std::make_shared<QuantizerParam>(QuantizerType::kFP16);
+  }
+};
+
+TEST_P(QuantizedGraphFp16Test, StoredValuesRefinedWithOriginalFp32Query) {
+  // Even below the usual small-index threshold, FP16 SymQG must preserve
+  // the original FP32 query instead of taking the rounded-query BF path.
+  index_.force_graph_search = false;
+  auto codec = zvec::core::IndexFactory::CreateQuantizer("Fp16Quantizer");
+  zvec::core::IndexMeta meta;
+  meta.set_meta(zvec::core::IndexMeta::DT_FP32, kDimension);
+  meta.set_metric(
+      GetParam() == MetricType::kCosine ? "Cosine" : "SquaredEuclidean", 0,
+      zvec::ailego::Params{});
+  ASSERT_EQ(0, codec->init(meta, {}));
+  for (size_t repeat = 0; repeat < 3; ++repeat) {
+    // Retain non-FP16-representable query values. A rounded query would fail
+    // the score comparison against this independent double-precision oracle.
+    for (size_t d = 0; d < kDimension; ++d)
+      query_[d] = .137123f + float((d + repeat * 7) % 19) * .0312345f;
+    search(128, 10, [](uint64_t key) { return key % 7 == 0; });
+    std::vector<std::pair<double, uint64_t>> expected;
+    double norm = 0;
+    for (float x : query_) norm += double(x) * x;
+    norm = std::sqrt(norm);
+    std::string encoded(codec->quantized_datapoint_vector_length(), '\0');
+    std::array<float, kDimension> stored;
+    for (size_t id = 0; id < vectors_.size(); ++id) {
+      if (id % 7 == 0) continue;
+      codec->quantize_data(vectors_[id].data(), encoded.data());
+      zvec::ailego::FloatHelper::ToFP32(
+          reinterpret_cast<const uint16_t *>(encoded.data()), kDimension,
+          stored.data());
+      double distance = GetParam() == MetricType::kCosine ? 1 : 0;
+      for (size_t d = 0; d < kDimension; ++d) {
+        if (GetParam() == MetricType::kCosine)
+          distance -= double(query_[d]) / norm * stored[d];
+        else {
+          const double diff = double(query_[d]) - stored[d];
+          distance += diff * diff;
+        }
+      }
+      expected.emplace_back(distance, id);
+    }
+    std::sort(expected.begin(), expected.end());
+    ASSERT_EQ(10u, result_.doc_list_.size());
+    for (size_t i = 0; i < 10; ++i) {
+      EXPECT_EQ(expected[i].second, result_.doc_list_[i].key());
+      EXPECT_NEAR(expected[i].first, result_.doc_list_[i].score(), 2e-6);
+    }
+  }
+}
+
+TEST_P(QuantizedGraphFp16Test, BudgetsAndStorageReopens) {
+  for (auto type : {StorageOptions::StorageType::kBufferPool,
+                    StorageOptions::StorageType::kMMAP}) {
+    ASSERT_EQ(0, index_.close());
+    HNSWIndexParam param(GetParam(), kDimension, 16, 100);
+    param.data_type = DataType::DT_FP32;
+    param.use_id_map = true;
+    param.quantizer_param = quantizer();
+    param.use_quantized_graph = true;
+    ASSERT_EQ(0, index_.init(param));
+    StorageOptions storage;
+    storage.type = type;
+    storage.read_only = true;
+    ASSERT_EQ(0, index_.open(path_, storage));
+    search(3, 10, [](uint64_t) { return true; });
+    EXPECT_LE(index_.expanded, 3u);
+    EXPECT_EQ(0u, index_.comparisons);
+    EXPECT_TRUE(result_.doc_list_.empty());
+    for (uint32_t cap = 1; cap <= 5; ++cap) {
+      index_.exact_scan_budget = cap;
+      search(128, 10, [](uint64_t) { return false; });
+      EXPECT_LE(index_.comparisons, cap);
+      EXPECT_GT(index_.comparisons, 0u);
+    }
+    index_.exact_scan_budget = 0;
+  }
+}
+
+TEST(QuantizedGraphFp16, RouterTrainingNormalizesRoundedDirections) {
+  if (!zvec::core::HnswQuantizedGraph::supported()) GTEST_SKIP();
+  const std::string path = "qg_fp16_router_rounding.index";
+  zvec::test_util::RemoveTestFiles(path + "*");
+  HNSWIndexParam param(MetricType::kCosine, 3, 16, 100);
+  param.data_type = DataType::DT_FP32;
+  param.use_id_map = true;
+  param.quantizer_param =
+      std::make_shared<QuantizerParam>(QuantizerType::kFP16);
+  BudgetHnswIndex builder;
+  ASSERT_EQ(0, builder.init(param));
+  ASSERT_EQ(0, builder.open(path, {StorageOptions::StorageType::kMMAP, true}));
+  std::array<float, 3> v{1.f, 1.f, 1.f};
+  zvec::ailego::Float16 rounded;
+  rounded = 1.f / std::sqrt(3.f);
+  ASSERT_GT(std::abs(std::sqrt(3.) * float(rounded) - 1.), 1e-4);
+  for (uint64_t id = 0; id < 32; ++id)
+    ASSERT_EQ(0, builder.add({DenseVector{v.data()}}, id));
+  ASSERT_EQ(0, builder.train_router(16, 3));
+  ASSERT_EQ(0, builder.close());
+  zvec::test_util::RemoveTestFiles(path + "*");
+}
+
+INSTANTIATE_TEST_SUITE_P(CosineAndL2, QuantizedGraphFp16Test,
+                         testing::Values(MetricType::kCosine,
+                                         MetricType::kL2sq));
 
 INSTANTIATE_TEST_SUITE_P(CosineAndL2, QuantizedGraphBudgetTest,
                          testing::Values(MetricType::kCosine,

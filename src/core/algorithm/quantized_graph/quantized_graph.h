@@ -64,10 +64,11 @@ class QuantizedGraph {
   using NodeId = uint32_t;
   static constexpr NodeId kInvalidNodeId = std::numeric_limits<NodeId>::max();
 
-  // stored_dimension may exceed dimension to preserve auxiliary
-  // fields following the coordinates (e.g. cosine storage's original norm).
+  // Physical bytes to prefetch for each refinement vector. Prebuild adapters
+  // may expose decoded coordinates independently of this storage format.
   QuantizedGraph(size_t dimension, Codec codec, size_t max_neighbors,
-                 size_t stored_dimension, bool cosine, std::string model_data);
+                 size_t stored_vector_bytes, bool cosine,
+                 std::string model_data);
   void clear();
   template <class Graph>
   int prebuild(const Graph &graph, size_t doc_cnt, size_t threads);
@@ -218,7 +219,7 @@ class QuantizedGraph {
 
   std::string model_data_;
   size_t dimension_;
-  size_t stored_dimension_;
+  size_t stored_vector_bytes_;
   size_t stored_center_bytes_;
   std::vector<float> center_shift_;
   std::vector<float> integer_shift_;
@@ -238,11 +239,11 @@ class QuantizedGraph {
 template <class Codec>
 QuantizedGraph<Codec>::QuantizedGraph(size_t dimension, Codec codec,
                                       size_t max_neighbors,
-                                      size_t stored_dimension, bool cosine,
+                                      size_t stored_vector_bytes, bool cosine,
                                       std::string model_data)
     : model_data_(std::move(model_data)),
       dimension_(dimension),
-      stored_dimension_(std::max(dimension, stored_dimension)),
+      stored_vector_bytes_(stored_vector_bytes),
       codec_(std::move(codec)) {
   cosine_ = cosine;
   stored_center_bytes_ = (dimension_ + 63) & ~size_t{63};
@@ -879,7 +880,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       if (ret != 0) return ret;
       if (raw[count].data() == nullptr) return IndexError_Mismatch;
       const char *ptr = static_cast<const char *>(raw[count].data());
-      prefetch_span(ptr, stored_dimension_ * sizeof(float));
+      prefetch_span(ptr, stored_vector_bytes_);
     }
     for (size_t i = 0; i < count; ++i) {
       const auto &candidate = refine[first + i];

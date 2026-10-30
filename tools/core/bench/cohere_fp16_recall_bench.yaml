@@ -1,0 +1,49 @@
+# Cohere 1M: FP16 storage with FP32 input and refinement.
+# See FP16.zh-CN.md. Use cohere_fp16_build.yaml to build a new snapshot.
+# This snapshot reaches Recall@10=90.09%; rebuilt graphs need validation.
+# ./build/bin/recall tools/core/bench/cohere_fp16_recall_bench.yaml
+# ./build/bin/bench tools/core/bench/cohere_fp16_recall_bench.yaml
+IndexCommon:
+  IndexConfig: >-
+    {"index_type":"kHNSW","data_type":"DT_FP32",
+     "metric_type":"kCosine","dimension":768,
+     "m":50,"ef_construction":500,
+     "use_id_map":true,"use_quantized_graph":true,
+     "quantizer_param":{"type":"kFP16"}}
+  IndexPath: /data/cohere/cohere_fp16_full.index
+  TopK: 10
+  QueryFile: /data/cohere/cohere_test_vector_1m.1000.new.txt
+  QueryFirstSep: ";"
+  QuerySecondSep: " "
+  QueryType: float
+  RetrievalMode: dense
+  FilterMode: none
+
+  GroundTruthFile: /data/cohere/neighbors.txt
+  GroundTruthFirstSep: ";"
+  GroundTruthSecondSep: " "
+  CompareById: true
+  RecallThreadCount: 1
+  RecallBatchCount: 0
+  RecallGTCount: 10
+  RecallLogDir: /data/cohere/fp16_recall_logs
+
+  BenchThreadCount: 1
+  BenchThreadCounts: [1, 8]
+  BenchRounds: 5
+  BenchSecs: 6
+  BenchBatchCount: 1
+  BenchIterCount: 1000000000
+  LogLevel: info
+
+# QueryParam is a JSON string. Do not add QueryParams unless intentionally
+# running a sweep: that list overrides the single configuration below.
+# route_beam=1 uses the embedded router; it does not train a missing router.
+QueryConfig:
+  QueryParam: >-
+    {"index_type":"kHNSW","ef_search":64,
+     "quantized_graph_margin":0.006125,
+     "quantized_graph_bucket_width":0.004,
+     "quantized_graph_max_expansions":64,
+     "quantized_graph_route_beam":1,
+     "quantized_graph_uncertainty_bonus":0.15}

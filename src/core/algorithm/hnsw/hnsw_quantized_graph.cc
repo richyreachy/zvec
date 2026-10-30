@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "hnsw_quantized_graph.h"
+#include <algorithm>
+#include <array>
 #include <sstream>
+#include <ailego/math/normalizer.h>
+#include <zvec/ailego/utility/float_helper.h>
 #include <zvec/core/framework/index_error.h>
 #include "hnsw_context.h"
 #if RABITQ_SUPPORTED && defined(__x86_64__) && \
     (defined(__GNUC__) || defined(__clang__))
 #define ZVEC_PROJECTED_QG_SUPPORTED 1
+#include <turbo/distance/avx512/fp32/cosine.h>
+#include <turbo/distance/avx512/fp32/squared_euclidean.h>
 #include <turbo/quantizer/symqg_quantizer/symqg_quantizer.h>
 #include "algorithm/quantized_graph/quantized_graph.h"
 #include "algorithm/quantized_graph/quantized_graph_router_builder.h"
@@ -49,6 +55,28 @@ struct HnswGraphAdapter {
   }
 };
 
+// Decode only the requested vector. No persistent FP32 copy of the database.
+// The graph's bounds and terminal scores refer to these widened stored values.
+struct HnswFp16GraphAdapter : HnswGraphAdapter {
+  struct Vector {
+    IndexStorage::MemoryBlock storage;
+    std::array<float, 4096> values;
+    const void *data() const {
+      return values.data();
+    }
+  };
+  size_t dimension;
+  int get_vector(uint32_t id, Vector &vector) const {
+    const int ret = entity.get_vector(id, vector.storage);
+    if (ret != 0) return ret;
+    if (!vector.storage.data()) return IndexError_Mismatch;
+    ailego::FloatHelper::ToFP32(
+        static_cast<const uint16_t *>(vector.storage.data()), dimension,
+        vector.values.data());
+    return 0;
+  }
+};
+
 struct HnswQueryAdapter {
   HnswContext &ctx;
   TopkHeap &reset_results() {
@@ -77,26 +105,78 @@ struct HnswQueryAdapter {
     if (ctx.debugging()) ++(*ctx.mutable_stats_get_neighbors());
   }
 };
+struct HnswFp16QueryAdapter : HnswQueryAdapter {
+  const float *values;
+  size_t dimension;
+  bool cosine;
+  const void *query() const {
+    return values;
+  }
+  float distance(const void *vector) {
+    ctx.dist_calculator().record_comparison();
+    // Decode only after the graph has fetched/prefetched the batch of storage
+    // handles, preserving independent memory requests for refinement.
+    std::array<float, 4096> decoded;
+    ailego::FloatHelper::ToFP32(static_cast<const uint16_t *>(vector),
+                                dimension, decoded.data());
+    float score;
+    if (cosine)
+      turbo::avx512::cosine_fp32_distance_avx512(decoded.data(), values,
+                                                 dimension, &score);
+    else
+      turbo::avx512::squared_euclidean_fp32_distance_avx512(
+          decoded.data(), values, dimension, &score);
+    return score;
+  }
+};
 }  // namespace
 
-template <class Codec>
+template <class Codec, bool Fp16>
 struct HnswQuantizedGraph::Model final : Impl {
   Model(size_t dimension, size_t max_neighbors, bool cosine,
         size_t stored_dimension, const std::string &model_data)
       : graph(dimension, Codec(dimension, cosine), max_neighbors,
-              stored_dimension, cosine, model_data) {}
+              Fp16 ? dimension * sizeof(uint16_t)
+                   : std::max(dimension, stored_dimension) * sizeof(float),
+              cosine, model_data),
+        dimension_(dimension),
+        cosine_(cosine) {}
   int prebuild(const HnswEntity &entity, size_t count,
                size_t threads) override {
-    return graph.prebuild(HnswGraphAdapter{entity}, count, threads);
+    if constexpr (Fp16)
+      return graph.prebuild(HnswFp16GraphAdapter{{entity}, dimension_}, count,
+                            threads);
+    else
+      return graph.prebuild(HnswGraphAdapter{entity}, count, threads);
   }
   int search(uint32_t entry_id, HnswContext &ctx) const override {
-    HnswQueryAdapter query{ctx};
-    return graph.search(entry_id, HnswGraphAdapter{ctx.get_entity()}, query);
+    if constexpr (Fp16) {
+      std::array<float, 4096> values;
+      if (const float *original = ctx.quantized_graph_fp32_query()) {
+        std::copy_n(original, dimension_, values.data());
+        if (cosine_) {
+          float norm;
+          ailego::Normalizer<float>::L2(values.data(), dimension_, &norm);
+        }
+      } else {
+        // Direct streamer callers supply a stored-format FP16 query.
+        ailego::FloatHelper::ToFP32(
+            static_cast<const uint16_t *>(ctx.dist_calculator().query()),
+            dimension_, values.data());
+      }
+      HnswFp16QueryAdapter query{{ctx}, values.data(), dimension_, cosine_};
+      return graph.search(entry_id, HnswGraphAdapter{ctx.get_entity()}, query);
+    } else {
+      HnswQueryAdapter query{ctx};
+      return graph.search(entry_id, HnswGraphAdapter{ctx.get_entity()}, query);
+    }
   }
   uint32_t entry() const override {
     return graph.entry();
   }
   QuantizedGraph<Codec> graph;
+  size_t dimension_;
+  bool cosine_;
 };
 
 #endif
@@ -113,12 +193,17 @@ bool HnswQuantizedGraph::supported() {
 }
 HnswQuantizedGraph::HnswQuantizedGraph(size_t dimension, size_t max_neighbors,
                                        bool cosine, size_t stored_dimension,
-                                       const std::string &model_data) {
+                                       const std::string &model_data,
+                                       bool fp16) {
 #if ZVEC_PROJECTED_QG_SUPPORTED
   if (supported() && dimension > 0 && dimension <= 4096 &&
       max_neighbors == 32) {
-    impl_ = std::make_unique<Model<turbo::SymQGBlockQuantizer>>(
-        dimension, max_neighbors, cosine, stored_dimension, model_data);
+    if (fp16)
+      impl_ = std::make_unique<Model<turbo::SymQGBlockQuantizer, true>>(
+          dimension, max_neighbors, cosine, dimension, model_data);
+    else
+      impl_ = std::make_unique<Model<turbo::SymQGBlockQuantizer, false>>(
+          dimension, max_neighbors, cosine, stored_dimension, model_data);
   }
 #else
   (void)dimension;
@@ -126,12 +211,13 @@ HnswQuantizedGraph::HnswQuantizedGraph(size_t dimension, size_t max_neighbors,
   (void)cosine;
   (void)stored_dimension;
   (void)model_data;
+  (void)fp16;
 #endif
 }
 int HnswQuantizedGraph::train_router(const HnswEntity &entity, size_t dimension,
                                      bool cosine, size_t anchors,
                                      size_t projected, uint64_t seed,
-                                     std::string &data) {
+                                     std::string &data, bool fp16) {
 #if ZVEC_PROJECTED_QG_SUPPORTED
   using Builder = QuantizedGraphRouterBuilder;
   if (!supported()) return IndexError_Unsupported;
@@ -141,11 +227,24 @@ int HnswQuantizedGraph::train_router(const HnswEntity &entity, size_t dimension,
     return IndexError_InvalidArgument;
   try {
     IndexStorage::MemoryBlock block;
+    std::array<float, 4096> decoded;
     const auto training = Builder::collect(
         entity.doc_cnt(), dimension, cosine, anchors, [&](uint32_t id) {
           if (entity.get_key(id) == kInvalidKey ||
-              entity.get_vector(id, block) != 0)
+              entity.get_vector(id, block) != 0 || !block.data())
             return static_cast<const float *>(nullptr);
+          if (fp16) {
+            ailego::FloatHelper::ToFP32(
+                static_cast<const uint16_t *>(block.data()), dimension,
+                decoded.data());
+            // FP16 rounding may move the norm outside the FP32 training
+            // tolerance. Spherical clustering trains on unit directions.
+            if (cosine) {
+              float norm;
+              ailego::Normalizer<float>::L2(decoded.data(), dimension, &norm);
+            }
+            return static_cast<const float *>(decoded.data());
+          }
           return static_cast<const float *>(block.data());
         });
     Builder::Options options;
@@ -171,6 +270,7 @@ int HnswQuantizedGraph::train_router(const HnswEntity &entity, size_t dimension,
   (void)projected;
   (void)seed;
   (void)data;
+  (void)fp16;
   return IndexError_Unsupported;
 #endif
 }

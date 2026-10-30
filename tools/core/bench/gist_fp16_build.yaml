@@ -1,0 +1,32 @@
+# Gist 1M: FP32 input, FP16 database storage, embedded SymQG router.
+# See FP16.zh-CN.md. Use NEW paths; existing FP32 snapshots are not converted.
+# ./build/bin/local_builder tools/core/bench/gist_fp16_build.yaml
+BuilderCommon:
+  BuilderClass: HnswStreamer
+  QuantizerName: Fp16Quantizer
+  BuildFile: /data/gist/gist_base.zvec.vecs
+  MetricName: SquaredEuclidean
+  IndexPath: /data/gist/gist_fp16_work.index
+  DumpPath: /data/gist/gist_fp16_full.index
+  DumpFormat: streamer
+  MaxDocs: 1000000
+  ThreadCount: 8
+  LogLevel: info
+
+BuilderParams:
+  proxima.hnsw.streamer.max_neighbor_count: !!int 50
+  proxima.hnsw.streamer.efconstruction: !!int 500
+  proxima.hnsw.streamer.get_vector_enable: !!bool true
+
+# Train from database vectors and embed the router in the dumped snapshot.
+# The measured GIST preset uses 256 routing dimensions, not half of 960.
+# A successful build logs: Router trained for embedded snapshot
+QuantizedGraphRouter:
+  Anchors: 8192
+  ProjectedDimension: 256
+  Seed: 202610261259
+
+# L2 HNSW construction uses FP32 accumulation; cosine construction uses the
+# existing Fp16Quantizer dispatch. SymQG search/refinement always uses FP32.
+QuantizerParams:
+  fp32_accumulation: true

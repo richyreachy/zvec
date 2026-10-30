@@ -102,25 +102,32 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
     const size_t extra_dimension = cosine && !turbo ? 1 : 0;
     const size_t expected_extras = cosine && turbo ? sizeof(float) : 0;
     const bool supported_quantizer =
-        turbo ? quantizer_->type() == zvec::turbo::QuantizeType::kFp32 &&
-                    (imeta.quantizer_name().empty() ||
-                     imeta.quantizer_name() == "Fp32Quantizer") &&
+        turbo ? ((quantizer_->type() == zvec::turbo::QuantizeType::kFp32 &&
+                  (imeta.quantizer_name().empty() ||
+                   imeta.quantizer_name() == "Fp32Quantizer") &&
+                  imeta.data_type() == IndexMeta::DT_FP32) ||
+                 (quantizer_->type() == zvec::turbo::QuantizeType::kFp16 &&
+                  imeta.quantizer_name() == "Fp16Quantizer" &&
+                  imeta.data_type() == IndexMeta::DT_FP16)) &&
                     quantizer_->meta().dimension() == imeta.dimension() &&
                     quantizer_->meta().metric_name() == imeta.metric_name() &&
                     quantizer_->quantized_datapoint_vector_length() ==
                         imeta.element_size() &&
                     quantizer_->quantized_query_vector_length() ==
                         imeta.element_size()
-              : imeta.quantizer_name().empty();
+              : imeta.quantizer_name().empty() &&
+                    imeta.data_type() == IndexMeta::DT_FP32;
     if (external || !supported_quantizer ||
         imeta.extra_meta_size() != expected_extras ||
-        imeta.unit_size() != sizeof(float) ||
-        imeta.data_type() != IndexMeta::DataType::DT_FP32 ||
+        imeta.unit_size() != (imeta.data_type() == IndexMeta::DT_FP16
+                                  ? sizeof(uint16_t)
+                                  : sizeof(float)) ||
         (!cosine && imeta.metric_name() != "SquaredEuclidean") ||
         imeta.dimension() <= extra_dimension ||
         imeta.dimension() - extra_dimension > 4096) {
       LOG_ERROR(
-          "QuantizedGraph requires inline FP32 cosine/L2 vectors, dimension "
+          "QuantizedGraph requires inline FP32/FP16 cosine/L2 vectors, "
+          "dimension "
           "1..4096");
       return IndexError_Unsupported;
     }
@@ -655,7 +662,7 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
         meta_.dimension() - (cosine && !quantizer_ ? 1 : 0);
     quantized_graph_ = std::make_shared<HnswQuantizedGraph>(
         dimension, 32, cosine, meta_.element_size() / sizeof(float),
-        quantized_graph_router_data_);
+        quantized_graph_router_data_, meta_.data_type() == IndexMeta::DT_FP16);
     const auto prebuild_start = std::chrono::steady_clock::now();
     ret = quantized_graph_->prebuild(*entity_, entity_->doc_cnt(), 8);
     if (ret != 0) {
@@ -756,15 +763,20 @@ int HnswStreamer::train_quantized_graph_router(size_t anchors, size_t projected,
     return IndexError_NoReady;
   const bool cosine = meta_.metric_name() == "Cosine";
   const size_t extra = cosine && !quantizer_ ? 1 : 0;
-  if (use_external_vector_ || meta_.data_type() != IndexMeta::DT_FP32 ||
-      meta_.unit_size() != sizeof(float) || meta_.dimension() <= extra ||
+  const bool fp16 = meta_.data_type() == IndexMeta::DT_FP16 && quantizer_ &&
+                    quantizer_->type() == zvec::turbo::QuantizeType::kFp16;
+  if (use_external_vector_ ||
+      (!fp16 && meta_.data_type() != IndexMeta::DT_FP32) ||
+      meta_.unit_size() != (fp16 ? sizeof(uint16_t) : sizeof(float)) ||
+      meta_.dimension() <= extra ||
       (!cosine && meta_.metric_name() != "SquaredEuclidean") ||
-      (quantizer_ && quantizer_->type() != zvec::turbo::QuantizeType::kFp32))
+      (quantizer_ && !fp16 &&
+       quantizer_->type() != zvec::turbo::QuantizeType::kFp32))
     return IndexError_Unsupported;
   std::string data;
-  const int ret =
-      HnswQuantizedGraph::train_router(*entity_, meta_.dimension() - extra,
-                                       cosine, anchors, projected, seed, data);
+  const int ret = HnswQuantizedGraph::train_router(
+      *entity_, meta_.dimension() - extra, cosine, anchors, projected, seed,
+      data, fp16);
   if (ret == 0) quantized_graph_router_data_ = std::move(data);
   return ret;
 }
@@ -1136,7 +1148,8 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
   std::shared_lock<std::shared_mutex> qg_lock(quantized_graph_mutex_,
                                               std::defer_lock);
   if (quantized_graph_enabled_) qg_lock.lock();
-  if (entity_->doc_cnt() <= ctx->get_bruteforce_threshold()) {
+  if (entity_->doc_cnt() <= ctx->get_bruteforce_threshold() &&
+      !(quantized_graph_enabled_ && meta_.data_type() == IndexMeta::DT_FP16)) {
     return search_bf_impl(query, qmeta, count, context);
   }
 
@@ -1189,7 +1202,8 @@ int HnswStreamer::search_candidates_impl(
     return IndexError_InvalidArgument;
   }
 
-  if (entity_->doc_cnt() <= ctx->get_bruteforce_threshold()) {
+  if (entity_->doc_cnt() <= ctx->get_bruteforce_threshold() &&
+      !(quantized_graph_enabled_ && meta_.data_type() == IndexMeta::DT_FP16)) {
     return IndexRunner::search_candidates_impl(query, qmeta, keys, context,
                                                scores);
   }
