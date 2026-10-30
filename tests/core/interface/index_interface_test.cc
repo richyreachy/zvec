@@ -5788,6 +5788,109 @@ TEST(QuantizedGraphFp16, RouterTrainingNormalizesRoundedDirections) {
   zvec::test_util::RemoveTestFiles(path + "*");
 }
 
+// Explicit precision is independent of the dataset, dimension and metric.
+TEST(QuantizedGraphOptions, ExplicitPrecisionAcrossDimensions) {
+  if (!zvec::core::HnswQuantizedGraph::supported()) GTEST_SKIP();
+  const std::string path = "qg_precision_dimensions.index";
+  for (auto precision : {QuantizerType::kNone, QuantizerType::kFP16}) {
+    for (auto metric : {MetricType::kCosine, MetricType::kL2sq}) {
+      for (uint32_t dimension : {3u, 65u, 127u}) {
+        SCOPED_TRACE(testing::Message() << int(precision) << ":" << int(metric)
+                                        << ":" << dimension);
+        zvec::test_util::RemoveTestFiles(path + "*");
+        HNSWIndexParam param(metric, dimension, 16, 100);
+        param.data_type = DataType::DT_FP32;
+        param.use_id_map = true;
+        param.quantizer_param = std::make_shared<QuantizerParam>(precision);
+        BudgetHnswIndex builder;
+        ASSERT_EQ(0, builder.init(param));
+        ASSERT_EQ(
+            0, builder.open(path, {StorageOptions::StorageType::kMMAP, true}));
+        std::mt19937 rng(37);
+        std::uniform_real_distribution<float> random(.1f, 1.f);
+        std::vector<std::vector<float>> vectors(64,
+                                                std::vector<float>(dimension));
+        for (size_t id = 0; id < vectors.size(); ++id) {
+          for (float &x : vectors[id]) x = random(rng);
+          ASSERT_EQ(0, builder.add({DenseVector{vectors[id].data()}}, id));
+        }
+        ASSERT_EQ(0, builder.train_router(16, std::min(dimension, 16u)));
+        ASSERT_EQ(0, builder.flush());
+        ASSERT_EQ(0, builder.close());
+        param.use_quantized_graph = true;
+        auto restored = std::dynamic_pointer_cast<HNSWIndexParam>(
+            IndexFactory::DeserializeIndexParamFromJson(
+                param.serialize_to_json()));
+        ASSERT_NE(nullptr, restored);
+        ASSERT_NE(nullptr, restored->quantizer_param);
+        ASSERT_EQ(precision, restored->quantizer_param->type);
+        BudgetHnswIndex index;
+        ASSERT_EQ(0, index.init(*restored));
+        StorageOptions storage;
+        storage.type = StorageOptions::StorageType::kBufferPool;
+        storage.read_only = true;
+        ASSERT_EQ(0, index.open(path, storage));
+        std::vector<float> query(dimension);
+        double qnorm = 0;
+        for (float &x : query) {
+          x = random(rng);
+          qnorm += double(x) * x;
+        }
+        qnorm = std::sqrt(qnorm);
+        auto search_param = std::make_shared<HNSWQueryParam>();
+        search_param->topk = 8;
+        search_param->ef_search = 128;
+        search_param->quantized_graph_max_expansions = 64;
+        search_param->quantized_graph_margin = 1e6f;
+        SearchResult result;
+        ASSERT_EQ(0, index.search({DenseVector{query.data()}}, search_param,
+                                  &result));
+        ASSERT_EQ(64u, index.expanded);
+        auto codec = zvec::core::IndexFactory::CreateQuantizer(
+            precision == QuantizerType::kFP16 ? "Fp16Quantizer"
+                                              : "Fp32Quantizer");
+        zvec::core::IndexMeta meta;
+        meta.set_meta(zvec::core::IndexMeta::DT_FP32, dimension);
+        meta.set_metric(
+            metric == MetricType::kCosine ? "Cosine" : "SquaredEuclidean", 0,
+            zvec::ailego::Params{});
+        ASSERT_EQ(0, codec->init(meta, {}));
+        std::string encoded(codec->quantized_datapoint_vector_length(), '\0');
+        std::vector<float> values(dimension);
+        std::vector<std::pair<double, uint64_t>> expected;
+        for (size_t id = 0; id < vectors.size(); ++id) {
+          codec->quantize_data(vectors[id].data(), encoded.data());
+          if (precision == QuantizerType::kFP16)
+            zvec::ailego::FloatHelper::ToFP32(
+                reinterpret_cast<const uint16_t *>(encoded.data()), dimension,
+                values.data());
+          else
+            std::memcpy(values.data(), encoded.data(),
+                        dimension * sizeof(float));
+          double distance = metric == MetricType::kCosine ? 1 : 0;
+          for (size_t d = 0; d < dimension; ++d) {
+            if (metric == MetricType::kCosine)
+              distance -= double(query[d]) / qnorm * values[d];
+            else {
+              const double diff = double(query[d]) - values[d];
+              distance += diff * diff;
+            }
+          }
+          expected.emplace_back(distance, id);
+        }
+        std::sort(expected.begin(), expected.end());
+        ASSERT_EQ(8u, result.doc_list_.size());
+        for (size_t i = 0; i < 8; ++i) {
+          EXPECT_EQ(expected[i].second, result.doc_list_[i].key());
+          EXPECT_NEAR(expected[i].first, result.doc_list_[i].score(), 1e-4);
+        }
+        ASSERT_EQ(0, index.close());
+        zvec::test_util::RemoveTestFiles(path + "*");
+      }
+    }
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(CosineAndL2, QuantizedGraphFp16Test,
                          testing::Values(MetricType::kCosine,
                                          MetricType::kL2sq));

@@ -131,14 +131,13 @@ struct HnswFp16QueryAdapter : HnswQueryAdapter {
 };
 }  // namespace
 
-template <class Codec, bool Fp16>
+template <bool Fp16>
 struct HnswQuantizedGraph::Model final : Impl {
+  using Codec = turbo::SymQGBlockQuantizer;
   Model(size_t dimension, size_t max_neighbors, bool cosine,
-        size_t stored_dimension, const std::string &model_data)
+        size_t stored_vector_bytes, const std::string &model_data)
       : graph(dimension, Codec(dimension, cosine), max_neighbors,
-              Fp16 ? dimension * sizeof(uint16_t)
-                   : std::max(dimension, stored_dimension) * sizeof(float),
-              cosine, model_data),
+              stored_vector_bytes, cosine, model_data),
         dimension_(dimension),
         cosine_(cosine) {}
   int prebuild(const HnswEntity &entity, size_t count,
@@ -192,24 +191,24 @@ bool HnswQuantizedGraph::supported() {
 #endif
 }
 HnswQuantizedGraph::HnswQuantizedGraph(size_t dimension, size_t max_neighbors,
-                                       bool cosine, size_t stored_dimension,
+                                       bool cosine, size_t stored_vector_bytes,
                                        const std::string &model_data,
                                        bool fp16) {
 #if ZVEC_PROJECTED_QG_SUPPORTED
   if (supported() && dimension > 0 && dimension <= 4096 &&
       max_neighbors == 32) {
     if (fp16)
-      impl_ = std::make_unique<Model<turbo::SymQGBlockQuantizer, true>>(
-          dimension, max_neighbors, cosine, dimension, model_data);
+      impl_ = std::make_unique<Model<true>>(dimension, max_neighbors, cosine,
+                                            stored_vector_bytes, model_data);
     else
-      impl_ = std::make_unique<Model<turbo::SymQGBlockQuantizer, false>>(
-          dimension, max_neighbors, cosine, stored_dimension, model_data);
+      impl_ = std::make_unique<Model<false>>(dimension, max_neighbors, cosine,
+                                             stored_vector_bytes, model_data);
   }
 #else
   (void)dimension;
   (void)max_neighbors;
   (void)cosine;
-  (void)stored_dimension;
+  (void)stored_vector_bytes;
   (void)model_data;
   (void)fp16;
 #endif

@@ -26,7 +26,7 @@ class HnswContext;
 class HnswQuantizedGraph {
  public:
   HnswQuantizedGraph(size_t dimension, size_t max_neighbors, bool cosine,
-                     size_t stored_dimension, const std::string &model_data,
+                     size_t stored_vector_bytes, const std::string &model_data,
                      bool fp16 = false);
   static bool supported();
   static int train_router(const HnswEntity &entity, size_t dimension,
@@ -39,7 +39,7 @@ class HnswQuantizedGraph {
 
  private:
   struct Impl;
-  template <class Codec, bool Fp16>
+  template <bool Fp16>
   struct Model;
   std::unique_ptr<Impl> impl_;
 };

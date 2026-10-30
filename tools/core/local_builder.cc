@@ -1266,8 +1266,11 @@ int do_build(YAML::Node &config_root, YAML::Node &config_common) {
     if (!builder) {
       // Stream from FP32 input, quantizing each record once in its worker.
       // Avoid materializing a second, fully quantized training holder.
-      if (!hnsw_streamer || quantizer_name != "Fp16Quantizer") {
-        LOG_ERROR("Streamer QuantizerName requires HnswStreamer/Fp16Quantizer");
+      if (!hnsw_streamer || (quantizer_name != "Fp16Quantizer" &&
+                             quantizer_name != "Fp32Quantizer")) {
+        LOG_ERROR(
+            "Streamer QuantizerName requires HnswStreamer with "
+            "Fp32Quantizer or Fp16Quantizer");
         return -1;
       }
       build_quantizer = IndexFactory::CreateQuantizer(quantizer_name);
