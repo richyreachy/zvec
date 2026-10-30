@@ -51,7 +51,7 @@ namespace zvec::core {
 // Query/prepare_query()/scan(..., uncertainty_bonus). Estimates and exact
 // scores must use the same metric; centroid selection and diversity pruning use
 // squared L2 on the first dimension coordinates. Optional trailing FP32
-// metadata is retained in cached centers for exact scoring but excluded from
+// metadata is retained in storage vectors for exact scoring but excluded from
 // graph geometry. Context: reset_results() returns a bounded heap with
 // limit/size/emplace; query(), topk(), distance(), excluded(id),
 // reach_scan_limit(), on_expand(), quantized_graph_options(). distance()
@@ -232,10 +232,6 @@ class QuantizedGraph {
   std::unique_ptr<char[], ArenaDeleter> arena_;
   NodeId arena_count_{0};
   size_t stride_{0};
-  // Full stored FP32 vectors, including auxiliary fields, for exact
-  // refinement. This trades an extra raw-vector copy for contiguous access.
-  std::unique_ptr<char[], ArenaDeleter> raw_arena_;
-  size_t raw_stride_{0};
   NodeId entry_{kInvalidNodeId};
 };
 
@@ -249,7 +245,6 @@ QuantizedGraph<Codec>::QuantizedGraph(size_t dimension, Codec codec,
       stored_dimension_(std::max(dimension, stored_dimension)),
       codec_(std::move(codec)) {
   cosine_ = cosine;
-  raw_stride_ = (stored_dimension_ * sizeof(float) + 63) & ~size_t{63};
   stored_center_bytes_ = (dimension_ + 63) & ~size_t{63};
   static_assert(Codec::kBatchSize > 0, "Codec batch size must be positive");
   constexpr size_t batch_size = Codec::kBatchSize;
@@ -267,7 +262,6 @@ template <class Codec>
 void QuantizedGraph<Codec>::clear() {
   // Called under the caller's exclusive lock; no concurrent searches.
   arena_.reset();
-  raw_arena_.reset();
   arena_count_ = 0;
   entry_ = kInvalidNodeId;
   integer_router_.clear();
@@ -509,19 +503,9 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
       threads == 0 ? std::max(1u, std::thread::hardware_concurrency())
                    : threads;
   std::unique_ptr<char[], ArenaDeleter> arena;
-  std::unique_ptr<char[], ArenaDeleter> raw_arena;
   if (doc_cnt > kInvalidNodeId ||
-      doc_cnt > std::numeric_limits<size_t>::max() / raw_stride_)
+      doc_cnt > std::numeric_limits<size_t>::max() / stride_)
     return IndexError_Mismatch;
-  const size_t raw_total = raw_stride_ * doc_cnt;
-  if (raw_total > 0) {
-    void *mem =
-        ::operator new(raw_total, std::align_val_t{ArenaDeleter::kAlignment});
-#if defined(__linux__)
-    ::madvise(mem, raw_total, MADV_HUGEPAGE);
-#endif
-    raw_arena.reset(static_cast<char *>(mem));
-  }
   const size_t total = stride_ * doc_cnt;
   if (total > 0) {
     void *mem =
@@ -567,9 +551,6 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
         return;
       }
       const auto *values = static_cast<const float *>(raw.data());
-      std::copy_n(values, stored_dimension_,
-                  reinterpret_cast<float *>(
-                      raw_arena.get() + static_cast<size_t>(id) * raw_stride_));
       for (size_t d = 0; d < dimension_; ++d) centroid[d] += values[d];
       ++valid_counts[part];
       int error = 0;
@@ -640,7 +621,6 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
   // Published under the caller's exclusive lock; searches only
   // start afterwards, so reads need no synchronization.
   arena_ = std::move(arena);
-  raw_arena_ = std::move(raw_arena);
   arena_count_ = static_cast<NodeId>(doc_cnt);
   return 0;
 }
@@ -785,10 +765,17 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     const NodeId *neighbor_data(size_t offset) const {
       return neighbors + offset;
     }
-    int score(size_t offset, const NodeId *, size_t, float *distances) {
+    int score(size_t offset, const NodeId *, size_t count, float *distances) {
       index.codec_.scan(
           codes + (offset / Codec::kBatchSize) * index.codec_.batch_bytes(),
           query, navigation_center, distances, uncertainty_bonus);
+      if (expanded.size() == 1 && offset == 0) {
+        float maximum = 0.f;
+        for (size_t i = 0; i < count; ++i)
+          if (std::isfinite(distances[i]))
+            maximum = std::max(maximum, distances[i]);
+        bucket->cover_initial_range(maximum);
+      }
       return 0;
     }
   } scan{*this,
@@ -880,22 +867,25 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
   for (size_t first = 0; first < refine.size(); first += 4) {
     if (best.size() == ctx.topk() && refine[first].first > best.back()) break;
     if (ctx.reach_scan_limit()) break;
-    std::array<const void *, 4> raw;
+    // Keep owning/pinning handles alive until every vector in the batch has
+    // been scored. Storage backends need not return permanent pointers.
+    std::array<typename Graph::Vector, 4> raw;
     size_t count = 0;
     for (; count < 4 && first + count < refine.size(); ++count) {
       const auto &candidate = refine[first + count];
       if (best.size() == ctx.topk() && candidate.first > best.back()) break;
       if (candidate.second >= arena_count_) return IndexError_Mismatch;
-      raw[count] = raw_arena_.get() +
-                   static_cast<size_t>(candidate.second) * raw_stride_;
-      const char *ptr = static_cast<const char *>(raw[count]);
+      const int ret = entity.get_vector(candidate.second, raw[count]);
+      if (ret != 0) return ret;
+      if (raw[count].data() == nullptr) return IndexError_Mismatch;
+      const char *ptr = static_cast<const char *>(raw[count].data());
       prefetch_span(ptr, stored_dimension_ * sizeof(float));
     }
     for (size_t i = 0; i < count; ++i) {
       const auto &candidate = refine[first + i];
       if (best.size() == ctx.topk() && candidate.first > best.back()) break;
       if (ctx.reach_scan_limit()) break;
-      const float exact = ctx.distance(raw[i]);
+      const float exact = ctx.distance(raw[i].data());
       results.emplace(candidate.second, exact);
       best.insert(std::lower_bound(best.begin(), best.end(), exact), exact);
       if (best.size() > ctx.topk()) best.pop_back();

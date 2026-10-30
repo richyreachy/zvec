@@ -25,8 +25,9 @@
 #include <vector>
 namespace zvec::core {
 // Approximate ordering with a conservative bucket score for stopping.
-// The range is scaled once by the estimated entry distance. Extreme bins retain
-// every candidate; no item is dropped. Normal-bin ordering error <= width.
+// The range starts from the estimated entry distance and may widen before the
+// first neighbors are inserted. Extreme bins retain every candidate; no item
+// is dropped. Normal-bin ordering error <= width.
 class QuantizedGraphBucket {
  public:
   static constexpr size_t N = 2048;
@@ -47,6 +48,19 @@ class QuantizedGraphBucket {
   void set_scale(float distance, float coefficient = .016f) {
     width_ = std::max(distance, 1e-6f) * coefficient;
     inverse_width_ = 1.0f / width_;
+    finite_inverse_ = std::isfinite(inverse_width_);
+  }
+  // Called before inserting the first neighbor batch, while the queue is
+  // empty. An entry identical to the query must not collapse all positive
+  // neighbor scores into the unordered overflow bin.
+  void cover_initial_range(float max_distance) {
+    assert(!has_next());
+    if (!(max_distance > 0.f) || !std::isfinite(max_distance)) return;
+    const float required = std::nextafter(
+        max_distance / float(N - 3), std::numeric_limits<float>::infinity());
+    if (required <= width_) return;
+    width_ = required;
+    inverse_width_ = 1.f / width_;
     finite_inverse_ = std::isfinite(inverse_width_);
   }
   float width() const {

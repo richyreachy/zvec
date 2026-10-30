@@ -1,5 +1,6 @@
-# GIST 1M, squared L2, Top10: selected from the published implementation's
-# measured parameter sweeps targeting >=90% recall, not experimental kernels.
+# GIST 1M, squared L2, Top10: best measured preset for the embedded-router
+# snapshot; revalidated with storage-backed refinement and initial bucket range.
+# See TESTING.zh-CN.md for results and ALGORITHM.zh-CN.md for the algorithm.
 # Rebuilt graphs and different datasets can change recall; measure it first.
 # Replace /data/gist paths and use the snapshot from gist_build.yaml.
 # Query/ground-truth text uses an ID followed by ';' and space-separated values.

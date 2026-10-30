@@ -149,4 +149,34 @@ TEST(QuantizedGraphBucket, BatchBinsMatchScalarAtBoundariesAndExtremes) {
       ASSERT_EQ(bucket.locate(scores[i]), bins[i]) << i;
   }
 }
+
+TEST(QuantizedGraphBucket, InitialRangePreservesOrderAtZeroEntryDistance) {
+  QuantizedGraphBucket bucket;
+  for (float entry : {-0.001f, 0.f, 1e-8f}) {
+    bucket.reset();
+    bucket.insert(99, std::numeric_limits<float>::max());
+    ASSERT_EQ(99u, bucket.pop());
+    bucket.set_scale(entry, .004f);
+    ASSERT_EQ(QuantizedGraphBucket::N - 1, bucket.locate(.1f));
+    bucket.cover_initial_range(.4f);
+    EXPECT_LT(bucket.locate(.4f), QuantizedGraphBucket::N - 1);
+    for (uint32_t id = 1; id <= 4; ++id) bucket.insert(id, float(id) * .1f);
+    for (uint32_t id = 1; id <= 4; ++id) {
+      EXPECT_LE(bucket.next_distance(), float(id) * .1f);
+      EXPECT_EQ(id, bucket.pop());
+    }
+    EXPECT_FALSE(bucket.has_next());
+  }
+}
+
+TEST(QuantizedGraphBucket, InitialRangeLeavesAdequateScaleUnchanged) {
+  QuantizedGraphBucket bucket;
+  bucket.set_scale(.5f, .004f);
+  const float before = bucket.width();
+  for (float maximum : {0.f, -.1f, .4f, std::numeric_limits<float>::infinity(),
+                        std::numeric_limits<float>::quiet_NaN()}) {
+    bucket.cover_initial_range(maximum);
+    EXPECT_EQ(before, bucket.width());
+  }
+}
 }  // namespace zvec::core
