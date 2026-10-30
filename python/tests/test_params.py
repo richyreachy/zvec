@@ -714,3 +714,31 @@ class TestFlatIndexParamQuantizer:
         )
         assert param.quantizer_param.enable_rotate is True
         assert param.quantize_type == QuantizeType.INT8
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_diskann_partition_config_roundtrip(enabled):
+    param = DiskAnnIndexParam(
+        metric_type=MetricType.L2,
+        partitioned_build=enabled,
+        build_memory_budget_gb=0.03125,
+    )
+    for value in (param, param.clone(), pickle.loads(pickle.dumps(param))):
+        assert value.partitioned_build is enabled
+        assert value.build_memory_budget_gb == 0.03125
+        assert value.to_dict()["partitioned_build"] is enabled
+        assert value.to_dict()["build_memory_budget_gb"] == 0.03125
+        assert "partitioned_build" in repr(value)
+    default = DiskAnnIndexParam()
+    assert default.partitioned_build is False
+    assert default.build_memory_budget_gb == 0.25
+
+
+@pytest.mark.parametrize("length", [5, 6])
+def test_diskann_legacy_pickle_defaults(length):
+    legacy = (MetricType.L2, 16, 32, 4, QuantizeType.UNDEFINED, True)
+    restored = DiskAnnIndexParam.__new__(DiskAnnIndexParam)
+    restored.__setstate__(legacy[:length])
+    assert restored.partitioned_build is False
+    assert restored.build_memory_budget_gb == 0.25
+    assert restored.quantizer_param.enable_rotate is (length == 6)

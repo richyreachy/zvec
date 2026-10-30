@@ -662,12 +662,16 @@ class ZVEC_API DiskAnnIndexParams : public VectorIndexParams {
   DiskAnnIndexParams(MetricType metric_type, int max_degree = 100,
                      int list_size = 50, int pq_chunk_num = 0,
                      QuantizeType quantize_type = QuantizeType::UNDEFINED,
-                     QuantizerParam quantizer_param = {})
+                     QuantizerParam quantizer_param = {},
+                     bool partitioned_build = false,
+                     float build_memory_budget_gb = 0.25f)
       : VectorIndexParams(IndexType::DISKANN, metric_type, quantize_type,
                           quantizer_param),
         max_degree_{max_degree},
         list_size_{list_size},
-        pq_chunk_num_{pq_chunk_num} {}
+        pq_chunk_num_{pq_chunk_num},
+        partitioned_build_{partitioned_build},
+        build_memory_budget_gb_{build_memory_budget_gb} {}
 
   using OPtr = std::shared_ptr<DiskAnnIndexParams>;
 
@@ -675,7 +679,7 @@ class ZVEC_API DiskAnnIndexParams : public VectorIndexParams {
   Ptr clone() const override {
     return std::make_shared<DiskAnnIndexParams>(
         metric_type_, max_degree_, list_size_, pq_chunk_num_, quantize_type_,
-        quantizer_param_);
+        quantizer_param_, partitioned_build_, build_memory_budget_gb_);
   }
 
   std::string to_string() const override {
@@ -684,6 +688,8 @@ class ZVEC_API DiskAnnIndexParams : public VectorIndexParams {
     std::ostringstream oss;
     oss << base_str << ",max_degree:" << max_degree_
         << ",list_size:" << list_size_ << ", pq_chunk_num:" << pq_chunk_num_
+        << ",partitioned_build:" << (partitioned_build_ ? "true" : "false")
+        << ",build_memory_budget_gb:" << build_memory_budget_gb_
         << ",enable_rotate:"
         << (quantizer_param_.enable_rotate() ? "true" : "false") << "}";
     return oss.str();
@@ -713,6 +719,20 @@ class ZVEC_API DiskAnnIndexParams : public VectorIndexParams {
     pq_chunk_num_ = pq_chunk_num;
   }
 
+  bool partitioned_build() const {
+    return partitioned_build_;
+  }
+  void set_partitioned_build(bool enabled) {
+    partitioned_build_ = enabled;
+  }
+  // Working-memory target in GiB, not a hard process RSS limit.
+  float build_memory_budget_gb() const {
+    return build_memory_budget_gb_;
+  }
+  void set_build_memory_budget_gb(float budget) {
+    build_memory_budget_gb_ = budget;
+  }
+
   bool operator==(const IndexParams &other) const override {
     return type() == other.type() &&
            metric_type() ==
@@ -723,6 +743,11 @@ class ZVEC_API DiskAnnIndexParams : public VectorIndexParams {
                static_cast<const DiskAnnIndexParams &>(other).list_size_ &&
            pq_chunk_num_ ==
                static_cast<const DiskAnnIndexParams &>(other).pq_chunk_num_ &&
+           partitioned_build_ == static_cast<const DiskAnnIndexParams &>(other)
+                                     .partitioned_build_ &&
+           build_memory_budget_gb_ ==
+               static_cast<const DiskAnnIndexParams &>(other)
+                   .build_memory_budget_gb_ &&
            quantize_type() ==
                static_cast<const DiskAnnIndexParams &>(other).quantize_type() &&
            quantizer_param_ ==
@@ -733,6 +758,8 @@ class ZVEC_API DiskAnnIndexParams : public VectorIndexParams {
   int max_degree_;
   int list_size_;
   int pq_chunk_num_;
+  bool partitioned_build_;
+  float build_memory_budget_gb_;
 };
 
 /*
