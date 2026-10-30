@@ -450,11 +450,18 @@ struct DiskAnnPartitionBuild::Impl {
         PARTITION_TRY(
             shard.init(owner.raw_meta_, params, owner.data_quantizer_));
         shard.pq_chunk_num_ = owner.pq_chunk_num_;
-        PARTITION_TRY(shard.entity_.reserve_space(ids.size()));
-        for (uint32_t id : ids) {
+        // The entity borrows vector pointers. Keep one fixed-size buffer per
+        // shard alive through graph construction and merging; iterator/read
+        // scratch would alias every node to the last vector read.
+        auto shard_vectors =
+            std::make_shared<std::vector<uint8_t>>(ids.size() * element);
+        PARTITION_TRY(shard.entity_.reserve_space(ids.size(), shard_vectors));
+        for (size_t local = 0; local < ids.size(); ++local) {
+          uint32_t id = ids[local];
+          auto *data = shard_vectors->data() + local * element;
           PARTITION_TRY(vectors.read_at(static_cast<uint64_t>(id) * element,
-                                        vector.data(), element));
-          PARTITION_TRY(shard.entity_.add_vector(id, vector.data()));
+                                        data, element));
+          PARTITION_TRY(shard.entity_.add_vector(id, data));
         }
         PARTITION_TRY(shard.calculate_entry_point());
         PARTITION_TRY(shard.build_internal(threads));
@@ -512,7 +519,8 @@ struct DiskAnnPartitionBuild::Impl {
         sizeof(uint32_t) *
             (1 + static_cast<uint32_t>(
                      degree * DiskAnnEntity::kDefaultGraphSlackFactor)) +
-        sizeof(uint64_t) + sizeof(uint32_t) + sizeof(KeyId) + workers + 16;
+        sizeof(uint64_t) + sizeof(uint32_t) + sizeof(const void *) +
+        sizeof(KeyId) + workers + 16;
     capacity = std::min<uint64_t>(
         count, (owner.build_memory_budget_ - fixed) / 2 / per_node);
     if (capacity < 2 && count > 1) return IndexError_NoMemory;
