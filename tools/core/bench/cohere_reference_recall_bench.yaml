@@ -1,8 +1,9 @@
-# Cohere original frozen 1M graph: final bucket90_w16 comparison preset.
+# Historical reproduction only: original frozen Cohere 1M graph, bucket90_w16 comparison.
+# Not one of the four regular FP32/FP16 dataset presets.
 # This uses the matched external C++ router, not a newly trained replacement.
 # Copy the archived graph/model pair to the paths below before use.
-# For a new embedded-router build, use cohere_build.yaml and
-# cohere_recall_bench.yaml instead. See TESTING.zh-CN.md for provenance.
+# For new indexes, use cohere_fp32_build.yaml / cohere_fp32_recall_bench.yaml
+# or the cohere_fp16 pair. See TESTING.zh-CN.md for provenance.
 # Run recall before bench; both tools accept this file.
 IndexCommon:
   IndexConfig: >-

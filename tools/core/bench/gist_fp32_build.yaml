@@ -1,0 +1,33 @@
+# Explicit FP32 preset; preserves the validated FP32 build/search settings.
+# The original gist_build.yaml remains available for existing commands.
+# GIST 1M: 960-dimensional FP32 vectors, squared L2 distance.
+# Usage and validation: TESTING.zh-CN.md; algorithm: ALGORITHM.zh-CN.md.
+# Replace /data/gist paths with local paths. BuildFile must be in the
+# local_builder .zvec.vecs format; a .fvecs or text file is not interchangeable.
+# From the repository root:
+#   ./build/bin/local_builder tools/core/bench/gist_fp32_build.yaml
+# Use a new IndexPath/DumpPath for a fresh build. Search the DumpPath snapshot.
+# Keep the original L2 vectors; do not apply the cosine converter/normalization.
+BuilderCommon:
+  BuilderClass: HnswStreamer
+  BuildFile: /data/gist/gist_base.zvec.vecs
+  MetricName: SquaredEuclidean
+  IndexPath: /data/gist/gist_fp32_work.index
+  DumpPath: /data/gist/gist_fp32_full.index
+  DumpFormat: streamer
+  MaxDocs: 1000000
+  ThreadCount: 8
+  LogLevel: info
+
+BuilderParams:
+  proxima.hnsw.streamer.max_neighbor_count: !!int 50
+  proxima.hnsw.streamer.efconstruction: !!int 500
+  proxima.hnsw.streamer.get_vector_enable: !!bool true
+
+# Train from database vectors and embed the router in the dumped snapshot.
+# The measured GIST preset uses 256 routing dimensions, not half of 960.
+# A successful build logs: Router trained for embedded snapshot
+QuantizedGraphRouter:
+  Anchors: 8192
+  ProjectedDimension: 256
+  Seed: 202610261259

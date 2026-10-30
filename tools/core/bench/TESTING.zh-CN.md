@@ -9,9 +9,16 @@ FP32/FP16 的统一配置、精度语义和测试见 [存储精度说明](FP16.z
 
 | 场景 | 构建配置 | 检索配置 |
 |---|---|---|
-| Cohere，嵌入路由 | [cohere_build.yaml](cohere_build.yaml) | [cohere_recall_bench.yaml](cohere_recall_bench.yaml) |
-| GIST，嵌入路由 | [gist_build.yaml](gist_build.yaml) | [gist_recall_bench.yaml](gist_recall_bench.yaml) |
-| Cohere，原冻结图与匹配的外部模型 | 使用归档的图/模型对 | [cohere_reference_recall_bench.yaml](cohere_reference_recall_bench.yaml) |
+| Cohere FP32，嵌入路由 | [cohere_fp32_build.yaml](cohere_fp32_build.yaml) | [cohere_fp32_recall_bench.yaml](cohere_fp32_recall_bench.yaml) |
+| GIST FP32，嵌入路由 | [gist_fp32_build.yaml](gist_fp32_build.yaml) | [gist_fp32_recall_bench.yaml](gist_fp32_recall_bench.yaml) |
+| Cohere FP16，嵌入路由 | [cohere_fp16_build.yaml](cohere_fp16_build.yaml) | [cohere_fp16_recall_bench.yaml](cohere_fp16_recall_bench.yaml) |
+| GIST FP16，嵌入路由 | [gist_fp16_build.yaml](gist_fp16_build.yaml) | [gist_fp16_recall_bench.yaml](gist_fp16_recall_bench.yaml) |
+
+文件名中的 `fp32` / `fp16` 表示数据库存储精度，接口输入均为 FP32。四组配置使用独立的工作索引、dump 和召回日志路径。旧的 `cohere_build.yaml`、`cohere_recall_bench.yaml`、`gist_build.yaml`、`gist_recall_bench.yaml` 继续保留兼容已有命令。
+
+历史复现专用：[cohere_reference_recall_bench.yaml](cohere_reference_recall_bench.yaml) 仅用于归档的原冻结图与外部路由模型配对，复核早期性能对照；常规新建索引不使用它。
+
+下表记录 FP32 参数；FP16 参数以对应 YAML 和 [存储精度说明](FP16.zh-CN.md) 为准。
 
 | 参数 | Cohere 嵌入路由 | GIST 嵌入路由 | Cohere 原冻结图对照 |
 |---|---:|---:|---:|
@@ -47,13 +54,13 @@ Cohere 使用 cosine 转换器；GIST 保留 L2 原始值，不做 cosine 归一
 为构建选择新的 `IndexPath` 和 `DumpPath`，检索配置的 `IndexPath` 指向构建后的 `DumpPath`。
 
 ```bash
-./build/bin/local_builder tools/core/bench/cohere_build.yaml
-./build/bin/recall tools/core/bench/cohere_recall_bench.yaml
-./build/bin/bench tools/core/bench/cohere_recall_bench.yaml
+./build/bin/local_builder tools/core/bench/cohere_fp32_build.yaml
+./build/bin/recall tools/core/bench/cohere_fp32_recall_bench.yaml
+./build/bin/bench tools/core/bench/cohere_fp32_recall_bench.yaml
 
-./build/bin/local_builder tools/core/bench/gist_build.yaml
-./build/bin/recall tools/core/bench/gist_recall_bench.yaml
-./build/bin/bench tools/core/bench/gist_recall_bench.yaml
+./build/bin/local_builder tools/core/bench/gist_fp32_build.yaml
+./build/bin/recall tools/core/bench/gist_fp32_recall_bench.yaml
+./build/bin/bench tools/core/bench/gist_fp32_recall_bench.yaml
 ```
 
 构建成功应包含 `Router trained for embedded snapshot` 日志。检索不会补训练缺失模型。
