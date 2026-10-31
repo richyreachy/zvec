@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "zvec/db/schema.h"
+#include <limits>
 #include <gtest/gtest.h>
 #include "zvec/db/index_params.h"
 #include "zvec/db/status.h"
@@ -1354,5 +1355,17 @@ TEST(FieldSchemaTest, HnswRabitqIndexValidation_UnsupportedDataTypes) {
         std::string::npos)
         << "Error message should mention sparse vector index support, got: "
         << status.message();
+  }
+}
+
+TEST(FieldSchemaTest, DiskAnnBuildBudgetValidation) {
+  for (float budget :
+       {-1.0f, 0.0f, 0.001f, std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::quiet_NaN()}) {
+    auto params = std::make_shared<DiskAnnIndexParams>(MetricType::L2);
+    params->set_partitioned_build(true);
+    params->set_build_memory_budget_gb(budget);
+    FieldSchema field("disk_vector", DataType::VECTOR_FP32, 32, false, params);
+    EXPECT_EQ(StatusCode::INVALID_ARGUMENT, field.validate().code());
   }
 }

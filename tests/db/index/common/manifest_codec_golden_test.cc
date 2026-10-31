@@ -404,6 +404,8 @@ void ExpectRichSchemaFields(const CollectionSchema &schema,
   EXPECT_EQ(diskann->max_degree(), 64);
   EXPECT_EQ(diskann->list_size(), 128);
   EXPECT_EQ(diskann->pq_chunk_num(), 16);
+  EXPECT_FALSE(diskann->partitioned_build());
+  EXPECT_FLOAT_EQ(diskann->build_memory_budget_gb(), 0.25f);
 
   size_t plain_index = 8;
   if (with_ivf_rabitq) {
@@ -1143,5 +1145,20 @@ TEST(ManifestCodecGolden, WireReaderRejectsGroups) {
     pbwire::Reader r(buf);
     EXPECT_FALSE(r.next());
     EXPECT_FALSE(r.ok());
+  }
+}
+
+TEST(ManifestCodecGolden, DiskAnnPartitionedBuild) {
+  for (bool enabled : {false, true}) {
+    for (float budget : {0.25f, 0.03125f}) {
+      DiskAnnIndexParams params(MetricType::L2, 32, 64, 8,
+                                QuantizeType::UNDEFINED, QuantizerParam(),
+                                enabled, budget);
+      std::string encoded;
+      ManifestCodec::EncodeIndexParams(&params, &encoded);
+      auto decoded = ManifestCodec::DecodeIndexParams(encoded);
+      ASSERT_NE(decoded, nullptr);
+      EXPECT_EQ(params, *decoded);
+    }
   }
 }

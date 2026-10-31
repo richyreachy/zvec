@@ -182,6 +182,8 @@ class DiskAnnIndexParam(VectorIndexParam):
         pq_chunk_num: typing.SupportsInt = 0,
         quantize_type: zvec._zvec.typing.QuantizeType = ...,
         quantizer_param: QuantizerParam = ...,
+        partitioned_build: bool = False,
+        build_memory_budget_gb: float = 0.25,
     ) -> None:
         """
 
@@ -208,6 +210,14 @@ class DiskAnnIndexParam(VectorIndexParam):
         """
         Convert to dictionary with all fields
         """
+
+    @property
+    def partitioned_build(self) -> bool:
+        """Enable partitioned graph construction; default False."""
+
+    @property
+    def build_memory_budget_gb(self) -> float:
+        """Build working-memory target in GiB; minimum 0.015625, default 0.25."""
 
     @property
     def max_degree(self) -> int:
