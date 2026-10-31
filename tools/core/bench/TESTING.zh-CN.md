@@ -1,6 +1,6 @@
 # 构建、检索配置与验证记录
 
-本目录保存 Cohere / GIST 已测的推荐配置，以及算法说明。最近更新：2026-10-31。
+本目录保存 Cohere / GIST 已测的推荐配置，以及算法说明。最近更新：2026-11-01。
 “最佳”限定为已有参数扫描和指定快照上的最佳已测选择，不保证任意机器、新建图或数据分布均最优。
 
 FP32/FP16 的统一配置与精度语义见 [存储精度说明](FP16.zh-CN.md)。
@@ -72,17 +72,20 @@ Cohere 使用 cosine 转换器；GIST 保留 L2 原始值，不做 cosine 归一
 先确认 Recall@10≥90%，再比较同硬件、同快照、同参数和线程数下的 QPS。
 在本次机器上使用 `taskset -c 0,2,4,6,8,10,12,14`；换机器应先核对物理核拓扑，不能机械照抄。
 
-## 自动训练与已有索引转换
+## local_builder 一次完成构建、训练与保存
+
+正常新建直接执行上面的 `*_build.yaml`：`local_builder` 依次完成 HNSW 建图、入口树训练、量化参数训练、
+量化块生成和快照保存。训练与保存共用工具内的一条收尾流程，不需要额外转换命令或转换配置文件。
 
 四组构建配置共用 `QuantizedGraph` 节，FP32/FP16 和距离类型由索引元数据决定，C++ 实现不按数据集名称分流。
 当前 Cohere 使用 `global`、Hadamard 6 维分块、32 个邻居；GIST 使用 `low_rank`、Gaussian 8 维分块、秩 8、64 个邻居。
 `TrainingSamples` 是数据库邻域采样上限，默认 1024；`CenterWeight` 是对拟合偏移的收缩系数，不是直接写死中心权重。
 低秩模式支持秩 8/16/32；Gaussian 分块支持 4/6/8，Hadamard 分块支持 6/8；删去整个 `Codec` 节可保留原生编码。
 
-已有 HnswStreamer 快照可通过 [quantized_graph_persist.yaml](quantized_graph_persist.yaml) 的 `InputIndex` 读取，
-在原图上训练、编码并输出到新的 `DumpPath`。不需要重新插入百万向量，也不改变图节点内部 ID。
-从原始向量完整新建时，使用各数据集的 `BuildFile` 配置；两种入口共用同一训练和 dump 流程。
-`InputIndex` 和 `BuildFile` 互斥，输出不能覆盖输入；已有快照携带的路由树直接保留。
+如果已经有原生 HnswStreamer 快照并希望复用原图，在同一份构建配置中将 `BuilderCommon.BuildFile` 换成
+`BuilderCommon.InputIndex: /path/to/existing.index`，并指定尚不存在的 `DumpPath`。
+此时向量精度、维度和距离类型由输入快照决定，工具跳过向量插入，继续执行相同的训练、量化和保存流程。
+`InputIndex` 和 `BuildFile` 互斥；复用已有路由树时省略 `QuantizedGraphRouter`，需要重新训练时保留该节。
 
 `Codec` 的参数、量化邻接块、局部系数和入口数据写入索引，重载不依赖外部模型或 `QG_*` 环境变量。
 新格式为不可变快照；修改向量或图结构后重建。旧索引没有量化块时保留兼容的加载时编码流程。

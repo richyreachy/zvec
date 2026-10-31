@@ -1259,13 +1259,21 @@ int do_build_sparse(YAML::Node &config_root, YAML::Node &config_common) {
   return 0;
 }
 
-// Finalize after insertion. A saved codec is independent of process
-// environment.
-int finalize_quantized_graph(IndexStreamer &streamer,
-                             const YAML::Node &config_root) {
+// Both source vectors and an existing graph use the same finalization path:
+// train the router/codec, encode the graph, then publish one complete snapshot.
+int finalize_and_dump(const YAML::Node &config_root,
+                      const IndexBuilder::Pointer &builder,
+                      const IndexStreamer::Pointer &streamer,
+                      const VecsIndexHolder::Pointer &build_holder = nullptr) {
+  const auto common = config_root["BuilderCommon"];
+  const bool native_snapshot =
+      common["DumpFormat"] && common["DumpFormat"].as<string>() == "streamer";
+  const auto router_config = config_root["QuantizedGraphRouter"];
+  const auto qg = config_root["QuantizedGraph"];
+  if (!streamer && (native_snapshot || router_config || qg))
+    return IndexError_Unsupported;
   ailego::ElapsedTime timer;
   int ret = 0;
-  const auto router_config = config_root["QuantizedGraphRouter"];
   if (router_config) {
     const int64_t anchors = router_config["Anchors"]
                                 ? router_config["Anchors"].as<int64_t>()
@@ -1280,7 +1288,7 @@ int finalize_quantized_graph(IndexStreamer &streamer,
                               ? router_config["Seed"].as<uint64_t>()
                               : 202610261259ULL;
     timer.reset();
-    ret = TrainHnswSnapshotRouter(streamer, anchors, projected, seed);
+    ret = TrainHnswSnapshotRouter(*streamer, anchors, projected, seed);
     if (ret != 0) {
       LOG_ERROR("Router training failed, ret=%d", ret);
       return -1;
@@ -1289,13 +1297,12 @@ int finalize_quantized_graph(IndexStreamer &streamer,
          << timer.milli_seconds() << endl;
   }
 
-  const auto qg = config_root["QuantizedGraph"];
   if (qg && qg["Persist"] && qg["Persist"].as<bool>()) {
     QuantizedGraphBuildOptions options;
     if (!parse_quantized_graph_options(qg, options))
       return IndexError_InvalidArgument;
     timer.reset();
-    ret = BuildHnswSnapshotGraph(streamer, options);
+    ret = BuildHnswSnapshotGraph(*streamer, options);
     if (ret != 0) {
       LOG_ERROR("Quantized graph snapshot build failed, ret=%d", ret);
       return ret;
@@ -1303,12 +1310,46 @@ int finalize_quantized_graph(IndexStreamer &streamer,
     cout << "Quantized graph prepared for embedded snapshot, cost_ms="
          << timer.milli_seconds() << endl;
   }
+
+  auto dumper = IndexFactory::CreateDumper("FileDumper");
+  if (!dumper) return IndexError_NoExist;
+  ret = dumper->init({});
+  if (ret != 0) return ret;
+  const auto output = common["DumpPath"].as<string>();
+  ret = dumper->create(output);
+  if (ret != 0) {
+    LOG_ERROR("Failed to create in dumper, ret=%d", ret);
+    return ret;
+  }
+  timer.reset();
+  ret = native_snapshot
+            ? DumpHnswSnapshot(*streamer, dumper)
+            : (streamer ? streamer->dump(dumper) : builder->dump(dumper));
+  const size_t dump_time = timer.milli_seconds();
+  if (ret == IndexError_NotImplemented && !native_snapshot) {
+    LOG_WARN("Dump index not implemented");
+  } else if (ret != 0) {
+    LOG_ERROR("Failed to dump in builder, ret=%d", ret);
+    return ret;
+  }
+  if (build_holder && build_holder->has_taglist()) {
+    size_t taglist_size{0};
+    const void *taglist_data = build_holder->get_taglist_data(taglist_size);
+    ret =
+        dump_taglist(dumper, build_holder->get_num_vecs(),
+                     build_holder->get_key_base(), taglist_data, taglist_size);
+    if (ret != 0) return ret;
+  }
+  ret = dumper->close();
+  if (ret != 0) return ret;
+  cout << "Dump to [" << output << "] finished, consume " << dump_time << "ms."
+       << endl;
   return 0;
 }
 
 // Upgrade an existing native snapshot without rebuilding/remapping its HNSW.
 // Open the source read-only and require a new output file.
-int persist_existing_snapshot(const YAML::Node &config_root) {
+int build_from_index(const YAML::Node &config_root) {
   const auto common = config_root["BuilderCommon"];
   const auto input = common["InputIndex"].as<string>();
   const auto output = common["DumpPath"].as<string>();
@@ -1345,19 +1386,8 @@ int persist_existing_snapshot(const YAML::Node &config_root) {
   if (ret != 0) return ret;
   ret = streamer->open(storage);
   if (ret != 0) return ret;
-  ret = finalize_quantized_graph(*streamer, config_root);
+  ret = finalize_and_dump(config_root, nullptr, streamer);
   if (ret != 0) return ret;
-  auto dumper = IndexFactory::CreateDumper("FileDumper");
-  if (!dumper) return IndexError_NoExist;
-  ret = dumper->init({});
-  if (ret != 0) return ret;
-  ret = dumper->create(output);
-  if (ret != 0) return ret;
-  ret = DumpHnswSnapshot(*streamer, dumper);
-  if (ret != 0) return ret;
-  ret = dumper->close();
-  if (ret != 0) return ret;
-  cout << "Persisted quantized graph snapshot: " << output << endl;
   return streamer->close();
 }
 
@@ -1738,51 +1768,8 @@ int do_build(YAML::Node &config_root, YAML::Node &config_common) {
   cout << "Build finished, consume " << build_time << "ms." << endl;
   signal(SIGINT, SIG_DFL);
 
-  if (router_config || config_root["QuantizedGraph"]) {
-    ret = finalize_quantized_graph(*streamer, config_root);
-    if (ret != 0) return ret;
-  }
-
-  // DUMP
-  IndexDumper::Pointer dumper = IndexFactory::CreateDumper("FileDumper");
-  if (!dumper) {
-    LOG_ERROR("Failed to create FileDumper.");
-    return -1;
-  }
-  string dump_prefix = config_common["DumpPath"].as<string>();
-  ret = dumper->create(dump_prefix);
-  if (ret != 0) {
-    LOG_ERROR("Failed to create in dumper, ret=%d", ret);
-    return -1;
-  }
-  timer.reset();
-  ret = native_snapshot
-            ? DumpHnswSnapshot(*streamer, dumper)
-            : (streamer ? streamer->dump(dumper) : builder->dump(dumper));
-  size_t dump_time = timer.milli_seconds();
-  if (ret == IndexError_NotImplemented) {
-    LOG_WARN("Dump index not implemented");
-  } else if (ret < 0) {
-    LOG_ERROR("Failed to dump in builder, ret=%d", ret);
-    return -1;
-  }
-
-  if (build_holder->has_taglist()) {
-    size_t taglist_size{0};
-    const void *taglist_data = build_holder->get_taglist_data(taglist_size);
-    const void *key_base = build_holder->get_key_base();
-
-    dump_taglist(dumper, build_holder->get_num_vecs(), key_base, taglist_data,
-                 taglist_size);
-  }
-
-  ret = dumper->close();
-  if (ret != 0) {
-    LOG_ERROR("Dumper failed to close, ret=%d", ret);
-    return -1;
-  }
-  std::cout << "Dump to [" << dump_prefix << "] finished, consume " << dump_time
-            << "ms." << std::endl;
+  ret = finalize_and_dump(config_root, builder, streamer, build_holder);
+  if (ret != 0) return ret;
 
   if (builder) {
     auto &stats =
@@ -1866,8 +1853,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (config_common["InputIndex"])
-    return persist_existing_snapshot(config_root);
+  if (config_common["InputIndex"]) return build_from_index(config_root);
   if (retrieval_mode == RM_SPARSE) {
     return do_build_sparse(config_root, config_common);
   } else {
