@@ -6,7 +6,7 @@ SymQG 名称对应 SymphonyQG；本文描述当前实现，不宣称与上游逐
 
 ## 搜索流程
 
-1. `local_builder` 构建 HNSW，并用数据库向量训练入口路由树，随快照 dump；打开时 load 路由数据。
+1. `local_builder` 构建 HNSW，用数据库向量训练入口路由树及量化参数，生成量化邻接块后一起 dump；打开时直接恢复。
 2. 将查询旋转、投影、量化，通过路由树选择一个实际图节点作为 layer 0 入口。
 3. 在原图派生的量化邻接图上搜索，用完整维度的邻居编码批量估计距离，以桶队列安排扩展顺序。
 4. 对已展开节点计算全维整数中心距离估计及精排下界。
@@ -32,6 +32,38 @@ Cosine 使用球面聚类，L2 使用均值聚类。叶子保存实际图节点�
 “模型”是聚类中心、树结构、均值和叶子 ID 等索引数据，不是神经网络。
 `local_builder` 将其嵌入快照；外部模型文件仍可用于兼容历史快照。
 因为叶子使用内部 ID，模型必须与训练时的图快照配对，不能仅凭维度和节点数相同就替换。
+
+## 构建时训练量化参数
+
+`QuantizedGraph.Codec` 控制量化编码，和 `QuantizedGraphRouter` 的入口树是两组不同的数据。
+`native` 保留原生 SymQG 编码；`global` 学习全局仿射中心；`low_rank` 进一步学习局部中心的低秩基。
+三种方式均通过 `Persist: true` 保存量化块。配置不再传入外部码本路径。
+
+训练从图的有效内部 ID 采样，使用与量化块构建相同的邻居选择规则，取 32 邻居及二跳数据库向量作为代理查询。
+极小图的二跳样本不足时使用直接邻居；空图或非法数据返回错误。FP16 数据按需展开，训练和编码遵循实际存储坐标。
+L2 的基准中心使用搜索时的 SQ8 重建值，cosine 使用原存储中心。采样中心均值记为 $\mu$。
+这里的代理查询来自数据库，不是 benchmark 的测试查询，也不使用 ground truth。
+
+设邻居残差 $r=x-c$、代理查询残差 $s=q-c$、$u=\mu-c$。拟合中心 $a_0=c+\lambda u$，
+最小化旋转后径向量化误差的几何代理目标：
+
+$$A(\lambda)=\|(r-\lambda u)\wedge(s-\lambda u)\|^2=A(0)+2B\lambda+C\lambda^2.$$
+
+因此无需查询参数扫描即可取 $\lambda=\operatorname{clip}(-B/C,0,1)$，退化目标取零。
+`CenterWeight` 再对拟合值做收缩：当前 Cohere 使用 0.5，GIST 使用 1；这是可配置超参数，不是按数据集名称写入代码的规则。
+
+低秩版本计算邻域均值相对 $a_0$ 的偏移 $\delta$，取未中心化二阶矩 $E[\delta\delta^T]$ 的主要特征向量 $U$。
+它最小化 $E\|\delta-UU^T\delta\|^2$。每个邻接批次保存带缩放的 FP16 系数 $z$，中心为 $a=a_0+Uz$；
+查询只计算一次 $U^Tq$，每批更新中心距离的成本与秩有关。
+
+`Codebook: hadamard` 在构建时生成固定的 16 个反对称方向；`gaussian` 在构建时对标准高斯合成样本执行反对称 Lloyd 训练，
+使用独立的合成验证样本选取三次初始化中的最好结果。随机旋转为高斯参考分布提供动机，不意味着结构化 Hadamard 具有任意数据上的精确高斯保证。
+数据库训练得到的均值、中心权重和低秩基，以及生成的码本，都作为参数字节嵌入索引。
+`Seed` 控制采样与 Gaussian 初始化；底层 SymQG 旋转沿用索引格式规定的固定规则。
+
+训练和编码都在构建阶段完成，检索不读取训练配置、外部模型或 `QG_*` 环境变量。
+不含量化块的历史索引仍走兼容的打开时编码流程；可用 [已有索引转换配置](quantized_graph_persist.yaml) 生成新的持久化快照。
+快照不可变，修改原向量或图结构后需要重建。持久化增加磁盘体积，消除重复编码，不等于零拷贝加载或降低全部索引内存。
 
 ## 全维整数中心与延后精排
 
@@ -84,5 +116,6 @@ $$w'=\max\left(w,\operatorname{nextafter}\left(\frac{M}{N-3},+\infty\right)\righ
 - [图搜索、向量复用及精排](../../../src/core/algorithm/quantized_graph/quantized_graph.h)
 - [桶范围及排序](../../../src/core/algorithm/quantized_graph/quantized_graph_bucket.h)
 - [路由训练](../../../src/core/algorithm/quantized_graph/quantized_graph_router_builder.h)
+- [量化参数训练](../../../src/core/algorithm/quantized_graph/quantized_graph_codec_builder.h)
 - [整数中心估计与误差界](../../../src/core/algorithm/quantized_graph/quantized_graph_integer_center.h)
 - [构建工具](../local_builder.cc)、[召回工具](../recall.cc)、[性能工具](../bench.cc)

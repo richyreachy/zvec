@@ -17,6 +17,9 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <zvec/core/framework/index_dumper.h>
+#include <zvec/core/framework/index_storage.h>
+#include "algorithm/quantized_graph/quantized_graph_build_options.h"
 
 namespace zvec::core {
 class HnswEntity;
@@ -25,9 +28,20 @@ class HnswContext;
 // Immutable projected-entry SymphonyQG snapshot over HNSW level zero.
 class HnswQuantizedGraph {
  public:
+  static constexpr const char *kSnapshotSegment = "hnsw.quantized_graph.blocks";
   HnswQuantizedGraph(size_t dimension, size_t max_neighbors, bool cosine,
                      size_t stored_vector_bytes, const std::string &model_data,
-                     bool fp16 = false);
+                     bool fp16 = false,
+                     const std::string *codec_data = nullptr);
+  static int train_codec(const HnswEntity &entity, size_t dimension,
+                         bool cosine, bool fp16,
+                         const QuantizedGraphBuildOptions &options,
+                         std::string &data);
+  static int load(const HnswEntity &entity, size_t dimension, bool cosine,
+                  size_t stored_vector_bytes, const std::string &router_data,
+                  bool fp16, const IndexStorage::Segment::Pointer &segment,
+                  std::shared_ptr<HnswQuantizedGraph> &out);
+  int dump(const IndexDumper::Pointer &dumper) const;
   static bool supported();
   static int train_router(const HnswEntity &entity, size_t dimension,
                           bool cosine, size_t anchors, size_t projected,

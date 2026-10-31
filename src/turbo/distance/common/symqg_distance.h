@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <numeric>
@@ -79,6 +80,47 @@ class SymQGQuery {
     const float sumq =
         std::accumulate(rotated_query, rotated_query + padded_dim, 0.0f);
     k1xsumq_ = sumq * -0.5f;
+  }
+
+  void reset_block(const float *query, size_t dimension, const float *book,
+                   size_t block, size_t code_dim, bool structured = false) {
+    g_add_ = priority_bonus_ = k1xsumq_ = 0;
+    lut_storage_.resize(code_dim * 4 + 63);
+    auto *out = reinterpret_cast<uint8_t *>(
+        (reinterpret_cast<uintptr_t>(lut_storage_.data()) + 63) &
+        ~uintptr_t{63});
+    ref_lut_scratch_.resize(code_dim * 4);
+    const bool built =
+        structured
+            ? symqg_h8_lut(query, dimension, block, code_dim,
+                           ref_lut_scratch_.data(), out, &delta_, &sum_vl_)
+            : symqg_block_lut(query, dimension, book, block, code_dim,
+                              ref_lut_scratch_.data(), out, &delta_, &sum_vl_);
+    if (!built) {
+      sum_vl_ = 0;
+      float range = 0;
+      for (size_t group = 0; group < code_dim / 4; ++group) {
+        const size_t offset = group * block;
+        float lo = 0, hi = 0;
+        for (size_t code = 0; code < 16; ++code) {
+          float value = 0;
+          for (size_t d = 0; d < block && offset + d < dimension; ++d)
+            value += query[offset + d] * book[d * 16 + code];
+          ref_lut_scratch_[group * 16 + code] = value;
+          lo = std::min(lo, value);
+          hi = std::max(hi, value);
+        }
+        range = std::max(range, hi - lo);
+        sum_vl_ += lo;
+        for (size_t code = 0; code < 16; ++code)
+          ref_lut_scratch_[group * 16 + code] -= lo;
+      }
+      delta_ = range > 0 ? range / 255 : 1;
+      for (size_t i = 0; i < code_dim * 4; ++i)
+        out[i] = uint8_t(std::clamp(
+            std::nearbyint(ref_lut_scratch_[i] / delta_), 0.f, 255.f));
+    }
+    lut_ = out;
   }
 
   [[nodiscard]] const uint8_t *lut() const {

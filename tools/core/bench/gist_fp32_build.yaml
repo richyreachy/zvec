@@ -1,4 +1,4 @@
-# Explicit FP32 preset; preserves the validated FP32 build/search settings.
+# Explicit FP32 preset with build-time SymQG codec training.
 # The original gist_build.yaml remains available for existing commands.
 # GIST 1M: 960-dimensional FP32 vectors, squared L2 distance.
 # Usage and validation: TESTING.zh-CN.md; algorithm: ALGORITHM.zh-CN.md.
@@ -31,3 +31,18 @@ QuantizedGraphRouter:
   Anchors: 8192
   ProjectedDimension: 256
   Seed: 202610261259
+
+# Train the codec from this graph and persist both parameters and encoded blocks.
+# No external model file or query/ground-truth data is needed.
+QuantizedGraph:
+  Persist: true
+  MaxNeighbors: 64
+  ThreadCount: 8
+  Codec:
+    Type: low_rank
+    BlockDimension: 8
+    Codebook: gaussian
+    Rank: 8
+    TrainingSamples: 1024
+    CenterWeight: 1.0
+    Seed: 20261031

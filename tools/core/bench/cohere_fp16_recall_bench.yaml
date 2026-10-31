@@ -1,6 +1,7 @@
+# Uses the embedded codec trained by the matching build YAML.
 # Cohere 1M: FP16 storage with FP32 input and refinement.
 # See FP16.zh-CN.md. Use cohere_fp16_build.yaml to build a new snapshot.
-# This snapshot reaches Recall@10=90.09%; rebuilt graphs need validation.
+# Validate recall on the newly trained snapshot before measuring QPS.
 # ./build/bin/recall tools/core/bench/cohere_fp16_recall_bench.yaml
 # ./build/bin/bench tools/core/bench/cohere_fp16_recall_bench.yaml
 IndexCommon:
@@ -42,7 +43,7 @@ IndexCommon:
 QueryConfig:
   QueryParam: >-
     {"index_type":"kHNSW","ef_search":64,
-     "quantized_graph_margin":0.006125,
+     "quantized_graph_margin":0.0057,
      "quantized_graph_bucket_width":0.004,
      "quantized_graph_max_expansions":64,
      "quantized_graph_route_beam":1,

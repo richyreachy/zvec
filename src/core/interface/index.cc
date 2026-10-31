@@ -557,9 +557,11 @@ int Index::open(const std::string &file_path, StorageOptions storage_options) {
   // whereas mutable MMapFileStorage requires a directory address in the header.
   // Read-only consumers can load the same native chunks through ReadStorage.
   if (ret == core::IndexError_Unsupported && storage_options.read_only &&
-      !storage_options.create_new &&
-      storage_options.type == StorageOptions::StorageType::kMMAP) {
-    storage_ = core::IndexFactory::CreateStorage("MMapFileReadStorage");
+      !storage_options.create_new) {
+    storage_ = core::IndexFactory::CreateStorage(
+        storage_options.type == StorageOptions::StorageType::kMMAP
+            ? "MMapFileReadStorage"
+            : "BufferReadStorage");
     if (!storage_) return core::IndexError_Runtime;
     ret = storage_->init(storage_params);
     if (ret == 0) ret = storage_->open(file_path, false);

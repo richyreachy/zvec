@@ -17,6 +17,7 @@
 #include <ailego/parallel/lock.h>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_provider.h>
+#include "algorithm/quantized_graph/quantized_graph_build_options.h"
 #include "hnsw_algorithm.h"
 #include "hnsw_streamer_entity.h"
 
@@ -40,6 +41,9 @@ class HnswStreamer : public IndexStreamer {
   // The trained router freezes further insertion; publish it via dump_snapshot.
   int train_quantized_graph_router(size_t anchors = 65536, size_t projected = 0,
                                    uint64_t seed = 202610261259ULL);
+  // Finalize an immutable graph for dump_snapshot, after router training.
+  // Train codec parameters from this graph; no files or environment overrides.
+  int build_quantized_graph(const QuantizedGraphBuildOptions &options);
 
   void merge_trained_meta(const IndexMeta &meta) override;
 
@@ -286,6 +290,7 @@ class HnswStreamer : public IndexStreamer {
   std::string quantized_graph_router_data_;
   IndexStorage::Pointer snapshot_storage_;
   bool quantized_graph_enabled_{false};
+  bool quantized_graph_persist_{false};
   std::shared_ptr<HnswQuantizedGraph> quantized_graph_;
   mutable std::shared_mutex quantized_graph_mutex_;
   std::unique_ptr<HnswStreamerEntity> entity_;

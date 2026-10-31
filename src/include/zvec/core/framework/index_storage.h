@@ -464,6 +464,11 @@ class IndexStorage : public IndexModule {
     //! Fetch data from segment (with own buffer)
     virtual size_t fetch(size_t offset, void *buf, size_t len) const = 0;
 
+    // Optional hint after a one-pass copy. Data and existing read handles stay
+    // valid; read-only mappings may drop resident pages that can be faulted
+    // back from the file. Mutable/owned buffers intentionally do nothing.
+    virtual void release_read_cache(size_t, size_t) {}
+
     //! Read data from segment. Keep the block alive while using its data.
     //! Resetting or destroying the block releases owned buffers/cache pins;
     //! mmap and memory-backed views still require their segment to stay alive.

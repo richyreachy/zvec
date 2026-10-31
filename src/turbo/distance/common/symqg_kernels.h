@@ -17,6 +17,21 @@
 #include <cstdint>
 
 namespace zvec::turbo {
+// Dot a query projection with 8/16/32 packed FP16 anchor coefficients.
+bool symqg_rank_dot(const float *, const char *, size_t, float *);
+// Row-major shared basis projection; input columns must be a multiple of 64.
+bool symqg_rank_project(const float *, const float *, size_t, size_t, float *);
+
+
+bool symqg_h8_lut(const float *, size_t, size_t, size_t, float *, uint8_t *,
+                  float *, float *);
+
+bool symqg_block_mean_distance(const float *q, const float *mean, size_t n,
+                               bool cosine, float *out);
+bool symqg_block_lut(const float *q, size_t dimension, const float *book,
+                     size_t block, size_t code_dim, float *scratch,
+                     uint8_t *lut, float *delta, float *sum_min);
+
 
 // Runtime-dispatched AVX512 kernels for the SymphonyQG query path. The build
 // compiles symqg_kernels_avx512.cc with an AVX512-capable -march; each

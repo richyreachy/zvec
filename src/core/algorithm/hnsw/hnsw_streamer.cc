@@ -126,6 +126,7 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
   quantized_graph_model_.clear();
   params.get(PARAM_HNSW_QUANTIZED_GRAPH_MODEL, &quantized_graph_model_);
   quantized_graph_enabled_ = false;
+  quantized_graph_persist_ = false;
   params.get(PARAM_HNSW_QUANTIZED_GRAPH_ENABLED, &quantized_graph_enabled_);
   quantized_graph_enabled_ |= !quantized_graph_model_.empty();
   bool external = false;
@@ -310,6 +311,7 @@ int HnswStreamer::cleanup() {
 
   quantized_graph_.reset();
   quantized_graph_enabled_ = false;
+  quantized_graph_persist_ = false;
   meta_.clear();
   metric_.reset();
   quantizer_.reset();
@@ -387,6 +389,9 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
 
   quantized_graph_router_data_.clear();
   snapshot_storage_.reset();
+  quantized_graph_.reset();
+  quantized_graph_persist_ =
+      bool(stg->get(HnswQuantizedGraph::kSnapshotSegment));
   if (auto segment = stg->get(kQuantizedGraphRouterSegment)) {
     const size_t bytes = segment->data_size();
     IndexStorage::MemoryBlock block;
@@ -670,18 +675,30 @@ int HnswStreamer::open(IndexStorage::Pointer stg) {
   if (quantized_graph_enabled_) {
     const auto layout = quantized_graph_layout(meta_, quantizer_.get());
     if (!layout) return IndexError_Unsupported;
-    quantized_graph_ = std::make_shared<HnswQuantizedGraph>(
-        layout->dimension, 32, layout->cosine, layout->vector_bytes,
-        quantized_graph_router_data_, layout->fp16);
-    const auto prebuild_start = std::chrono::steady_clock::now();
-    ret = quantized_graph_->prebuild(*entity_, entity_->doc_cnt(), 8);
-    if (ret != 0) {
-      return ret;
+    const auto start = std::chrono::steady_clock::now();
+    if (quantized_graph_persist_) {
+      ret = HnswQuantizedGraph::load(
+          *entity_, layout->dimension, layout->cosine, layout->vector_bytes,
+          quantized_graph_router_data_, layout->fp16,
+          snapshot_storage_->get(HnswQuantizedGraph::kSnapshotSegment),
+          quantized_graph_);
+    } else {
+      try {
+        quantized_graph_ = std::make_shared<HnswQuantizedGraph>(
+            layout->dimension, 32, layout->cosine, layout->vector_bytes,
+            quantized_graph_router_data_, layout->fp16);
+        ret = quantized_graph_->prebuild(*entity_, entity_->doc_cnt(), 8);
+      } catch (const std::exception &e) {
+        LOG_ERROR("Quantized graph prebuild failed: %s", e.what());
+        ret = IndexError_Runtime;
+      }
     }
+    if (ret != 0) return ret;
     LOG_INFO(
-        "HnswStreamer quantized_graph prebuild done, cost_ms=%d",
+        "HnswStreamer quantized_graph %s done, cost_ms=%d",
+        quantized_graph_persist_ ? "snapshot load" : "prebuild",
         static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                             std::chrono::steady_clock::now() - prebuild_start)
+                             std::chrono::steady_clock::now() - start)
                              .count()));
     alg_->set_quantized_graph(quantized_graph_);
   }
@@ -711,6 +728,7 @@ int HnswStreamer::close() {
   }
   snapshot_storage_.reset();
   quantized_graph_router_data_.clear();
+  quantized_graph_persist_ = false;
   state_ = STATE_INITED;
 
   return 0;
@@ -741,6 +759,8 @@ int DumpRouterSegment(const IndexDumper::Pointer &dumper,
 
 int HnswStreamer::dump(const IndexDumper::Pointer &dumper) {
   LOG_INFO("HnswStreamer dump");
+  // Compact dumps remap internal IDs. Cached blocks require native chunks.
+  if (quantized_graph_persist_) return IndexError_Unsupported;
 
   shared_mutex_.lock();
   AILEGO_DEFER([&]() { shared_mutex_.unlock(); });
@@ -761,6 +781,11 @@ int TrainHnswSnapshotRouter(IndexStreamer &streamer, size_t anchors,
   return hnsw ? hnsw->train_quantized_graph_router(anchors, projected, seed)
               : IndexError_Unsupported;
 }
+int BuildHnswSnapshotGraph(IndexStreamer &streamer,
+                           const QuantizedGraphBuildOptions &options) {
+  auto *hnsw = dynamic_cast<HnswStreamer *>(&streamer);
+  return hnsw ? hnsw->build_quantized_graph(options) : IndexError_Unsupported;
+}
 int DumpHnswSnapshot(IndexStreamer &streamer,
                      const IndexDumper::Pointer &dumper) {
   auto *hnsw = dynamic_cast<HnswStreamer *>(&streamer);
@@ -769,7 +794,8 @@ int DumpHnswSnapshot(IndexStreamer &streamer,
 
 int HnswStreamer::train_quantized_graph_router(size_t anchors, size_t projected,
                                                uint64_t seed) {
-  if (state_ != STATE_OPENED || quantized_graph_enabled_)
+  if (state_ != STATE_OPENED || quantized_graph_enabled_ ||
+      quantized_graph_persist_)
     return IndexError_NoReady;
   const auto layout = quantized_graph_layout(meta_, quantizer_.get());
   if (use_external_vector_ || !layout) return IndexError_Unsupported;
@@ -779,6 +805,36 @@ int HnswStreamer::train_quantized_graph_router(size_t anchors, size_t projected,
       data, layout->fp16);
   if (ret == 0) quantized_graph_router_data_ = std::move(data);
   return ret;
+}
+
+int HnswStreamer::build_quantized_graph(
+    const QuantizedGraphBuildOptions &options) {
+  if (state_ != STATE_OPENED) return IndexError_NoReady;
+  if (!options.valid()) return IndexError_InvalidArgument;
+  const auto layout = quantized_graph_layout(meta_, quantizer_.get());
+  if (use_external_vector_ || !layout || !HnswQuantizedGraph::supported())
+    return IndexError_Unsupported;
+  std::unique_lock<std::shared_mutex> lock(quantized_graph_mutex_);
+  std::string codec;
+  int ret = HnswQuantizedGraph::train_codec(*entity_, layout->dimension,
+                                            layout->cosine, layout->fp16,
+                                            options, codec);
+  if (ret != 0) return ret;
+  try {
+    auto graph = std::make_shared<HnswQuantizedGraph>(
+        layout->dimension, options.max_neighbors, layout->cosine,
+        layout->vector_bytes, quantized_graph_router_data_, layout->fp16,
+        &codec);
+    ret = graph->prebuild(*entity_, entity_->doc_cnt(), options.threads);
+    if (ret != 0) return ret;
+    quantized_graph_ = std::move(graph);
+    quantized_graph_persist_ = true;
+    if (quantized_graph_enabled_) alg_->set_quantized_graph(quantized_graph_);
+    return 0;
+  } catch (const std::exception &e) {
+    LOG_ERROR("Quantized graph snapshot build failed: %s", e.what());
+    return IndexError_Runtime;
+  }
 }
 
 int HnswStreamer::dump_snapshot(const IndexDumper::Pointer &dumper) {
@@ -795,7 +851,9 @@ int HnswStreamer::dump_snapshot(const IndexDumper::Pointer &dumper) {
   // Stream bounded blocks so large buffer-backed chunks need not be pinned
   // whole.
   for (const auto &[name, segment] : segments) {
-    if (name == kQuantizedGraphRouterSegment) continue;
+    if (name == kQuantizedGraphRouterSegment ||
+        (name == HnswQuantizedGraph::kSnapshotSegment && quantized_graph_))
+      continue;
     const size_t bytes = segment->data_size();
     uint32_t crc = 0;
     for (size_t offset = 0; offset < bytes;) {
@@ -807,15 +865,24 @@ int HnswStreamer::dump_snapshot(const IndexDumper::Pointer &dumper) {
       crc = ailego::Crc32c::Hash(block.data(), n, crc);
       offset += n;
     }
+    // Disabled QG is copied without loading its arena. Preserve the source
+    // integrity check instead of blessing corrupted bytes with a new CRC.
+    if (name == HnswQuantizedGraph::kSnapshotSegment &&
+        crc != segment->data_crc())
+      return IndexError_InvalidFormat;
     size_t padding = 0;
     int ret = HnswEntity::CalcAndAddPadding(dumper, bytes, &padding);
     if (ret != 0) return ret;
     ret = dumper->append(name, bytes, padding, crc);
     if (ret != 0) return ret;
   }
-  if (!quantized_graph_router_data_.empty())
-    return DumpRouterSegment(dumper, quantized_graph_router_data_);
-  return 0;
+  if (!quantized_graph_router_data_.empty()) {
+    const int ret = DumpRouterSegment(dumper, quantized_graph_router_data_);
+    if (ret != 0) return ret;
+  }
+  return quantized_graph_persist_ && quantized_graph_
+             ? quantized_graph_->dump(dumper)
+             : 0;
 }
 
 IndexStreamer::Context::Pointer HnswStreamer::create_context() const {
@@ -913,7 +980,8 @@ void HnswStreamer::bind_search_dist_space(HnswContext *ctx) const {
 int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
                                    const IndexQueryMeta &qmeta,
                                    IndexStreamer::Context::Pointer &context) {
-  if (quantized_graph_enabled_ || !quantized_graph_router_data_.empty()) {
+  if (quantized_graph_enabled_ || quantized_graph_persist_ ||
+      !quantized_graph_router_data_.empty()) {
     LOG_ERROR(
         "QuantizedGraph/router snapshots are immutable; rebuild to modify");
     return IndexError_Unsupported;
@@ -1021,7 +1089,8 @@ int HnswStreamer::add_with_id_impl(uint32_t id, const void *query,
 int HnswStreamer::add_impl(uint64_t pkey, const void *query,
                            const IndexQueryMeta &qmeta,
                            IndexStreamer::Context::Pointer &context) {
-  if (quantized_graph_enabled_ || !quantized_graph_router_data_.empty()) {
+  if (quantized_graph_enabled_ || quantized_graph_persist_ ||
+      !quantized_graph_router_data_.empty()) {
     LOG_ERROR(
         "QuantizedGraph/router snapshots are immutable; rebuild to modify");
     return IndexError_Unsupported;
@@ -1144,9 +1213,10 @@ int HnswStreamer::search_impl(const void *query, const IndexQueryMeta &qmeta,
   std::shared_lock<std::shared_mutex> qg_lock(quantized_graph_mutex_,
                                               std::defer_lock);
   if (quantized_graph_enabled_) qg_lock.lock();
-  const bool fp32_query =
-      quantized_graph_ && meta_.data_type() == IndexMeta::DT_FP16 &&
-      qmeta.data_type() == IndexMeta::DT_FP32 && !ctx->group_by_search();
+  const bool fp32_query = quantized_graph_enabled_ && quantized_graph_ &&
+                          meta_.data_type() == IndexMeta::DT_FP16 &&
+                          qmeta.data_type() == IndexMeta::DT_FP32 &&
+                          !ctx->group_by_search();
   int ret = check_params(query, qmeta, fp32_query);
   if (ailego_unlikely(ret != 0)) return ret;
   if (entity_->doc_cnt() <= ctx->get_bruteforce_threshold() &&

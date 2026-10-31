@@ -29,3 +29,17 @@ QuantizedGraphRouter:
   Anchors: 65536
   ProjectedDimension: 384
   Seed: 202610261259
+
+# Train the codec from this graph and persist both parameters and encoded blocks.
+# No external model file or query/ground-truth data is needed.
+QuantizedGraph:
+  Persist: true
+  MaxNeighbors: 32
+  ThreadCount: 8
+  Codec:
+    Type: global
+    BlockDimension: 6
+    Codebook: hadamard
+    TrainingSamples: 1024
+    CenterWeight: 0.5
+    Seed: 20261031

@@ -18,6 +18,8 @@
 // src/turbo/CMakeLists.txt). Every entry point runtime-gates on CpuFeatures
 // because a binary built on an AVX512 host may run on a lower-arch machine.
 
+#include <algorithm>
+#include <cmath>
 #include <ailego/internal/cpu_features.h>
 #include <turbo/distance/common/symqg_kernels.h>
 #include <zvec/ailego/internal/platform.h>
@@ -60,6 +62,168 @@ inline void hadamard64(float *v) {
 }
 
 }  // namespace
+
+bool symqg_h8_lut(const float *q, size_t dimension, size_t block,
+                  size_t code_dim, float *scratch, uint8_t *lut, float *delta,
+                  float *sum_min) {
+  if (!symqg_avx512_available() ||
+      !ailego::internal::CpuFeatures::static_flags_.AVX512DQ ||
+      !ailego::internal::CpuFeatures::static_flags_.AVX512VL ||
+      (block != 6 && block != 8) || code_dim % 16)
+    return false;
+  float range = 0, total_min = 0;
+  for (size_t group = 0; group < code_dim / 4; ++group) {
+    const size_t offset = group * block;
+    __m256 input = _mm256_setzero_ps();
+    if (offset < dimension) {
+      const size_t active = std::min(block, dimension - offset);
+      input = _mm256_maskz_loadu_ps(__mmask8((1u << active) - 1), q + offset);
+    }
+    __m512 value = _mm512_broadcast_f32x8(input);
+    __m512 other = _mm512_shuffle_ps(value, value, 0xB1);
+    value =
+        _mm512_mask_sub_ps(_mm512_add_ps(value, other), 0xAAAA, other, value);
+    other = _mm512_shuffle_ps(value, value, 0x4E);
+    value =
+        _mm512_mask_sub_ps(_mm512_add_ps(value, other), 0xCCCC, other, value);
+    other = _mm512_shuffle_f32x4(value, value, 0xB1);
+    value =
+        _mm512_mask_sub_ps(_mm512_add_ps(value, other), 0xF0F0, other, value);
+    value = _mm512_castsi512_ps(_mm512_mask_xor_epi32(
+        _mm512_castps_si512(value), 0xFF00, _mm512_castps_si512(value),
+        _mm512_set1_epi32(int32_t(0x80000000u))));
+    const float hi = _mm512_reduce_max_ps(value);
+    total_min -= hi;
+    range = std::max(range, 2 * hi);
+    _mm512_storeu_ps(scratch + group * 16,
+                     _mm512_add_ps(value, _mm512_set1_ps(hi)));
+  }
+  *delta = range > 0 ? range / 255 : 1;
+  *sum_min = total_min;
+  const __m512 inv = _mm512_set1_ps(1 / *delta);
+  for (size_t group = 0; group < code_dim / 4; ++group) {
+    const __m512 value =
+        _mm512_mul_ps(_mm512_loadu_ps(scratch + group * 16), inv);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(lut + group * 16),
+                     _mm512_cvtusepi32_epi8(_mm512_cvtps_epi32(value)));
+  }
+  return true;
+}
+
+
+bool symqg_rank_project(const float *matrix, const float *input, size_t rows,
+                        size_t columns, float *out) {
+  if (!symqg_avx512_available() || columns % 64) return false;
+  for (size_t row = 0; row < rows; ++row) {
+    const float *m = matrix + row * columns;
+    __m512 a = _mm512_setzero_ps(), b = a, c = a, d = a;
+    for (size_t i = 0; i < columns; i += 64) {
+      a = _mm512_fmadd_ps(_mm512_loadu_ps(m + i), _mm512_loadu_ps(input + i),
+                          a);
+      b = _mm512_fmadd_ps(_mm512_loadu_ps(m + i + 16),
+                          _mm512_loadu_ps(input + i + 16), b);
+      c = _mm512_fmadd_ps(_mm512_loadu_ps(m + i + 32),
+                          _mm512_loadu_ps(input + i + 32), c);
+      d = _mm512_fmadd_ps(_mm512_loadu_ps(m + i + 48),
+                          _mm512_loadu_ps(input + i + 48), d);
+    }
+    out[row] = _mm512_reduce_add_ps(
+        _mm512_add_ps(_mm512_add_ps(a, b), _mm512_add_ps(c, d)));
+  }
+  return true;
+}
+
+
+bool symqg_rank_dot(const float *query, const char *codes, size_t n,
+                    float *out) {
+  if (!symqg_avx512_available() || (n != 8 && n != 16 && n != 32)) return false;
+  __m512 acc = _mm512_setzero_ps();
+  size_t i = 0;
+  for (; i + 16 <= n; i += 16) {
+    const __m512 value = _mm512_cvtph_ps(
+        _mm256_loadu_si256(reinterpret_cast<const __m256i *>(codes + 2 * i)));
+    acc = _mm512_fmadd_ps(value, _mm512_loadu_ps(query + i), acc);
+  }
+  if (i < n) {
+    const __m128i half =
+        _mm_loadu_si128(reinterpret_cast<const __m128i *>(codes + 2 * i));
+    const __m256i packed =
+        _mm256_inserti128_si256(_mm256_setzero_si256(), half, 0);
+    acc = _mm512_fmadd_ps(_mm512_cvtph_ps(packed),
+                          _mm512_maskz_loadu_ps(0xff, query + i), acc);
+  }
+  *out = _mm512_reduce_add_ps(acc);
+  return true;
+}
+
+bool symqg_block_mean_distance(const float *q, const float *mean, size_t n,
+                               bool cosine, float *out) {
+  if (!symqg_avx512_available()) return false;
+  __m512d a = _mm512_setzero_pd(), b = _mm512_setzero_pd();
+  size_t i = 0;
+  if (cosine) {
+    for (; i + 16 <= n; i += 16) {
+      a = _mm512_fmadd_pd(_mm512_cvtps_pd(_mm256_loadu_ps(q + i)),
+                          _mm512_cvtps_pd(_mm256_loadu_ps(mean + i)), a);
+      b = _mm512_fmadd_pd(_mm512_cvtps_pd(_mm256_loadu_ps(q + i + 8)),
+                          _mm512_cvtps_pd(_mm256_loadu_ps(mean + i + 8)), b);
+    }
+  } else {
+    for (; i + 16 <= n; i += 16) {
+      const __m512d x =
+          _mm512_sub_pd(_mm512_cvtps_pd(_mm256_loadu_ps(q + i)),
+                        _mm512_cvtps_pd(_mm256_loadu_ps(mean + i)));
+      const __m512d y =
+          _mm512_sub_pd(_mm512_cvtps_pd(_mm256_loadu_ps(q + i + 8)),
+                        _mm512_cvtps_pd(_mm256_loadu_ps(mean + i + 8)));
+      a = _mm512_fmadd_pd(x, x, a);
+      b = _mm512_fmadd_pd(y, y, b);
+    }
+  }
+  double sum = _mm512_reduce_add_pd(_mm512_add_pd(a, b));
+  for (; i < n; ++i) {
+    if (cosine)
+      sum += double(q[i]) * mean[i];
+    else {
+      const double x = double(q[i]) - mean[i];
+      sum += x * x;
+    }
+  }
+  *out = cosine ? float(1 - sum) : float(sum);
+  return true;
+}
+
+bool symqg_block_lut(const float *q, size_t dimension, const float *book,
+                     size_t block, size_t code_dim, float *scratch,
+                     uint8_t *lut, float *delta, float *sum_min) {
+  if (!symqg_avx512_available() || !block || !code_dim || code_dim % 16)
+    return false;
+  const size_t groups = code_dim / 4;
+  float range = 0, total_min = 0;
+  for (size_t group = 0; group < groups; ++group) {
+    const size_t offset = group * block;
+    __m512 value = _mm512_setzero_ps();
+    for (size_t d = 0; d < block && offset + d < dimension; ++d)
+      value = _mm512_fmadd_ps(_mm512_set1_ps(q[offset + d]),
+                              _mm512_loadu_ps(book + d * 16), value);
+    const float lo = _mm512_reduce_min_ps(value),
+                hi = _mm512_reduce_max_ps(value);
+    total_min += lo;
+    range = std::max(range, hi - lo);
+    _mm512_storeu_ps(scratch + group * 16,
+                     _mm512_sub_ps(value, _mm512_set1_ps(lo)));
+  }
+  *delta = range > 0 ? range / 255 : 1;
+  *sum_min = total_min;
+  const __m512 inv = _mm512_set1_ps(1 / *delta);
+  for (size_t group = 0; group < groups; ++group) {
+    const __m512 value =
+        _mm512_mul_ps(_mm512_loadu_ps(scratch + group * 16), inv);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(lut + group * 16),
+                     _mm512_cvtusepi32_epi8(_mm512_cvtps_epi32(value)));
+  }
+  return true;
+}
 
 bool symqg_lut_build(const float *__restrict q, size_t padded_dim, uint8_t *lut,
                      float *delta, float *sum_vl, float *k1xsumq) {
@@ -336,6 +500,25 @@ bool symqg_scan(const uint8_t *codes, const uint8_t *lut, size_t padded_dim,
 #else
 
 namespace zvec::turbo {
+
+bool symqg_h8_lut(const float *, size_t, size_t, size_t, float *, uint8_t *,
+                  float *, float *) {
+  return false;
+}
+bool symqg_rank_project(const float *, const float *, size_t, size_t, float *) {
+  return false;
+}
+bool symqg_rank_dot(const float *, const char *, size_t, float *) {
+  return false;
+}
+bool symqg_block_mean_distance(const float *, const float *, size_t, bool,
+                               float *) {
+  return false;
+}
+bool symqg_block_lut(const float *, size_t, const float *, size_t, size_t,
+                     float *, uint8_t *, float *, float *) {
+  return false;
+}
 
 bool symqg_lut_build(const float *, size_t, uint8_t *, float *, float *,
                      float *) {

@@ -1,4 +1,5 @@
-# Explicit FP32 preset; preserves the validated FP32 build/search settings.
+# Uses the embedded codec trained by the matching build YAML.
+# Explicit FP32 preset paired with build-time SymQG codec training.
 # The original cohere_recall_bench.yaml remains available for existing commands.
 # Cohere 1M, cosine, Top10: best measured preset for the embedded-router
 # snapshot; revalidated with storage-backed refinement and initial bucket range.
@@ -50,7 +51,7 @@ IndexCommon:
 QueryConfig:
   QueryParam: >-
     {"index_type":"kHNSW","ef_search":64,
-     "quantized_graph_margin":0.001,
+     "quantized_graph_margin":0.005604166666666667,
      "quantized_graph_bucket_width":0.004,
      "quantized_graph_max_expansions":64,
      "quantized_graph_route_beam":1,
