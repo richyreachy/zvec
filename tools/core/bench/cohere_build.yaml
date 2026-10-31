@@ -1,0 +1,45 @@
+# Cohere 1M: 768-dimensional FP32 vectors, cosine distance.
+# Usage and validation: TESTING.zh-CN.md; algorithm: ALGORITHM.zh-CN.md.
+# Replace /data/cohere paths with local paths. BuildFile must be in the
+# local_builder .zvec.vecs format; a .fvecs or text file is not interchangeable.
+# From the repository root:
+#   ./build/bin/local_builder tools/core/bench/cohere_build.yaml
+# Use a new IndexPath/DumpPath for a fresh build. Search the DumpPath snapshot.
+BuilderCommon:
+  BuilderClass: HnswStreamer
+  BuildFile: /data/cohere/cohere_train_vector_1m.new.zvec.vecs
+  MetricName: Cosine
+  ConverterName: CosineFp32Converter
+  IndexPath: /data/cohere/cohere_work.index
+  DumpPath: /data/cohere/cohere_full.index
+  DumpFormat: streamer
+  MaxDocs: 1000000
+  ThreadCount: 8
+  LogLevel: info
+
+BuilderParams:
+  proxima.hnsw.streamer.max_neighbor_count: !!int 50
+  proxima.hnsw.streamer.efconstruction: !!int 500
+  proxima.hnsw.streamer.get_vector_enable: !!bool true
+
+# Train from database vectors and embed the router in the dumped snapshot.
+# 384 is the entry-routing projection; the indexed vectors remain 768-D.
+# A successful build logs: Router trained for embedded snapshot
+QuantizedGraphRouter:
+  Anchors: 65536
+  ProjectedDimension: 384
+  Seed: 202610261259
+
+# Train the codec from this graph and persist both parameters and encoded blocks.
+# No external model file or query/ground-truth data is needed.
+QuantizedGraph:
+  Persist: true
+  MaxNeighbors: 32
+  ThreadCount: 8
+  Codec:
+    Type: global
+    BlockDimension: 6
+    Codebook: hadamard
+    TrainingSamples: 1024
+    CenterWeight: 0.5
+    Seed: 20261031

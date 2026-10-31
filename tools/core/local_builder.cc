@@ -14,6 +14,7 @@
 
 #include <signal.h>
 #include <chrono>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <ailego/pattern/defer.h>
@@ -28,9 +29,11 @@
 #include "algorithm/hnsw_rabitq/rabitq_converter.h"
 #endif
 #include "algorithm/hnsw/hnsw_params.h"
+#include "algorithm/hnsw/hnsw_snapshot.h"
 #include "zvec/ailego/logger/logger.h"
 #include "zvec/core/framework/index_dumper.h"
 #include "zvec/core/framework/index_factory.h"
+#include "zvec/core/framework/index_helper.h"
 #include "zvec/core/framework/index_plugin.h"
 #include "zvec/core/framework/index_provider.h"
 #include "zvec/core/framework/index_reformer.h"
@@ -226,6 +229,87 @@ int setup_build_from_original(const string &builder_class,
   return 0;
 }
 
+bool parse_quantized_graph_options(const YAML::Node &qg,
+                                   QuantizedGraphBuildOptions &options) {
+  using Options = QuantizedGraphBuildOptions;
+  try {
+    if (!qg.IsMap())
+      throw std::invalid_argument("QuantizedGraph must be a map");
+    if (qg["Persist"]) (void)qg["Persist"].as<bool>();
+    for (const auto &item : qg) {
+      const auto key = item.first.as<string>();
+      if (key != "Persist" && key != "MaxNeighbors" && key != "ThreadCount" &&
+          key != "Codec")
+        throw std::invalid_argument(
+            "unknown QuantizedGraph option: " + key +
+            "; configure Codec for build-time training");
+    }
+    if (qg["MaxNeighbors"])
+      options.max_neighbors = qg["MaxNeighbors"].as<size_t>();
+    if (qg["ThreadCount"]) options.threads = qg["ThreadCount"].as<size_t>();
+    const auto codec = qg["Codec"];
+    if (codec) {
+      if (!codec.IsMap()) throw std::invalid_argument("Codec must be a map");
+      const auto type = codec["Type"] ? codec["Type"].as<string>() : "native";
+      if (type == "native")
+        options.codec = Options::Codec::Native;
+      else if (type == "global")
+        options.codec = Options::Codec::Global;
+      else if (type == "low_rank")
+        options.codec = Options::Codec::LowRank;
+      else
+        throw std::invalid_argument(
+            "Codec.Type must be native, global or low_rank");
+      for (const auto &item : codec) {
+        const auto key = item.first.as<string>();
+        if (key == "Type") continue;
+        if (options.codec == Options::Codec::Native)
+          throw std::invalid_argument(
+              "native codec does not take training options");
+        if (key == "BlockDimension")
+          options.block_dimension = item.second.as<size_t>();
+        else if (key == "TrainingSamples")
+          options.training_samples = item.second.as<size_t>();
+        else if (key == "Seed") {
+          const auto seed = item.second.as<int64_t>();
+          if (seed < 0 || seed > UINT32_MAX)
+            throw std::invalid_argument(
+                "Codec.Seed must be in [0, 4294967295]");
+          options.seed = uint32_t(seed);
+        } else if (key == "CenterWeight")
+          options.center_weight = item.second.as<double>();
+        else if (key == "Rank" && options.codec == Options::Codec::LowRank)
+          options.rank = item.second.as<size_t>();
+        else if (key == "Codebook") {
+          const auto book = item.second.as<string>();
+          if (book == "hadamard")
+            options.codebook = Options::Codebook::Hadamard;
+          else if (book == "gaussian")
+            options.codebook = Options::Codebook::Gaussian;
+          else
+            throw std::invalid_argument(
+                "Codec.Codebook must be hadamard or gaussian");
+        } else
+          throw std::invalid_argument("unknown or inapplicable Codec option: " +
+                                      key);
+      }
+      if (options.codec != Options::Codec::Native &&
+          (!qg["Persist"] || !qg["Persist"].as<bool>()))
+        throw std::invalid_argument("codec training requires Persist: true");
+    }
+    if (!options.valid())
+      throw std::invalid_argument(
+          "invalid QG options: degree=32..256 (multiple of 32), "
+          "threads=0..1024, "
+          "block=4/6/8 (Hadamard=6/8), rank=8/16/32, samples=1..16384, "
+          "weight=0..1");
+    return true;
+  } catch (const std::exception &e) {
+    LOG_ERROR("QuantizedGraph configuration error: %s", e.what());
+    return false;
+  }
+}
+
 bool check_config(YAML::Node &config_root) {
   auto common = config_root["BuilderCommon"];
   if (!common) {
@@ -236,8 +320,8 @@ bool check_config(YAML::Node &config_root) {
     LOG_ERROR("Can not find [BuilderClass] in config");
     return false;
   }
-  if (!common["BuildFile"]) {
-    LOG_ERROR("Can not find [BuildFile] in config");
+  if (!common["BuildFile"] && !common["InputIndex"]) {
+    LOG_ERROR("Need BuildFile or InputIndex in config");
     return false;
   }
   if (common["NeedTrain"] && common["NeedTrain"].as<bool>()) {
@@ -260,9 +344,34 @@ bool check_config(YAML::Node &config_root) {
     LOG_ERROR("Can not find [DumpPath] in config");
     return false;
   }
-  if (!config_root["BuilderParams"]) {
+  if (!config_root["BuilderParams"] && !common["InputIndex"]) {
     LOG_ERROR("Can not find [BuilderParams] in config");
     return false;
+  }
+  if (common["InputIndex"] && common["BuildFile"]) {
+    LOG_ERROR("InputIndex and BuildFile are mutually exclusive");
+    return false;
+  }
+  const auto qg = config_root["QuantizedGraph"];
+  if (qg || common["InputIndex"]) {
+    if (common["BuilderClass"].as<string>() != "HnswStreamer" ||
+        !common["DumpFormat"] ||
+        common["DumpFormat"].as<string>() != "streamer" ||
+        (qg && !qg.IsMap())) {
+      LOG_ERROR(
+          "QuantizedGraph/InputIndex requires HnswStreamer and "
+          "DumpFormat: streamer");
+      return false;
+    }
+    if (qg) {
+      QuantizedGraphBuildOptions options;
+      if (!parse_quantized_graph_options(qg, options)) return false;
+    }
+    if (common["InputIndex"] &&
+        (!qg || !qg["Persist"] || !qg["Persist"].as<bool>())) {
+      LOG_ERROR("InputIndex requires QuantizedGraph.Persist: true");
+      return false;
+    }
   }
   return true;
 }
@@ -523,9 +632,11 @@ int build_sparse_by_streamer(IndexStreamer::Pointer &streamer,
   return 0;
 }
 
-int do_build_by_streamer(IndexStreamer::Pointer &streamer,
-                         uint32_t thread_count, RetrievalMode retrieval_mode,
-                         const IndexStorage::Pointer &storage = nullptr) {
+int do_build_by_streamer(
+    IndexStreamer::Pointer &streamer, uint32_t thread_count,
+    RetrievalMode retrieval_mode,
+    const IndexStorage::Pointer &storage = nullptr,
+    const std::shared_ptr<zvec::turbo::Quantizer> &quantizer = nullptr) {
   int ret;
   std::atomic<size_t> finished{0};
   std::atomic<int> errcode{0};
@@ -603,7 +714,12 @@ int do_build_by_streamer(IndexStreamer::Pointer &streamer,
       uint64_t key = holder->get_key(id);
       int task_ret = 0;
       if (retrieval_mode == RM_DENSE) {
-        if (reformer) {
+        if (quantizer) {
+          task_ret = quantizer->quantize(holder->get_vector_by_index(id), qmeta,
+                                         &ovec, &ometa);
+          if (task_ret == 0)
+            task_ret = add_to_streamer(key, ovec.data(), ometa, ctx);
+        } else if (reformer) {
           task_ret = reformer->convert(holder->get_vector_by_index(id), qmeta,
                                        &ovec, &ometa);
           if (task_ret != 0) {
@@ -673,9 +789,10 @@ int do_build_by_streamer(IndexStreamer::Pointer &streamer,
   return 0;
 }
 
-int build_by_streamer(IndexStreamer::Pointer &streamer,
-                      YAML::Node &config_common,
-                      const IndexConverter::Pointer &converter) {
+int build_by_streamer(
+    IndexStreamer::Pointer &streamer, YAML::Node &config_common,
+    const IndexConverter::Pointer &converter,
+    const std::shared_ptr<zvec::turbo::Quantizer> &quantizer = nullptr) {
   if (!config_common["IndexPath"]) {
     LOG_ERROR("Miss params IndexPath for Streamer");
     return IndexError_InvalidArgument;
@@ -730,7 +847,8 @@ int build_by_streamer(IndexStreamer::Pointer &streamer,
 
   LOG_DEBUG("thread count: %zu, retrieval mode: %s", thread_count,
             retrieval_mode == 1 ? "Dense" : "Sparse");
-  return do_build_by_streamer(streamer, thread_count, retrieval_mode, storage);
+  return do_build_by_streamer(streamer, thread_count, retrieval_mode, storage,
+                              quantizer);
 }
 
 IndexSparseHolder::Pointer convert_sparse_holder(
@@ -1141,6 +1259,108 @@ int do_build_sparse(YAML::Node &config_root, YAML::Node &config_common) {
   return 0;
 }
 
+// Finalize after insertion. A saved codec is independent of process
+// environment.
+int finalize_quantized_graph(IndexStreamer &streamer,
+                             const YAML::Node &config_root) {
+  ailego::ElapsedTime timer;
+  int ret = 0;
+  const auto router_config = config_root["QuantizedGraphRouter"];
+  if (router_config) {
+    const int64_t anchors = router_config["Anchors"]
+                                ? router_config["Anchors"].as<int64_t>()
+                                : 65536;
+    const int64_t projected =
+        router_config["ProjectedDimension"]
+            ? router_config["ProjectedDimension"].as<int64_t>()
+            : 0;
+    if (anchors <= 0 || anchors > 65536 || projected < 0 || projected > 4096)
+      return -1;
+    const uint64_t seed = router_config["Seed"]
+                              ? router_config["Seed"].as<uint64_t>()
+                              : 202610261259ULL;
+    timer.reset();
+    ret = TrainHnswSnapshotRouter(streamer, anchors, projected, seed);
+    if (ret != 0) {
+      LOG_ERROR("Router training failed, ret=%d", ret);
+      return -1;
+    }
+    cout << "Router trained for embedded snapshot, cost_ms="
+         << timer.milli_seconds() << endl;
+  }
+
+  const auto qg = config_root["QuantizedGraph"];
+  if (qg && qg["Persist"] && qg["Persist"].as<bool>()) {
+    QuantizedGraphBuildOptions options;
+    if (!parse_quantized_graph_options(qg, options))
+      return IndexError_InvalidArgument;
+    timer.reset();
+    ret = BuildHnswSnapshotGraph(streamer, options);
+    if (ret != 0) {
+      LOG_ERROR("Quantized graph snapshot build failed, ret=%d", ret);
+      return ret;
+    }
+    cout << "Quantized graph prepared for embedded snapshot, cost_ms="
+         << timer.milli_seconds() << endl;
+  }
+  return 0;
+}
+
+// Upgrade an existing native snapshot without rebuilding/remapping its HNSW.
+// Open the source read-only and require a new output file.
+int persist_existing_snapshot(const YAML::Node &config_root) {
+  const auto common = config_root["BuilderCommon"];
+  const auto input = common["InputIndex"].as<string>();
+  const auto output = common["DumpPath"].as<string>();
+  if (input.empty() || output.empty() || std::filesystem::exists(output) ||
+      std::filesystem::weakly_canonical(input) ==
+          std::filesystem::weakly_canonical(output)) {
+    LOG_ERROR("InputIndex requires a distinct, new DumpPath");
+    return IndexError_InvalidArgument;
+  }
+  auto storage = IndexFactory::CreateStorage("MMapFileReadStorage");
+  if (!storage) return IndexError_NoExist;
+  int ret = storage->init({});
+  if (ret != 0) return ret;
+  ret = storage->open(input, false);
+  if (ret != 0) return ret;
+  IndexMeta meta;
+  ret = IndexHelper::DeserializeFromStorage(storage.get(), &meta);
+  if (ret != 0) return ret;
+  if (meta.streamer_name() != "HnswStreamer") return IndexError_Unsupported;
+  auto streamer = IndexFactory::CreateStreamer("HnswStreamer");
+  if (!streamer) return IndexError_NoExist;
+  auto params = meta.streamer_params();
+  params.set(PARAM_HNSW_QUANTIZED_GRAPH_ENABLED, false);
+  params.set(PARAM_HNSW_QUANTIZED_GRAPH_MODEL, string{});
+  std::shared_ptr<zvec::turbo::Quantizer> quantizer;
+  if (!meta.quantizer_name().empty()) {
+    quantizer = IndexFactory::CreateQuantizer(meta.quantizer_name());
+    if (!quantizer) return IndexError_Unsupported;
+    ret = quantizer->init(meta, meta.quantizer_params());
+    if (ret != 0) return ret;
+  }
+  ret = quantizer ? streamer->init(meta, params, quantizer)
+                  : streamer->init(meta, params);
+  if (ret != 0) return ret;
+  ret = streamer->open(storage);
+  if (ret != 0) return ret;
+  ret = finalize_quantized_graph(*streamer, config_root);
+  if (ret != 0) return ret;
+  auto dumper = IndexFactory::CreateDumper("FileDumper");
+  if (!dumper) return IndexError_NoExist;
+  ret = dumper->init({});
+  if (ret != 0) return ret;
+  ret = dumper->create(output);
+  if (ret != 0) return ret;
+  ret = DumpHnswSnapshot(*streamer, dumper);
+  if (ret != 0) return ret;
+  ret = dumper->close();
+  if (ret != 0) return ret;
+  cout << "Persisted quantized graph snapshot: " << output << endl;
+  return streamer->close();
+}
+
 int do_build(YAML::Node &config_root, YAML::Node &config_common) {
   string build_file = config_common["BuildFile"].as<string>();
   VecsIndexHolder::Pointer build_holder(new VecsIndexHolder);
@@ -1230,22 +1450,50 @@ int do_build(YAML::Node &config_root, YAML::Node &config_common) {
     return -1;
   }
   cout << "Created builder " << builder_class << endl;
+  const bool native_snapshot =
+      config_common["DumpFormat"] &&
+      config_common["DumpFormat"].as<string>() == "streamer";
+  const auto router_config = config_root["QuantizedGraphRouter"];
+  const bool hnsw_streamer = builder_class == "HnswStreamer" && streamer;
+  if (config_common["DumpFormat"] && !native_snapshot &&
+      config_common["DumpFormat"].as<string>() != "compact") {
+    LOG_ERROR("DumpFormat must be compact or streamer");
+    return -1;
+  }
+  if ((native_snapshot && !hnsw_streamer) ||
+      (router_config &&
+       (!router_config.IsMap() || !native_snapshot || !hnsw_streamer))) {
+    LOG_ERROR(
+        "QuantizedGraphRouter requires HnswStreamer and DumpFormat: streamer");
+    return -1;
+  }
 
 
   IndexConverter::Pointer build_converter;
   std::shared_ptr<zvec::turbo::Quantizer> build_quantizer;
   IndexHolder::Pointer cv_build_holder;
   if (!quantizer_name.empty()) {
-    // Quantizer path: only supported with IndexBuilder classes.  The
-    // streamer path feeds raw vectors from the global holder and relies on
-    // reformer info in the meta, which a quantizer does not provide.
     if (!builder) {
-      LOG_ERROR("QuantizerName is not supported with streamer class %s",
-                builder_class.c_str());
-      return -1;
+      // Stream from FP32 input, quantizing each record once in its worker.
+      // Avoid materializing a second, fully quantized training holder.
+      if (!hnsw_streamer || (quantizer_name != "Fp16Quantizer" &&
+                             quantizer_name != "Fp32Quantizer")) {
+        LOG_ERROR(
+            "Streamer QuantizerName requires HnswStreamer with "
+            "Fp32Quantizer or Fp16Quantizer");
+        return -1;
+      }
+      build_quantizer = IndexFactory::CreateQuantizer(quantizer_name);
+      if (!build_quantizer ||
+          build_quantizer->init(meta, quantizer_params) != 0)
+        return -1;
+      meta = build_quantizer->meta();
+      meta.set_quantizer(quantizer_name, 0, quantizer_params);
+      cv_build_holder = build_holder;
+    } else {
+      cv_build_holder = quantize_holder(quantizer_name, quantizer_params,
+                                        build_holder, meta, &build_quantizer);
     }
-    cv_build_holder = quantize_holder(quantizer_name, quantizer_params,
-                                      build_holder, meta, &build_quantizer);
     if (!cv_build_holder) {
       LOG_ERROR("Quantize holder failed.");
       return -1;
@@ -1293,7 +1541,8 @@ int do_build(YAML::Node &config_root, YAML::Node &config_common) {
       ret = builder->init(meta, params);
     }
   } else {
-    ret = streamer->init(meta, params);
+    ret = build_quantizer ? streamer->init(meta, params, build_quantizer)
+                          : streamer->init(meta, params);
   }
   if (ret < 0) {
     LOG_ERROR("Failed to init builder, ret=%d", ret);
@@ -1478,7 +1727,8 @@ int do_build(YAML::Node &config_root, YAML::Node &config_common) {
       retrieval_mode = "dense";
     }
 
-    ret = build_by_streamer(streamer, config_common, build_converter);
+    ret = build_by_streamer(streamer, config_common, build_converter,
+                            build_quantizer);
   }
   size_t build_time = timer.milli_seconds();
   if (ret < 0) {
@@ -1487,6 +1737,11 @@ int do_build(YAML::Node &config_root, YAML::Node &config_common) {
   }
   cout << "Build finished, consume " << build_time << "ms." << endl;
   signal(SIGINT, SIG_DFL);
+
+  if (router_config || config_root["QuantizedGraph"]) {
+    ret = finalize_quantized_graph(*streamer, config_root);
+    if (ret != 0) return ret;
+  }
 
   // DUMP
   IndexDumper::Pointer dumper = IndexFactory::CreateDumper("FileDumper");
@@ -1501,7 +1756,9 @@ int do_build(YAML::Node &config_root, YAML::Node &config_common) {
     return -1;
   }
   timer.reset();
-  ret = streamer ? streamer->dump(dumper) : builder->dump(dumper);
+  ret = native_snapshot
+            ? DumpHnswSnapshot(*streamer, dumper)
+            : (streamer ? streamer->dump(dumper) : builder->dump(dumper));
   size_t dump_time = timer.milli_seconds();
   if (ret == IndexError_NotImplemented) {
     LOG_WARN("Dump index not implemented");
@@ -1609,6 +1866,8 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if (config_common["InputIndex"])
+    return persist_existing_snapshot(config_root);
   if (retrieval_mode == RM_SPARSE) {
     return do_build_sparse(config_root, config_common);
   } else {

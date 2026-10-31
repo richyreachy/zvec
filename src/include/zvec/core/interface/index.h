@@ -396,6 +396,11 @@ class ZVEC_CORE_API HNSWIndex : public Index {
  protected:
   int create_and_init_streamer(const BaseIndexParam &param) override;
 
+  int _dense_search(const VectorData &query,
+                    const BaseIndexQueryParam::Pointer &search_param,
+                    SearchResult *result,
+                    core::IndexContext::Pointer &context) override;
+
   int create_and_init_converter_reformer(
       const QuantizerParam &param, const BaseIndexParam &index_param) override;
 

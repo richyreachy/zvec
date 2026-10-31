@@ -97,6 +97,10 @@ class HnswDistCalculator {
     dim_ = dim;
   }
 
+  const void *query() const {
+    return query_;
+  }
+
   //! Reset query vector data
   inline void reset_query(const void *query) {
     error_ = false;
@@ -244,6 +248,10 @@ class HnswDistCalculator {
 
   inline void set_error() {
     error_ = true;
+  }
+
+  void record_comparison() {
+    ++compare_cnt_;
   }
 
   //! Get distances compute times

@@ -13,9 +13,11 @@
 // limitations under the License.
 #pragma once
 
+#include <shared_mutex>
 #include <ailego/parallel/lock.h>
 #include <zvec/core/framework/index_framework.h>
 #include <zvec/core/framework/index_provider.h>
+#include "algorithm/quantized_graph/quantized_graph_build_options.h"
 #include "hnsw_algorithm.h"
 #include "hnsw_streamer_entity.h"
 
@@ -31,6 +33,17 @@ class HnswStreamer : public IndexStreamer {
 
   HnswStreamer(const HnswStreamer &streamer) = delete;
   HnswStreamer &operator=(const HnswStreamer &streamer) = delete;
+
+  // Native chunk snapshot, loadable by HnswStreamer/HNSWIndex. Unlike dump(),
+  // this preserves internal IDs and the streaming storage layout.
+  int dump_snapshot(const IndexDumper::Pointer &dumper);
+  // Call after construction has finished, with no concurrent mutations.
+  // The trained router freezes further insertion; publish it via dump_snapshot.
+  int train_quantized_graph_router(size_t anchors = 65536, size_t projected = 0,
+                                   uint64_t seed = 202610261259ULL);
+  // Finalize an immutable graph for dump_snapshot, after router training.
+  // Train codec parameters from this graph; no files or environment overrides.
+  int build_quantized_graph(const QuantizedGraphBuildOptions &options);
 
   void merge_trained_meta(const IndexMeta &meta) override;
 
@@ -208,11 +221,17 @@ class HnswStreamer : public IndexStreamer {
   void print_debug_info() override;
 
  private:
-  inline int check_params(const void *query,
-                          const IndexQueryMeta &qmeta) const {
+  inline int check_params(const void *query, const IndexQueryMeta &qmeta,
+                          bool allow_fp32_query = false) const {
     if (ailego_unlikely(!query)) {
       LOG_ERROR("null query");
       return IndexError_InvalidArgument;
+    }
+    if (allow_fp32_query && qmeta.meta_type() == IndexMeta::MT_DENSE &&
+        qmeta.data_type() == IndexMeta::DT_FP32 &&
+        qmeta.dimension() == meta_.dimension() &&
+        qmeta.element_size() == size_t(meta_.dimension()) * sizeof(float)) {
+      return 0;
     }
     if (ailego_unlikely(qmeta.dimension() != meta_.dimension() ||
                         qmeta.data_type() != meta_.data_type() ||
@@ -267,6 +286,13 @@ class HnswStreamer : public IndexStreamer {
     }
   };
 
+  std::string quantized_graph_model_;
+  std::string quantized_graph_router_data_;
+  IndexStorage::Pointer snapshot_storage_;
+  bool quantized_graph_enabled_{false};
+  bool quantized_graph_persist_{false};
+  std::shared_ptr<HnswQuantizedGraph> quantized_graph_;
+  mutable std::shared_mutex quantized_graph_mutex_;
   std::unique_ptr<HnswStreamerEntity> entity_;
   HnswAlgorithmBase::UPointer alg_;
   IndexMeta meta_{};

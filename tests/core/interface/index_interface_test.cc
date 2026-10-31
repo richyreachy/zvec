@@ -15,6 +15,7 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <functional>
@@ -36,12 +37,15 @@
 #endif
 #include <zvec/ailego/buffer/block_eviction_queue.h>
 #include <zvec/ailego/buffer/vector_page_table.h>
+#include <zvec/ailego/hash/crc32c.h>
 #include <zvec/ailego/utility/float_helper.h>
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_holder.h>
 #include "algorithm/cluster/cluster_params.h"
 #include "algorithm/hnsw/hnsw_entity.h"
 #include "algorithm/hnsw/hnsw_params.h"
+#include "algorithm/hnsw/hnsw_quantized_graph.h"
+#include "algorithm/hnsw/hnsw_snapshot.h"
 #include "algorithm/hnsw/hnsw_streamer.h"
 #include "algorithm/ivf/ivf_params.h"
 #include "algorithm/vamana/vamana_entity.h"
@@ -5432,3 +5436,961 @@ TEST(IndexInterface, NativeFp16CandidateBatchAroundTwelveIsExact) {
     zvec::test_util::RemoveTestFiles(path);
   }
 }
+
+namespace {
+// Observe the real search before Index::search resets its pooled context.
+TEST(QuantizedGraphOptions, UncertaintyBonusRoundTripAndValidation) {
+  HNSWQueryParam param;
+  param.quantized_graph_uncertainty_bonus = 0.15f;
+  auto decoded = IndexFactory::QueryParamDeserializeFromJson<HNSWQueryParam>(
+      IndexFactory::QueryParamSerializeToJson(param));
+  ASSERT_NE(nullptr, decoded);
+  EXPECT_FLOAT_EQ(0.15f, decoded->quantized_graph_uncertainty_bonus);
+  auto cloned = std::dynamic_pointer_cast<HNSWQueryParam>(decoded->clone());
+  ASSERT_NE(nullptr, cloned);
+  EXPECT_FLOAT_EQ(0.15f, cloned->quantized_graph_uncertainty_bonus);
+  for (const char *value : {"-0.1", "1.01", "\"invalid\""}) {
+    const std::string json = std::string(
+                                 "{\"index_type\":\"kHNSW\",\"quantized_graph_"
+                                 "uncertainty_bonus\":") +
+                             value + "}";
+    EXPECT_EQ(
+        nullptr,
+        IndexFactory::QueryParamDeserializeFromJson<HNSWQueryParam>(json));
+  }
+}
+
+class BudgetHnswIndex : public HNSWIndex {
+ public:
+  using HNSWIndex::init;
+  uint32_t expanded = 0;
+  size_t comparisons = 0;
+  uint32_t exact_scan_budget = 0;
+  bool force_graph_search = true;
+  zvec::core::IndexStreamer *native_streamer() {
+    return streamer_.get();
+  }
+  int train_router(size_t anchors, size_t projected) {
+    auto *streamer = dynamic_cast<zvec::core::HnswStreamer *>(streamer_.get());
+    return streamer ? streamer->train_quantized_graph_router(anchors, projected)
+                    : zvec::core::IndexError_Unsupported;
+  }
+
+ protected:
+  int _dense_search(const VectorData &query,
+                    const BaseIndexQueryParam::Pointer &param,
+                    SearchResult *result,
+                    zvec::core::IndexContext::Pointer &context) override {
+    context->set_debug_mode(true);
+    // Small fixtures otherwise take the streamer's brute-force shortcut.
+    context->set_bruteforce_threshold(force_graph_search ? 0 : 1000);
+    auto *ctx = dynamic_cast<zvec::core::HnswContext *>(context.get());
+    if (ctx && exact_scan_budget) ctx->set_max_scan_num(exact_scan_budget);
+    const int ret = HNSWIndex::_dense_search(query, param, result, context);
+    if (ctx) {
+      expanded = *ctx->mutable_stats_get_neighbors();
+      comparisons = ctx->get_scan_num();
+    }
+    context->set_debug_mode(false);
+    return ret;
+  }
+};
+
+class QuantizedGraphBudgetTest : public testing::TestWithParam<MetricType> {
+ protected:
+  virtual QuantizerParam::Pointer quantizer() const {
+    return nullptr;
+  }
+  void SetUp() override {
+    if (!zvec::core::HnswQuantizedGraph::supported())
+      GTEST_SKIP() << "Quantized graph requires AVX512/VNNI";
+    zvec::test_util::RemoveTestFiles(path_ + "*");
+    HNSWIndexParam param(GetParam(), kDimension, 16, 100);
+    param.data_type = DataType::DT_FP32;
+    param.use_id_map = true;
+    param.quantizer_param = quantizer();
+    BudgetHnswIndex builder;
+    ASSERT_EQ(0, builder.init(param));
+    ASSERT_EQ(0, builder.open(path_, {StorageOptions::StorageType::kMMAP,
+                                      /*create_new=*/true}));
+    std::mt19937 rng(17);
+    std::uniform_real_distribution<float> random(0, 1);
+    std::array<float, kDimension> vector;
+    for (uint32_t id = 0; id < 128; ++id) {
+      for (float &v : vector) v = random(rng);
+      if (id == 0) query_ = vector;
+      vectors_.push_back(vector);
+      ASSERT_EQ(0, builder.add({DenseVector{vector.data()}}, id));
+    }
+    ASSERT_EQ(0, builder.flush());
+    ASSERT_EQ(0, builder.close());
+    param.use_quantized_graph = true;
+    param.quantizer_param = quantizer();
+    ASSERT_EQ(0, index_.init(param));
+    StorageOptions storage;
+    storage.type = StorageOptions::StorageType::kMMAP;
+    storage.read_only = true;
+    ASSERT_EQ(0, index_.open(path_, storage));
+  }
+  void TearDown() override {
+    index_.close();
+    zvec::test_util::RemoveTestFiles(path_ + "*");
+  }
+  void search(uint32_t cap, uint32_t topk,
+              std::function<bool(uint64_t)> excluded, float bonus = 0) {
+    auto param = std::make_shared<HNSWQueryParam>();
+    param->topk = topk;
+    param->ef_search = 800;
+    param->quantized_graph_max_expansions = cap;
+    // Disable distance-based early stopping to exercise the expansion cap.
+    param->quantized_graph_margin = 1e6f;
+    param->quantized_graph_uncertainty_bonus = bonus;
+    param->filter = std::make_shared<IndexFilter>();
+    param->filter->set(std::move(excluded));
+    result_.doc_list_.clear();
+    ASSERT_EQ(0, index_.search({DenseVector{query_.data()}}, param, &result_));
+    EXPECT_EQ(cap, index_.expanded);
+  }
+  static constexpr size_t kDimension = 64;
+  const std::string path_ = "test_quantized_graph_budget.index";
+  std::array<float, kDimension> query_{};
+  std::vector<std::array<float, kDimension>> vectors_;
+  BudgetHnswIndex index_;
+  SearchResult result_;
+};
+
+TEST_P(QuantizedGraphBudgetTest, ExactRefinementHonorsPartialBatchBudgets) {
+  for (uint32_t budget : {1u, 3u, 4u, 5u, 7u, 8u, 9u, 10u}) {
+    index_.exact_scan_budget = budget;
+    search(16, 10, [](uint64_t) { return false; });
+    EXPECT_EQ(budget, index_.comparisons);
+    EXPECT_EQ(budget, result_.doc_list_.size());
+  }
+}
+
+TEST_P(QuantizedGraphBudgetTest, AllFilteredHonorsExpansionCap) {
+  search(16, 10, [](uint64_t) { return true; });
+  EXPECT_TRUE(result_.doc_list_.empty());
+  // Filtered nodes do not consume the exact-distance scan budget.
+  EXPECT_EQ(0u, index_.comparisons);
+}
+
+TEST_P(QuantizedGraphBudgetTest, BonusPreservesFilteredBudgets) {
+  for (float bonus : {0.15f, 1.f}) {
+    for (uint32_t cap : {1u, 9u, 16u}) {
+      search(cap, 10, [](uint64_t) { return true; }, bonus);
+      EXPECT_TRUE(result_.doc_list_.empty());
+      EXPECT_EQ(0u, index_.comparisons);
+      search(cap, 10, [](uint64_t key) { return key >= 3; }, bonus);
+      EXPECT_LE(result_.doc_list_.size(), 3u);
+      for (const auto &doc : result_.doc_list_) EXPECT_LT(doc.key(), 3u);
+    }
+  }
+}
+
+TEST_P(QuantizedGraphBudgetTest, InvalidBonusIsRejected) {
+  for (float bonus : {-0.1f, 1.01f, std::numeric_limits<float>::infinity(),
+                      std::numeric_limits<float>::quiet_NaN()}) {
+    auto param = std::make_shared<HNSWQueryParam>();
+    param->quantized_graph_uncertainty_bonus = bonus;
+    EXPECT_EQ(zvec::core::IndexError_InvalidArgument,
+              index_.search({DenseVector{query_.data()}}, param, &result_));
+  }
+}
+
+TEST_P(QuantizedGraphBudgetTest, FewerThanTopKHonorsExpansionCap) {
+  search(16, 10, [](uint64_t key) { return key >= 3; });
+  EXPECT_LE(result_.doc_list_.size(), 3u);
+  for (const auto &doc : result_.doc_list_) EXPECT_LT(doc.key(), 3u);
+}
+
+TEST_P(QuantizedGraphBudgetTest, SmallCapsOverrideMinimumExpansions) {
+  for (uint32_t cap : {1u, 3u, 9u}) {
+    for (uint32_t topk : {1u, 10u}) {
+      for (bool filtered : {false, true}) {
+        SCOPED_TRACE(testing::Message() << "cap=" << cap << " topk=" << topk
+                                        << " filtered=" << filtered);
+        search(cap, topk, [filtered](uint64_t) { return filtered; });
+        if (filtered) {
+          EXPECT_TRUE(result_.doc_list_.empty());
+          EXPECT_EQ(0u, index_.comparisons);
+        } else {
+          EXPECT_FALSE(result_.doc_list_.empty());
+        }
+      }
+    }
+  }
+}
+
+TEST_P(QuantizedGraphBudgetTest, RefinementMatchesExactTopKAfterFullTraversal) {
+  for (float bonus : {0.f, 0.15f, 1.f}) {
+    for (bool filtered : {false, true}) {
+      auto excluded = [filtered](uint64_t key) {
+        return filtered && key % 7 == 0;
+      };
+      search(128, 10, excluded, bonus);
+      std::vector<std::pair<double, uint64_t>> expected;
+      for (size_t id = 0; id < vectors_.size(); ++id) {
+        if (excluded(id)) continue;
+        double squared = 0, dot = 0, qnorm = 0, vnorm = 0;
+        for (size_t d = 0; d < kDimension; ++d) {
+          const double q = query_[d], v = vectors_[id][d];
+          squared += (q - v) * (q - v);
+          dot += q * v;
+          qnorm += q * q;
+          vnorm += v * v;
+        }
+        const double distance = GetParam() == MetricType::kCosine
+                                    ? 1. - dot / std::sqrt(qnorm * vnorm)
+                                    : squared;
+        expected.emplace_back(distance, id);
+      }
+      std::sort(expected.begin(), expected.end());
+      ASSERT_EQ(10u, result_.doc_list_.size());
+      for (size_t i = 0; i < result_.doc_list_.size(); ++i) {
+        EXPECT_EQ(expected[i].second, result_.doc_list_[i].key());
+        EXPECT_NEAR(expected[i].first, result_.doc_list_[i].score(), 1e-4);
+      }
+    }
+  }
+}
+
+// Refinement now reads storage-owned vectors instead of a private FP32 copy.
+// Exercise both mapped pointers and buffer-pool handles across index reopens.
+TEST_P(QuantizedGraphBudgetTest, RefinementMatchesAcrossStorageReopens) {
+  search(128, 10, [](uint64_t key) { return key % 7 == 0; });
+  std::vector<std::pair<uint64_t, float>> expected;
+  for (const auto &doc : result_.doc_list_)
+    expected.emplace_back(doc.key(), doc.score());
+  ASSERT_EQ(10u, expected.size());
+  for (auto type : {StorageOptions::StorageType::kBufferPool,
+                    StorageOptions::StorageType::kMMAP}) {
+    ASSERT_EQ(0, index_.close());
+    HNSWIndexParam param(GetParam(), kDimension, 16, 100);
+    param.data_type = DataType::DT_FP32;
+    param.use_id_map = true;
+    param.use_quantized_graph = true;
+    param.quantizer_param = quantizer();
+    ASSERT_EQ(0, index_.init(param));
+    StorageOptions storage;
+    storage.type = type;
+    storage.read_only = true;
+    ASSERT_EQ(0, index_.open(path_, storage));
+    for (size_t repeat = 0; repeat < 4; ++repeat) {
+      search(128, 10, [](uint64_t key) { return key % 7 == 0; });
+      ASSERT_EQ(expected.size(), result_.doc_list_.size());
+      for (size_t j = 0; j < expected.size(); ++j) {
+        EXPECT_EQ(expected[j].first, result_.doc_list_[j].key());
+        EXPECT_EQ(expected[j].second, result_.doc_list_[j].score());
+      }
+    }
+  }
+}
+
+class QuantizedGraphFp16Test : public QuantizedGraphBudgetTest {
+ protected:
+  QuantizerParam::Pointer quantizer() const override {
+    return std::make_shared<QuantizerParam>(QuantizerType::kFP16);
+  }
+};
+
+TEST_P(QuantizedGraphFp16Test, StoredValuesRefinedWithOriginalFp32Query) {
+  // Even below the usual small-index threshold, FP16 SymQG must preserve
+  // the original FP32 query instead of taking the rounded-query BF path.
+  index_.force_graph_search = false;
+  auto codec = zvec::core::IndexFactory::CreateQuantizer("Fp16Quantizer");
+  zvec::core::IndexMeta meta;
+  meta.set_meta(zvec::core::IndexMeta::DT_FP32, kDimension);
+  meta.set_metric(
+      GetParam() == MetricType::kCosine ? "Cosine" : "SquaredEuclidean", 0,
+      zvec::ailego::Params{});
+  ASSERT_EQ(0, codec->init(meta, {}));
+  for (size_t repeat = 0; repeat < 3; ++repeat) {
+    // Retain non-FP16-representable query values. A rounded query would fail
+    // the score comparison against this independent double-precision oracle.
+    for (size_t d = 0; d < kDimension; ++d)
+      query_[d] = .137123f + float((d + repeat * 7) % 19) * .0312345f;
+    search(128, 10, [](uint64_t key) { return key % 7 == 0; });
+    std::vector<std::pair<double, uint64_t>> expected;
+    double norm = 0;
+    for (float x : query_) norm += double(x) * x;
+    norm = std::sqrt(norm);
+    std::string encoded(codec->quantized_datapoint_vector_length(), '\0');
+    std::array<float, kDimension> stored;
+    for (size_t id = 0; id < vectors_.size(); ++id) {
+      if (id % 7 == 0) continue;
+      codec->quantize_data(vectors_[id].data(), encoded.data());
+      zvec::ailego::FloatHelper::ToFP32(
+          reinterpret_cast<const uint16_t *>(encoded.data()), kDimension,
+          stored.data());
+      double distance = GetParam() == MetricType::kCosine ? 1 : 0;
+      for (size_t d = 0; d < kDimension; ++d) {
+        if (GetParam() == MetricType::kCosine)
+          distance -= double(query_[d]) / norm * stored[d];
+        else {
+          const double diff = double(query_[d]) - stored[d];
+          distance += diff * diff;
+        }
+      }
+      expected.emplace_back(distance, id);
+    }
+    std::sort(expected.begin(), expected.end());
+    ASSERT_EQ(10u, result_.doc_list_.size());
+    for (size_t i = 0; i < 10; ++i) {
+      EXPECT_EQ(expected[i].second, result_.doc_list_[i].key());
+      EXPECT_NEAR(expected[i].first, result_.doc_list_[i].score(), 2e-6);
+    }
+  }
+}
+
+TEST_P(QuantizedGraphFp16Test, BudgetsAndStorageReopens) {
+  for (auto type : {StorageOptions::StorageType::kBufferPool,
+                    StorageOptions::StorageType::kMMAP}) {
+    ASSERT_EQ(0, index_.close());
+    HNSWIndexParam param(GetParam(), kDimension, 16, 100);
+    param.data_type = DataType::DT_FP32;
+    param.use_id_map = true;
+    param.quantizer_param = quantizer();
+    param.use_quantized_graph = true;
+    ASSERT_EQ(0, index_.init(param));
+    StorageOptions storage;
+    storage.type = type;
+    storage.read_only = true;
+    ASSERT_EQ(0, index_.open(path_, storage));
+    search(3, 10, [](uint64_t) { return true; });
+    EXPECT_LE(index_.expanded, 3u);
+    EXPECT_EQ(0u, index_.comparisons);
+    EXPECT_TRUE(result_.doc_list_.empty());
+    for (uint32_t cap = 1; cap <= 5; ++cap) {
+      index_.exact_scan_budget = cap;
+      search(128, 10, [](uint64_t) { return false; });
+      EXPECT_LE(index_.comparisons, cap);
+      EXPECT_GT(index_.comparisons, 0u);
+    }
+    index_.exact_scan_budget = 0;
+  }
+}
+
+TEST_P(QuantizedGraphFp16Test, NativeFp32BatchRestoresStoredQueryContext) {
+  auto *streamer = index_.native_streamer();
+  ASSERT_NE(nullptr, streamer);
+  auto context = streamer->create_context();
+  auto *ctx = dynamic_cast<zvec::core::HnswContext *>(context.get());
+  ASSERT_NE(nullptr, ctx);
+  ctx->set_topk(10);
+  ctx->set_ef(800);
+  ctx->set_quantized_graph_options({1e6f, 0, 128, 0, 0});
+  zvec::core::IndexQueryMeta fp32_meta(zvec::core::IndexMeta::DT_FP32,
+                                       kDimension);
+  std::vector<float> queries(2 * kDimension);
+  std::copy(query_.begin(), query_.end(), queries.begin());
+  for (size_t d = 0; d < kDimension; ++d)
+    queries[kDimension + d] = .137123f + float(d % 19) * .0312345f;
+  const auto original_queries = queries;
+
+  auto codec = zvec::core::IndexFactory::CreateQuantizer("Fp16Quantizer");
+  zvec::core::IndexMeta meta(zvec::core::IndexMeta::DT_FP32, kDimension);
+  meta.set_metric(
+      GetParam() == MetricType::kCosine ? "Cosine" : "SquaredEuclidean", 0,
+      zvec::ailego::Params{});
+  ASSERT_EQ(0, codec->init(meta, {}));
+  std::string encoded;
+  zvec::core::IndexQueryMeta stored_meta;
+  ASSERT_EQ(0,
+            codec->quantize(queries.data(), fp32_meta, &encoded, &stored_meta));
+  ASSERT_EQ(0, streamer->search_impl(encoded.data(), stored_meta, 1, context));
+  std::vector<std::pair<uint64_t, float>> stored_results;
+  for (const auto &doc : context->result())
+    stored_results.emplace_back(doc.key(), doc.score());
+  ASSERT_EQ(10u, stored_results.size());
+
+  auto param = std::make_shared<HNSWQueryParam>();
+  param->ef_search = 800;
+  param->quantized_graph_margin = 1e6f;
+  param->quantized_graph_max_expansions = 128;
+  param->quantized_graph_route_beam = 0;
+  std::vector<std::vector<std::pair<uint64_t, float>>> expected(2);
+  for (size_t q = 0; q < 2; ++q) {
+    SearchResult result;
+    ASSERT_EQ(0, index_.search({DenseVector{queries.data() + q * kDimension}},
+                               param, &result));
+    for (const auto &doc : result.doc_list_)
+      expected[q].emplace_back(doc.key(), doc.score());
+  }
+  ASSERT_EQ(0, streamer->search_impl(queries.data(), fp32_meta, 2, context));
+  EXPECT_EQ(nullptr, ctx->quantized_graph_fp32_query());
+  EXPECT_EQ(original_queries, queries);
+  for (size_t q = 0; q < 2; ++q) {
+    const auto &actual = context->result(q);
+    ASSERT_EQ(expected[q].size(), actual.size());
+    for (size_t i = 0; i < actual.size(); ++i) {
+      EXPECT_EQ(expected[q][i].first, actual[i].key());
+      EXPECT_EQ(expected[q][i].second, actual[i].score());
+    }
+  }
+  ASSERT_EQ(0, streamer->search_impl(encoded.data(), stored_meta, 1, context));
+  ASSERT_EQ(stored_results.size(), context->result().size());
+  for (size_t i = 0; i < stored_results.size(); ++i) {
+    EXPECT_EQ(stored_results[i].first, context->result()[i].key());
+    EXPECT_EQ(stored_results[i].second, context->result()[i].score());
+  }
+  EXPECT_EQ(
+      zvec::core::IndexError_Mismatch,
+      streamer->search_impl(queries.data(),
+                            zvec::core::IndexQueryMeta(
+                                zvec::core::IndexMeta::DT_FP32, kDimension + 1),
+                            1, context));
+  EXPECT_EQ(zvec::core::IndexError_InvalidArgument,
+            streamer->search_impl(nullptr, fp32_meta, 1, context));
+}
+
+TEST_P(QuantizedGraphFp16Test, FallbackSearchesPreserveStoredQueryScores) {
+  HNSWIndexParam config(GetParam(), kDimension, 16, 100);
+  config.data_type = DataType::DT_FP32;
+  config.use_id_map = true;
+  config.quantizer_param = quantizer();
+  BudgetHnswIndex reference;
+  ASSERT_EQ(0, reference.init(config));
+  StorageOptions storage;
+  storage.type = StorageOptions::StorageType::kMMAP;
+  storage.read_only = true;
+  ASSERT_EQ(0, reference.open(path_, storage));
+  for (int mode = 0; mode < 3; ++mode) {
+    auto param = std::make_shared<HNSWQueryParam>();
+    param->ef_search = 800;
+    param->fetch_vector = true;
+    if (mode == 1) {
+      param->bf_pks = std::make_shared<std::vector<uint64_t>>();
+      for (uint64_t id = 0; id < vectors_.size(); id += 3)
+        param->bf_pks->push_back(id);
+    } else if (mode == 0) {
+      param->is_linear = true;
+    } else {
+      param->group_by_param = std::make_shared<GroupByParam>();
+      param->group_by_param->group_topk = 2;
+      param->group_by_param->group_count = 3;
+      param->group_by_param->group_by = [](uint64_t key) {
+        return std::to_string(key % 3);
+      };
+    }
+    SearchResult expected, actual;
+    ASSERT_EQ(0,
+              reference.search({DenseVector{query_.data()}}, param, &expected));
+    ASSERT_EQ(0, index_.search({DenseVector{query_.data()}}, param, &actual));
+    if (mode == 2) {
+      ASSERT_EQ(3u, actual.group_doc_list_.size());
+      ASSERT_EQ(expected.group_doc_list_.size(), actual.group_doc_list_.size());
+      EXPECT_EQ(expected.group_reverted_vector_list_,
+                actual.group_reverted_vector_list_);
+      for (size_t g = 0; g < actual.group_doc_list_.size(); ++g) {
+        const auto &a = actual.group_doc_list_[g];
+        const auto &e = expected.group_doc_list_[g];
+        EXPECT_EQ(e.group_id(), a.group_id());
+        ASSERT_EQ(e.docs().size(), a.docs().size());
+        for (size_t i = 0; i < a.docs().size(); ++i) {
+          EXPECT_EQ(e.docs()[i].key(), a.docs()[i].key());
+          EXPECT_EQ(e.docs()[i].score(), a.docs()[i].score());
+        }
+      }
+      continue;
+    }
+    ASSERT_EQ(10u, actual.doc_list_.size());
+    ASSERT_EQ(expected.doc_list_.size(), actual.doc_list_.size());
+    EXPECT_EQ(expected.reverted_vector_list_, actual.reverted_vector_list_);
+    for (size_t i = 0; i < actual.doc_list_.size(); ++i) {
+      EXPECT_EQ(expected.doc_list_[i].key(), actual.doc_list_[i].key());
+      EXPECT_EQ(expected.doc_list_[i].score(), actual.doc_list_[i].score());
+    }
+  }
+  ASSERT_EQ(0, reference.close());
+}
+
+TEST(QuantizedGraphFp16, RouterTrainingNormalizesRoundedDirections) {
+  if (!zvec::core::HnswQuantizedGraph::supported()) GTEST_SKIP();
+  const std::string path = "qg_fp16_router_rounding.index";
+  zvec::test_util::RemoveTestFiles(path + "*");
+  HNSWIndexParam param(MetricType::kCosine, 3, 16, 100);
+  param.data_type = DataType::DT_FP32;
+  param.use_id_map = true;
+  param.quantizer_param =
+      std::make_shared<QuantizerParam>(QuantizerType::kFP16);
+  BudgetHnswIndex builder;
+  ASSERT_EQ(0, builder.init(param));
+  ASSERT_EQ(0, builder.open(path, {StorageOptions::StorageType::kMMAP, true}));
+  std::array<float, 3> v{1.f, 1.f, 1.f};
+  zvec::ailego::Float16 rounded;
+  rounded = 1.f / std::sqrt(3.f);
+  ASSERT_GT(std::abs(std::sqrt(3.) * float(rounded) - 1.), 1e-4);
+  for (uint64_t id = 0; id < 32; ++id)
+    ASSERT_EQ(0, builder.add({DenseVector{v.data()}}, id));
+  ASSERT_EQ(0, builder.train_router(16, 3));
+  ASSERT_EQ(0, builder.close());
+  zvec::test_util::RemoveTestFiles(path + "*");
+}
+
+// Explicit precision is independent of the dataset, dimension and metric.
+TEST(QuantizedGraphOptions, ExplicitPrecisionAcrossDimensions) {
+  if (!zvec::core::HnswQuantizedGraph::supported()) GTEST_SKIP();
+  const std::string path = "qg_precision_dimensions.index";
+  for (auto precision : {QuantizerType::kNone, QuantizerType::kFP16}) {
+    for (auto metric : {MetricType::kCosine, MetricType::kL2sq}) {
+      for (uint32_t dimension : {3u, 65u, 127u}) {
+        SCOPED_TRACE(testing::Message() << int(precision) << ":" << int(metric)
+                                        << ":" << dimension);
+        zvec::test_util::RemoveTestFiles(path + "*");
+        HNSWIndexParam param(metric, dimension, 16, 100);
+        param.data_type = DataType::DT_FP32;
+        param.use_id_map = true;
+        param.quantizer_param = std::make_shared<QuantizerParam>(precision);
+        BudgetHnswIndex builder;
+        ASSERT_EQ(0, builder.init(param));
+        ASSERT_EQ(
+            0, builder.open(path, {StorageOptions::StorageType::kMMAP, true}));
+        std::mt19937 rng(37);
+        std::uniform_real_distribution<float> random(.1f, 1.f);
+        std::vector<std::vector<float>> vectors(64,
+                                                std::vector<float>(dimension));
+        for (size_t id = 0; id < vectors.size(); ++id) {
+          for (float &x : vectors[id]) x = random(rng);
+          ASSERT_EQ(0, builder.add({DenseVector{vectors[id].data()}}, id));
+        }
+        ASSERT_EQ(0, builder.train_router(16, std::min(dimension, 16u)));
+        ASSERT_EQ(0, builder.flush());
+        ASSERT_EQ(0, builder.close());
+        param.use_quantized_graph = true;
+        auto restored = std::dynamic_pointer_cast<HNSWIndexParam>(
+            IndexFactory::DeserializeIndexParamFromJson(
+                param.serialize_to_json()));
+        ASSERT_NE(nullptr, restored);
+        ASSERT_NE(nullptr, restored->quantizer_param);
+        ASSERT_EQ(precision, restored->quantizer_param->type);
+        BudgetHnswIndex index;
+        ASSERT_EQ(0, index.init(*restored));
+        StorageOptions storage;
+        storage.type = StorageOptions::StorageType::kBufferPool;
+        storage.read_only = true;
+        ASSERT_EQ(0, index.open(path, storage));
+        std::vector<float> query(dimension);
+        double qnorm = 0;
+        for (float &x : query) {
+          x = random(rng);
+          qnorm += double(x) * x;
+        }
+        qnorm = std::sqrt(qnorm);
+        auto search_param = std::make_shared<HNSWQueryParam>();
+        search_param->topk = 8;
+        search_param->ef_search = 128;
+        search_param->quantized_graph_max_expansions = 64;
+        search_param->quantized_graph_margin = 1e6f;
+        SearchResult result;
+        ASSERT_EQ(0, index.search({DenseVector{query.data()}}, search_param,
+                                  &result));
+        ASSERT_EQ(64u, index.expanded);
+        auto codec = zvec::core::IndexFactory::CreateQuantizer(
+            precision == QuantizerType::kFP16 ? "Fp16Quantizer"
+                                              : "Fp32Quantizer");
+        zvec::core::IndexMeta meta;
+        meta.set_meta(zvec::core::IndexMeta::DT_FP32, dimension);
+        meta.set_metric(
+            metric == MetricType::kCosine ? "Cosine" : "SquaredEuclidean", 0,
+            zvec::ailego::Params{});
+        ASSERT_EQ(0, codec->init(meta, {}));
+        std::string encoded(codec->quantized_datapoint_vector_length(), '\0');
+        std::vector<float> values(dimension);
+        std::vector<std::pair<double, uint64_t>> expected;
+        for (size_t id = 0; id < vectors.size(); ++id) {
+          codec->quantize_data(vectors[id].data(), encoded.data());
+          if (precision == QuantizerType::kFP16)
+            zvec::ailego::FloatHelper::ToFP32(
+                reinterpret_cast<const uint16_t *>(encoded.data()), dimension,
+                values.data());
+          else
+            std::memcpy(values.data(), encoded.data(),
+                        dimension * sizeof(float));
+          double distance = metric == MetricType::kCosine ? 1 : 0;
+          for (size_t d = 0; d < dimension; ++d) {
+            if (metric == MetricType::kCosine)
+              distance -= double(query[d]) / qnorm * values[d];
+            else {
+              const double diff = double(query[d]) - values[d];
+              distance += diff * diff;
+            }
+          }
+          expected.emplace_back(distance, id);
+        }
+        std::sort(expected.begin(), expected.end());
+        ASSERT_EQ(8u, result.doc_list_.size());
+        for (size_t i = 0; i < 8; ++i) {
+          EXPECT_EQ(expected[i].second, result.doc_list_[i].key());
+          EXPECT_NEAR(expected[i].first, result.doc_list_[i].score(), 1e-4);
+        }
+        ASSERT_EQ(0, index.close());
+        zvec::test_util::RemoveTestFiles(path + "*");
+      }
+    }
+  }
+}
+
+
+// Isolate legacy research overrides; snapshots must not consult them on load.
+class QuantizedGraphTestEnvironment {
+ public:
+  QuantizedGraphTestEnvironment() {
+    for (const char *name : {"QG_BLOCK_MODEL", "QG_DEGREE"}) {
+      if (const char *value = std::getenv(name))
+        saved_.emplace_back(name, value);
+      unsetenv(name);
+    }
+  }
+  ~QuantizedGraphTestEnvironment() {
+    unsetenv("QG_BLOCK_MODEL");
+    unsetenv("QG_DEGREE");
+    for (const auto &item : saved_)
+      setenv(item.first.c_str(), item.second.c_str(), 1);
+  }
+
+ private:
+  std::vector<std::pair<std::string, std::string>> saved_;
+};
+
+int DumpQuantizedGraphForTest(BudgetHnswIndex &index, const std::string &path) {
+  auto dumper = zvec::core::IndexFactory::CreateDumper("FileDumper");
+  if (!dumper) return zvec::core::IndexError_NoExist;
+  int ret = dumper->init({});
+  if (ret != 0) return ret;
+  ret = dumper->create(path);
+  if (ret != 0) return ret;
+  ret = zvec::core::DumpHnswSnapshot(*index.native_streamer(), dumper);
+  if (ret != 0) return ret;
+  return dumper->close();
+}
+
+class QuantizedGraphSnapshotTest : public testing::TestWithParam<MetricType> {};
+
+TEST_P(QuantizedGraphSnapshotTest, NativeAndLearnedCodecsRoundTrip) {
+  if (!zvec::core::HnswQuantizedGraph::supported()) GTEST_SKIP();
+  QuantizedGraphTestEnvironment environment;
+  const std::string prefix = "qg_snapshot_roundtrip";
+  const uint32_t dimension = 65;
+  for (auto precision : {QuantizerType::kNone, QuantizerType::kFP16}) {
+    for (uint32_t mode : {0u, 1u, 3u}) {
+      SCOPED_TRACE(testing::Message() << int(precision) << ":" << mode);
+      zvec::test_util::RemoveTestFiles(prefix + "*");
+      unsetenv("QG_BLOCK_MODEL");
+      unsetenv("QG_DEGREE");
+      HNSWIndexParam param(GetParam(), dimension, 16, 100);
+      param.data_type = DataType::DT_FP32;
+      param.use_id_map = true;
+      param.quantizer_param = std::make_shared<QuantizerParam>(precision);
+      BudgetHnswIndex builder;
+      ASSERT_EQ(0, builder.init(param));
+      ASSERT_EQ(0, builder.open(prefix + ".work",
+                                {StorageOptions::StorageType::kMMAP, true}));
+      std::mt19937 rng(107);
+      std::uniform_real_distribution<float> random(.05f, 1.f);
+      std::vector<float> vector(dimension);
+      for (size_t id = 0; id < 128; ++id) {
+        for (float &v : vector) v = random(rng);
+        ASSERT_EQ(0, builder.add({DenseVector{vector.data()}},
+                                 (mode == 0 ? 1000 : 0) + id));
+      }
+      // Exercise both embedded routing and the centroid fallback.
+      if (mode != 0) ASSERT_EQ(0, builder.train_router(32, 16));
+      ASSERT_EQ(0, DumpQuantizedGraphForTest(builder, prefix + ".base"));
+      ASSERT_EQ(0, builder.close());
+      param.use_quantized_graph = true;
+      BudgetHnswIndex reference;
+      ASSERT_EQ(0, reference.init(param));
+      StorageOptions storage;
+      storage.type = StorageOptions::StorageType::kMMAP;
+      storage.read_only = true;
+      ASSERT_EQ(0, reference.open(prefix + ".base", storage));
+      using Options = zvec::core::QuantizedGraphBuildOptions;
+      Options options;
+      options.max_neighbors = mode == 3 ? 64 : 32;
+      options.threads = 2;
+      options.codec = mode == 0   ? Options::Codec::Native
+                      : mode == 1 ? Options::Codec::Global
+                                  : Options::Codec::LowRank;
+      options.block_dimension = 8;
+      options.training_samples = 24;
+      // Build-time training must also ignore legacy process overrides.
+      setenv("QG_BLOCK_MODEL", "/nonexistent/no_codec_file_at_build", 1);
+      setenv("QG_DEGREE", "invalid", 1);
+      ASSERT_EQ(0, zvec::core::BuildHnswSnapshotGraph(
+                       *reference.native_streamer(), options));
+      ASSERT_EQ(0, DumpQuantizedGraphForTest(reference, prefix + ".saved"));
+      std::vector<std::vector<float>> queries(8, vector);
+      for (auto &query : queries)
+        for (float &v : query) v = random(rng);
+      auto search = std::make_shared<HNSWQueryParam>();
+      search->topk = 10;
+      search->ef_search = 128;
+      search->quantized_graph_max_expansions = 32;
+      search->quantized_graph_margin = .05f;
+      search->quantized_graph_uncertainty_bonus = .15f;
+      std::vector<SearchResult> expected(queries.size());
+      std::vector<uint32_t> expanded(queries.size());
+      for (size_t i = 0; i < queries.size(); ++i) {
+        ASSERT_EQ(0, reference.search({DenseVector{queries[i].data()}}, search,
+                                      &expected[i]));
+        ASSERT_GT(reference.expanded, 0u);
+        expanded[i] = reference.expanded;
+      }
+      ASSERT_EQ(0, reference.close());
+      // Deliberately invalid values would make the legacy prebuild fail.
+      setenv("QG_BLOCK_MODEL", "/nonexistent/embedded_codec_only", 1);
+      setenv("QG_DEGREE", "invalid", 1);
+      for (auto type : {StorageOptions::StorageType::kMMAP,
+                        StorageOptions::StorageType::kBufferPool}) {
+        storage.type = type;
+        SCOPED_TRACE(int(type));
+        BudgetHnswIndex restored;
+        ASSERT_EQ(0, restored.init(param));
+        ASSERT_EQ(0, restored.open(prefix + ".saved", storage));
+        for (size_t i = 0; i < queries.size(); ++i) {
+          SearchResult actual;
+          ASSERT_EQ(0, restored.search({DenseVector{queries[i].data()}}, search,
+                                       &actual));
+          EXPECT_EQ(expanded[i], restored.expanded);
+          ASSERT_EQ(expected[i].doc_list_.size(), actual.doc_list_.size());
+          for (size_t j = 0; j < actual.doc_list_.size(); ++j) {
+            EXPECT_EQ(expected[i].doc_list_[j].key(),
+                      actual.doc_list_[j].key());
+            EXPECT_EQ(expected[i].doc_list_[j].score(),
+                      actual.doc_list_[j].score());
+          }
+        }
+        // A native re-dump must retain the embedded codec and blocks.
+        ASSERT_EQ(0, DumpQuantizedGraphForTest(restored, prefix + ".redump"));
+        ASSERT_EQ(0, restored.close());
+      }
+      BudgetHnswIndex redump;
+      ASSERT_EQ(0, redump.init(param));
+      ASSERT_EQ(0, redump.open(prefix + ".redump", storage));
+      ASSERT_EQ(0, redump.close());
+      // Cached snapshots stay immutable even with ordinary HNSW selected.
+      param.use_quantized_graph = false;
+      BudgetHnswIndex plain;
+      ASSERT_EQ(0, plain.init(param));
+      ASSERT_EQ(0, plain.open(prefix + ".saved", storage));
+      auto *native = plain.native_streamer();
+      auto context = native->create_context();
+      ASSERT_NE(nullptr, context);
+      zvec::core::IndexQueryMeta qmeta(native->meta().data_type(),
+                                       native->meta().dimension());
+      EXPECT_EQ(zvec::core::IndexError_Unsupported,
+                native->add_with_id_impl(99999, vector.data(), qmeta, context));
+      ASSERT_EQ(0, DumpQuantizedGraphForTest(plain, prefix + ".plaincopy"));
+      ASSERT_EQ(0, plain.close());
+      param.use_quantized_graph = true;
+      BudgetHnswIndex copied;
+      ASSERT_EQ(0, copied.init(param));
+      ASSERT_EQ(0, copied.open(prefix + ".plaincopy", storage));
+      SearchResult copied_result;
+      ASSERT_EQ(0, copied.search({DenseVector{queries[0].data()}}, search,
+                                 &copied_result));
+      ASSERT_EQ(expected[0].doc_list_.size(), copied_result.doc_list_.size());
+      for (size_t j = 0; j < copied_result.doc_list_.size(); ++j) {
+        EXPECT_EQ(expected[0].doc_list_[j].key(),
+                  copied_result.doc_list_[j].key());
+        EXPECT_EQ(expected[0].doc_list_[j].score(),
+                  copied_result.doc_list_[j].score());
+      }
+      ASSERT_EQ(0, copied.close());
+    }
+  }
+  zvec::test_util::RemoveTestFiles(prefix + "*");
+}
+
+
+int CorruptQuantizedGraphSnapshotForTest(
+    const std::string &source, const std::string &output,
+    const std::function<void(std::string &)> &mutate, bool repair_crc) {
+  auto storage = zvec::core::IndexFactory::CreateStorage("MMapFileReadStorage");
+  auto dumper = zvec::core::IndexFactory::CreateDumper("FileDumper");
+  if (!storage || !dumper) return zvec::core::IndexError_NoExist;
+  int ret = storage->init({});
+  if (ret != 0) return ret;
+  ret = storage->open(source, false);
+  if (ret != 0) return ret;
+  ret = dumper->init({});
+  if (ret != 0) return ret;
+  ret = dumper->create(output);
+  if (ret != 0) return ret;
+  for (const auto &[name, segment] : storage->get_all()) {
+    zvec::core::IndexStorage::MemoryBlock block;
+    if (segment->read(0, block, segment->data_size()) != segment->data_size() ||
+        !block.data())
+      return zvec::core::IndexError_ReadData;
+    std::string data(static_cast<const char *>(block.data()),
+                     segment->data_size());
+    if (name == zvec::core::HnswQuantizedGraph::kSnapshotSegment) mutate(data);
+    if (dumper->write(data.data(), data.size()) != data.size())
+      return zvec::core::IndexError_WriteData;
+    size_t padding = 0;
+    ret = zvec::core::HnswEntity::CalcAndAddPadding(dumper, data.size(),
+                                                    &padding);
+    if (ret != 0) return ret;
+    const auto crc = repair_crc
+                         ? zvec::ailego::Crc32c::Hash(data.data(), data.size())
+                         : segment->data_crc();
+    ret = dumper->append(name, data.size(), padding, crc);
+    if (ret != 0) return ret;
+  }
+  return dumper->close();
+}
+
+TEST(QuantizedGraphSnapshot, InvalidCacheIsRejectedInsteadOfRebuilt) {
+  if (!zvec::core::HnswQuantizedGraph::supported()) GTEST_SKIP();
+  QuantizedGraphTestEnvironment environment;
+  const std::string prefix = "qg_snapshot_corruption";
+  zvec::test_util::RemoveTestFiles(prefix + "*");
+  HNSWIndexParam param(MetricType::kL2sq, 64, 16, 100);
+  param.data_type = DataType::DT_FP32;
+  param.use_id_map = true;
+  BudgetHnswIndex builder;
+  ASSERT_EQ(0, builder.init(param));
+  ASSERT_EQ(0, builder.open(prefix + ".work",
+                            {StorageOptions::StorageType::kMMAP, true}));
+  std::array<float, 64> vector{};
+  for (size_t i = 0; i < 40; ++i) {
+    vector[i] = float(i + 1);
+    ASSERT_EQ(0, builder.add({DenseVector{vector.data()}}, i));
+  }
+  zvec::core::QuantizedGraphBuildOptions build_options;
+  build_options.threads = 1;
+  for (size_t degree : {0u, 31u, 33u, 288u}) {
+    build_options.max_neighbors = degree;
+    EXPECT_EQ(zvec::core::IndexError_InvalidArgument,
+              zvec::core::BuildHnswSnapshotGraph(*builder.native_streamer(),
+                                                 build_options));
+  }
+  build_options.max_neighbors = 32;
+  for (size_t samples : {0u, 16385u}) {
+    build_options.training_samples = samples;
+    EXPECT_EQ(zvec::core::IndexError_InvalidArgument,
+              zvec::core::BuildHnswSnapshotGraph(*builder.native_streamer(),
+                                                 build_options));
+  }
+  build_options.training_samples = 24;
+  build_options.center_weight = std::numeric_limits<double>::quiet_NaN();
+  EXPECT_EQ(zvec::core::IndexError_InvalidArgument,
+            zvec::core::BuildHnswSnapshotGraph(*builder.native_streamer(),
+                                               build_options));
+  build_options.center_weight = 1;
+  ASSERT_EQ(0, zvec::core::BuildHnswSnapshotGraph(*builder.native_streamer(),
+                                                  build_options));
+  ASSERT_EQ(0, DumpQuantizedGraphForTest(builder, prefix + ".saved"));
+  ASSERT_EQ(0, builder.close());
+  param.use_quantized_graph = true;
+  StorageOptions options;
+  options.type = StorageOptions::StorageType::kMMAP;
+  options.read_only = true;
+  // Check version, dimension, precision, degree, codec size, router binding,
+  // graph stride/count/entry, and a structurally invalid neighbor count.
+  const std::vector<std::pair<size_t, uint64_t>> corruptions{
+      {8, 999},         {16, 65}, {40, 1},           {48, 33},
+      {56, UINT64_MAX}, {64, 1},  {72, 1},           {80, 1},
+      {88, 39},         {96, 40}, {104, UINT32_MAX}, {232, UINT32_MAX}};
+  for (const auto &[offset, value] : corruptions) {
+    SCOPED_TRACE(offset);
+    ASSERT_EQ(0, CorruptQuantizedGraphSnapshotForTest(
+                     prefix + ".saved", prefix + ".bad",
+                     [&](std::string &data) {
+                       std::memcpy(data.data() + offset, &value, sizeof(value));
+                     },
+                     true));
+    BudgetHnswIndex restored;
+    ASSERT_EQ(0, restored.init(param));
+    EXPECT_NE(0, restored.open(prefix + ".bad", options));
+  }
+  for (bool repair_crc : {false, true}) {
+    ASSERT_EQ(0, CorruptQuantizedGraphSnapshotForTest(
+                     prefix + ".saved", prefix + ".bad",
+                     [repair_crc](std::string &data) {
+                       if (repair_crc)
+                         data.resize(data.size() - 1);
+                       else
+                         data.back() ^= 1;
+                     },
+                     repair_crc));
+    BudgetHnswIndex restored;
+    ASSERT_EQ(0, restored.init(param));
+    EXPECT_NE(0, restored.open(prefix + ".bad", options));
+    if (!repair_crc) {
+      auto ordinary_param = param;
+      ordinary_param.use_quantized_graph = false;
+      BudgetHnswIndex ordinary;
+      ASSERT_EQ(0, ordinary.init(ordinary_param));
+      ASSERT_EQ(0, ordinary.open(prefix + ".bad", options));
+      EXPECT_EQ(zvec::core::IndexError_InvalidFormat,
+                DumpQuantizedGraphForTest(ordinary, prefix + ".copy"));
+      ASSERT_EQ(0, ordinary.close());
+    }
+  }
+  zvec::test_util::RemoveTestFiles(prefix + "*");
+}
+
+
+TEST(QuantizedGraphSnapshot, PreparingCachePreservesOrdinaryFp16QueryMode) {
+  if (!zvec::core::HnswQuantizedGraph::supported()) GTEST_SKIP();
+  QuantizedGraphTestEnvironment environment;
+  const std::string path = "qg_snapshot_query_mode.index";
+  zvec::test_util::RemoveTestFiles(path + "*");
+  HNSWIndexParam param(MetricType::kL2sq, 64, 16, 100);
+  param.data_type = DataType::DT_FP32;
+  param.quantizer_param =
+      std::make_shared<QuantizerParam>(QuantizerType::kFP16);
+  BudgetHnswIndex index;
+  ASSERT_EQ(0, index.init(param));
+  ASSERT_EQ(0, index.open(path, {StorageOptions::StorageType::kMMAP, true}));
+  std::array<float, 64> values{};
+  for (uint32_t id = 0; id < 40; ++id) {
+    values[id] = float(id + 1);
+    ASSERT_EQ(0, index.add({DenseVector{values.data()}}, id));
+  }
+  auto *native = index.native_streamer();
+  auto context = native->create_context();
+  ASSERT_NE(nullptr, context);
+  context->set_topk(10);
+  context->set_bruteforce_threshold(0);
+  zvec::core::IndexQueryMeta fp32_meta(zvec::core::IndexMeta::DT_FP32, 64);
+  const int before = native->search_impl(values.data(), fp32_meta, 1, context);
+  ASSERT_NE(0, before);  // Native FP32 queries require enabled QG refinement.
+  auto query = std::make_shared<HNSWQueryParam>();
+  query->topk = 10;
+  query->ef_search = 64;
+  SearchResult expected;
+  ASSERT_EQ(0, index.search({DenseVector{values.data()}}, query, &expected));
+  zvec::core::QuantizedGraphBuildOptions options;
+  options.threads = 1;
+  ASSERT_EQ(0, zvec::core::BuildHnswSnapshotGraph(*native, options));
+  EXPECT_EQ(before, native->search_impl(values.data(), fp32_meta, 1, context));
+  SearchResult actual;
+  ASSERT_EQ(0, index.search({DenseVector{values.data()}}, query, &actual));
+  ASSERT_EQ(expected.doc_list_.size(), actual.doc_list_.size());
+  for (size_t i = 0; i < actual.doc_list_.size(); ++i) {
+    EXPECT_EQ(expected.doc_list_[i].key(), actual.doc_list_[i].key());
+    EXPECT_EQ(expected.doc_list_[i].score(), actual.doc_list_[i].score());
+  }
+  ASSERT_EQ(0, index.close());
+  zvec::test_util::RemoveTestFiles(path + "*");
+}
+
+INSTANTIATE_TEST_SUITE_P(CosineAndL2, QuantizedGraphSnapshotTest,
+                         testing::Values(MetricType::kCosine,
+                                         MetricType::kL2sq));
+
+INSTANTIATE_TEST_SUITE_P(CosineAndL2, QuantizedGraphFp16Test,
+                         testing::Values(MetricType::kCosine,
+                                         MetricType::kL2sq));
+
+INSTANTIATE_TEST_SUITE_P(CosineAndL2, QuantizedGraphBudgetTest,
+                         testing::Values(MetricType::kCosine,
+                                         MetricType::kL2sq),
+                         [](const testing::TestParamInfo<MetricType> &info) {
+                           return info.param == MetricType::kCosine ? "Cosine"
+                                                                    : "L2";
+                         });
+}  // namespace

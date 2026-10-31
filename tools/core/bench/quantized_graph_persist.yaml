@@ -1,0 +1,31 @@
+# 为已有的 HnswStreamer 快照增加持久化量化块，原索引只读。
+# local_builder tools/core/bench/quantized_graph_persist.yaml
+# 修改路径；DumpPath 必须是新文件。FP32/FP16、维度和度量从输入索引读取。
+BuilderCommon:
+  BuilderClass: HnswStreamer
+  InputIndex: /data/graph/native.index
+  DumpPath: /data/graph/quantized.index
+  DumpFormat: streamer
+  LogLevel: info
+
+# 新建索引时，也可把这个节加入原有的 BuildFile/IndexPath 构建配置。
+# 顺序：HNSW 构建 → 可选 QuantizedGraphRouter 训练 → Codec 训练 → 量化块构建 → dump。
+QuantizedGraph:
+  Persist: true
+  MaxNeighbors: 32           # 32 的倍数，范围 [32, 256]；GIST 已测配置为 64。
+  ThreadCount: 8            # 仅影响构建；0 使用硬件线程数。
+  Codec:
+    Type: global             # native / global / low_rank；省略整个 Codec 使用 native。
+    BlockDimension: 6        # hadamard 支持 6/8；gaussian 支持 4/6/8。
+    Codebook: hadamard        # gaussian 在构建时学习反对称高斯码本。
+    TrainingSamples: 1024     # 数据库邻域采样上限；范围 [1, 16384]。
+    CenterWeight: 0.5         # 对拟合中心偏移的收缩系数，范围 [0, 1]。
+    Seed: 20261031
+    # Rank: 8                # 仅 low_rank 使用，支持 8/16/32。
+    # native 模式只需 {Type: native}，其余训练字段应删除。
+
+# 模型字节、邻接块、局部系数和入口 ID 会保存到索引。
+# 检索配置只需保留 use_quantized_graph: true 及原有检索参数。
+# 重载自动使用内嵌编码参数，不读取外部码本文件或 QG_* 环境变量。
+# 没有量化块的旧索引继续现场 prebuild；损坏的快照返回错误。
+# 该格式保存不可变快照；修改向量或图结构后需要重新构建。
