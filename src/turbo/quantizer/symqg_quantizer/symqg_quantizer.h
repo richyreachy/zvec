@@ -30,6 +30,7 @@
 #include <turbo/distance/common/symqg_distance.h>
 #include <turbo/preprocessor/symqg_rotator/symqg_rotator.h>
 #include <zvec/ailego/utility/float_helper.h>
+#include "symqg_projection.h"
 
 namespace zvec::turbo {
 #if RABITQ_SUPPORTED
@@ -38,11 +39,13 @@ class SymQGBlockQuantizer {
   static constexpr size_t kBatchSize = rabitqlib::fastscan::kBatchSize;
   struct Query {
     std::vector<float> rotated;
+    std::vector<float> projected_query;
+    std::vector<uint8_t> projected_query_scratch;
     SymQGQuery lookup;
     float mean_distance = 0;
     std::vector<float> rank_query;
   };
-  static constexpr size_t kMaxModelBytes = 1 << 20;
+  static constexpr size_t kMaxModelBytes = 4 << 20;
   static std::string read_model(const std::string &path) {
     if (path.empty()) return {};
     std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -71,10 +74,13 @@ class SymQGBlockQuantizer {
     uint32_t header[5]{};
     file.read(reinterpret_cast<char *>(header), sizeof(header));
     file.read(reinterpret_cast<char *>(&lambda_), sizeof(lambda_));
-    if (!file || header[0] != 0x51474243 || header[1] != 1 ||
-        header[2] != dimension || (header[4] != 1 && header[4] != 3) ||
-        (header[3] != 4 && header[3] != 6 && header[3] != 8) ||
-        !std::isfinite(lambda_) || lambda_ < 0 || lambda_ > 1)
+    if (!file || header[0] != 0x51474243 ||
+        (header[1] != 1 && header[1] != 4) || header[2] != dimension ||
+        (header[4] != 1 && header[4] != 3) ||
+        (header[3] != 2 && header[3] != 4 && header[3] != 6 &&
+         header[3] != 8) ||
+        (header[1] == 4 && header[3] != 2) || !std::isfinite(lambda_) ||
+        lambda_ < 0 || lambda_ > 1)
       throw std::runtime_error("invalid block codebook model");
     block_dim_ = header[3];
     groups_ = (encoded_dim() + block_dim_ - 1) / block_dim_;
@@ -95,6 +101,11 @@ class SymQGBlockQuantizer {
                 4 * rank_basis_.size());
       for (float value : rank_basis_)
         if (!std::isfinite(value)) throw std::runtime_error("low-rank matrix");
+    }
+    if (header[1] == 4) {
+      projection_.load(file, encoded_dim());
+      groups_ = projection_.dimension() / block_dim_;
+      code_dim_ = ((groups_ * 4 + 63) / 64) * 64;
     }
     if (!file || file.peek() != std::char_traits<char>::eof())
       throw std::runtime_error("truncated block codebook model");
@@ -204,6 +215,12 @@ class SymQGBlockQuantizer {
       correction -= norm_difference;
       codes += anchor_bytes();
     }
+    const auto subspace =
+        projection_.enabled()
+            ? projection_.encode(vectors, count, a, words_, block_dim_)
+            : research::SymQGProjection::Encoded{};
+    const size_t space_dim =
+        projection_.enabled() ? projection_.dimension() : dim;
     std::vector<uint8_t> compact(count * bytes, 0);
     std::vector<double> residual(dim);
     rabitqlib::QGBatchDataMap<float> batch(codes, code_dim_);
@@ -216,34 +233,42 @@ class SymQGBlockQuantizer {
         a_dot_r += a[d] * residual[d];
       }
       const double alpha = std::sqrt(norm2 / dim);
+      const double *coordinate = projection_.enabled()
+                                     ? subspace.residual.data() + i * space_dim
+                                     : residual.data();
       double r_dot_b = 0, a_dot_b = 0;
       for (size_t group = 0; group < groups_; ++group) {
         const size_t offset = group * block_dim_;
-        const size_t active = std::min(block_dim_, dim - offset);
+        const size_t active = std::min(block_dim_, space_dim - offset);
         double best = -std::numeric_limits<double>::infinity();
         size_t label = 0;
         for (size_t j = 0; j < 16; ++j) {
           double dot = 0;
           for (size_t d = 0; d < active; ++d)
-            dot += residual[offset + d] * words_[j * block_dim_ + d];
+            dot += coordinate[offset + d] * words_[j * block_dim_ + d];
           const double score = 2 * alpha * dot - alpha * alpha * word_norm2_[j];
           if (score > best) {
             best = score;
             label = j;
           }
         }
+        if (projection_.enabled()) label = subspace.labels[i * groups_ + group];
         compact[i * bytes + group / 2] |=
             uint8_t(label << ((group & 1) ? 0 : 4));
         for (size_t d = 0; d < active; ++d) {
           const float word = words_[label * block_dim_ + d];
-          r_dot_b += residual[offset + d] * word;
-          a_dot_b += a[offset + d] * word;
+          r_dot_b += coordinate[offset + d] * word;
+          a_dot_b += (projection_.enabled() ? subspace.anchor[offset + d]
+                                            : a[offset + d]) *
+                     word;
         }
       }
       if (norm2 != 0 && !(r_dot_b > 0))
         throw std::runtime_error("nonpositive radial denominator");
       // Radial calibration makes r orthogonal to the reconstruction error.
-      const double beta = norm2 == 0 ? 0 : norm2 / r_dot_b;
+      const double beta = projection_.enabled()
+                              ? subspace.beta[i]
+                              : (norm2 == 0 ? 0 : norm2 / r_dot_b);
       batch.f_add()[i] =
           float(cosine_ ? beta * a_dot_b - a_dot_r
                         : norm2 + 2 * beta * a_dot_b - correction);
@@ -262,9 +287,14 @@ class SymQGBlockQuantizer {
       query.lookup.reset(query.rotated.data(), quantized_dim());
       return;
     }
-    query.lookup.reset_block(query.rotated.data(), encoded_dim(),
-                             columns_.data(), block_dim_, code_dim_,
-                             structured_);
+    if (projection_.enabled())
+      projection_.project_query(query.rotated.data(), query.projected_query,
+                                query.projected_query_scratch);
+    query.lookup.reset_block(
+        projection_.enabled() ? query.projected_query.data()
+                              : query.rotated.data(),
+        projection_.enabled() ? projection_.dimension() : encoded_dim(),
+        columns_.data(), block_dim_, code_dim_, structured_);
     if (symqg_block_mean_distance(query.rotated.data(), mean_.data(),
                                   encoded_dim(), cosine_, &query.mean_distance))
       return;
@@ -328,6 +358,7 @@ class SymQGBlockQuantizer {
   size_t rank_ = 0;
   std::vector<float> rank_basis_;
   SymQGRotation rotation_;
+  research::SymQGProjection projection_;
   bool cosine_;
   bool structured_ = false;
   size_t block_dim_ = 0, groups_ = 0, code_dim_ = 0;

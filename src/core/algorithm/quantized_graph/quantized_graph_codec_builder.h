@@ -14,6 +14,7 @@
 #include <vector>
 #include <rabitqlib/third/Eigen/Eigenvalues>
 #include <turbo/preprocessor/symqg_rotator/symqg_rotator.h>
+#include <turbo/quantizer/symqg_quantizer/symqg_projection.h>
 #include "quantized_graph_build_options.h"
 #include "quantized_graph_neighbors.h"
 #include "quantized_graph_sq8_center.h"
@@ -224,6 +225,7 @@ class SymQGCodecBuilder {
       put(&rank, sizeof(rank));
       put(basis.data(), basis.size() * sizeof(float));
     }
+    turbo::research::ExtendProjectionModelForResearch(result.data);
     return result;
   }
 
@@ -232,6 +234,14 @@ class SymQGCodecBuilder {
       const QuantizedGraphBuildOptions &options) {
     const size_t dim = options.block_dimension;
     std::vector<float> words(16 * dim);
+    if (dim == 2) {
+      constexpr float levels[]{-1.5104f, -.4528f, .4528f, 1.5104f};
+      for (size_t j = 0; j < 16; ++j) {
+        words[2 * j] = levels[j % 4];
+        words[2 * j + 1] = levels[j / 4];
+      }
+      return words;
+    }
     if (options.codebook == QuantizedGraphBuildOptions::Codebook::Hadamard) {
       for (size_t j = 0; j < 16; ++j)
         for (size_t d = 0; d < dim; ++d)

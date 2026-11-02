@@ -369,7 +369,7 @@ int HnswQuantizedGraph::load(const HnswEntity &entity, size_t dimension,
       header[1] != 1 || header[2] != dimension ||
       header[3] != stored_vector_bytes || header[4] != uint64_t(cosine) ||
       header[5] != uint64_t(fp16) || header[6] < 32 || header[6] > 256 ||
-      header[6] % 32 || header[7] > (1u << 20) ||
+      header[6] % 32 || header[7] > (4u << 20) ||
       header[7] > read.remaining() || header[8] != router_data.size() ||
       header[9] != ailego::Crc32c::Hash(router_data.data(), router_data.size()))
     return IndexError_InvalidFormat;

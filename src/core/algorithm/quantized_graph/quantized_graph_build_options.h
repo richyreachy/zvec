@@ -32,9 +32,10 @@ struct QuantizedGraphBuildOptions {
            (codec == Codec::Native || codec == Codec::Global ||
             codec == Codec::LowRank) &&
            (codebook == Codebook::Hadamard || codebook == Codebook::Gaussian) &&
-           (block_dimension == 4 || block_dimension == 6 ||
-            block_dimension == 8) &&
-           (codebook != Codebook::Hadamard || block_dimension != 4) &&
+           (block_dimension == 2 || block_dimension == 4 ||
+            block_dimension == 6 || block_dimension == 8) &&
+           (codebook != Codebook::Hadamard ||
+            (block_dimension != 2 && block_dimension != 4)) &&
            (rank == 8 || rank == 16 || rank == 32) && training_samples > 0 &&
            training_samples <= 16384 && std::isfinite(center_weight) &&
            center_weight >= 0 && center_weight <= 1;
