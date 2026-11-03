@@ -120,3 +120,21 @@ $$w'=\max\left(w,\operatorname{nextafter}\left(\frac{M}{N-3},+\infty\right)\righ
 - [量化参数训练](../../../src/core/algorithm/quantized_graph/quantized_graph_codec_builder.h)
 - [整数中心估计与误差界](../../../src/core/algorithm/quantized_graph/quantized_graph_integer_center.h)
 - [构建工具](../local_builder.cc)、[召回工具](../recall.cc)、[性能工具](../bench.cc)
+
+
+## 可选多视图旋转（RotationViews）
+
+`QuantizedGraph.RotationViews` 支持 1/2/4，默认 1。该选项对 native、global、low_rank 三种 codec、
+FP32/FP16 存储以及 cosine / squared L2 共用，不按数据集名称分流。
+每个视图使用独立符号的 Hadamard 变换，拼接后按 `1/sqrt(views)` 缩放。
+因此变换保持内积和范数，增加的是量化方向和编码长度，不改变原始向量维度、HNSW 图或精确重排距离。
+768 维沿用 H12×H64 变换，其余维度沿用原有补零规则；每个视图都采用相同规则。
+
+更多视图可降低量化误差，但会增加量化块大小、查询变换和邻居估距开销，并不保证所有数据集都更快。
+低秩多视图模型在原始坐标系求特征向量，再变换到拼接空间，避免协方差内存随视图数平方增长。
+单视图保留原有训练路径、随机序列和文件格式。
+
+多视图使用 codec 内层 V2 和路由 V4，分别记录视图数；外层快照版本保持不变。
+单视图仍使用原生空 codec 或学习 codec V1，以及路由 V2/V3。
+加载仅使用索引中的元数据，不读取 `QG_RESEARCH_ROTATION_VIEWS`。不一致的路由、codec 或块尺寸会被拒绝。
+旧版程序无法读取新的多视图模型；历史依赖环境变量生成的研究版索引应从原图重新构建，不能直接改名使用。

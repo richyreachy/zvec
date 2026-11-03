@@ -39,7 +39,21 @@ class SymQGCodecBuilder {
     if (!options.valid() || !dimension || dimension > 4096 || !docs ||
         docs >= UINT32_MAX)
       throw std::invalid_argument("invalid codec training options or shape");
-    if (options.codec == Options::Codec::Native) return {};
+    if (options.codec == Options::Codec::Native) {
+      Result native;
+      if (options.rotation_views != 1) {
+        const uint32_t header[]{0x51474243, 2, uint32_t(dimension), 0, 0};
+        const float lambda = 0;
+        const uint32_t views = options.rotation_views;
+        native.data.append(reinterpret_cast<const char *>(header),
+                           sizeof(header));
+        native.data.append(reinterpret_cast<const char *>(&lambda),
+                           sizeof(lambda));
+        native.data.append(reinterpret_cast<const char *>(&views),
+                           sizeof(views));
+      }
+      return native;
+    }
 
     auto read_vector = [&](uint32_t id) {
       typename Graph::Vector raw;
@@ -175,7 +189,8 @@ class SymQGCodecBuilder {
     result.lambda = float(options.center_weight *
                           (c > 0 ? std::clamp(-b / c, 0., 1.) : 0.));
     const auto words = train_words(options);
-    const uint32_t header[]{0x51474243, 1, uint32_t(dimension),
+    const uint32_t header[]{0x51474243, options.rotation_views == 1 ? 1u : 2u,
+                            uint32_t(dimension),
                             uint32_t(options.block_dimension),
                             options.codec == Options::Codec::LowRank ? 3u : 1u};
     auto put = [&](const void *data, size_t bytes) {
@@ -183,23 +198,37 @@ class SymQGCodecBuilder {
     };
     put(header, sizeof(header));
     put(&result.lambda, sizeof(result.lambda));
+    if (options.rotation_views != 1) {
+      const uint32_t views = options.rotation_views;
+      put(&views, sizeof(views));
+    }
     std::vector<float> mean32(dimension);
     for (size_t d = 0; d < dimension; ++d) mean32[d] = float(mean[d]);
     put(mean32.data(), dimension * sizeof(float));
     put(words.data(), words.size() * sizeof(float));
 
     if (options.codec == Options::Codec::LowRank) {
-      turbo::SymQGRotation rotation(dimension);
+      turbo::SymQGRotation rotation(dimension, options.rotation_views);
       const size_t padded = rotation.padded_dim();
-      Eigen::MatrixXd delta(rows.size(), padded);
+      // The frame is isometric: train in source coordinates, then transform
+      // its eigenvectors. Avoid a views^2 larger covariance for multi-view
+      // models. Keep the legacy path and its floating-point results intact.
+      const bool source_basis =
+          options.rotation_views > 1 && dimension >= options.rank;
+      const size_t training_dim = source_basis ? dimension : padded;
+      Eigen::MatrixXd delta(rows.size(), training_dim);
       std::vector<float> residual(dimension), rotated;
       for (size_t i = 0; i < rows.size(); ++i) {
         for (size_t d = 0; d < dimension; ++d)
           residual[d] = float(neighbor_means(i, d) -
                               ((1. - result.lambda) * centers(i, d) +
                                result.lambda * mean32[d]));
-        rotation.rotate(residual.data(), rotated);
-        for (size_t d = 0; d < padded; ++d) delta(i, d) = rotated[d];
+        if (source_basis)
+          for (size_t d = 0; d < dimension; ++d) delta(i, d) = residual[d];
+        else {
+          rotation.rotate(residual.data(), rotated);
+          for (size_t d = 0; d < padded; ++d) delta(i, d) = rotated[d];
+        }
       }
       // Uncentered second moment: U minimizes E||delta - U U^T delta||^2.
       const Eigen::MatrixXd covariance =
@@ -211,7 +240,20 @@ class SymQGCodecBuilder {
       std::vector<float> basis(rank * padded);
       double energy = 0;
       for (size_t j = 0; j < rank; ++j) {
-        const auto axis = eig.eigenvectors().col(padded - 1 - j);
+        const auto axis = eig.eigenvectors().col(training_dim - 1 - j);
+        if (source_basis) {
+          for (size_t d = 0; d < dimension; ++d) residual[d] = float(axis[d]);
+          rotation.rotate(residual.data(), rotated);
+          const auto pivot = std::max_element(
+              rotated.begin(), rotated.end(), [](float left, float right) {
+                return std::abs(left) < std::abs(right);
+              });
+          const float sign = *pivot < 0 ? -1.f : 1.f;
+          for (size_t d = 0; d < padded; ++d)
+            basis[j * padded + d] = sign * rotated[d];
+          energy += std::max(0., eig.eigenvalues()[training_dim - 1 - j]);
+          continue;
+        }
         Eigen::Index pivot;
         axis.cwiseAbs().maxCoeff(&pivot);
         const double sign = axis[pivot] < 0 ? -1 : 1;

@@ -776,9 +776,11 @@ int HnswStreamer::dump(const IndexDumper::Pointer &dumper) {
 }
 
 int TrainHnswSnapshotRouter(IndexStreamer &streamer, size_t anchors,
-                            size_t projected, uint64_t seed) {
+                            size_t projected, uint64_t seed,
+                            size_t rotation_views) {
   auto *hnsw = dynamic_cast<HnswStreamer *>(&streamer);
-  return hnsw ? hnsw->train_quantized_graph_router(anchors, projected, seed)
+  return hnsw ? hnsw->train_quantized_graph_router(anchors, projected, seed,
+                                                   rotation_views)
               : IndexError_Unsupported;
 }
 int BuildHnswSnapshotGraph(IndexStreamer &streamer,
@@ -793,7 +795,8 @@ int DumpHnswSnapshot(IndexStreamer &streamer,
 }
 
 int HnswStreamer::train_quantized_graph_router(size_t anchors, size_t projected,
-                                               uint64_t seed) {
+                                               uint64_t seed,
+                                               size_t rotation_views) {
   if (state_ != STATE_OPENED || quantized_graph_enabled_ ||
       quantized_graph_persist_)
     return IndexError_NoReady;
@@ -802,7 +805,7 @@ int HnswStreamer::train_quantized_graph_router(size_t anchors, size_t projected,
   std::string data;
   const int ret = HnswQuantizedGraph::train_router(
       *entity_, layout->dimension, layout->cosine, anchors, projected, seed,
-      data, layout->fp16);
+      data, layout->fp16, rotation_views);
   if (ret == 0) quantized_graph_router_data_ = std::move(data);
   return ret;
 }

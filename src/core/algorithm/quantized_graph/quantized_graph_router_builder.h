@@ -89,6 +89,7 @@ class QuantizedGraphRouterBuilder {
     uint64_t seed = 202610261259ULL;
     size_t iterations = 10;
     size_t projected = 0;  // Zero selects half the original dimension.
+    size_t rotation_views = 1;
   };
   struct Group {
     std::array<Vector, kWidth> centers{};
@@ -105,19 +106,23 @@ class QuantizedGraphRouterBuilder {
     std::vector<Group> groups;
     size_t max_depth = 0, balanced_splits = 0, anchors = 0;
     size_t projected = kProjected;
+    size_t rotation_views = 1;
 
-    // V2 for the legacy 768/384 cosine layout, otherwise V3. The caller
+    // Single view: V2 for legacy 768/384 cosine, otherwise V3. Multiple
+    // views use V4. The caller
     // owns publication/overwrite policy; stream failures are never ignored.
     void write(std::ostream &out, size_t projection = 0) const {
       const size_t dim = mean.size();
       if (projection == 0) projection = projected;
-      turbo::SymQGRotation rotate(dim);
+      turbo::SymQGRotation rotate(dim, rotation_views);
       const size_t rotated_dim = rotate.padded_dim();
       if (projection == 0 || projection > rotated_dim)
         throw std::invalid_argument("invalid router projection");
       const size_t stride = (projection + 63) & ~size_t{63};
       const uint32_t version =
-          dim == 768 && projection == 384 && cosine ? 2 : 3;
+          rotation_views != 1
+              ? 4
+              : (dim == 768 && projection == 384 && cosine ? 2 : 3);
       const uint32_t endian = 1;
       if (*reinterpret_cast<const uint8_t *>(&endian) != 1)
         throw std::runtime_error("router writer requires little-endian host");
@@ -133,10 +138,14 @@ class QuantizedGraphRouterBuilder {
       std::vector<float> rotated_mean;
       rotate.rotate(mean.data(), rotated_mean);
       put(header, sizeof(header));
-      if (version == 3) {
+      if (version == 3 || version == 4) {
         const uint32_t extra[]{uint32_t(dim), cosine ? 0u : 1u,
                                uint32_t(rotated_dim), uint32_t(stride)};
         put(extra, sizeof(extra));
+        if (version == 4) {
+          const uint32_t views = rotation_views;
+          put(&views, sizeof(views));
+        }
       }
       put(mean.data(), dim * sizeof(float));
       put(&tag, sizeof(tag));
@@ -215,10 +224,13 @@ class QuantizedGraphRouterBuilder {
     const size_t projected = options.projected
                                  ? options.projected
                                  : std::max(size_t{1}, data.mean.size() / 2);
-    if (projected > turbo::SymQGRotation(data.mean.size()).padded_dim())
+    if (projected >
+        turbo::SymQGRotation(data.mean.size(), options.rotation_views)
+            .padded_dim())
       throw std::invalid_argument("projection exceeds rotated dimension");
     QuantizedGraphRouterBuilder builder(data, options);
     builder.model_.projected = projected;
+    builder.model_.rotation_views = options.rotation_views;
     std::vector<size_t> rows(data.ids.size());
     std::iota(rows.begin(), rows.end(), size_t{0});
     builder.split(rows, 0);

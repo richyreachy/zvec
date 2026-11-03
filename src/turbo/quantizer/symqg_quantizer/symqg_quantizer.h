@@ -42,7 +42,8 @@ class SymQGBlockQuantizer {
     float mean_distance = 0;
     std::vector<float> rank_query;
   };
-  static constexpr size_t kMaxModelBytes = 1 << 20;
+  // Covers rank-32, 4096D, four-view models, including their metadata.
+  static constexpr size_t kMaxModelBytes = 4 << 20;
   static std::string read_model(const std::string &path) {
     if (path.empty()) return {};
     std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -71,11 +72,26 @@ class SymQGBlockQuantizer {
     uint32_t header[5]{};
     file.read(reinterpret_cast<char *>(header), sizeof(header));
     file.read(reinterpret_cast<char *>(&lambda_), sizeof(lambda_));
-    if (!file || header[0] != 0x51474243 || header[1] != 1 ||
-        header[2] != dimension || (header[4] != 1 && header[4] != 3) ||
-        (header[3] != 4 && header[3] != 6 && header[3] != 8) ||
+    if (!file || header[0] != 0x51474243 ||
+        (header[1] != 1 && header[1] != 2) || header[2] != dimension ||
         !std::isfinite(lambda_) || lambda_ < 0 || lambda_ > 1)
       throw std::runtime_error("invalid block codebook model");
+    if (header[1] == 2) {
+      uint32_t views = 0;
+      file.read(reinterpret_cast<char *>(&views), sizeof(views));
+      if (!file || !SymQGRotation::valid_views(views))
+        throw std::runtime_error("invalid codec rotation views");
+      rotation_ = SymQGRotation(dimension, views);
+    }
+    if (header[4] == 0) {
+      if (header[1] != 2 || header[3] != 0 || lambda_ != 0 ||
+          file.peek() != std::char_traits<char>::eof())
+        throw std::runtime_error("invalid native transform model");
+      return;
+    }
+    if ((header[4] != 1 && header[4] != 3) ||
+        (header[3] != 4 && header[3] != 6 && header[3] != 8))
+      throw std::runtime_error("invalid block codebook shape");
     block_dim_ = header[3];
     groups_ = (encoded_dim() + block_dim_ - 1) / block_dim_;
     code_dim_ = ((groups_ * 4 + 63) / 64) * 64;
@@ -126,6 +142,9 @@ class SymQGBlockQuantizer {
   }
   size_t encoded_dim() const {
     return rotation_.padded_dim();
+  }
+  size_t rotation_views() const {
+    return rotation_.views();
   }
   const std::string &model_data() const {
     return model_data_;

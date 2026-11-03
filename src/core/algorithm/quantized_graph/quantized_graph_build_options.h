@@ -16,6 +16,8 @@ struct QuantizedGraphBuildOptions {
   enum class Codebook { Hadamard, Gaussian };
   size_t max_neighbors = 32;
   size_t threads = 8;
+  // Independent signed rotations; persisted with the codec (1 is legacy).
+  size_t rotation_views = 1;
   Codec codec = Codec::Native;
   Codebook codebook = Codebook::Hadamard;
   size_t block_dimension = 6;
@@ -29,6 +31,8 @@ struct QuantizedGraphBuildOptions {
   bool valid() const {
     return max_neighbors >= 32 && max_neighbors <= 256 &&
            max_neighbors % 32 == 0 && threads <= 1024 &&
+           (rotation_views == 1 || rotation_views == 2 ||
+            rotation_views == 4) &&
            (codec == Codec::Native || codec == Codec::Global ||
             codec == Codec::LowRank) &&
            (codebook == Codebook::Hadamard || codebook == Codebook::Gaussian) &&

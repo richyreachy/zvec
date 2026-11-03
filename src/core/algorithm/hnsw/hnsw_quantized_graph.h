@@ -45,7 +45,8 @@ class HnswQuantizedGraph {
   static bool supported();
   static int train_router(const HnswEntity &entity, size_t dimension,
                           bool cosine, size_t anchors, size_t projected,
-                          uint64_t seed, std::string &data, bool fp16 = false);
+                          uint64_t seed, std::string &data, bool fp16 = false,
+                          size_t rotation_views = 1);
   ~HnswQuantizedGraph();
   int search(uint32_t entry, HnswContext &ctx) const;
   int prebuild(const HnswEntity &entity, size_t doc_cnt, size_t threads);

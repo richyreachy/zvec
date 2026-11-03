@@ -7,7 +7,8 @@
 namespace zvec::core {
 // Separate bridge avoids including dense and RaBitQ HNSW internals together.
 int TrainHnswSnapshotRouter(IndexStreamer &streamer, size_t anchors,
-                            size_t projected, uint64_t seed);
+                            size_t projected, uint64_t seed,
+                            size_t rotation_views = 1);
 int BuildHnswSnapshotGraph(IndexStreamer &streamer,
                            const QuantizedGraphBuildOptions &options);
 int DumpHnswSnapshot(IndexStreamer &streamer,

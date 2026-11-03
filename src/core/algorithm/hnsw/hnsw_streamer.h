@@ -40,7 +40,8 @@ class HnswStreamer : public IndexStreamer {
   // Call after construction has finished, with no concurrent mutations.
   // The trained router freezes further insertion; publish it via dump_snapshot.
   int train_quantized_graph_router(size_t anchors = 65536, size_t projected = 0,
-                                   uint64_t seed = 202610261259ULL);
+                                   uint64_t seed = 202610261259ULL,
+                                   size_t rotation_views = 1);
   // Finalize an immutable graph for dump_snapshot, after router training.
   // Train codec parameters from this graph; no files or environment overrides.
   int build_quantized_graph(const QuantizedGraphBuildOptions &options);

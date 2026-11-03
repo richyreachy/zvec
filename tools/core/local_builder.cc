@@ -239,7 +239,7 @@ bool parse_quantized_graph_options(const YAML::Node &qg,
     for (const auto &item : qg) {
       const auto key = item.first.as<string>();
       if (key != "Persist" && key != "MaxNeighbors" && key != "ThreadCount" &&
-          key != "Codec")
+          key != "Codec" && key != "RotationViews")
         throw std::invalid_argument(
             "unknown QuantizedGraph option: " + key +
             "; configure Codec for build-time training");
@@ -247,6 +247,12 @@ bool parse_quantized_graph_options(const YAML::Node &qg,
     if (qg["MaxNeighbors"])
       options.max_neighbors = qg["MaxNeighbors"].as<size_t>();
     if (qg["ThreadCount"]) options.threads = qg["ThreadCount"].as<size_t>();
+    if (qg["RotationViews"])
+      options.rotation_views = qg["RotationViews"].as<size_t>();
+    if (options.rotation_views != 1 &&
+        (!qg["Persist"] || !qg["Persist"].as<bool>()))
+      throw std::invalid_argument(
+          "multiple rotation views require Persist: true");
     const auto codec = qg["Codec"];
     if (codec) {
       if (!codec.IsMap()) throw std::invalid_argument("Codec must be a map");
@@ -300,7 +306,7 @@ bool parse_quantized_graph_options(const YAML::Node &qg,
     if (!options.valid())
       throw std::invalid_argument(
           "invalid QG options: degree=32..256 (multiple of 32), "
-          "threads=0..1024, "
+          "threads=0..1024, rotation views=1/2/4, "
           "block=4/6/8 (Hadamard=6/8), rank=8/16/32, samples=1..16384, "
           "weight=0..1");
     return true;
@@ -1274,6 +1280,9 @@ int finalize_and_dump(const YAML::Node &config_root,
     return IndexError_Unsupported;
   ailego::ElapsedTime timer;
   int ret = 0;
+  QuantizedGraphBuildOptions options;
+  if (qg && !parse_quantized_graph_options(qg, options))
+    return IndexError_InvalidArgument;
   if (router_config) {
     const int64_t anchors = router_config["Anchors"]
                                 ? router_config["Anchors"].as<int64_t>()
@@ -1288,7 +1297,8 @@ int finalize_and_dump(const YAML::Node &config_root,
                               ? router_config["Seed"].as<uint64_t>()
                               : 202610261259ULL;
     timer.reset();
-    ret = TrainHnswSnapshotRouter(*streamer, anchors, projected, seed);
+    ret = TrainHnswSnapshotRouter(*streamer, anchors, projected, seed,
+                                  options.rotation_views);
     if (ret != 0) {
       LOG_ERROR("Router training failed, ret=%d", ret);
       return -1;
@@ -1298,9 +1308,6 @@ int finalize_and_dump(const YAML::Node &config_root,
   }
 
   if (qg && qg["Persist"] && qg["Persist"].as<bool>()) {
-    QuantizedGraphBuildOptions options;
-    if (!parse_quantized_graph_options(qg, options))
-      return IndexError_InvalidArgument;
     timer.reset();
     ret = BuildHnswSnapshotGraph(*streamer, options);
     if (ret != 0) {

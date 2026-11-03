@@ -5470,9 +5470,10 @@ class BudgetHnswIndex : public HNSWIndex {
   zvec::core::IndexStreamer *native_streamer() {
     return streamer_.get();
   }
-  int train_router(size_t anchors, size_t projected) {
+  int train_router(size_t anchors, size_t projected, size_t views = 1) {
     auto *streamer = dynamic_cast<zvec::core::HnswStreamer *>(streamer_.get());
-    return streamer ? streamer->train_quantized_graph_router(anchors, projected)
+    return streamer ? streamer->train_quantized_graph_router(
+                          anchors, projected, 202610261259ULL, views)
                     : zvec::core::IndexError_Unsupported;
   }
 
@@ -6036,13 +6037,15 @@ TEST(QuantizedGraphOptions, ExplicitPrecisionAcrossDimensions) {
 class QuantizedGraphTestEnvironment {
  public:
   QuantizedGraphTestEnvironment() {
-    for (const char *name : {"QG_BLOCK_MODEL", "QG_DEGREE"}) {
+    for (const char *name :
+         {"QG_BLOCK_MODEL", "QG_DEGREE", "QG_RESEARCH_ROTATION_VIEWS"}) {
       if (const char *value = std::getenv(name))
         saved_.emplace_back(name, value);
       unsetenv(name);
     }
   }
   ~QuantizedGraphTestEnvironment() {
+    unsetenv("QG_RESEARCH_ROTATION_VIEWS");
     unsetenv("QG_BLOCK_MODEL");
     unsetenv("QG_DEGREE");
     for (const auto &item : saved_)
@@ -6073,131 +6076,140 @@ TEST_P(QuantizedGraphSnapshotTest, NativeAndLearnedCodecsRoundTrip) {
   const std::string prefix = "qg_snapshot_roundtrip";
   const uint32_t dimension = 65;
   for (auto precision : {QuantizerType::kNone, QuantizerType::kFP16}) {
-    for (uint32_t mode : {0u, 1u, 3u}) {
-      SCOPED_TRACE(testing::Message() << int(precision) << ":" << mode);
-      zvec::test_util::RemoveTestFiles(prefix + "*");
-      unsetenv("QG_BLOCK_MODEL");
-      unsetenv("QG_DEGREE");
-      HNSWIndexParam param(GetParam(), dimension, 16, 100);
-      param.data_type = DataType::DT_FP32;
-      param.use_id_map = true;
-      param.quantizer_param = std::make_shared<QuantizerParam>(precision);
-      BudgetHnswIndex builder;
-      ASSERT_EQ(0, builder.init(param));
-      ASSERT_EQ(0, builder.open(prefix + ".work",
-                                {StorageOptions::StorageType::kMMAP, true}));
-      std::mt19937 rng(107);
-      std::uniform_real_distribution<float> random(.05f, 1.f);
-      std::vector<float> vector(dimension);
-      for (size_t id = 0; id < 128; ++id) {
-        for (float &v : vector) v = random(rng);
-        ASSERT_EQ(0, builder.add({DenseVector{vector.data()}},
-                                 (mode == 0 ? 1000 : 0) + id));
-      }
-      // Exercise both embedded routing and the centroid fallback.
-      if (mode != 0) ASSERT_EQ(0, builder.train_router(32, 16));
-      ASSERT_EQ(0, DumpQuantizedGraphForTest(builder, prefix + ".base"));
-      ASSERT_EQ(0, builder.close());
-      param.use_quantized_graph = true;
-      BudgetHnswIndex reference;
-      ASSERT_EQ(0, reference.init(param));
-      StorageOptions storage;
-      storage.type = StorageOptions::StorageType::kMMAP;
-      storage.read_only = true;
-      ASSERT_EQ(0, reference.open(prefix + ".base", storage));
-      using Options = zvec::core::QuantizedGraphBuildOptions;
-      Options options;
-      options.max_neighbors = mode == 3 ? 64 : 32;
-      options.threads = 2;
-      options.codec = mode == 0   ? Options::Codec::Native
-                      : mode == 1 ? Options::Codec::Global
-                                  : Options::Codec::LowRank;
-      options.block_dimension = 8;
-      options.training_samples = 24;
-      // Build-time training must also ignore legacy process overrides.
-      setenv("QG_BLOCK_MODEL", "/nonexistent/no_codec_file_at_build", 1);
-      setenv("QG_DEGREE", "invalid", 1);
-      ASSERT_EQ(0, zvec::core::BuildHnswSnapshotGraph(
-                       *reference.native_streamer(), options));
-      ASSERT_EQ(0, DumpQuantizedGraphForTest(reference, prefix + ".saved"));
-      std::vector<std::vector<float>> queries(8, vector);
-      for (auto &query : queries)
-        for (float &v : query) v = random(rng);
-      auto search = std::make_shared<HNSWQueryParam>();
-      search->topk = 10;
-      search->ef_search = 128;
-      search->quantized_graph_max_expansions = 32;
-      search->quantized_graph_margin = .05f;
-      search->quantized_graph_uncertainty_bonus = .15f;
-      std::vector<SearchResult> expected(queries.size());
-      std::vector<uint32_t> expanded(queries.size());
-      for (size_t i = 0; i < queries.size(); ++i) {
-        ASSERT_EQ(0, reference.search({DenseVector{queries[i].data()}}, search,
-                                      &expected[i]));
-        ASSERT_GT(reference.expanded, 0u);
-        expanded[i] = reference.expanded;
-      }
-      ASSERT_EQ(0, reference.close());
-      // Deliberately invalid values would make the legacy prebuild fail.
-      setenv("QG_BLOCK_MODEL", "/nonexistent/embedded_codec_only", 1);
-      setenv("QG_DEGREE", "invalid", 1);
-      for (auto type : {StorageOptions::StorageType::kMMAP,
-                        StorageOptions::StorageType::kBufferPool}) {
-        storage.type = type;
-        SCOPED_TRACE(int(type));
-        BudgetHnswIndex restored;
-        ASSERT_EQ(0, restored.init(param));
-        ASSERT_EQ(0, restored.open(prefix + ".saved", storage));
-        for (size_t i = 0; i < queries.size(); ++i) {
-          SearchResult actual;
-          ASSERT_EQ(0, restored.search({DenseVector{queries[i].data()}}, search,
-                                       &actual));
-          EXPECT_EQ(expanded[i], restored.expanded);
-          ASSERT_EQ(expected[i].doc_list_.size(), actual.doc_list_.size());
-          for (size_t j = 0; j < actual.doc_list_.size(); ++j) {
-            EXPECT_EQ(expected[i].doc_list_[j].key(),
-                      actual.doc_list_[j].key());
-            EXPECT_EQ(expected[i].doc_list_[j].score(),
-                      actual.doc_list_[j].score());
-          }
+    for (size_t views : {1u, 2u, 4u}) {
+      for (uint32_t mode : {0u, 1u, 3u}) {
+        SCOPED_TRACE(testing::Message()
+                     << int(precision) << ":" << mode << ":" << views);
+        zvec::test_util::RemoveTestFiles(prefix + "*");
+        unsetenv("QG_BLOCK_MODEL");
+        unsetenv("QG_DEGREE");
+        HNSWIndexParam param(GetParam(), dimension, 16, 100);
+        param.data_type = DataType::DT_FP32;
+        param.use_id_map = true;
+        param.quantizer_param = std::make_shared<QuantizerParam>(precision);
+        BudgetHnswIndex builder;
+        ASSERT_EQ(0, builder.init(param));
+        ASSERT_EQ(0, builder.open(prefix + ".work",
+                                  {StorageOptions::StorageType::kMMAP, true}));
+        std::mt19937 rng(107);
+        std::uniform_real_distribution<float> random(.05f, 1.f);
+        std::vector<float> vector(dimension);
+        for (size_t id = 0; id < 128; ++id) {
+          for (float &v : vector) v = random(rng);
+          ASSERT_EQ(0, builder.add({DenseVector{vector.data()}},
+                                   (mode == 0 ? 1000 : 0) + id));
         }
-        // A native re-dump must retain the embedded codec and blocks.
-        ASSERT_EQ(0, DumpQuantizedGraphForTest(restored, prefix + ".redump"));
-        ASSERT_EQ(0, restored.close());
+        using Options = zvec::core::QuantizedGraphBuildOptions;
+        Options options;
+        options.max_neighbors = mode == 3 ? 64 : 32;
+        options.threads = 2;
+        options.rotation_views = views;
+        options.codec = mode == 0   ? Options::Codec::Native
+                        : mode == 1 ? Options::Codec::Global
+                                    : Options::Codec::LowRank;
+        options.block_dimension = 8;
+        options.training_samples = 24;
+        // Exercise both embedded routing and the centroid fallback.
+        if (mode != 0) ASSERT_EQ(0, builder.train_router(32, 16, views));
+        if (views != 1)
+          ASSERT_EQ(0, zvec::core::BuildHnswSnapshotGraph(
+                           *builder.native_streamer(), options));
+        ASSERT_EQ(0, DumpQuantizedGraphForTest(builder, prefix + ".base"));
+        ASSERT_EQ(0, builder.close());
+        param.use_quantized_graph = true;
+        BudgetHnswIndex reference;
+        ASSERT_EQ(0, reference.init(param));
+        StorageOptions storage;
+        storage.type = StorageOptions::StorageType::kMMAP;
+        storage.read_only = true;
+        ASSERT_EQ(0, reference.open(prefix + ".base", storage));
+        // Build-time training must also ignore legacy process overrides.
+        setenv("QG_RESEARCH_ROTATION_VIEWS", "invalid", 1);
+        setenv("QG_BLOCK_MODEL", "/nonexistent/no_codec_file_at_build", 1);
+        setenv("QG_DEGREE", "invalid", 1);
+        ASSERT_EQ(0, zvec::core::BuildHnswSnapshotGraph(
+                         *reference.native_streamer(), options));
+        ASSERT_EQ(0, DumpQuantizedGraphForTest(reference, prefix + ".saved"));
+        std::vector<std::vector<float>> queries(8, vector);
+        for (auto &query : queries)
+          for (float &v : query) v = random(rng);
+        auto search = std::make_shared<HNSWQueryParam>();
+        search->topk = 10;
+        search->ef_search = 128;
+        search->quantized_graph_max_expansions = 32;
+        search->quantized_graph_margin = .05f;
+        search->quantized_graph_uncertainty_bonus = .15f;
+        std::vector<SearchResult> expected(queries.size());
+        std::vector<uint32_t> expanded(queries.size());
+        for (size_t i = 0; i < queries.size(); ++i) {
+          ASSERT_EQ(0, reference.search({DenseVector{queries[i].data()}},
+                                        search, &expected[i]));
+          ASSERT_GT(reference.expanded, 0u);
+          expanded[i] = reference.expanded;
+        }
+        ASSERT_EQ(0, reference.close());
+        // Deliberately invalid values would make the legacy prebuild fail.
+        setenv("QG_BLOCK_MODEL", "/nonexistent/embedded_codec_only", 1);
+        setenv("QG_DEGREE", "invalid", 1);
+        for (auto type : {StorageOptions::StorageType::kMMAP,
+                          StorageOptions::StorageType::kBufferPool}) {
+          storage.type = type;
+          SCOPED_TRACE(int(type));
+          BudgetHnswIndex restored;
+          ASSERT_EQ(0, restored.init(param));
+          ASSERT_EQ(0, restored.open(prefix + ".saved", storage));
+          for (size_t i = 0; i < queries.size(); ++i) {
+            SearchResult actual;
+            ASSERT_EQ(0, restored.search({DenseVector{queries[i].data()}},
+                                         search, &actual));
+            EXPECT_EQ(expanded[i], restored.expanded);
+            ASSERT_EQ(expected[i].doc_list_.size(), actual.doc_list_.size());
+            for (size_t j = 0; j < actual.doc_list_.size(); ++j) {
+              EXPECT_EQ(expected[i].doc_list_[j].key(),
+                        actual.doc_list_[j].key());
+              EXPECT_EQ(expected[i].doc_list_[j].score(),
+                        actual.doc_list_[j].score());
+            }
+          }
+          // A native re-dump must retain the embedded codec and blocks.
+          ASSERT_EQ(0, DumpQuantizedGraphForTest(restored, prefix + ".redump"));
+          ASSERT_EQ(0, restored.close());
+        }
+        BudgetHnswIndex redump;
+        ASSERT_EQ(0, redump.init(param));
+        ASSERT_EQ(0, redump.open(prefix + ".redump", storage));
+        ASSERT_EQ(0, redump.close());
+        // Cached snapshots stay immutable even with ordinary HNSW selected.
+        param.use_quantized_graph = false;
+        BudgetHnswIndex plain;
+        ASSERT_EQ(0, plain.init(param));
+        ASSERT_EQ(0, plain.open(prefix + ".saved", storage));
+        auto *native = plain.native_streamer();
+        auto context = native->create_context();
+        ASSERT_NE(nullptr, context);
+        zvec::core::IndexQueryMeta qmeta(native->meta().data_type(),
+                                         native->meta().dimension());
+        EXPECT_EQ(
+            zvec::core::IndexError_Unsupported,
+            native->add_with_id_impl(99999, vector.data(), qmeta, context));
+        ASSERT_EQ(0, DumpQuantizedGraphForTest(plain, prefix + ".plaincopy"));
+        ASSERT_EQ(0, plain.close());
+        param.use_quantized_graph = true;
+        BudgetHnswIndex copied;
+        ASSERT_EQ(0, copied.init(param));
+        ASSERT_EQ(0, copied.open(prefix + ".plaincopy", storage));
+        SearchResult copied_result;
+        ASSERT_EQ(0, copied.search({DenseVector{queries[0].data()}}, search,
+                                   &copied_result));
+        ASSERT_EQ(expected[0].doc_list_.size(), copied_result.doc_list_.size());
+        for (size_t j = 0; j < copied_result.doc_list_.size(); ++j) {
+          EXPECT_EQ(expected[0].doc_list_[j].key(),
+                    copied_result.doc_list_[j].key());
+          EXPECT_EQ(expected[0].doc_list_[j].score(),
+                    copied_result.doc_list_[j].score());
+        }
+        ASSERT_EQ(0, copied.close());
       }
-      BudgetHnswIndex redump;
-      ASSERT_EQ(0, redump.init(param));
-      ASSERT_EQ(0, redump.open(prefix + ".redump", storage));
-      ASSERT_EQ(0, redump.close());
-      // Cached snapshots stay immutable even with ordinary HNSW selected.
-      param.use_quantized_graph = false;
-      BudgetHnswIndex plain;
-      ASSERT_EQ(0, plain.init(param));
-      ASSERT_EQ(0, plain.open(prefix + ".saved", storage));
-      auto *native = plain.native_streamer();
-      auto context = native->create_context();
-      ASSERT_NE(nullptr, context);
-      zvec::core::IndexQueryMeta qmeta(native->meta().data_type(),
-                                       native->meta().dimension());
-      EXPECT_EQ(zvec::core::IndexError_Unsupported,
-                native->add_with_id_impl(99999, vector.data(), qmeta, context));
-      ASSERT_EQ(0, DumpQuantizedGraphForTest(plain, prefix + ".plaincopy"));
-      ASSERT_EQ(0, plain.close());
-      param.use_quantized_graph = true;
-      BudgetHnswIndex copied;
-      ASSERT_EQ(0, copied.init(param));
-      ASSERT_EQ(0, copied.open(prefix + ".plaincopy", storage));
-      SearchResult copied_result;
-      ASSERT_EQ(0, copied.search({DenseVector{queries[0].data()}}, search,
-                                 &copied_result));
-      ASSERT_EQ(expected[0].doc_list_.size(), copied_result.doc_list_.size());
-      for (size_t j = 0; j < copied_result.doc_list_.size(); ++j) {
-        EXPECT_EQ(expected[0].doc_list_[j].key(),
-                  copied_result.doc_list_[j].key());
-        EXPECT_EQ(expected[0].doc_list_[j].score(),
-                  copied_result.doc_list_[j].score());
-      }
-      ASSERT_EQ(0, copied.close());
     }
   }
   zvec::test_util::RemoveTestFiles(prefix + "*");
@@ -6267,6 +6279,13 @@ TEST(QuantizedGraphSnapshot, InvalidCacheIsRejectedInsteadOfRebuilt) {
                                                  build_options));
   }
   build_options.max_neighbors = 32;
+  for (size_t views : {0u, 3u, 8u}) {
+    build_options.rotation_views = views;
+    EXPECT_EQ(zvec::core::IndexError_InvalidArgument,
+              zvec::core::BuildHnswSnapshotGraph(*builder.native_streamer(),
+                                                 build_options));
+  }
+  build_options.rotation_views = 1;
   for (size_t samples : {0u, 16385u}) {
     build_options.training_samples = samples;
     EXPECT_EQ(zvec::core::IndexError_InvalidArgument,
@@ -6332,6 +6351,65 @@ TEST(QuantizedGraphSnapshot, InvalidCacheIsRejectedInsteadOfRebuilt) {
   zvec::test_util::RemoveTestFiles(prefix + "*");
 }
 
+
+TEST(QuantizedGraphSnapshot, MultiView768MetadataAndRouterMustAgree) {
+  if (!zvec::core::HnswQuantizedGraph::supported()) GTEST_SKIP();
+  QuantizedGraphTestEnvironment environment;
+  const std::string prefix = "qg_snapshot_views768";
+  zvec::test_util::RemoveTestFiles(prefix + "*");
+  HNSWIndexParam param(MetricType::kCosine, 768, 16, 100);
+  param.data_type = DataType::DT_FP32;
+  param.use_id_map = true;
+  BudgetHnswIndex builder;
+  ASSERT_EQ(0, builder.init(param));
+  ASSERT_EQ(0, builder.open(prefix + ".work",
+                            {StorageOptions::StorageType::kMMAP, true}));
+  std::vector<float> values(768);
+  std::mt19937 random(992);
+  std::uniform_real_distribution<float> value(-1.f, 1.f);
+  for (size_t id = 0; id < 40; ++id) {
+    for (float &v : values) v = value(random);
+    ASSERT_EQ(0, builder.add({DenseVector{values.data()}}, id));
+  }
+  ASSERT_EQ(0, builder.train_router(32, 384, 2));
+  zvec::core::QuantizedGraphBuildOptions options;
+  options.threads = 2;
+  // A single-view codec cannot consume a two-view router.
+  EXPECT_NE(0, zvec::core::BuildHnswSnapshotGraph(*builder.native_streamer(),
+                                                  options));
+  options.rotation_views = 2;
+  ASSERT_EQ(0, zvec::core::BuildHnswSnapshotGraph(*builder.native_streamer(),
+                                                  options));
+  ASSERT_EQ(0, DumpQuantizedGraphForTest(builder, prefix + ".saved"));
+  ASSERT_EQ(0, builder.close());
+  param.use_quantized_graph = true;
+  StorageOptions storage;
+  storage.type = StorageOptions::StorageType::kMMAP;
+  storage.read_only = true;
+  {
+    BudgetHnswIndex restored;
+    ASSERT_EQ(0, restored.init(param));
+    ASSERT_EQ(0, restored.open(prefix + ".saved", storage));
+    ASSERT_EQ(0, restored.close());
+  }
+  // Repair the outer CRC: reject both illegal views and legal views that
+  // disagree with the embedded router/encoded graph shape.
+  for (uint32_t views : {0u, 1u, 3u, 4u, UINT32_MAX}) {
+    SCOPED_TRACE(views);
+    ASSERT_EQ(0, CorruptQuantizedGraphSnapshotForTest(
+                     prefix + ".saved", prefix + ".bad",
+                     [&](std::string &data) {
+                       const size_t views_offset = 10 * sizeof(uint64_t) + 24;
+                       std::memcpy(data.data() + views_offset, &views, 4);
+                     },
+                     true));
+    BudgetHnswIndex corrupted;
+    ASSERT_EQ(0, corrupted.init(param));
+    EXPECT_NE(0, corrupted.open(prefix + ".bad", storage));
+    corrupted.close();
+  }
+  zvec::test_util::RemoveTestFiles(prefix + "*");
+}
 
 TEST(QuantizedGraphSnapshot, PreparingCachePreservesOrdinaryFp16QueryMode) {
   if (!zvec::core::HnswQuantizedGraph::supported()) GTEST_SKIP();

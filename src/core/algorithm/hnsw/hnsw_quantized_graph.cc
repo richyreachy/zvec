@@ -34,7 +34,8 @@
 #endif
 namespace zvec::core {
 namespace {
-// Version 1 binds the Block layout, fixed SymQG rotation and codec packing.
+// Version 1 binds the Block layout and codec packing. Empty/native and V1
+// codec payloads use one rotation; V2 payloads carry explicit rotation views.
 // All fields are little-endian uint64_t on the supported x86-64 platform.
 // Followed by codec bytes, graph {stride, count, entry}, then the raw arena.
 // Router bytes live in their existing segment; bind them by size and CRC.
@@ -369,7 +370,7 @@ int HnswQuantizedGraph::load(const HnswEntity &entity, size_t dimension,
       header[1] != 1 || header[2] != dimension ||
       header[3] != stored_vector_bytes || header[4] != uint64_t(cosine) ||
       header[5] != uint64_t(fp16) || header[6] < 32 || header[6] > 256 ||
-      header[6] % 32 || header[7] > (1u << 20) ||
+      header[6] % 32 || header[7] > (4u << 20) ||
       header[7] > read.remaining() || header[8] != router_data.size() ||
       header[9] != ailego::Crc32c::Hash(router_data.data(), router_data.size()))
     return IndexError_InvalidFormat;
@@ -397,13 +398,15 @@ int HnswQuantizedGraph::dump(const IndexDumper::Pointer &dumper) const {
 int HnswQuantizedGraph::train_router(const HnswEntity &entity, size_t dimension,
                                      bool cosine, size_t anchors,
                                      size_t projected, uint64_t seed,
-                                     std::string &data, bool fp16) {
+                                     std::string &data, bool fp16,
+                                     size_t rotation_views) {
 #if ZVEC_PROJECTED_QG_SUPPORTED
   using Builder = QuantizedGraphRouterBuilder;
   if (!supported()) return IndexError_Unsupported;
   if (!anchors || anchors > Builder::kMaxAnchors || !dimension ||
       dimension > 4096 || !entity.doc_cnt() ||
-      entity.doc_cnt() > uint32_t(INT32_MAX))
+      entity.doc_cnt() > uint32_t(INT32_MAX) ||
+      !turbo::SymQGRotation::valid_views(rotation_views))
     return IndexError_InvalidArgument;
   try {
     IndexStorage::MemoryBlock block;
@@ -430,6 +433,7 @@ int HnswQuantizedGraph::train_router(const HnswEntity &entity, size_t dimension,
     Builder::Options options;
     options.projected = projected;
     options.seed = seed;
+    options.rotation_views = rotation_views;
     const auto model = Builder::train(training, options);
     std::ostringstream out(std::ios::out | std::ios::binary);
     model.write(out);
@@ -451,6 +455,7 @@ int HnswQuantizedGraph::train_router(const HnswEntity &entity, size_t dimension,
   (void)seed;
   (void)data;
   (void)fp16;
+  (void)rotation_views;
   return IndexError_Unsupported;
 #endif
 }
