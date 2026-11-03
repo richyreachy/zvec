@@ -1,6 +1,6 @@
 # 构建、检索配置与验证记录
 
-本目录的 `config/` 保存各数据集的构建、查询配置，`results/` 保存按批次归档的报告、曲线和汇总数据。最近更新：2026-11-03。
+本目录的 `config/` 保存各数据集的构建、查询配置，`results/` 仅保存 SIFT、GIST、GloVe 三张 ANN Recall/QPS PNG 图。最近更新：2026-11-03。
 “最佳”限定为已有参数扫描和指定快照上的最佳已测选择，不保证任意机器、新建图或数据分布均最优。
 
 FP32/FP16 的统一配置与精度语义见 [存储精度说明](FP16.zh-CN.md)。
@@ -145,7 +145,7 @@ QuantizedGraphRouter:
 
 ## 2026-11-03 SIFT / GIST / GloVe 性能与厂商对照记录
 
-本轮在 ANN-Benchmarks 中补齐三数据集三算法，完整报告、严格 ID 召回表、曲线和参数见 [测试报告](results/20261103-three-datasets/REPORT_ZH.md)。
+本轮在 ANN-Benchmarks 中补齐 SIFT、GIST、GloVe 上 Zvec、Huawei qsgngt、Descartes 的三方对比。
 构建任务并发上限为 **2**；正式查询等待建图结束后串行、固定 CPU 0，TopK=10，全量预热 1 轮后测 5 轮并取中位数。
 SIFT/GloVe 各 10,000 条查询，GIST 1,000 条。下表为 **QPS / 实际 ANN Recall@10**，各列取达到同一召回下限的最快已确认配置。
 
@@ -158,17 +158,23 @@ SIFT/GloVe 各 10,000 条查询，GIST 1,000 条。下表为 **QPS / 实际 ANN 
 | GloVe | ≥90% | 16,120 / 90.686% | 17,505 / 90.573% | 14,950 / 90.243% |
 | GloVe | ≥95% | 9,459 / 95.578% | 9,955 / 95.816% | 7,987 / 95.024% |
 
-ANN 召回带绝对距离容差 0.001，与严格 ID 召回有区别。实际召回不完全相同，吞吐倍率仅表示同一召回下限档的比较。
+图表统一使用[官方 ANN-Benchmarks 召回定义](https://github.com/erikbern/ann-benchmarks/blob/main/ann_benchmarks/plotting/metrics.py)：返回结果的真实距离不大于真实第 10 近邻距离加 0.001 即计为命中；严格 ID 召回按返回 ID 与真实 Top10 ID 的交集计算。
+实际召回不完全相同，吞吐倍率仅表示同一召回下限档的比较。
 同一公开查询集用于扫描与报告；各算法使用各自的构建配置，未约束相同索引内存预算。
 Zvec 使用通用实现 `6ae49f65`：GIST 单视图、GloVe 双视图；SIFT 从同一原始图构建单/双视图，逐目标选择已确认的快者。
-Huawei 的 GloVe 配置为 a2 原始图加 Q=1 量化层；原 Q=2 的低召回诊断不纳入对照表，配置差异与验证记录见完整报告。
+Huawei 的 GloVe 配置为 a2 原始图加 Q=1 量化层；原 Q=2 的低召回诊断不纳入对照表，配置差异与验证记录保留在本地完整报告中。
 Cohere 的历史验证单独保留在下节。
 
-![三数据集 ANN Recall/QPS](results/20261103-three-datasets/recall-qps-ann.png)
+![SIFT ANN Recall/QPS](results/sift.png)
 
-- [完整查询参数和协议](config/annbenchmark_three_datasets.yaml)、[汇总 CSV](results/20261103-three-datasets/comparison.csv)。
-- [严格 ID Recall/QPS](results/20261103-three-datasets/recall-qps-strict.png)、[可重绘的确认点](results/20261103-three-datasets/points.json)。
-- [SIFT 原生 recall 配置复核](results/20261103-three-datasets/native-cli-audit.json)：文本入口与 ANN 运行器使用的同一配置得到相同严格召回。
+![GIST ANN Recall/QPS](results/gist.png)
+
+![GloVe ANN Recall/QPS](results/glove.png)
+
+[完整查询参数和协议](config/annbenchmark_three_datasets.yaml) 保存在 `config/`。
+完整报告、汇总 CSV、确认点、原始结果及日志保存在本机
+`~/workspace/annbenchmark/ann-benchmarks/results/three-datasets-20261103/`。
+其中 `all-confirmed.json` 可作为 `plot_results.py` 的输入；SIFT 原生 recall 配置复核记录为 `native-cli-audit.json`，文本入口与 ANN 运行器使用的同一配置得到相同严格召回。
 
 ## 2026-11-03 多视图跨数据集验证
 

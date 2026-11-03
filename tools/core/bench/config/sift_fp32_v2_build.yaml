@@ -1,4 +1,4 @@
-# SIFT-128 FP32; measured build chain for results/20261103-three-datasets.
+# SIFT-128 FP32; measured build chain for the 2026-11-03 campaign in ../TESTING.zh-CN.md.
 # Build the base graph first, then derive v1/v2 from the same raw snapshot.
 # ./build/bin/local_builder tools/core/bench/config/sift_fp32_v2_build.yaml
 BuilderCommon:

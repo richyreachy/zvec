@@ -2,8 +2,8 @@
 
 对应通用多视图实现 `6ae49f65`，2026-11-03 在保存的完整图上复测。
 “最佳”指已扫描和重复确认的候选，不能保证新建图或其他机器上全局最优。
-SIFT / GIST / GloVe 与 Huawei、Descartes 的完整三方结果见 [ANN-Benchmarks 报告](results/20261103-three-datasets/REPORT_ZH.md)。
-GIST 使用单视图，GloVe 使用双视图；SIFT 单/双视图均已实测。下方七档 preset 表保留原有本地验证口径，三方比较以该报告的同轮计时为准。
+SIFT / GIST / GloVe 与 Huawei、Descartes 的三方对比见 [验证记录](TESTING.zh-CN.md)，GloVe 官方 ANN 召回口径曲线见 [glove.png](results/glove.png)。
+GIST 使用单视图，GloVe 使用双视图；SIFT 单/双视图均已实测。下方七档 preset 表保留原有本地验证口径，三方比较以验证记录中的同轮计时为准。
 
 ## 入口与数据准备
 

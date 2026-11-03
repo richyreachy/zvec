@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2025-present the zvec project
 # Licensed under the Apache License, Version 2.0.
-"""Plot measured SIFT/GIST/GloVe points from a benchmark results JSON file."""
+"""Write sift.png, gist.png and glove.png using official ANN-Benchmarks recall."""
 
 from __future__ import annotations
 
@@ -32,15 +32,12 @@ def load_points(path):
         point["algorithm"] = {"Zvec FP32": "Zvec"}.get(
             point["algorithm"], point["algorithm"]
         )
-        if "strict_recall" not in point:
-            point["strict_recall"] = point["recall"]
         if point["dataset"] not in DATASETS or point["algorithm"] not in ALGORITHMS:
             raise ValueError("Unknown dataset or algorithm in points JSON")
         if not math.isfinite(point["qps"]) or point["qps"] <= 0:
             raise ValueError("QPS must be finite and positive")
-        for metric in ["ann_recall", "strict_recall"]:
-            if not 0 <= point[metric] <= 1:
-                raise ValueError("Recall must be in [0, 1]")
+        if not 0 <= point["ann_recall"] <= 1:
+            raise ValueError("Recall must be in [0, 1]")
     return points
 
 
@@ -58,15 +55,8 @@ def main():
     output = args.output or args.points.parent
     output.mkdir(parents=True, exist_ok=True)
 
-    def save(fig, path):
-        fig.savefig(path, dpi=180)
-        if path.suffix == ".svg":
-            path.write_text(
-                "\n".join(line.rstrip() for line in path.read_text().splitlines())
-                + "\n"
-            )
-
-    def draw(ax, dataset, metric):
+    def draw(ax, dataset):
+        metric = "ann_recall"
         found = False
         for algorithm, color in ALGORITHMS.items():
             rows = frontier(
@@ -102,32 +92,19 @@ def main():
             ax.legend(fontsize=9)
         ax.set(
             title=DATASETS[dataset],
-            xlabel=(
-                "ANN Recall@10 (%)"
-                if metric == "ann_recall"
-                else "Strict ID Recall@10 (%)"
-            ),
+            xlabel="ANN Recall@10 (%)",
             ylabel="Queries per second",
             xlim=(100 * args.min_recall, 100),
             yscale="log",
         )
         ax.grid(True, which="both", alpha=0.2)
 
-    for metric, suffix in [("ann_recall", "ann"), ("strict_recall", "strict")]:
-        fig, axes = plt.subplots(1, 3, figsize=(15, 4.8))
-        for ax, dataset in zip(axes, DATASETS, strict=True):
-            draw(ax, dataset, metric)
+    for dataset in DATASETS:
+        fig, ax = plt.subplots(figsize=(6.4, 4.8))
+        draw(ax, dataset)
         fig.tight_layout()
-        for extension in ["png", "svg"]:
-            save(fig, output / f"recall-qps-{suffix}.{extension}")
+        fig.savefig(output / f"{dataset}.png", dpi=180)
         plt.close(fig)
-        for dataset in DATASETS:
-            fig, ax = plt.subplots(figsize=(6.4, 4.8))
-            draw(ax, dataset, metric)
-            fig.tight_layout()
-            for extension in ["png", "svg"]:
-                save(fig, output / f"{dataset}-{suffix}.{extension}")
-            plt.close(fig)
 
 
 if __name__ == "__main__":

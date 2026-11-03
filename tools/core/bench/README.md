@@ -5,10 +5,10 @@
 ```text
 bench/
 ├── config/              # local_builder、recall、bench 的 YAML 配置
-├── results/             # 按测试批次保存报告、曲线和汇总数据
+├── results/             # sift.png、gist.png、glove.png 三张 ANN Recall/QPS 图
 ├── prepare_hdf5.py      # 保留原始行 ID 的稠密 HDF5 数据导出
 ├── prepare_glove.py     # GloVe-100 的兼容入口
-├── plot_results.py      # 从已保存的结果 JSON 重绘曲线
+├── plot_results.py      # 从本地结果 JSON 重绘三张 PNG
 ├── TESTING.zh-CN.md     # 构建、运行与验证方法
 ├── GLOVE.zh-CN.md       # GloVe 参数选择与数据准备
 ├── FP16.zh-CN.md        # FP16 使用说明
@@ -23,9 +23,17 @@ bench/
 ./build/bin/bench tools/core/bench/config/glove_fp32_recall_bench.yaml
 ```
 
-数据集、构建中间文件和完整索引保留在本地实验目录。`results/` 收录报告、
-可重绘的曲线数据、参数及环境记录；结果中的召回定义和测试批次以对应报告为准。
+`results/` 仅保存 [SIFT](results/sift.png)、[GIST](results/gist.png)、
+[GloVe](results/glove.png) 三张图，统一采用官方 ANN-Benchmarks 的距离容差召回口径，QPS 轴使用对数刻度。
+原始结果、日志、完整报告、数据集和索引保留在本地实验目录。
 
 配置索引及其它数据集的运行方法见 [TESTING.zh-CN.md](TESTING.zh-CN.md)。
 
-最新完整三方对比：[2026-11-03 测试报告](results/20261103-three-datasets/REPORT_ZH.md)；ANN-Benchmarks 构建并发上限为 2，正式查询串行计时。
+2026-11-03 三方对比与测试协议见 [验证记录](TESTING.zh-CN.md)。ANN-Benchmarks 构建并发上限为 2，正式查询串行计时。
+
+使用本地保存的确认点重绘三张图：
+
+```bash
+python3 tools/core/bench/plot_results.py /path/to/all-confirmed.json \
+  --output tools/core/bench/results
+```

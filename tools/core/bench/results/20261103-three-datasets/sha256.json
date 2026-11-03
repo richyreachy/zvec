@@ -1,8 +1,0 @@
-{
-  "$NATIVE_ARTIFACTS/_rotation_core.cpython-310-x86_64-linux-gnu.so": "67b4255e6915e2facaebe7e16b8ec5dde4790ffc6b66ab76d0f59b96c0337832",
-  "$NATIVE_ARTIFACTS/native/bin/local_builder": "625442a4a93841991132aae803e60a2e330e733cfcb914c067813112be91d27f",
-  "$NATIVE_ARTIFACTS/native/lib/libcore_knn_hnsw.so": "d0c9f63c0555c9285f42bd30ed53e8738addb629cd2f0a82c9bc28a93fdf6c1e",
-  "$ANN_BENCHMARKS_ROOT/data/sift-128-euclidean.hdf5": "dd6f0a6ed6b7ebb8934680f861a33ed01ff33991eaee4fd60914d854a0ca5984",
-  "$ANN_BENCHMARKS_ROOT/data/gist-960-euclidean.hdf5": "8e95831936bfdbfa0a56086942e2cf98cd703517c67f985914183eb4cdbf026a",
-  "$DATASET_ROOT/glove/glove-100-angular.hdf5": "544af1d5e84e112cd4749571dcfd8ca109818a572f850af75a3a09e093a953c4"
-}

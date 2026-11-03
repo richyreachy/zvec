@@ -1,6 +1,6 @@
 # SIFT strict ID Recall@10 >= 90% preset selected by the measured campaign.
 # Build sift_fp32_base_build.yaml, then the matching v1/v2 snapshot below.
-# Rebuilt graphs require recall calibration. See ../results/20261103-three-datasets/REPORT_ZH.md.
+# Rebuilt graphs require recall calibration. See ../TESTING.zh-CN.md.
 IndexCommon:
   IndexConfig: '{"index_type":"kHNSW","data_type":"DT_FP32","metric_type":"kL2sq","dimension":128,"m":32,"ef_construction":400,"use_id_map":true,"use_quantized_graph":true,"quantizer_param":{"type":"kNone"}}'
   IndexPath: /data/sift/sift-v2.index
