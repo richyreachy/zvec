@@ -1,19 +1,13 @@
-# Explicit FP32 preset with build-time SymQG codec training.
-# The original gist_build.yaml remains available for existing commands.
-# GIST 1M: 960-dimensional FP32 vectors, squared L2 distance.
-# Usage and validation: TESTING.zh-CN.md; algorithm: ALGORITHM.zh-CN.md.
-# Replace /data/gist paths with local paths. BuildFile must be in the
-# local_builder .zvec.vecs format; a .fvecs or text file is not interchangeable.
-# From the repository root:
-#   ./build/bin/local_builder tools/core/bench/gist_fp32_build.yaml
-# Use a new IndexPath/DumpPath for a fresh build. Search the DumpPath snapshot.
-# Keep the original L2 vectors; do not apply the cosine converter/normalization.
+# Gist 1M: FP32 input, FP16 database storage, embedded SymQG router.
+# See ../FP16.zh-CN.md. Use NEW paths; existing FP32 snapshots are not converted.
+# ./build/bin/local_builder tools/core/bench/config/gist_fp16_build.yaml
 BuilderCommon:
   BuilderClass: HnswStreamer
+  QuantizerName: Fp16Quantizer
   BuildFile: /data/gist/gist_base.zvec.vecs
   MetricName: SquaredEuclidean
-  IndexPath: /data/gist/gist_fp32_work.index
-  DumpPath: /data/gist/gist_fp32_full.index
+  IndexPath: /data/gist/gist_fp16_work.index
+  DumpPath: /data/gist/gist_fp16_full.index
   DumpFormat: streamer
   MaxDocs: 1000000
   ThreadCount: 8
@@ -32,11 +26,16 @@ QuantizedGraphRouter:
   ProjectedDimension: 256
   Seed: 202610261259
 
+# L2 HNSW construction uses FP32 accumulation; cosine construction uses the
+# existing Fp16Quantizer dispatch. SymQG search/refinement always uses FP32.
+QuantizerParams:
+  fp32_accumulation: true
+
 # Train the codec from this graph and persist both parameters and encoded blocks.
 # No external model file or query/ground-truth data is needed.
 QuantizedGraph:
   Persist: true
-  RotationViews: 1  # Keep single-view preset; see the FP32 comparison in TESTING.zh-CN.md.
+  RotationViews: 1  # Keep single-view preset; see the FP32 comparison in ../TESTING.zh-CN.md.
   MaxNeighbors: 64
   ThreadCount: 8
   Codec:

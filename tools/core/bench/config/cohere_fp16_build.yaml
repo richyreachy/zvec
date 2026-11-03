@@ -1,6 +1,6 @@
 # Cohere 1M: FP32 input, FP16 database storage, embedded SymQG router.
-# See FP16.zh-CN.md. Use NEW paths; existing FP32 snapshots are not converted.
-# ./build/bin/local_builder tools/core/bench/cohere_fp16_build.yaml
+# See ../FP16.zh-CN.md. Use NEW paths; existing FP32 snapshots are not converted.
+# ./build/bin/local_builder tools/core/bench/config/cohere_fp16_build.yaml
 BuilderCommon:
   BuilderClass: HnswStreamer
   QuantizerName: Fp16Quantizer
@@ -35,7 +35,7 @@ QuantizerParams:
 # No external model file or query/ground-truth data is needed.
 QuantizedGraph:
   Persist: true
-  RotationViews: 1  # Keep single-view preset; see the FP32 comparison in TESTING.zh-CN.md.
+  RotationViews: 1  # Keep single-view preset; see the FP32 comparison in ../TESTING.zh-CN.md.
   MaxNeighbors: 32
   ThreadCount: 8
   Codec:

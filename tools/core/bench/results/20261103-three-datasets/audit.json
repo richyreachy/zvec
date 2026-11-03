@@ -1,0 +1,15 @@
+{
+  "confirmed_points": 159,
+  "hdf5_files_audited": 159,
+  "full_query_counts": {
+    "sift": 10000,
+    "gist": 1000,
+    "glove": 10000
+  },
+  "max_parallel_workers_sampled": 2,
+  "minimum_mem_available_gib": 11.707778930664062,
+  "peak_worker_tree_rss_sum_gib": 13.868282318115234,
+  "stable_ids_within_each_process": true,
+  "all_primary_90_95_cells_complete": true,
+  "maximum_trial_qps_coefficient_of_variation": 0.04005076930511687
+}

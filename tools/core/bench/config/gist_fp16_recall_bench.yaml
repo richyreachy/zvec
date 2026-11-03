@@ -1,9 +1,9 @@
 # Uses the embedded codec trained by the matching build YAML.
 # GIST 1M: FP16 storage with FP32 input and refinement.
-# See FP16.zh-CN.md. Use gist_fp16_build.yaml to build a new snapshot.
+# See ../FP16.zh-CN.md. Use gist_fp16_build.yaml to build a new snapshot.
 # Validate recall on the newly trained snapshot before measuring QPS.
-# ./build/bin/recall tools/core/bench/gist_fp16_recall_bench.yaml
-# ./build/bin/bench tools/core/bench/gist_fp16_recall_bench.yaml
+# ./build/bin/recall tools/core/bench/config/gist_fp16_recall_bench.yaml
+# ./build/bin/bench tools/core/bench/config/gist_fp16_recall_bench.yaml
 IndexCommon:
   IndexConfig: >-
     {"index_type":"kHNSW","data_type":"DT_FP32",

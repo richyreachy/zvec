@@ -1,0 +1,9 @@
+{
+  "dataset": "sift",
+  "vectors_exactly_equal": true,
+  "rows_verified": 1000000,
+  "zero_based_ids_exactly_equal": true,
+  "dimension": 128,
+  "normalization": "none",
+  "path": "$ANN_BENCHMARKS_ROOT/results/three-datasets-20261103/data/sift-base.zvec.vecs"
+}

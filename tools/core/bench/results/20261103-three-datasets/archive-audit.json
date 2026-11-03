@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "moved_yaml_semantics_unchanged": 15,
+  "yaml_files_parsed": 20,
+  "relative_links_checked": 61,
+  "plots": 16,
+  "all_nine_combinations_reach_99_in_both_metrics": true,
+  "native_cli_audit": true
+}

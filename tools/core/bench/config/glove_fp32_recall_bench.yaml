@@ -1,8 +1,8 @@
 # Default target: STRICT ID Recall@10 >= 90%, not ANN distance-tolerance recall.
 # Measured on the saved full graph; rebuilds require recall calibration.
-# See GLOVE.zh-CN.md. Only replace paths to use the matching build snapshot.
-# ./build/bin/recall tools/core/bench/glove_fp32_recall_bench.yaml
-# ./build/bin/bench tools/core/bench/glove_fp32_recall_bench.yaml
+# See ../GLOVE.zh-CN.md. Only replace paths to use the matching build snapshot.
+# ./build/bin/recall tools/core/bench/config/glove_fp32_recall_bench.yaml
+# ./build/bin/bench tools/core/bench/config/glove_fp32_recall_bench.yaml
 IndexCommon:
   IndexConfig: >-
     {"index_type":"kHNSW","data_type":"DT_FP32",

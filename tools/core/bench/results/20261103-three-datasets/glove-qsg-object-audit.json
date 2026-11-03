@@ -1,0 +1,10 @@
+{
+  "objects": 1183514,
+  "maximum_normalized_vector_error": 2.384185791015625e-07,
+  "nonfinite_values": 0,
+  "object_file_hashes": {
+    "anng": "329e172fe8827629e7945db6ebbcff492727066a6a469d7a1b683d2f8d589344",
+    "qsg": "329e172fe8827629e7945db6ebbcff492727066a6a469d7a1b683d2f8d589344"
+  },
+  "raw_and_reconstructed_objects_identical": true
+}

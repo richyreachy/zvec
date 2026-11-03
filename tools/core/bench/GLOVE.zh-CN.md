@@ -2,14 +2,14 @@
 
 对应通用多视图实现 `6ae49f65`，2026-11-03 在保存的完整图上复测。
 “最佳”指已扫描和重复确认的候选，不能保证新建图或其他机器上全局最优。
-本次厂商对比范围为 SIFT / GIST / GloVe。GIST 保留单视图，GloVe 显式使用双视图；
-SIFT 尚无当前代码的可比实测，不能沿用 Cohere 的数据或配置结论。
+SIFT / GIST / GloVe 与 Huawei、Descartes 的完整三方结果见 [ANN-Benchmarks 报告](results/20261103-three-datasets/REPORT_ZH.md)。
+GIST 使用单视图，GloVe 使用双视图；SIFT 单/双视图均已实测。下方七档 preset 表保留原有本地验证口径，三方比较以该报告的同轮计时为准。
 
 ## 入口与数据准备
 
-- [构建配置](glove_fp32_build.yaml)：FP32、cosine、M32、efConstruction400、native codec、64 个量化邻居、双视图。
-- [默认查询配置](glove_fp32_recall_bench.yaml)：目标为严格 ID Recall@10 ≥90%。
-- [七档查询配置](glove_fp32_recall_sweep.yaml)：严格 ID 90%/95%/97%，以及 ANN 距离容差 90%/95%/97%/98%。
+- [构建配置](config/glove_fp32_build.yaml)：FP32、cosine、M32、efConstruction400、native codec、64 个量化邻居、双视图。
+- [默认查询配置](config/glove_fp32_recall_bench.yaml)：目标为严格 ID Recall@10 ≥90%。
+- [七档查询配置](config/glove_fp32_recall_sweep.yaml)：严格 ID 90%/95%/97%，以及 ANN 距离容差 90%/95%/97%/98%。
 
 使用 `glove-100-angular.hdf5` 的原始向量和零起始行 ID。完整数据为 1,183,514×100，查询为 10,000×100。
 先安装 `numpy`、`h5py`，然后在仓库根目录执行（`/data/glove` 替换为本机路径）：
@@ -19,9 +19,9 @@ python3 tools/core/bench/prepare_glove.py \
   /data/glove/glove-100-angular.hdf5 /data/glove --include-train
 ./build/bin/txt2vecs --input=/data/glove/train.txt \
   --output=/data/glove/glove100_base.zvec.vecs --dimension=100
-./build/bin/local_builder tools/core/bench/glove_fp32_build.yaml
-./build/bin/recall tools/core/bench/glove_fp32_recall_bench.yaml
-./build/bin/bench tools/core/bench/glove_fp32_recall_bench.yaml
+./build/bin/local_builder tools/core/bench/config/glove_fp32_build.yaml
+./build/bin/recall tools/core/bench/config/glove_fp32_recall_bench.yaml
+./build/bin/bench tools/core/bench/config/glove_fp32_recall_bench.yaml
 ```
 
 `prepare_glove.py` 分块导出 `id;空格分隔的数值`，保留原始行顺序和 FP32 数值，不归一化，不覆盖已有输出。
@@ -85,8 +85,8 @@ M32 是原始 HNSW 的参数，`MaxNeighbors: 64` 是量化邻接块容量；两
 每项都是完整 JSON，不会继承缺失的搜索参数。只需单一档位时，将该项复制到默认配置的 `QueryParam`，不要保留 `QueryParams`。
 
 ```bash
-./build/bin/recall tools/core/bench/glove_fp32_recall_sweep.yaml
-./build/bin/bench tools/core/bench/glove_fp32_recall_sweep.yaml
+./build/bin/recall tools/core/bench/config/glove_fp32_recall_sweep.yaml
+./build/bin/bench tools/core/bench/config/glove_fp32_recall_sweep.yaml
 ```
 
 ## 资源与验证记录

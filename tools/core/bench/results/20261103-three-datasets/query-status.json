@@ -1,0 +1,62 @@
+[
+  {
+    "profile": "sift-zvec-v1",
+    "returncode": 0
+  },
+  {
+    "profile": "sift-zvec-v2",
+    "returncode": 0
+  },
+  {
+    "profile": "sift-qsg-a1",
+    "returncode": 0
+  },
+  {
+    "profile": "sift-descartes-m64",
+    "returncode": 0
+  },
+  {
+    "profile": "sift-descartes-m128",
+    "returncode": 0
+  },
+  {
+    "profile": "glove-qsg-a2",
+    "returncode": -15,
+    "note": "Intentionally stopped to diagnose low Q2 recall; superseded by explicit a2-q1 profile. No Q2 points included in final comparison."
+  },
+  {
+    "profile": "glove-qsg-a2-q1",
+    "returncode": 0,
+    "finished": "2026-11-03T15:19:52+0800"
+  },
+  {
+    "profile": "glove-zvec-v2",
+    "returncode": 0,
+    "finished": "2026-11-03T15:24:52+0800"
+  },
+  {
+    "profile": "glove-descartes-m64",
+    "returncode": 0,
+    "finished": "2026-11-03T15:37:44+0800"
+  },
+  {
+    "profile": "glove-descartes-m128",
+    "returncode": 0,
+    "finished": "2026-11-03T15:47:25+0800"
+  },
+  {
+    "profile": "gist-zvec-v1",
+    "returncode": 0,
+    "finished": "2026-11-03T15:49:05+0800"
+  },
+  {
+    "profile": "gist-qsg-a4",
+    "returncode": 0,
+    "finished": "2026-11-03T15:52:15+0800"
+  },
+  {
+    "profile": "gist-descartes-m64",
+    "returncode": 0,
+    "finished": "2026-11-03T16:04:47+0800"
+  }
+]

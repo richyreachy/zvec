@@ -1,0 +1,69 @@
+{
+  "parallelism": 2,
+  "jobs": [
+    {
+      "profile": "glove-qsg-a2",
+      "returncode": 0
+    },
+    {
+      "profile": "sift-zvec",
+      "returncode": 0
+    },
+    {
+      "profile": "sift-qsg-a1",
+      "returncode": 0
+    },
+    {
+      "profile": "sift-descartes-m64",
+      "returncode": 0
+    },
+    {
+      "profile": "sift-descartes-m128",
+      "returncode": 0
+    }
+  ],
+  "measurements": [
+    {
+      "profile": "glove-qsg-a2",
+      "started": "2026-11-03T11:38:37.797426+08:00",
+      "seconds": 7769.5128791332245,
+      "build_threads": 4,
+      "slot": 0
+    },
+    {
+      "profile": "sift-descartes-m128",
+      "started": "2026-11-03T12:31:33.335125+08:00",
+      "seconds": 1328.130387544632,
+      "build_threads": 4,
+      "slot": 1
+    },
+    {
+      "profile": "sift-descartes-m64",
+      "started": "2026-11-03T12:09:30.629459+08:00",
+      "seconds": 1322.3383560180664,
+      "build_threads": 4,
+      "slot": 1
+    },
+    {
+      "profile": "sift-qsg-a1",
+      "started": "2026-11-03T11:43:24.457844+08:00",
+      "seconds": 1565.9017465114594,
+      "build_threads": 4,
+      "slot": 1
+    },
+    {
+      "profile": "sift-zvec",
+      "started": "2026-11-03T11:38:37.797719+08:00",
+      "seconds": 286.5940682888031,
+      "build_threads": 4,
+      "slot": 1
+    }
+  ],
+  "timing_note": "Wall time of each new construction job, including preparation and snapshot conversion; reused GIST/GloVe indexes have no new construction timing.",
+  "glove_q1_quantization": {
+    "seconds": 50.58312392234802,
+    "Q": 1,
+    "reused_graph": "$ANN_BENCHMARKS_ROOT/results/three-datasets-20261103/indexes/glove-qsg-a2/qsg"
+  },
+  "glove_q1_timing_note": "The recorded Q1 seconds cover the successful resume only; earlier quantizer training and diagnosis time are not included. The original a2 graph construction is recorded separately."
+}

@@ -1,13 +1,13 @@
 # Uses the embedded codec trained by the matching build YAML.
 # Cohere 1M, cosine, Top10: best measured preset for the embedded-router
 # snapshot; revalidated with storage-backed refinement and initial bucket range.
-# See TESTING.zh-CN.md for results and ALGORITHM.zh-CN.md for the algorithm.
+# See ../TESTING.zh-CN.md for results and ../ALGORITHM.zh-CN.md for the algorithm.
 # Rebuilt graphs and different datasets can change recall; measure it first.
 # Replace /data/cohere paths and use the snapshot from cohere_build.yaml.
 # Query/ground-truth text uses an ID followed by ';' and space-separated values.
 # From the repository root:
-#   ./build/bin/recall tools/core/bench/cohere_recall_bench.yaml
-#   ./build/bin/bench tools/core/bench/cohere_recall_bench.yaml
+#   ./build/bin/recall tools/core/bench/config/cohere_recall_bench.yaml
+#   ./build/bin/bench tools/core/bench/config/cohere_recall_bench.yaml
 # For comparable timing, use the same CPU affinity for both versions, select
 # distinct physical cores, and keep other CPU-intensive jobs idle.
 IndexCommon:

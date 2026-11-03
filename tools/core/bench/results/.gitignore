@@ -1,0 +1,6 @@
+# Keep published summaries and plots; retain raw benchmark artifacts locally.
+*.hdf5
+*.index
+*.vecs
+*.npy
+*.npz

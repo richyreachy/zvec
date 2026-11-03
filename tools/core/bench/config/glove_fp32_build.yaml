@@ -1,7 +1,7 @@
 # GloVe-100-angular: 1,183,514 vectors, cosine, FP32 storage.
-# See GLOVE.zh-CN.md for data preparation, validated search presets and costs.
+# See ../GLOVE.zh-CN.md for data preparation, validated search presets and costs.
 # Replace /data/glove paths. BuildFile is zvec.vecs, not HDF5/fvecs/text.
-# Fresh build: ./build/bin/local_builder tools/core/bench/glove_fp32_build.yaml
+# Fresh build: ./build/bin/local_builder tools/core/bench/config/glove_fp32_build.yaml
 # Use new IndexPath/DumpPath. To reuse a raw HnswStreamer snapshot, replace
 # BuildFile with InputIndex and keep the router section to match RotationViews.
 BuilderCommon:

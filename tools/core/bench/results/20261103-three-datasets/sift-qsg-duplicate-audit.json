@@ -1,0 +1,9 @@
+{
+  "missing_graph_nodes": 14538,
+  "exact_duplicate_vectors": 14538,
+  "stored_alias_mapping_entries": 14538,
+  "all_missing_nodes_covered_by_stored_aliases": true,
+  "all_alias_vectors_bitwise_equal": true,
+  "cause": "Vendor deduplicates exact copies and persists canonical-to-alias ID mapping in the object repository",
+  "input_or_graph_corruption_found": false
+}

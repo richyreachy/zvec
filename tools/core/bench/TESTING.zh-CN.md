@@ -1,6 +1,6 @@
 # 构建、检索配置与验证记录
 
-本目录保存 Cohere / GIST / GloVe 已测的推荐配置，以及算法说明。最近更新：2026-11-03。
+本目录的 `config/` 保存各数据集的构建、查询配置，`results/` 保存按批次归档的报告、曲线和汇总数据。最近更新：2026-11-03。
 “最佳”限定为已有参数扫描和指定快照上的最佳已测选择，不保证任意机器、新建图或数据分布均最优。
 
 FP32/FP16 的统一配置与精度语义见 [存储精度说明](FP16.zh-CN.md)。
@@ -10,15 +10,16 @@ FP32/FP16 的统一配置与精度语义见 [存储精度说明](FP16.zh-CN.md)�
 
 | 场景 | 构建配置 | 检索配置 |
 |---|---|---|
-| Cohere FP32，嵌入路由 | [cohere_fp32_build.yaml](cohere_fp32_build.yaml) | [cohere_fp32_recall_bench.yaml](cohere_fp32_recall_bench.yaml) |
-| GIST FP32，嵌入路由 | [gist_fp32_build.yaml](gist_fp32_build.yaml) | [gist_fp32_recall_bench.yaml](gist_fp32_recall_bench.yaml) |
-| Cohere FP16，嵌入路由 | [cohere_fp16_build.yaml](cohere_fp16_build.yaml) | [cohere_fp16_recall_bench.yaml](cohere_fp16_recall_bench.yaml) |
-| GIST FP16，嵌入路由 | [gist_fp16_build.yaml](gist_fp16_build.yaml) | [gist_fp16_recall_bench.yaml](gist_fp16_recall_bench.yaml) |
-| GloVe FP32，双视图 | [glove_fp32_build.yaml](glove_fp32_build.yaml) | [glove_fp32_recall_bench.yaml](glove_fp32_recall_bench.yaml) |
+| Cohere FP32，嵌入路由 | [cohere_fp32_build.yaml](config/cohere_fp32_build.yaml) | [cohere_fp32_recall_bench.yaml](config/cohere_fp32_recall_bench.yaml) |
+| GIST FP32，嵌入路由 | [gist_fp32_build.yaml](config/gist_fp32_build.yaml) | [gist_fp32_recall_bench.yaml](config/gist_fp32_recall_bench.yaml) |
+| Cohere FP16，嵌入路由 | [cohere_fp16_build.yaml](config/cohere_fp16_build.yaml) | [cohere_fp16_recall_bench.yaml](config/cohere_fp16_recall_bench.yaml) |
+| GIST FP16，嵌入路由 | [gist_fp16_build.yaml](config/gist_fp16_build.yaml) | [gist_fp16_recall_bench.yaml](config/gist_fp16_recall_bench.yaml) |
+| GloVe FP32，双视图 | [glove_fp32_build.yaml](config/glove_fp32_build.yaml) | [glove_fp32_recall_bench.yaml](config/glove_fp32_recall_bench.yaml) |
+| SIFT FP32，单/双视图 | [原始图](config/sift_fp32_base_build.yaml) → [单视图](config/sift_fp32_v1_build.yaml) / [双视图](config/sift_fp32_v2_build.yaml) | [sift_fp32_recall_bench.yaml](config/sift_fp32_recall_bench.yaml) |
 
 GloVe 的数据准备、七档查询 sweep、两种召回定义与资源说明见 [GloVe 最佳实践](GLOVE.zh-CN.md)。
 
-文件名中的 `fp32` / `fp16` 表示数据库存储精度，接口输入均为 FP32。四组配置使用独立的工作索引、dump 和召回日志路径。旧的 `cohere_build.yaml`、`cohere_recall_bench.yaml`、`gist_build.yaml`、`gist_recall_bench.yaml` 继续保留兼容已有命令。
+文件名中的 `fp32` / `fp16` 表示数据库存储精度，接口输入均为 FP32。各组配置使用独立的工作索引、dump 和召回日志路径。旧的 `cohere_build.yaml`、`cohere_recall_bench.yaml`、`gist_build.yaml`、`gist_recall_bench.yaml` 也保留在 `config/` 中；已有命令需要在配置路径中补上 `config/`。
 
 检索参数以对应精度的 YAML 为准，必须与新构建的量化快照配套。
 以下为 2026-10-30 **原生编码**的历史参数，不能套用于新训练的码本：
@@ -32,8 +33,8 @@ GloVe 的数据准备、七档查询 sweep、两种召回定义与资源说明�
 | route_beam | 1 | 1 |
 | uncertainty_bonus | 0.15 | 0 |
 
-新建图按数据集和存储精度选择上方四组配置。
-构建均为 M=50、ef_construction=500；入口树 seed=202610261259，码本训练 seed=20261031，路由尺寸见[算法说明](ALGORITHM.zh-CN.md)。
+新建图按数据集和存储精度选择对应配置。
+Cohere/GIST 构建为 M=50、ef_construction=500，SIFT/GloVe 为 M=32、ef_construction=400；入口树 seed=202610261259，训练型码本 seed=20261031，路由尺寸见[算法说明](ALGORITHM.zh-CN.md)及对应 YAML。
 固定 seed 不保证多线程图构建在所有运行中逐字节一致，重建后必须先检查召回。
 
 ## 使用仓库工具
@@ -44,7 +45,7 @@ GloVe 的数据准备、七档查询 sweep、两种召回定义与资源说明�
 cmake --build build --target local_builder recall bench -j8
 ```
 
-将 YAML 中 `/data/cohere`、`/data/gist` 替换为本机路径。`BuildFile` 必须是 local_builder 使用的
+将 YAML 中 `/data/<dataset>` 替换为本机路径。`BuildFile` 必须是 local_builder 使用的
 `.zvec.vecs` 格式；不能把 fvecs 或文本文件仅改后缀使用。查询与 GT 都是文本：
 
 ```text
@@ -53,17 +54,17 @@ GT：  0;142594 34736 ...
 ```
 
 查询每行包含完整维度的 FP32 值；GT 后面是按精确距离排序的文档 key，前10项用于 Recall@10。
-Cohere 使用 cosine 转换器；GIST 保留 L2 原始值，不做 cosine 归一化。
+Cohere/GloVe 使用 cosine 转换器；SIFT/GIST 保留 L2 原始值，不做 cosine 归一化。
 为构建选择新的 `IndexPath` 和 `DumpPath`，检索配置的 `IndexPath` 指向构建后的 `DumpPath`。
 
 ```bash
-./build/bin/local_builder tools/core/bench/cohere_fp32_build.yaml
-./build/bin/recall tools/core/bench/cohere_fp32_recall_bench.yaml
-./build/bin/bench tools/core/bench/cohere_fp32_recall_bench.yaml
+./build/bin/local_builder tools/core/bench/config/cohere_fp32_build.yaml
+./build/bin/recall tools/core/bench/config/cohere_fp32_recall_bench.yaml
+./build/bin/bench tools/core/bench/config/cohere_fp32_recall_bench.yaml
 
-./build/bin/local_builder tools/core/bench/gist_fp32_build.yaml
-./build/bin/recall tools/core/bench/gist_fp32_recall_bench.yaml
-./build/bin/bench tools/core/bench/gist_fp32_recall_bench.yaml
+./build/bin/local_builder tools/core/bench/config/gist_fp32_build.yaml
+./build/bin/recall tools/core/bench/config/gist_fp32_recall_bench.yaml
+./build/bin/bench tools/core/bench/config/gist_fp32_recall_bench.yaml
 ```
 
 构建成功应包含 `Router trained for embedded snapshot`、`SymQG codec trained` 和
@@ -71,9 +72,32 @@ Cohere 使用 cosine 转换器；GIST 保留 L2 原始值，不做 cosine 归一
 检索不会补训练缺失模型。新码本的随机初始化和原离线 Python 训练器不同，不要求参数字节与旧文件一致；
 应重新校准搜索 margin，在召回达标后比较 QPS。
 `QueryParam` 是 JSON 字符串；`QueryParams` 列表会覆盖它，常规单配置不要额外添加该列表。
-推荐配置运行1/8线程各5轮、每轮6秒。
+原生吞吐测试的线程数、轮次和时长由对应 YAML 的 `BenchThreadCounts`、`BenchRounds`、`BenchSecs` 指定。
 先确认 Recall@10≥90%，再比较同硬件、同快照、同参数和线程数下的 QPS。
 在本次机器上使用 `taskset -c 0,2,4,6,8,10,12,14`；换机器应先核对物理核拓扑，不能机械照抄。
+
+## SIFT 数据准备与两阶段构建
+
+SIFT-128 使用原始 L2 向量和零起始行 ID。通用导出脚本需要 Python 3、`numpy`、`h5py`，
+适用于 SIFT、GIST 和 GloVe 的稠密 HDF5；`prepare_glove.py` 保留为限定 100 维的兼容入口。
+以下命令从同一个原始图生成单视图和双视图，便于比较视图数的影响：
+
+```bash
+python3 tools/core/bench/prepare_hdf5.py \
+  /data/sift/sift-128-euclidean.hdf5 /data/sift --include-train
+./build/bin/txt2vecs --input=/data/sift/train.txt \
+  --output=/data/sift/sift-base.zvec.vecs --dimension=128 --method=L2
+./build/bin/local_builder tools/core/bench/config/sift_fp32_base_build.yaml
+./build/bin/local_builder tools/core/bench/config/sift_fp32_v1_build.yaml
+./build/bin/local_builder tools/core/bench/config/sift_fp32_v2_build.yaml
+./build/bin/recall tools/core/bench/config/sift_fp32_recall_bench.yaml
+./build/bin/bench tools/core/bench/config/sift_fp32_recall_bench.yaml
+```
+
+已有 `.zvec.vecs` 时省略 `--include-train`，并跳过 `txt2vecs`。导出脚本不会覆盖已有文件。
+查询配置的 `IndexPath` 指明对应的视图快照；常规使用只需构建该视图。
+SIFT 查询 preset 根据保存快照的严格 ID Recall@10 ≥90% 档选择，新建图后须再次校准召回。
+原始图配置不持久化量化块，后续 v1/v2 配置通过 `InputIndex` 训练匹配的路由并保存量化快照。
 
 ## local_builder 一次完成构建、训练与保存
 
@@ -121,46 +145,30 @@ QuantizedGraphRouter:
 
 ## 2026-11-03 SIFT / GIST / GloVe 性能与厂商对照记录
 
-以下区分最近的本实现测量与历史同轮厂商对照，避免把不同轮次的最快 QPS 相除。
-本节比较范围为 **SIFT、GIST、GloVe**；Cohere 的验证记录单独保留在下节。
-当前通用实现为 `6ae49f65`：GIST 使用单视图，GloVe 使用双视图；SIFT 尚无当前代码的可比实测，视图数与最佳参数未确定。
-严格 ID Recall@10≥90% 的最近已测 FP32 点如下；它们是参数扫描结果，不等于所有既有 YAML 默认参数。
+本轮在 ANN-Benchmarks 中补齐三数据集三算法，完整报告、严格 ID 召回表、曲线和参数见 [测试报告](results/20261103-three-datasets/REPORT_ZH.md)。
+构建任务并发上限为 **2**；正式查询等待建图结束后串行、固定 CPU 0，TopK=10，全量预热 1 轮后测 5 轮并取中位数。
+SIFT/GloVe 各 10,000 条查询，GIST 1,000 条。下表为 **QPS / 实际 ANN Recall@10**，各列取达到同一召回下限的最快已确认配置。
 
-| 数据集 | 严格召回 | QPS | 日期/验证批次 |
-|---|---:|---:|---|
-| SIFT-128 | 待测 | 待测 | 尚无当前代码实测 |
-| GIST-960 | 90.26% | 14,306 | 11-03 通用化验证 |
-| GloVe-100 | 90.22% | 15,335 | 11-03 本次正式 preset 验证 |
+| 数据集 | ANN 召回下限 | Zvec FP32 | Huawei qsgngt | Descartes |
+|---|---:|---:|---:|---:|
+| SIFT | ≥90% | 49,514 / 90.008% | 45,165 / 90.124% | 36,749 / 90.922% |
+| SIFT | ≥95% | 40,218 / 95.158% | 34,263 / 95.042% | 30,063 / 95.020% |
+| GIST | ≥90% | 15,097 / 90.250% | 7,792 / 90.540% | 4,861 / 91.310% |
+| GIST | ≥95% | 9,996 / 95.740% | 4,277 / 95.780% | 3,466 / 95.100% |
+| GloVe | ≥90% | 16,120 / 90.686% | 17,505 / 90.573% | 14,950 / 90.243% |
+| GloVe | ≥95% | 9,459 / 95.578% | 9,955 / 95.816% | 7,987 / 95.024% |
 
-已有 GIST/GloVe 结果为单核 Python→C++ 单查询、两进程共 10 轮中位数。GIST 为 1,000 查询，GloVe 全部 10,000 查询。
-Cohere 的 90.03% / 41,964 QPS 属于另一个数据集的验证记录，不能替代 SIFT；下节保留其真实测试结果。
-同机历史三方/双方对照如下；Huawei 指已安装的 qsgngt 适配器。
+ANN 召回带绝对距离容差 0.001，与严格 ID 召回有区别。实际召回不完全相同，吞吐倍率仅表示同一召回下限档的比较。
+同一公开查询集用于扫描与报告；各算法使用各自的构建配置，未约束相同索引内存预算。
+Zvec 使用通用实现 `6ae49f65`：GIST 单视图、GloVe 双视图；SIFT 从同一原始图构建单/双视图，逐目标选择已确认的快者。
+Huawei 的 GloVe 配置为 a2 原始图加 Q=1 量化层；原 Q=2 的低召回诊断不纳入对照表，配置差异与验证记录见完整报告。
+Cohere 的历史验证单独保留在下节。
 
-| 数据集/口径 | 本实现 FP32：实际召回 / QPS | Descartes：实际召回 / QPS | Huawei：实际召回 / QPS | 测试日期 |
-|---|---|---|---|---|
-| GIST 严格≥90% | 90.33% / 13,220 | 90.65–92.32% / 4,252 | 90.18% / 6,789 | 11-01 |
-| GIST 严格≥95% | 95.07% / 9,246 | 95.32–96.08% / 2,602 | 95.25% / 3,700 | 11-01 |
-| GloVe 严格≥90%，匹配双方召回 | 92.354% / 12,594 | 92.312% / 10,669 | 未覆盖 | 11-03 |
-| GloVe 严格≥95%，匹配双方召回 | 95.209% / 8,668 | 95.059% / 6,638 | 未覆盖 | 11-03 |
-| GloVe ANN≥90%，同时不降低严格召回 | 90.686% / 16,988 | 90.089% / 15,515 | 未覆盖 | 11-03 |
-| SIFT | 待测 | 待测 | 待测 | — |
+![三数据集 ANN Recall/QPS](results/20261103-three-datasets/recall-qps-ann.png)
 
-GIST 90% 目标档的 FP32 QPS 为 Huawei 的 1.95×、Descartes 的 3.11×；它们的实测召回并非完全相同，
-尤其 Descartes 跨初始化召回变化明显，不能解释为精确同召回加速。
-GloVe 严格召回匹配档相对 Descartes 分别为 1.18×、1.31×；ANN 90% 档为 1.095×。
-GloVe 的 ANN 90% 行不是严格 ID 90%：双方严格召回分别为 89.188% 和 88.546%。
-
-GIST 的历史对照使用当前保留的单视图算法路径；此前已验证旧快照在新旧库下返回 ID 一致。
-GloVe 的历史对照来自研究原型，本次正式 preset 在当前库上逐项复现了查询 ID，并重新测量自身 QPS；
-本次未重跑厂商，因此不将本次 QPS 与历史厂商 QPS 拼接为新倍数。
-SIFT 的当前代码及两家厂商对照、GloVe 的 Huawei 对照尚无本地可比实测记录，不能据此声称三数据集全部领先两家。
-本地 SIFT 参考图和 NGT 仓库中的 Git LFS 数据指针不构成当前代码的性能证据。
-
-本机原始记录：`~/bench/quantized_graph/annbenchmark_gist_20261101/`、
-`~/bench/quantized_graph/ann_glove_followup_20261103/`、
-`~/bench/quantized_graph/rotation_views_generalization_20261103/`、
-`~/bench/quantized_graph/glove_presets_20261103/`。
-以上均为本机有限参数扫描，不是官方排行榜或独立盲测；具体构建参数、逐轮样本及召回定义保存在各报告。
+- [完整查询参数和协议](config/annbenchmark_three_datasets.yaml)、[汇总 CSV](results/20261103-three-datasets/comparison.csv)。
+- [严格 ID Recall/QPS](results/20261103-three-datasets/recall-qps-strict.png)、[可重绘的确认点](results/20261103-three-datasets/points.json)。
+- [SIFT 原生 recall 配置复核](results/20261103-three-datasets/native-cli-audit.json)：文本入口与 ANN 运行器使用的同一配置得到相同严格召回。
 
 ## 2026-11-03 多视图跨数据集验证
 
