@@ -1,6 +1,6 @@
 # 构建、检索配置与验证记录
 
-本目录保存 Cohere / GIST 已测的推荐配置，以及算法说明。最近更新：2026-11-03。
+本目录保存 Cohere / GIST / GloVe 已测的推荐配置，以及算法说明。最近更新：2026-11-03。
 “最佳”限定为已有参数扫描和指定快照上的最佳已测选择，不保证任意机器、新建图或数据分布均最优。
 
 FP32/FP16 的统一配置与精度语义见 [存储精度说明](FP16.zh-CN.md)。
@@ -14,6 +14,9 @@ FP32/FP16 的统一配置与精度语义见 [存储精度说明](FP16.zh-CN.md)�
 | GIST FP32，嵌入路由 | [gist_fp32_build.yaml](gist_fp32_build.yaml) | [gist_fp32_recall_bench.yaml](gist_fp32_recall_bench.yaml) |
 | Cohere FP16，嵌入路由 | [cohere_fp16_build.yaml](cohere_fp16_build.yaml) | [cohere_fp16_recall_bench.yaml](cohere_fp16_recall_bench.yaml) |
 | GIST FP16，嵌入路由 | [gist_fp16_build.yaml](gist_fp16_build.yaml) | [gist_fp16_recall_bench.yaml](gist_fp16_recall_bench.yaml) |
+| GloVe FP32，双视图 | [glove_fp32_build.yaml](glove_fp32_build.yaml) | [glove_fp32_recall_bench.yaml](glove_fp32_recall_bench.yaml) |
+
+GloVe 的数据准备、七档查询 sweep、两种召回定义与资源说明见 [GloVe 最佳实践](GLOVE.zh-CN.md)。
 
 文件名中的 `fp32` / `fp16` 表示数据库存储精度，接口输入均为 FP32。四组配置使用独立的工作索引、dump 和召回日志路径。旧的 `cohere_build.yaml`、`cohere_recall_bench.yaml`、`gist_build.yaml`、`gist_recall_bench.yaml` 继续保留兼容已有命令。
 
@@ -115,6 +118,46 @@ QuantizedGraphRouter:
 从带路由的原生图通过 `InputIndex` 转换时，更改视图数必须重建匹配的路由，保留 `QuantizedGraphRouter` 节。
 请使用尚未持久化量化块的原生图作为重训路由的输入，并写入新的 `DumpPath`。
 已保存的多视图量化索引可以直接加载，不需原图、训练向量或额外模型文件。
+
+## 2026-11-03 当前性能与厂商对照记录
+
+以下区分最近的本实现测量与历史同轮厂商对照，避免把不同轮次的最快 QPS 相除。
+当前通用实现为 `6ae49f65`：Cohere/GIST 使用单视图，GloVe 使用双视图。
+严格 ID Recall@10≥90% 的最近已测 FP32 点如下；它们是参数扫描结果，不等于所有既有 YAML 默认参数。
+
+| 数据集 | 严格召回 | QPS | 日期/验证批次 |
+|---|---:|---:|---|
+| Cohere-768 | 90.03% | 41,964 | 11-03 通用化验证 |
+| GIST-960 | 90.26% | 14,306 | 11-03 通用化验证 |
+| GloVe-100 | 90.22% | 15,335 | 11-03 本次正式 preset 验证 |
+
+均为单核 Python→C++ 单查询、两进程共 10 轮中位数。Cohere/GIST 各 1,000 查询，GloVe 全部 10,000 查询。
+同机历史三方/双方对照如下；Huawei 指已安装的 qsgngt 适配器。
+
+| 数据集/口径 | 本实现 FP32：实际召回 / QPS | Descartes：实际召回 / QPS | Huawei：实际召回 / QPS | 测试日期 |
+|---|---|---|---|---|
+| GIST 严格≥90% | 90.33% / 13,220 | 90.65–92.32% / 4,252 | 90.18% / 6,789 | 11-01 |
+| GIST 严格≥95% | 95.07% / 9,246 | 95.32–96.08% / 2,602 | 95.25% / 3,700 | 11-01 |
+| GloVe 严格≥90%，匹配双方召回 | 92.354% / 12,594 | 92.312% / 10,669 | 未覆盖 | 11-03 |
+| GloVe 严格≥95%，匹配双方召回 | 95.209% / 8,668 | 95.059% / 6,638 | 未覆盖 | 11-03 |
+| GloVe ANN≥90%，同时不降低严格召回 | 90.686% / 16,988 | 90.089% / 15,515 | 未覆盖 | 11-03 |
+| Cohere | 见上表最近测量 | 未覆盖 | 未覆盖 | — |
+
+GIST 90% 目标档的 FP32 QPS 为 Huawei 的 1.95×、Descartes 的 3.11×；它们的实测召回并非完全相同，
+尤其 Descartes 跨初始化召回变化明显，不能解释为精确同召回加速。
+GloVe 严格召回匹配档相对 Descartes 分别为 1.18×、1.31×；ANN 90% 档为 1.095×。
+GloVe 的 ANN 90% 行不是严格 ID 90%：双方严格召回分别为 89.188% 和 88.546%。
+
+GIST 的历史对照使用当前保留的单视图算法路径；此前已验证旧快照在新旧库下返回 ID 一致。
+GloVe 的历史对照来自研究原型，本次正式 preset 在当前库上逐项复现了查询 ID，并重新测量自身 QPS；
+本次未重跑厂商，因此不将本次 QPS 与历史厂商 QPS 拼接为新倍数。
+Cohere 的两家厂商对照、GloVe 的 Huawei 对照尚无本地可比实测记录，不能据此声称三数据集全部领先两家。
+
+本机原始记录：`~/bench/quantized_graph/annbenchmark_gist_20261101/`、
+`~/bench/quantized_graph/ann_glove_followup_20261103/`、
+`~/bench/quantized_graph/rotation_views_generalization_20261103/`、
+`~/bench/quantized_graph/glove_presets_20261103/`。
+以上均为本机有限参数扫描，不是官方排行榜或独立盲测；具体构建参数、逐轮样本及召回定义保存在各报告。
 
 ## 2026-11-03 多视图跨数据集验证
 

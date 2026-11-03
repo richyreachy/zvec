@@ -1,0 +1,63 @@
+# Optional seven-preset sweep. ANN targets differ from strict ID recall.
+# Measured on the saved full graph; rebuilds require recall calibration.
+# See GLOVE.zh-CN.md. Only replace paths to use the matching build snapshot.
+# ./build/bin/recall tools/core/bench/glove_fp32_recall_sweep.yaml
+# ./build/bin/bench tools/core/bench/glove_fp32_recall_sweep.yaml
+IndexCommon:
+  IndexConfig: >-
+    {"index_type":"kHNSW","data_type":"DT_FP32",
+     "metric_type":"kCosine","dimension":100,
+     "m":32,"ef_construction":400,
+     "use_id_map":true,"use_quantized_graph":true,
+     "quantizer_param":{"type":"kNone"}}
+  IndexPath: /data/glove/glove_fp32_full.index
+  TopK: 10
+  QueryFile: /data/glove/queries.txt
+  QueryFirstSep: ";"
+  QuerySecondSep: " "
+  QueryType: float
+  RetrievalMode: dense
+  FilterMode: none
+  GroundTruthFile: /data/glove/neighbors.txt
+  GroundTruthFirstSep: ";"
+  GroundTruthSecondSep: " "
+  CompareById: true
+  RecallThreadCount: 1
+  RecallBatchCount: 0
+  RecallGTCount: 10
+  RecallLogDir: /data/glove/fp32_sweep_logs
+  BenchThreadCount: 1
+  BenchThreadCounts: [1]
+  BenchRounds: 5
+  BenchSecs: 6
+  BenchBatchCount: 1
+  BenchIterCount: 1000000000
+  LogLevel: info
+
+# QueryParams overrides QueryParam. Case numbers below are zero-based.
+# recall reports STRICT ID recall for every case, including ANN-target presets.
+QueryConfig:
+  QueryParam: >-
+    {"index_type":"kHNSW","ef_search":2048,"quantized_graph_margin":0.065,"quantized_graph_bucket_width":0.008,"quantized_graph_max_expansions":384,"quantized_graph_route_beam":1,"quantized_graph_uncertainty_bonus":0}
+  QueryParams:
+    # case 0: strict90; measured values and definitions in GLOVE.zh-CN.md
+    - >-
+      {"index_type":"kHNSW","ef_search":2048,"quantized_graph_margin":0.065,"quantized_graph_bucket_width":0.008,"quantized_graph_max_expansions":384,"quantized_graph_route_beam":1,"quantized_graph_uncertainty_bonus":0}
+    # case 1: strict95; measured values and definitions in GLOVE.zh-CN.md
+    - >-
+      {"index_type":"kHNSW","ef_search":2048,"quantized_graph_margin":0.09,"quantized_graph_bucket_width":0.012,"quantized_graph_max_expansions":768,"quantized_graph_route_beam":1,"quantized_graph_uncertainty_bonus":0}
+    # case 2: strict97; measured values and definitions in GLOVE.zh-CN.md
+    - >-
+      {"index_type":"kHNSW","ef_search":2048,"quantized_graph_margin":0.11,"quantized_graph_bucket_width":0.004,"quantized_graph_max_expansions":1024,"quantized_graph_route_beam":1,"quantized_graph_uncertainty_bonus":0}
+    # case 3: ann90; measured values and definitions in GLOVE.zh-CN.md
+    - >-
+      {"index_type":"kHNSW","ef_search":1024,"quantized_graph_margin":0.055,"quantized_graph_bucket_width":0.016,"quantized_graph_max_expansions":384,"quantized_graph_route_beam":1,"quantized_graph_uncertainty_bonus":0}
+    # case 4: ann95; measured values and definitions in GLOVE.zh-CN.md
+    - >-
+      {"index_type":"kHNSW","ef_search":2048,"quantized_graph_margin":0.09,"quantized_graph_bucket_width":0.002,"quantized_graph_max_expansions":768,"quantized_graph_route_beam":1,"quantized_graph_uncertainty_bonus":0}
+    # case 5: ann97; measured values and definitions in GLOVE.zh-CN.md
+    - >-
+      {"index_type":"kHNSW","ef_search":2048,"quantized_graph_margin":0.09,"quantized_graph_bucket_width":0.028,"quantized_graph_max_expansions":768,"quantized_graph_route_beam":1,"quantized_graph_uncertainty_bonus":0}
+    # case 6: ann98; measured values and definitions in GLOVE.zh-CN.md
+    - >-
+      {"index_type":"kHNSW","ef_search":2048,"quantized_graph_margin":0.115,"quantized_graph_bucket_width":0.004,"quantized_graph_max_expansions":1024,"quantized_graph_route_beam":1,"quantized_graph_uncertainty_bonus":0}

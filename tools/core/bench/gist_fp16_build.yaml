@@ -35,6 +35,7 @@ QuantizerParams:
 # No external model file or query/ground-truth data is needed.
 QuantizedGraph:
   Persist: true
+  RotationViews: 1  # Keep single-view preset; see the FP32 comparison in TESTING.zh-CN.md.
   MaxNeighbors: 64
   ThreadCount: 8
   Codec:
