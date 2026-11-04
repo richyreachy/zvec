@@ -849,8 +849,18 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
   // Navigational estimates still use reconstructed-center coordinates.
   auto &refine = state.refine_candidates;
   auto &best = state.refine_best;
-  std::sort(refine.begin(), refine.end());
+  size_t ordered = 0;
   for (size_t first = 0; first < refine.size(); first += 4) {
+    if (first == ordered) {
+      // Preserve the full-sort order while only ordering candidates needed
+      // by exact refinement. Grow the prefix to bound partitioning work for
+      // large Top-K, keeping boundaries aligned with prefetch batches.
+      ordered = std::min(std::max(size_t{64}, first * 2), refine.size());
+      if (ordered < refine.size())
+        std::nth_element(refine.begin() + first, refine.begin() + ordered,
+                         refine.end());
+      std::sort(refine.begin() + first, refine.begin() + ordered);
+    }
     if (best.size() == ctx.topk() && refine[first].first > best.back()) break;
     if (ctx.reach_scan_limit()) break;
     // Keep owning/pinning handles alive until every vector in the batch has

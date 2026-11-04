@@ -5629,7 +5629,6 @@ TEST_P(QuantizedGraphBudgetTest, RefinementMatchesExactTopKAfterFullTraversal) {
       auto excluded = [filtered](uint64_t key) {
         return filtered && key % 7 == 0;
       };
-      search(128, 10, excluded, bonus);
       std::vector<std::pair<double, uint64_t>> expected;
       for (size_t id = 0; id < vectors_.size(); ++id) {
         if (excluded(id)) continue;
@@ -5647,10 +5646,15 @@ TEST_P(QuantizedGraphBudgetTest, RefinementMatchesExactTopKAfterFullTraversal) {
         expected.emplace_back(distance, id);
       }
       std::sort(expected.begin(), expected.end());
-      ASSERT_EQ(10u, result_.doc_list_.size());
-      for (size_t i = 0; i < result_.doc_list_.size(); ++i) {
-        EXPECT_EQ(expected[i].second, result_.doc_list_[i].key());
-        EXPECT_NEAR(expected[i].first, result_.doc_list_[i].score(), 1e-4);
+      for (uint32_t topk : {10u, 31u, 32u, 33u, 63u, 64u, 65u, 127u}) {
+        SCOPED_TRACE(testing::Message() << "topk=" << topk);
+        search(128, topk, excluded, bonus);
+        ASSERT_EQ(std::min(size_t(topk), expected.size()),
+                  result_.doc_list_.size());
+        for (size_t i = 0; i < result_.doc_list_.size(); ++i) {
+          EXPECT_EQ(expected[i].second, result_.doc_list_[i].key());
+          EXPECT_NEAR(expected[i].first, result_.doc_list_[i].score(), 1e-4);
+        }
       }
     }
   }
