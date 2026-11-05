@@ -156,13 +156,10 @@ struct IntegerCenter {
   }
   static float distance(const Query &q, const uint8_t *c, size_t n,
                         float offset, float scale, double center_mean_dot,
-                        double mean_norm2, float coded_norm,
-                        double &reconstructed) {
+                        double mean_norm2) {
     const int64_t product = dot16(c, q.codes.data(), n);
     const double residual_dot = double(q.scale) * (double(scale) * product +
                                                    double(offset) * q.code_sum);
-    reconstructed = double(q.coded_norm) * q.coded_norm +
-                    double(coded_norm) * coded_norm - 2. * residual_dot;
     return float(1. -
                  (q.mean_dot + center_mean_dot - mean_norm2 + residual_dot));
   }
@@ -249,7 +246,7 @@ struct IntegerCenter {
   static float lower_bound(float approximate, const Query &q, float error,
                            float residual_norm, float coded_norm,
                            float original_norm2, double center_mean_dot,
-                           double mean_norm2, size_t n, double reconstructed) {
+                           double mean_norm2, size_t n) {
     const double quantization = std::min(
         double(q.error) * residual_norm + double(q.coded_norm) * error,
         double(error) * q.residual_norm + double(coded_norm) * q.error);
@@ -266,7 +263,6 @@ struct IntegerCenter {
             (1. + std::abs(double(approximate)));
     // The Cauchy-Schwarz reconstruction bound remains conservative on its
     // own; omit the additional triangle bound to avoid per-center sqrt.
-    (void)reconstructed;
     return next_down(float(double(approximate) - quantization - arithmetic));
   }
 };

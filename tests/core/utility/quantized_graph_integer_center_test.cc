@@ -192,13 +192,11 @@ TEST(QuantizedGraphIntegerCenter, ShiftedCosineBoundsIncludeExactDistances) {
       IntegerCenter::Query prepared;
       ASSERT_TRUE(
           IntegerCenter::prepare(query.data(), mean.data(), n, prepared));
-      double reconstructed;
-      const float distance =
-          IntegerCenter::distance(prepared, codes.data(), n, offset, scale,
-                                  mean_dot, mean_norm, coded, reconstructed);
-      const float lower = IntegerCenter::lower_bound(
-          distance, prepared, error, residual, coded, norm, mean_dot, mean_norm,
-          n, reconstructed);
+      const float distance = IntegerCenter::distance(
+          prepared, codes.data(), n, offset, scale, mean_dot, mean_norm);
+      const float lower =
+          IntegerCenter::lower_bound(distance, prepared, error, residual, coded,
+                                     norm, mean_dot, mean_norm, n);
       double exact = 1;
       float dot = 0;
       for (size_t j = 0; j < n; ++j) {

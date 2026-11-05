@@ -65,11 +65,20 @@ class QuantizedGraphVisitSet {
       const NodeId *ids, const float *distances, size_t count) const {
     assert(count <= 32);
     uint32_t accepted = 0;
-    if (!dense_.empty()) {
-      for (size_t first = 0; first < count; first += 16) {
-        const size_t lanes = std::min(size_t{16}, count - first);
-        const __mmask16 active = __mmask16((uint32_t{1} << lanes) - 1);
-        const __m512i keys = _mm512_maskz_loadu_epi32(active, ids + first);
+    const bool bitmap = !dense_.empty();
+    if (!bitmap && mask_ > size_t{INT32_MAX}) {
+      for (size_t i = 0; i < count; ++i)
+        if (std::isfinite(distances[i]) && !visited(ids[i]))
+          accepted |= uint32_t{1} << i;
+      return accepted;
+    }
+    const __m512i table_mask = _mm512_set1_epi32(int(mask_));
+    for (size_t first = 0; first < count; first += 16) {
+      const size_t lanes = std::min(size_t{16}, count - first);
+      const __mmask16 active = __mmask16((uint32_t{1} << lanes) - 1);
+      const __m512i keys = _mm512_maskz_loadu_epi32(active, ids + first);
+      uint32_t keep, pending;
+      if (bitmap) {
         const __m512i offsets = _mm512_srli_epi32(keys, 5);
         const __mmask16 valid =
             active & _mm512_cmplt_epu32_mask(
@@ -79,48 +88,28 @@ class QuantizedGraphVisitSet {
         const __m512i masks =
             _mm512_sllv_epi32(_mm512_set1_epi32(1),
                               _mm512_and_si512(keys, _mm512_set1_epi32(31)));
-        const __m512i bits =
-            _mm512_maskz_loadu_epi32(active, distances + first);
-        const __mmask16 finite = _mm512_cmplt_epi32_mask(
-            _mm512_and_si512(bits, _mm512_set1_epi32(0x7fffffff)),
-            _mm512_set1_epi32(0x7f800000));
-        uint32_t keep = valid & finite & ~_mm512_test_epi32_mask(values, masks);
-        uint32_t outside = active & finite & ~valid;
-        while (outside) {
-          const unsigned lane = __builtin_ctz(outside);
-          outside &= outside - 1;
-          if (!visited(ids[first + lane])) keep |= uint32_t{1} << lane;
-        }
-        accepted |= keep << first;
+        keep = valid & ~_mm512_test_epi32_mask(values, masks);
+        pending = active & ~valid;
+      } else {
+        const __m512i offsets = _mm512_and_si512(keys, table_mask);
+        const __m512i values = _mm512_mask_i32gather_epi32(
+            _mm512_setzero_si512(), active, offsets, table_.data(), 4);
+        const __mmask16 empty =
+            _mm512_cmpeq_epi32_mask(values, _mm512_set1_epi32(-1));
+        const __mmask16 equal = _mm512_cmpeq_epi32_mask(values, keys);
+        keep = active & empty & ~equal;
+        pending = active & ~empty & ~equal;
       }
-      return accepted;
-    }
-    if (mask_ > size_t{INT32_MAX}) {
-      for (size_t i = 0; i < count; ++i)
-        if (std::isfinite(distances[i]) && !visited(ids[i]))
-          accepted |= uint32_t{1} << i;
-      return accepted;
-    }
-    const __m512i table_mask = _mm512_set1_epi32(int(mask_));
-    for (size_t first = 0; first < count; first += 16) {
-      const size_t lanes = std::min(size_t{16}, count - first);
-      const __mmask16 active = (__mmask16)((uint32_t{1} << lanes) - 1);
-      const __m512i keys = _mm512_maskz_loadu_epi32(active, ids + first);
-      const __m512i offsets = _mm512_and_si512(keys, table_mask);
-      const __m512i values = _mm512_mask_i32gather_epi32(
-          _mm512_setzero_si512(), active, offsets, table_.data(), 4);
       const __m512i bits = _mm512_maskz_loadu_epi32(active, distances + first);
       const __mmask16 finite = _mm512_cmplt_epi32_mask(
           _mm512_and_si512(bits, _mm512_set1_epi32(0x7fffffff)),
           _mm512_set1_epi32(0x7f800000));
-      const __mmask16 empty =
-          _mm512_cmpeq_epi32_mask(values, _mm512_set1_epi32(-1));
-      const __mmask16 equal = _mm512_cmpeq_epi32_mask(values, keys);
-      uint32_t keep = active & finite & empty & ~equal;
-      uint32_t collisions = active & finite & ~empty & ~equal;
-      while (collisions) {
-        const unsigned lane = __builtin_ctz(collisions);
-        collisions &= collisions - 1;
+      keep &= finite;
+      pending &= finite;
+      // Bitmap overflow and hash collisions share the scalar lookup.
+      while (pending) {
+        const unsigned lane = __builtin_ctz(pending);
+        pending &= pending - 1;
         if (!visited(ids[first + lane])) keep |= uint32_t{1} << lane;
       }
       accepted |= keep << first;

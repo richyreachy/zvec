@@ -710,17 +710,16 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       const bool eligible = !ctx.excluded(id);
       float estimate;
       if constexpr (Cosine) {
-        double reconstructed;
         estimate = IntegerCenter::distance(
             integer_query, block->center(), index.dimension_,
             block->center_offset, block->center_scale, block->center_mean_dot,
-            index.center_shift_norm2_, block->center_coded_norm, reconstructed);
+            index.center_shift_norm2_);
         navigation_center = estimate;
         float lower = IntegerCenter::lower_bound(
             estimate, integer_query, block->center_error,
             block->center_residual_norm, block->center_coded_norm,
             block->center_norm2, block->center_mean_dot,
-            index.center_shift_norm2_, index.dimension_, reconstructed);
+            index.center_shift_norm2_, index.dimension_);
         if (eligible) refine_candidates.emplace_back(lower, id);
       } else {
         double reconstructed;
