@@ -1,0 +1,35 @@
+# GloVe-100-angular: 1,183,514 vectors, cosine, FP32 storage.
+# See ../GLOVE.zh-CN.md for data preparation, validated search presets and costs.
+# Replace /data/glove paths. BuildFile is zvec.vecs, not HDF5/fvecs/text.
+# Fresh build: ./build/bin/local_builder tools/core/bench/config/glove_fp32_build.yaml
+# Use new IndexPath/DumpPath. To reuse a raw HnswStreamer snapshot, replace
+# BuildFile with InputIndex and keep the router section to match RotationViews.
+BuilderCommon:
+  BuilderClass: HnswStreamer
+  BuildFile: /data/glove/glove100_base.zvec.vecs
+  MetricName: Cosine
+  ConverterName: CosineFp32Converter
+  IndexPath: /data/glove/glove_fp32_work.index
+  DumpPath: /data/glove/glove_fp32_full.index
+  DumpFormat: streamer
+  MaxDocs: 1183514
+  ThreadCount: 8
+  LogLevel: info
+
+BuilderParams:
+  proxima.hnsw.streamer.max_neighbor_count: !!int 32
+  proxima.hnsw.streamer.efconstruction: !!int 400
+  proxima.hnsw.streamer.get_vector_enable: !!bool true
+
+QuantizedGraphRouter:
+  Anchors: 65536
+  ProjectedDimension: 64
+  Seed: 202610261259
+
+QuantizedGraph:
+  Persist: true
+  RotationViews: 2
+  MaxNeighbors: 64
+  ThreadCount: 8
+  Codec:
+    Type: native

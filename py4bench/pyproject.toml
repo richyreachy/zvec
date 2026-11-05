@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zvec-py4bench"
+version = "0.1.0"
+description = "Experimental low-overhead benchmark adapters for Zvec"
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.23", "zvec"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
