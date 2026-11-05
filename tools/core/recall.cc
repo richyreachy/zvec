@@ -82,7 +82,7 @@ class Recall {
     } else {
       cout << "Loading internal ground truth file" << endl;
 
-      if (!load_gt_dense(index, gt_count)) {
+      if (!load_gt_dense(index, query_param, gt_count)) {
         LOG_ERROR("Load ground truth file failed!");
         return;
       }
@@ -284,7 +284,10 @@ class Recall {
     return std::string(crc_str);
   }
 
-  bool load_gt_dense(core_interface::Index::Pointer index, size_t gt_count) {
+  bool load_gt_dense(
+      core_interface::Index::Pointer index,
+      const core_interface::BaseIndexQueryParam::Pointer &source_param,
+      size_t gt_count) {
     std::string crc_str = compute_crc(gt_count);
 
     string gt_file = string("gt.") + crc_str;
@@ -354,7 +357,9 @@ class Recall {
         core_interface::VectorData query_data;
         query_data.vector = dense_query;
 
-        auto query_param = std::make_shared<core_interface::FlatQueryParam>();
+        // Backend validation still requires its matching query type when
+        // linear search is requested (for example HNSWQueryParam).
+        auto query_param = source_param->clone();
         query_param->topk = gt_count;
         query_param->is_linear = true;
         query_param->filter = filter_ptr;
@@ -1766,20 +1771,29 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  if (retrieval_mode == RM_DENSE) {
-    recall_dense(query_type, thread_count, batch_count, top_k, gt_count,
-                 query_file, first_sep, second_sep, ground_truth_file,
-                 ground_truth_first_sep, ground_truth_second_sep, index,
-                 query_param, index_dir, log_dir, filter_mode);
-  } else if (retrieval_mode == RM_SPARSE) {
-    recall_sparse(query_type, thread_count, batch_count, top_k, gt_count,
-                  query_file, first_sep, second_sep, ground_truth_file,
-                  ground_truth_first_sep, ground_truth_second_sep, index,
-                  query_param, index_dir, log_dir, filter_mode);
-  } else {
-    std::string mode = retrieval_mode == 1 ? "Dense" : "Sparse";
-    LOG_ERROR("unsupported retrieval mode: %s", mode.c_str());
-    return -1;
+  std::vector<core_interface::BaseIndexQueryParam::Pointer> cases;
+  if (!parse_tool_query_cases(config_node, query_param, cases)) return -1;
+  for (size_t case_id = 0; case_id < cases.size(); ++case_id) {
+    std::cout << "RECALL_CASE case=" << case_id << std::endl;
+    std::string case_log_dir =
+        log_dir.empty() || cases.size() == 1
+            ? log_dir
+            : log_dir + "/case_" + std::to_string(case_id);
+    if (retrieval_mode == RM_DENSE) {
+      recall_dense(query_type, thread_count, batch_count, top_k, gt_count,
+                   query_file, first_sep, second_sep, ground_truth_file,
+                   ground_truth_first_sep, ground_truth_second_sep, index,
+                   cases[case_id], index_dir, case_log_dir, filter_mode);
+    } else if (retrieval_mode == RM_SPARSE) {
+      recall_sparse(query_type, thread_count, batch_count, top_k, gt_count,
+                    query_file, first_sep, second_sep, ground_truth_file,
+                    ground_truth_first_sep, ground_truth_second_sep, index,
+                    cases[case_id], index_dir, case_log_dir, filter_mode);
+    } else {
+      std::string mode = retrieval_mode == 1 ? "Dense" : "Sparse";
+      LOG_ERROR("unsupported retrieval mode: %s", mode.c_str());
+      return -1;
+    }
   }
 
   // Cleanup
