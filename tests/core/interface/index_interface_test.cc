@@ -5543,8 +5543,9 @@ class QuantizedGraphBudgetTest : public testing::TestWithParam<MetricType> {
     param->topk = topk;
     param->ef_search = 800;
     param->quantized_graph_max_expansions = cap;
-    // Disable distance-based early stopping to exercise the expansion cap.
-    param->quantized_graph_margin = 1e6f;
+    // Exceed every fixture distance even when Top-1 is the query itself and
+    // the stopping rule scales its margin by the 1e-6 distance floor.
+    param->quantized_graph_margin = 1e9f;
     param->quantized_graph_uncertainty_bonus = bonus;
     param->filter = std::make_shared<IndexFilter>();
     param->filter->set(std::move(excluded));
@@ -5646,7 +5647,8 @@ TEST_P(QuantizedGraphBudgetTest, RefinementMatchesExactTopKAfterFullTraversal) {
         expected.emplace_back(distance, id);
       }
       std::sort(expected.begin(), expected.end());
-      for (uint32_t topk : {10u, 31u, 32u, 33u, 63u, 64u, 65u, 127u}) {
+      for (uint32_t topk :
+           {1u, 10u, 15u, 16u, 17u, 31u, 32u, 33u, 63u, 64u, 65u, 127u}) {
         SCOPED_TRACE(testing::Message() << "topk=" << topk);
         search(128, topk, excluded, bonus);
         ASSERT_EQ(std::min(size_t(topk), expected.size()),

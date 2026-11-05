@@ -12,12 +12,28 @@
 #include <vector>
 namespace zvec::core {
 // Expanded-node membership. UINT32_MAX is reserved; batches contain at most
-// 32 IDs. SIMD probes resolve empty/matching slots; collisions use the same
-// linear probing and overflow set as scalar lookup. Queries retain lane order.
+// 32 IDs. Use a bounded bitmap for dense domains, clearing only touched words.
+// Otherwise retain linear probing and overflow storage. Both paths preserve
+// lane order and accept IDs outside the optional bitmap domain.
 class QuantizedGraphVisitSet {
  public:
   using NodeId = uint32_t;
-  void reset(size_t expect) {
+  void reset(size_t expect, size_t domain = 0) {
+    const size_t words = domain / 32 + (domain % 32 != 0);
+    // Bound bitmap storage relative to the hash table, and leave the reserved
+    // ID outside the bitmap even when the domain ends in a partial word.
+    if (words && words <= size_t{kEmpty} / 32 &&
+        words / 32 + (words % 32 != 0) <= expect) {
+      if (dense_.size() != words)
+        dense_.assign(words, 0);
+      else
+        for (uint32_t word : touched_) dense_[word] = 0;
+      touched_.clear();
+      overflow_.clear();
+      return;
+    }
+    dense_.clear();
+    touched_.clear();
     size_t cap = 64;
     while (cap < expect * 8) cap *= 2;
     if (table_.size() != cap)
@@ -29,6 +45,11 @@ class QuantizedGraphVisitSet {
   }
 
   bool visited(NodeId id) const {
+    if (!dense_.empty()) {
+      if (id / 32 < dense_.size())
+        return (dense_[id / 32] & (uint32_t{1} << (id % 32))) != 0;
+      return id == kEmpty || overflow_.find(id) != overflow_.end();
+    }
     size_t i = id & mask_;
     for (size_t n = 0; n <= mask_; ++n) {
       const NodeId v = table_[i];
@@ -44,6 +65,36 @@ class QuantizedGraphVisitSet {
       const NodeId *ids, const float *distances, size_t count) const {
     assert(count <= 32);
     uint32_t accepted = 0;
+    if (!dense_.empty()) {
+      for (size_t first = 0; first < count; first += 16) {
+        const size_t lanes = std::min(size_t{16}, count - first);
+        const __mmask16 active = __mmask16((uint32_t{1} << lanes) - 1);
+        const __m512i keys = _mm512_maskz_loadu_epi32(active, ids + first);
+        const __m512i offsets = _mm512_srli_epi32(keys, 5);
+        const __mmask16 valid =
+            active & _mm512_cmplt_epu32_mask(
+                         offsets, _mm512_set1_epi32(int(dense_.size())));
+        const __m512i values = _mm512_mask_i32gather_epi32(
+            _mm512_setzero_si512(), valid, offsets, dense_.data(), 4);
+        const __m512i masks =
+            _mm512_sllv_epi32(_mm512_set1_epi32(1),
+                              _mm512_and_si512(keys, _mm512_set1_epi32(31)));
+        const __m512i bits =
+            _mm512_maskz_loadu_epi32(active, distances + first);
+        const __mmask16 finite = _mm512_cmplt_epi32_mask(
+            _mm512_and_si512(bits, _mm512_set1_epi32(0x7fffffff)),
+            _mm512_set1_epi32(0x7f800000));
+        uint32_t keep = valid & finite & ~_mm512_test_epi32_mask(values, masks);
+        uint32_t outside = active & finite & ~valid;
+        while (outside) {
+          const unsigned lane = __builtin_ctz(outside);
+          outside &= outside - 1;
+          if (!visited(ids[first + lane])) keep |= uint32_t{1} << lane;
+        }
+        accepted |= keep << first;
+      }
+      return accepted;
+    }
     if (mask_ > size_t{INT32_MAX}) {
       for (size_t i = 0; i < count; ++i)
         if (std::isfinite(distances[i]) && !visited(ids[i]))
@@ -77,22 +128,36 @@ class QuantizedGraphVisitSet {
     return accepted;
   }
 
-  void set_visited(NodeId id) {
+  // Return true only for the first insertion in this query.
+  bool set_visited(NodeId id) {
+    if (id == kEmpty) return false;
+    if (!dense_.empty()) {
+      if (id / 32 < dense_.size()) {
+        uint32_t &word = dense_[id / 32];
+        const uint32_t mask = uint32_t{1} << (id % 32);
+        if (word & mask) return false;
+        if (word == 0) touched_.push_back(id / 32);
+        word |= mask;
+        return true;
+      }
+      return overflow_.insert(id).second;
+    }
     size_t i = id & mask_;
     for (size_t n = 0; n <= mask_; ++n) {
       const NodeId v = table_[i];
-      if (v == id) return;
+      if (v == id) return false;
       if (v == kEmpty) {
         table_[i] = id;
-        return;
+        return true;
       }
       i = (i + 1) & mask_;
     }
-    if (id != kEmpty) overflow_.insert(id);
+    return overflow_.insert(id).second;
   }
 
  private:
   static constexpr NodeId kEmpty = 0xFFFFFFFFu;
+  std::vector<uint32_t> dense_, touched_;
   std::vector<NodeId> table_;
   std::unordered_set<NodeId> overflow_;
   size_t mask_{0};

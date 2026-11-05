@@ -264,14 +264,10 @@ struct IntegerCenter {
              double(q.coded_norm) * coded_norm) +
         8. * std::numeric_limits<float>::epsilon() *
             (1. + std::abs(double(approximate)));
-    // q and c share the same shift, so their residual difference is q-c.
-    // 1-q.c = 1-(||q||^2+||c||^2)/2 + ||q-c||^2/2; upper original norms
-    // and the L2 lower bound therefore give another cosine lower bound.
-    const double triangle =
-        1. - .5 * (q.norm * q.norm + original_norm2) +
-        .5 * l2_lower_bound(reconstructed, q, error, coded_norm, n);
-    return next_down(float(
-        std::max(double(approximate) - quantization, triangle) - arithmetic));
+    // The Cauchy-Schwarz reconstruction bound remains conservative on its
+    // own; omit the additional triangle bound to avoid per-center sqrt.
+    (void)reconstructed;
+    return next_down(float(double(approximate) - quantization - arithmetic));
   }
 };
 }  // namespace zvec::core

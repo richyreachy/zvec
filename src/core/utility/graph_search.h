@@ -61,6 +61,7 @@ struct GraphSearchPoolFrontier {
 // Frontier::push_batch. Quantized scans keep all lanes for encoding alignment,
 // mark expansion, and let Frontier::push_batch discard expanded IDs and admit
 // candidates sequentially. The frontier may batch score-to-bin arithmetic.
+// Expansion-marking Visit::set_visited returns whether the ID was newly added.
 // This permits improved center-dependent estimates before a node is expanded.
 // The frontier owns stopping rules; estimated scores are never compared to an
 // exact result threshold by this common loop. Results/filtering/completion are
@@ -72,8 +73,7 @@ int SearchGraph(Scan &scan, Frontier &frontier, Visit &visit,
   while (frontier.has_next()) {
     const uint32_t id = frontier.pop();
     if constexpr (Scan::kVisitOnExpansion) {
-      if (visit.visited(id)) continue;
-      visit.set_visited(id);
+      if (!visit.set_visited(id)) continue;
     }
     const int ret = scan.begin(id);
     if (ret != 0) return ret;
