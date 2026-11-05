@@ -1379,36 +1379,19 @@ Status CollectionImpl::add_column(const FieldSchema::Ptr &column_schema,
     CHECK_RETURN_STATUS(s);
   }
 
-  Version new_version = version_manager_->get_current_version();
+  auto old_writing_segment = writing_segment_;
+  Version old_version = version_manager_->get_current_version();
+  Version new_version = old_version;
 
   // add column on segment manager
   s = segment_manager_->add_column(field_copy, expression,
                                    options.concurrency_);
   CHECK_RETURN_STATUS(s);
 
-  // reset writing segment with new schema
-  auto id = writing_segment_->id();
   auto min_doc_id = writing_segment_->meta()->min_doc_id();
-
-  s = writing_segment_->destroy();
-  CHECK_RETURN_STATUS(s);
-  writing_segment_.reset();
-
-  SegmentOptions seg_options;
-  seg_options.enable_mmap_ = options_.enable_mmap_;
-  seg_options.max_buffer_size_ = options_.max_buffer_size_;
-  seg_options.read_only_ = options_.read_only_;
-  auto writing_segment =
-      Segment::CreateAndOpen(path_, *new_schema, id, min_doc_id, id_map_,
-                             delete_store_, version_manager_, seg_options);
-  if (!writing_segment) {
-    return writing_segment.error();
-  }
-  writing_segment_ = writing_segment.value();
 
   // update new version
   new_version.set_schema(*new_schema);
-  new_version.reset_writing_segment_meta(writing_segment_->meta());
 
   auto new_segment_metas = segment_manager_->get_segments_meta();
   for (auto meta : new_segment_metas) {
@@ -1416,14 +1399,9 @@ Status CollectionImpl::add_column(const FieldSchema::Ptr &column_schema,
     CHECK_RETURN_STATUS(s);
   }
 
-  s = version_manager_->apply(new_version);
+  s = commit_schema_change_with_new_writing_segment(
+      new_schema, old_writing_segment, old_version, &new_version, min_doc_id);
   CHECK_RETURN_STATUS(s);
-
-  // persist manifest
-  s = version_manager_->flush();
-  CHECK_RETURN_STATUS(s);
-
-  schema_ = new_schema;
 
   return Status::OK();
 }
@@ -1455,35 +1433,18 @@ Status CollectionImpl::drop_column(const std::string &column_name) {
     CHECK_RETURN_STATUS(s);
   }
 
-  Version new_version = version_manager_->get_current_version();
+  auto old_writing_segment = writing_segment_;
+  Version old_version = version_manager_->get_current_version();
+  Version new_version = old_version;
 
   // drop column on segment manager
   s = segment_manager_->drop_column(column_name);
   CHECK_RETURN_STATUS(s);
 
-  // reset writing segment with new schema
-  auto id = writing_segment_->id();
   auto min_doc_id = writing_segment_->meta()->min_doc_id();
-
-  s = writing_segment_->destroy();
-  CHECK_RETURN_STATUS(s);
-  writing_segment_.reset();
-
-  SegmentOptions seg_options;
-  seg_options.enable_mmap_ = options_.enable_mmap_;
-  seg_options.max_buffer_size_ = options_.max_buffer_size_;
-  seg_options.read_only_ = options_.read_only_;
-  auto writing_segment =
-      Segment::CreateAndOpen(path_, *new_schema, id, min_doc_id, id_map_,
-                             delete_store_, version_manager_, seg_options);
-  if (!writing_segment) {
-    return writing_segment.error();
-  }
-  writing_segment_ = writing_segment.value();
 
   // update new version
   new_version.set_schema(*new_schema);
-  new_version.reset_writing_segment_meta(writing_segment_->meta());
 
   auto new_segment_metas = segment_manager_->get_segments_meta();
   for (auto meta : new_segment_metas) {
@@ -1491,14 +1452,9 @@ Status CollectionImpl::drop_column(const std::string &column_name) {
     CHECK_RETURN_STATUS(s);
   }
 
-  s = version_manager_->apply(new_version);
+  s = commit_schema_change_with_new_writing_segment(
+      new_schema, old_writing_segment, old_version, &new_version, min_doc_id);
   CHECK_RETURN_STATUS(s);
-
-  // persist manifest
-  s = version_manager_->flush();
-  CHECK_RETURN_STATUS(s);
-
-  schema_ = new_schema;
 
   return Status::OK();
 }
@@ -1541,36 +1497,19 @@ Status CollectionImpl::alter_column(const std::string &column_name,
     CHECK_RETURN_STATUS(s);
   }
 
-  Version new_version = version_manager_->get_current_version();
+  auto old_writing_segment = writing_segment_;
+  Version old_version = version_manager_->get_current_version();
+  Version new_version = old_version;
 
   // alter column on segment manager
   s = segment_manager_->alter_column(column_name, field_copy,
                                      options.concurrency_);
   CHECK_RETURN_STATUS(s);
 
-  // reset writing segment with new schema
-  auto id = writing_segment_->id();
   auto min_doc_id = writing_segment_->meta()->min_doc_id();
-
-  s = writing_segment_->destroy();
-  CHECK_RETURN_STATUS(s);
-  writing_segment_.reset();
-
-  SegmentOptions seg_options;
-  seg_options.enable_mmap_ = options_.enable_mmap_;
-  seg_options.max_buffer_size_ = options_.max_buffer_size_;
-  seg_options.read_only_ = options_.read_only_;
-  auto writing_segment =
-      Segment::CreateAndOpen(path_, *new_schema, id, min_doc_id, id_map_,
-                             delete_store_, version_manager_, seg_options);
-  if (!writing_segment) {
-    return writing_segment.error();
-  }
-  writing_segment_ = writing_segment.value();
 
   // update new version
   new_version.set_schema(*new_schema);
-  new_version.reset_writing_segment_meta(writing_segment_->meta());
 
   auto new_segment_metas = segment_manager_->get_segments_meta();
   for (auto meta : new_segment_metas) {
@@ -1578,14 +1517,9 @@ Status CollectionImpl::alter_column(const std::string &column_name,
     CHECK_RETURN_STATUS(s);
   }
 
-  s = version_manager_->apply(new_version);
+  s = commit_schema_change_with_new_writing_segment(
+      new_schema, old_writing_segment, old_version, &new_version, min_doc_id);
   CHECK_RETURN_STATUS(s);
-
-  // persist manifest
-  s = version_manager_->flush();
-  CHECK_RETURN_STATUS(s);
-
-  schema_ = new_schema;
 
   return Status::OK();
 }
@@ -1740,7 +1674,9 @@ Status CollectionImpl::commit_schema_change_with_new_writing_segment(
   schema_ = new_schema;
   writing_segment_ = new_writing_segment.value();
   s = old_writing_segment->destroy();
-  CHECK_RETURN_STATUS(s);
+  if (!s.ok()) {
+    LOG_WARN("Failed to retire old writing segment: %s", s.message().c_str());
+  }
 
   return Status::OK();
 }
@@ -2228,6 +2164,14 @@ Result<GroupResults> CollectionImpl::group_by_query(
   CHECK_DESTROY_RETURN_STATUS_EXPECTED(destroyed_, false);
   CHECK_CLOSED_RETURN_STATUS_EXPECTED(closed_, false);
 
+  if (query.group_by_field_name_.empty() || query.group_count_ == 0 ||
+      query.topk_per_group_ == 0) {
+    return tl::make_unexpected(Status::InvalidArgument(
+        "Invalid group_by request: group_by_field='",
+        query.group_by_field_name_, "', group_count=", query.group_count_,
+        ", group_topk=", query.topk_per_group_));
+  }
+
   auto segments = get_all_segments();
   if (segments.empty()) {
     return GroupResults();
@@ -2403,11 +2347,14 @@ Status CollectionImpl::recover_idmap_and_delete_store() {
   // idmap
   std::string idmap_path =
       FileHelper::MakeFilePath(path_, FileID::ID_FILE, v.id_map_path_suffix());
-  id_map_ = IDMap::CreateAndOpen(schema_->name(), idmap_path, false,
-                                 options_.read_only_);
-  if (!id_map_) {
-    return Status::InternalError("recovery idmap failed, path: ", idmap_path);
+  auto id_map = std::make_shared<IDMap>(schema_->name());
+  const auto status = id_map->open(idmap_path, false, options_.read_only_);
+  if (!status.ok()) {
+    return Status::InternalError("recovery idmap failed, path: ", idmap_path,
+                                 ", reason: ", GetDefaultMessage(status.code()),
+                                 ": ", status.message());
   }
+  id_map_ = std::move(id_map);
 
   // delete store
   std::string delete_store_path = FileHelper::MakeFilePath(
