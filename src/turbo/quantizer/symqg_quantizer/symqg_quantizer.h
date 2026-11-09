@@ -298,8 +298,16 @@ class SymQGBlockQuantizer {
     }
     query.mean_distance = cosine_ ? float(1 - value) : float(value);
   }
-  void scan(const char *codes, Query &query, float center_distance,
-            float *distances, float uncertainty_bonus = 0) const {
+  // Inline the generic codec entry; give the optimized body a distinct symbol
+  // so a previously instantiated scan cannot interpose the old implementation.
+  __attribute__((always_inline)) void scan(const char *codes, Query &query,
+                                           float center_distance,
+                                           float *distances,
+                                           float uncertainty_bonus = 0) const {
+    scan_unrolled(codes, query, center_distance, distances, uncertainty_bonus);
+  }
+  void scan_unrolled(const char *codes, Query &query, float center_distance,
+                     float *distances, float uncertainty_bonus = 0) const {
     float navigation = block_dim_ ? (1 - lambda_) * center_distance +
                                         lambda_ * query.mean_distance
                                   : center_distance;
@@ -326,7 +334,7 @@ class SymQGBlockQuantizer {
             ? (block_dim_ ? bonus_scale_ : 1) * uncertainty_bonus *
                   std::sqrt(std::max(0.f, 2.f * center_distance))
             : 0);
-    ScanSymQGBatch(codes, query.lookup, quantized_dim(), distances);
+    ScanSymQGBatchUnrolled(codes, query.lookup, quantized_dim(), distances);
   }
 
  private:

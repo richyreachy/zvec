@@ -23,6 +23,7 @@
 #include <vector>
 #include <turbo/distance/common/symqg_kernels.h>
 #if RABITQ_SUPPORTED
+#include <immintrin.h>
 #include <rabitqlib/fastscan/encoder.hpp>
 #include <rabitqlib/fastscan/fastscan.hpp>
 #include <rabitqlib/fastscan/query.hpp>
@@ -159,22 +160,117 @@ class SymQGQuery {
   float g_add_ = 0.0f;
 };
 
-// RaBitQ 0.1 accumulates into uint16_t; 0.3.8 uses int32_t.
-// At most 256 four-dimensional LUT entries (1024 dimensions) fit without
-// overflow: 256 * 255 < 65536. Accumulate slices and widen between slices to
-// support all zvec RaBitQ dimensions, including padding to 4096.
-inline void ScanSymQGBatch(const char *codes, const SymQGQuery &query,
-                           size_t padded_dim, float *distances) {
+// The pinned RaBitQ 0.7 dependency accumulates into int32_t, including the
+// maximum supported dimension with four rotation views.
+template <size_t Fixed>
+__attribute__((target("avx512f,avx512bw,avx512dq"))) inline bool SymQGFixedScan(
+    const uint8_t *codes, const uint8_t *lut, size_t, const void *add,
+    const void *scale, float center_distance, float delta, float sum_vl,
+    float k1xsumq, float *distances) {
+  constexpr size_t padded_dim = Fixed;
+
+  __m512i sums0 = _mm512_setzero_si512();
+  __m512i sums1 = _mm512_setzero_si512();
+  const __m512i nibble = _mm512_set1_epi8(15);
+  // Specialize common padded dimensions so the compiler can unroll each
+  // packed LUT scan. Keep sums in registers through widening and conversion.
+  for (size_t dim = 0; dim < padded_dim; dim += 1024) {
+    const size_t slice = (padded_dim - dim < 1024) ? padded_dim - dim : 1024;
+    __m512i a0 = _mm512_setzero_si512(), a1 = _mm512_setzero_si512();
+    __m512i a2 = _mm512_setzero_si512(), a3 = _mm512_setzero_si512();
+#pragma GCC unroll 4
+    for (size_t offset = dim * 4; offset < (dim + slice) * 4; offset += 64) {
+      const __m512i c = _mm512_loadu_si512(codes + offset);
+      const __m512i table = _mm512_loadu_si512(lut + offset);
+      const __m512i lo =
+          _mm512_shuffle_epi8(table, _mm512_and_si512(c, nibble));
+      const __m512i hi = _mm512_shuffle_epi8(
+          table, _mm512_and_si512(_mm512_srli_epi16(c, 4), nibble));
+      a0 = _mm512_add_epi16(a0, lo);
+      a1 = _mm512_add_epi16(a1, _mm512_srli_epi16(lo, 8));
+      a2 = _mm512_add_epi16(a2, hi);
+      a3 = _mm512_add_epi16(a3, _mm512_srli_epi16(hi, 8));
+    }
+    a0 = _mm512_sub_epi16(a0, _mm512_slli_epi16(a1, 8));
+    a2 = _mm512_sub_epi16(a2, _mm512_slli_epi16(a3, 8));
+    const __m512i r0 = _mm512_add_epi16(_mm512_mask_blend_epi64(0xF0, a0, a1),
+                                        _mm512_shuffle_i64x2(a0, a1, 0x4E));
+    const __m512i r1 = _mm512_add_epi16(_mm512_mask_blend_epi64(0xF0, a2, a3),
+                                        _mm512_shuffle_i64x2(a2, a3, 0x4E));
+    const __m512i sum = _mm512_add_epi16(_mm512_shuffle_i64x2(r0, r1, 0x88),
+                                         _mm512_shuffle_i64x2(r0, r1, 0xDD));
+    sums0 = _mm512_add_epi32(
+        sums0, _mm512_cvtepu16_epi32(_mm512_castsi512_si256(sum)));
+    sums1 = _mm512_add_epi32(
+        sums1, _mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64(sum, 1)));
+  }
+
+  // These navigation estimates allow the caller's floating-point contraction
+  // policy; they need not round identically to the generic scan kernel.
+  const __m512 center = _mm512_set1_ps(center_distance);
+  const __m512 width = _mm512_set1_ps(delta);
+  const __m512 vl = _mm512_set1_ps(sum_vl);
+  const __m512 sq = _mm512_set1_ps(k1xsumq);
+  for (size_t i = 0; i < 32; i += 16) {
+    __m512 estimate =
+        _mm512_mul_ps(width, _mm512_cvtepi32_ps(i == 0 ? sums0 : sums1));
+    estimate = _mm512_add_ps(estimate, vl);
+    estimate = _mm512_add_ps(estimate, sq);
+    estimate = _mm512_mul_ps(
+        _mm512_loadu_ps(static_cast<const char *>(scale) + i * sizeof(float)),
+        estimate);
+    const __m512 base = _mm512_add_ps(
+        _mm512_loadu_ps(static_cast<const char *>(add) + i * sizeof(float)),
+        center);
+    _mm512_storeu_ps(distances + i, _mm512_add_ps(base, estimate));
+  }
+  return true;
+}
+
+inline bool SymQGFixedScanDispatch(const uint8_t *codes, const uint8_t *lut,
+                                   size_t dim, const void *add,
+                                   const void *scale, float center, float delta,
+                                   float sum, float bias, float *distances) {
+  // Keep the portable fallback for unsupported CPUs and other dimensions.
+  if (!__builtin_cpu_supports("avx512f") ||
+      !__builtin_cpu_supports("avx512bw") ||
+      !__builtin_cpu_supports("avx512dq"))
+    return symqg_scan(codes, lut, dim, add, scale, center, delta, sum, bias,
+                      distances);
+  switch (dim) {
+    case 64:
+      return SymQGFixedScan<64>(codes, lut, dim, add, scale, center, delta, sum,
+                                bias, distances);
+    case 128:
+      return SymQGFixedScan<128>(codes, lut, dim, add, scale, center, delta,
+                                 sum, bias, distances);
+    case 256:
+      return SymQGFixedScan<256>(codes, lut, dim, add, scale, center, delta,
+                                 sum, bias, distances);
+    case 512:
+      return SymQGFixedScan<512>(codes, lut, dim, add, scale, center, delta,
+                                 sum, bias, distances);
+    case 1024:
+      return SymQGFixedScan<1024>(codes, lut, dim, add, scale, center, delta,
+                                  sum, bias, distances);
+    default:
+      return symqg_scan(codes, lut, dim, add, scale, center, delta, sum, bias,
+                        distances);
+  }
+}
+
+inline void ScanSymQGBatchUnrolled(const char *codes, const SymQGQuery &query,
+                                   size_t padded_dim, float *distances) {
   constexpr size_t batch_size = rabitqlib::fastscan::kBatchSize;
   rabitqlib::ConstQGBatchDataMap<float> batch(codes, padded_dim);
   // RaBitQ 0.7 stores factors as packed bytes. Load them directly through
   // the SIMD byte-addressed interface without creating float objects here.
   using Offsets = rabitqlib::detail::BatchCodeOffsets<float>;
-  if (symqg_scan(batch.bin_code(), query.lut(), padded_dim,
-                 codes + Offsets::add(padded_dim),
-                 codes + Offsets::rescale(padded_dim), query.g_add(),
-                 query.delta(), query.sum_vl_lut(), query.k1xsumq(),
-                 distances)) {
+  if (SymQGFixedScanDispatch(batch.bin_code(), query.lut(), padded_dim,
+                             codes + Offsets::add(padded_dim),
+                             codes + Offsets::rescale(padded_dim),
+                             query.g_add(), query.delta(), query.sum_vl_lut(),
+                             query.k1xsumq(), distances)) {
     return;
   }
   std::array<uint32_t, batch_size> sums{};
@@ -198,6 +294,10 @@ inline void ScanSymQGBatch(const char *codes, const SymQGQuery &query,
   }
 }
 
+inline void ScanSymQGBatch(const char *codes, const SymQGQuery &query,
+                           size_t dimension, float *distances) {
+  ScanSymQGBatchUnrolled(codes, query, dimension, distances);
+}
 
 #endif
 }  // namespace zvec::turbo
