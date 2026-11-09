@@ -585,7 +585,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
   if (!entity.valid(entry)) return IndexError_Mismatch;
   auto &state = search_state();
   auto &visited = state.visited;
-  visited.reset(results.limit());
+  visited.reset(results.limit(), arena_count_);
   auto &beam = state.beam;
   auto &batch_query = state.query;
   codec_.prepare_query(ctx.query(), batch_query);
@@ -673,17 +673,16 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       const bool eligible = !ctx.excluded(id);
       float estimate;
       if constexpr (Cosine) {
-        double reconstructed;
         estimate = IntegerCenter::distance(
             integer_query, block->center(), index.dimension_,
             block->center_offset, block->center_scale, block->center_mean_dot,
-            index.center_shift_norm2_, block->center_coded_norm, reconstructed);
+            index.center_shift_norm2_);
         navigation_center = estimate;
         float lower = IntegerCenter::lower_bound(
             estimate, integer_query, block->center_error,
             block->center_residual_norm, block->center_coded_norm,
             block->center_norm2, block->center_mean_dot,
-            index.center_shift_norm2_, index.dimension_, reconstructed);
+            index.center_shift_norm2_, index.dimension_);
         if (eligible) refine_candidates.emplace_back(lower, id);
       } else {
         double reconstructed;
@@ -739,14 +738,8 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       // Enforce the hard budget before processing any more frontier entries.
       // Filtered nodes need not fill best or consume the exact-scan budget.
       if (stopping->expanded >= stopping->cap) return false;
-      while (beam.has_next()) {
-        const NodeId next = beam.next_id();
-        if (visited->visited(next)) {
-          beam.pop();
-          continue;
-        }
-        break;
-      }
+      // Reject duplicate pops in the traversal loop. Remaining bucket scores
+      // are no lower, so a duplicate cannot hide an admissible next node.
       if (beam.has_next() && stopping->stop(beam.next_distance())) return false;
       return beam.has_next() && !ctx.reach_scan_limit();
     }
@@ -798,8 +791,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
   } frontier{*this, beam, ctx, &stopping, &visited};
   while (frontier.has_next()) {
     const NodeId id = frontier.pop();
-    if (visited.visited(id)) continue;
-    visited.set_visited(id);
+    if (!visited.set_visited(id)) continue;
     const int ret = scan.begin(id);
     if (ret != 0) return ret;
     const size_t size = scan.block->neighbor_cnt;
@@ -818,16 +810,68 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
   // Navigational estimates still use reconstructed-center coordinates.
   auto &refine = state.refine_candidates;
   auto &best = state.refine_best;
-  std::sort(refine.begin(), refine.end());
+  // For small Top-K, select only the required minima with SIMD. The packed
+  // key preserves (lower bound, ID) order, including signed zero and ties.
+  // Larger candidate sets retain incremental partitioning and sorting.
+  const bool select = ctx.topk() <= 16 && refine.size() <= 512;
+  std::array<uint64_t, 512> keys;
+  if (select) {
+    for (size_t i = 0; i < refine.size(); ++i) {
+      uint32_t bits;
+      std::memcpy(&bits, &refine[i].first, sizeof(bits));
+      if ((bits & 0x7fffffffU) == 0) bits = 0;
+      const uint32_t ordered_bits = (bits >> 31) ? ~bits : (bits ^ 0x80000000U);
+      keys[i] = (uint64_t(ordered_bits) << 32) | refine[i].second;
+    }
+  }
+  size_t ordered = 0;
   for (size_t first = 0; first < refine.size(); first += 4) {
-    if (best.size() == ctx.topk() && refine[first].first > best.back()) break;
+    std::array<std::pair<float, NodeId>, 4> selected;
+    if (select) {
+      for (size_t i = 0; i < 4 && first + i < refine.size(); ++i) {
+        __m512i values = _mm512_set1_epi64(-1);
+        __m512i offsets = _mm512_setzero_si512();
+        const __m512i lanes = _mm512_setr_epi64(0, 1, 2, 3, 4, 5, 6, 7);
+        for (size_t j = 0; j < refine.size(); j += 8) {
+          const size_t count = std::min(size_t{8}, refine.size() - j);
+          const __mmask8 active = __mmask8((1u << count) - 1);
+          const __m512i batch = _mm512_mask_loadu_epi64(
+              _mm512_set1_epi64(-1), active, keys.data() + j);
+          const __mmask8 better = _mm512_cmplt_epu64_mask(batch, values);
+          values = _mm512_mask_mov_epi64(values, better, batch);
+          offsets = _mm512_mask_mov_epi64(
+              offsets, better, _mm512_add_epi64(lanes, _mm512_set1_epi64(j)));
+        }
+        const uint64_t minimum = _mm512_reduce_min_epu64(values);
+        const unsigned lane = __builtin_ctz(unsigned(
+            _mm512_cmpeq_epi64_mask(values, _mm512_set1_epi64(minimum))));
+        alignas(64) uint64_t indices[8];
+        _mm512_store_si512(indices, offsets);
+        const size_t index = indices[lane];
+        selected[i] = refine[index];
+        keys[index] = UINT64_MAX;
+      }
+    }
+    if (!select && first == ordered) {
+      // Preserve the full-sort order while only ordering candidates needed
+      // by exact refinement. Grow the prefix to bound partitioning work for
+      // large Top-K, keeping boundaries aligned with prefetch batches.
+      ordered = std::min(std::max(size_t{64}, first * 2), refine.size());
+      if (ordered < refine.size())
+        std::nth_element(refine.begin() + first, refine.begin() + ordered,
+                         refine.end());
+      std::sort(refine.begin() + first, refine.begin() + ordered);
+    }
+    if (best.size() == ctx.topk() &&
+        (select ? selected[0] : refine[first]).first > best.back())
+      break;
     if (ctx.reach_scan_limit()) break;
     // Keep owning/pinning handles alive until every vector in the batch has
     // been scored. Storage backends need not return permanent pointers.
     std::array<typename Graph::Vector, 4> raw;
     size_t count = 0;
     for (; count < 4 && first + count < refine.size(); ++count) {
-      const auto &candidate = refine[first + count];
+      const auto &candidate = select ? selected[count] : refine[first + count];
       if (best.size() == ctx.topk() && candidate.first > best.back()) break;
       if (candidate.second >= arena_count_) return IndexError_Mismatch;
       const int ret = entity.get_vector(candidate.second, raw[count]);
@@ -837,7 +881,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       prefetch_span(ptr, stored_vector_bytes_);
     }
     for (size_t i = 0; i < count; ++i) {
-      const auto &candidate = refine[first + i];
+      const auto &candidate = select ? selected[i] : refine[first + i];
       if (best.size() == ctx.topk() && candidate.first > best.back()) break;
       if (ctx.reach_scan_limit()) break;
       const float exact = ctx.distance(raw[i].data());

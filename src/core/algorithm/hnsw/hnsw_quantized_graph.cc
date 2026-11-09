@@ -17,7 +17,7 @@
 #include <cstring>
 #include <sstream>
 #include <stdexcept>
-#include <ailego/math/normalizer.h>
+#include <turbo/norm/normalizer.h>
 #include <zvec/ailego/hash/crc32c.h>
 #include <zvec/ailego/utility/float_helper.h>
 #include <zvec/core/framework/index_error.h>
@@ -207,7 +207,7 @@ struct HnswQuantizedGraph::Impl {
       } else if (cosine_) {
         std::copy_n(query_values, dimension_, values.data());
         float norm;
-        ailego::Normalizer<float>::L2(values.data(), dimension_, &norm);
+        turbo::Normalizer<float>::L2(values.data(), dimension_, &norm);
         query_values = values.data();
       }
       HnswFp16QueryAdapter query{{ctx}, query_values, dimension_, cosine_};
@@ -408,7 +408,7 @@ int HnswQuantizedGraph::train_router(const HnswEntity &entity, size_t dimension,
             // tolerance. Spherical clustering trains on unit directions.
             if (cosine) {
               float norm;
-              ailego::Normalizer<float>::L2(decoded.data(), dimension, &norm);
+              turbo::Normalizer<float>::L2(decoded.data(), dimension, &norm);
             }
             return static_cast<const float *>(decoded.data());
           }

@@ -47,5 +47,49 @@ TEST(QuantizedGraphVisitSet,
     for (uint32_t id : reference) ASSERT_FALSE(visited.visited(id));
   }
 }
+TEST(QuantizedGraphVisitSet, DenseAndHashResetsMatchReference) {
+  if (!__builtin_cpu_supports("avx512f")) GTEST_SKIP();
+  QuantizedGraphVisitSet visited;
+  std::mt19937 random(20261105);
+  for (size_t expected : {1, 16, 128}) {
+    for (size_t domain : {0, 31, 32, 33, 1024, 4096}) {
+      visited.reset(expected, domain);
+      std::unordered_set<uint32_t> reference;
+      for (uint32_t iteration = 0; iteration < 400; ++iteration) {
+        uint32_t key = iteration % 3 == 0 ? random() : iteration * 65536;
+        if (domain && iteration % 3 == 1) key = random() % domain;
+        if (iteration % 13 == 0) key = UINT32_MAX;
+        if (key != UINT32_MAX) reference.insert(key);
+        visited.set_visited(key);
+        visited.set_visited(key);
+        std::array<uint32_t, 32> ids;
+        std::array<float, 32> distances;
+        for (size_t lane = 0; lane < ids.size(); ++lane) {
+          ids[lane] = lane % 3 ? random() : key;
+          if (domain && lane % 3 == 1) ids[lane] %= domain;
+          distances[lane] = float(int(lane) - 16);
+        }
+        ids[0] = UINT32_MAX;
+        distances[1] = std::numeric_limits<float>::infinity();
+        distances[2] = -std::numeric_limits<float>::infinity();
+        distances[3] = std::numeric_limits<float>::quiet_NaN();
+        uint32_t mask = 0;
+        for (size_t count = 0; count <= ids.size(); ++count) {
+          ASSERT_EQ(mask, visited.unvisited_batch(ids.data(), distances.data(),
+                                                  count))
+              << expected << ":" << domain << ":" << iteration << ":" << count;
+          if (count < ids.size() && ids[count] != UINT32_MAX &&
+              std::isfinite(distances[count]) && !reference.count(ids[count]))
+            mask |= uint32_t{1} << count;
+        }
+        ASSERT_TRUE(visited.visited(key));
+        for (uint32_t id : reference) ASSERT_TRUE(visited.visited(id));
+      }
+      visited.reset(expected, domain);
+      for (uint32_t id : reference) ASSERT_FALSE(visited.visited(id));
+      ASSERT_TRUE(visited.visited(UINT32_MAX));
+    }
+  }
+}
 }  // namespace zvec::core
 #endif
