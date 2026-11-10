@@ -374,9 +374,9 @@ int HnswQuantizedGraph::load(const HnswEntity &entity, size_t dimension,
       header[7] > read.remaining() || header[8] != router_data.size() ||
       header[9] != ailego::Crc32c::Hash(router_data.data(), router_data.size()))
     return IndexError_InvalidFormat;
-  std::string codec(size_t(header[7]), '\0');
-  if (!read(codec.data(), codec.size())) return IndexError_ReadData;
   try {
+    std::string codec(size_t(header[7]), '\0');
+    if (!read(codec.data(), codec.size())) return IndexError_ReadData;
     auto graph = std::make_shared<HnswQuantizedGraph>(
         dimension, size_t(header[6]), cosine, stored_vector_bytes, router_data,
         fp16, &codec);
@@ -387,6 +387,9 @@ int HnswQuantizedGraph::load(const HnswEntity &entity, size_t dimension,
       return IndexError_InvalidFormat;
     out = std::move(graph);
     return 0;
+  } catch (const std::bad_alloc &e) {
+    LOG_ERROR("Quantized graph snapshot allocation failed: %s", e.what());
+    return IndexError_NoMemory;
   } catch (const std::exception &e) {
     LOG_ERROR("Invalid quantized graph snapshot: %s", e.what());
     return IndexError_InvalidFormat;

@@ -37,6 +37,7 @@
 #include "quantized_graph_integer_center.h"
 #include "quantized_graph_integer_router.h"
 #include "quantized_graph_neighbors.h"
+#include "quantized_graph_pages.h"
 #include "quantized_graph_sq8_center.h"
 #include "quantized_graph_visit_set.h"
 #if defined(__linux__)
@@ -472,6 +473,9 @@ int QuantizedGraph<Codec>::load(const Graph &entity, size_t doc_cnt,
   }
   if (has_valid_node != (header[2] != kInvalidNodeId))
     return IndexError_InvalidFormat;
+  const int pages_ret =
+      quantized_graph_pages::prepare_arena(arena.get(), doc_cnt * stride_);
+  if (pages_ret != 0) return pages_ret;
   arena_ = std::move(arena);
   arena_count_ = NodeId(doc_cnt);
   entry_ = NodeId(header[2]);
@@ -606,6 +610,9 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
 
   // Published under the caller's exclusive lock; searches only
   // start afterwards, so reads need no synchronization.
+  const int pages_ret =
+      quantized_graph_pages::prepare_arena(arena.get(), doc_cnt * stride_);
+  if (pages_ret != 0) return pages_ret;
   arena_ = std::move(arena);
   arena_count_ = static_cast<NodeId>(doc_cnt);
   return 0;

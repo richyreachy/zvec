@@ -860,6 +860,9 @@ int HnswStreamer::open(IndexStorage::Pointer stg, bool read_only) {
             layout->dimension, 32, layout->cosine, layout->vector_bytes,
             quantized_graph_router_data_, layout->fp16);
         ret = quantized_graph_->prebuild(*entity_, entity_->doc_cnt(), 8);
+      } catch (const std::bad_alloc &e) {
+        LOG_ERROR("Quantized graph allocation failed: %s", e.what());
+        ret = IndexError_NoMemory;
       } catch (const std::exception &e) {
         LOG_ERROR("Quantized graph prebuild failed: %s", e.what());
         ret = IndexError_Runtime;
@@ -1022,6 +1025,9 @@ int HnswStreamer::build_quantized_graph(
     quantized_graph_persist_ = true;
     if (quantized_graph_enabled_) alg_->set_quantized_graph(quantized_graph_);
     return 0;
+  } catch (const std::bad_alloc &e) {
+    LOG_ERROR("Quantized graph snapshot allocation failed: %s", e.what());
+    return IndexError_NoMemory;
   } catch (const std::exception &e) {
     LOG_ERROR("Quantized graph snapshot build failed: %s", e.what());
     return IndexError_Runtime;
