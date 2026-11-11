@@ -20,6 +20,16 @@ namespace core {
 
 const std::string PARAM_HNSW_QUANTIZED_GRAPH_ENABLED =
     "proxima.hnsw.quantized_graph.enabled";
+inline const std::string PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY =
+    "proxima.hnsw.quantized_graph.thp_policy";
+inline const std::string PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE =
+    "proxima.hnsw.quantized_graph.thp_min_coverage";
+inline const std::string PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR =
+    "proxima.hnsw.quantized_graph.thp_min_coverage_floor";
+inline const std::string PARAM_HNSW_QUANTIZED_GRAPH_PAGE_KEYS[] = {
+    PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY,
+    PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE,
+    PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR};
 
 static const std::string PARAM_HNSW_BUILDER_THREAD_COUNT(
     "proxima.hnsw.builder.thread_count");

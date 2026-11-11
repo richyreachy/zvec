@@ -39,7 +39,8 @@ class HnswQuantizedGraph {
   static int load(const HnswEntity &entity, size_t dimension, bool cosine,
                   size_t stored_vector_bytes, const std::string &router_data,
                   bool fp16, const IndexStorage::Segment::Pointer &segment,
-                  std::shared_ptr<HnswQuantizedGraph> &out);
+                  std::shared_ptr<HnswQuantizedGraph> &out,
+                  const ailego::Params &page_params = {});
   int dump(const IndexDumper::Pointer &dumper) const;
   static bool supported();
   static int train_router(const HnswEntity &entity, size_t dimension,
@@ -48,7 +49,8 @@ class HnswQuantizedGraph {
                           size_t rotation_views = 1);
   ~HnswQuantizedGraph();
   int search(uint32_t entry, HnswContext &ctx) const;
-  int prebuild(const HnswEntity &entity, size_t doc_cnt, size_t threads);
+  int prebuild(const HnswEntity &entity, size_t doc_cnt, size_t threads,
+               const ailego::Params &page_params = {});
   uint32_t entry() const;
 
  private:

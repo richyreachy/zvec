@@ -187,12 +187,14 @@ struct HnswQuantizedGraph::Impl {
         router_bytes_(model_data.size()),
         router_crc_(
             ailego::Crc32c::Hash(model_data.data(), model_data.size())) {}
-  int prebuild(const HnswEntity &entity, size_t count, size_t threads) {
+  int prebuild(const HnswEntity &entity, size_t count, size_t threads,
+               const ailego::Params &page_params) {
     if (fp16_)
       return graph.prebuild(HnswFp16GraphAdapter{{entity}, dimension_}, count,
-                            threads);
+                            threads, page_params);
     else
-      return graph.prebuild(HnswGraphAdapter{entity}, count, threads);
+      return graph.prebuild(HnswGraphAdapter{entity}, count, threads,
+                            page_params);
   }
   int search(uint32_t entry_id, HnswContext &ctx) const {
     if (fp16_) {
@@ -220,9 +222,10 @@ struct HnswQuantizedGraph::Impl {
   uint32_t entry() const {
     return graph.entry();
   }
-  int load(const HnswEntity &entity, SnapshotReader &read) {
+  int load(const HnswEntity &entity, SnapshotReader &read,
+           const ailego::Params &page_params) {
     return graph.load(HnswGraphAdapter{entity}, entity.doc_cnt(), read,
-                      read.remaining());
+                      read.remaining(), page_params);
   }
   int dump(const IndexDumper::Pointer &dumper) const {
     const auto &codec = graph.codec().model_data();
@@ -254,7 +257,7 @@ struct HnswQuantizedGraph::Impl {
 };
 #else
 struct HnswQuantizedGraph::Impl {
-  int prebuild(const HnswEntity &, size_t, size_t) {
+  int prebuild(const HnswEntity &, size_t, size_t, const ailego::Params &) {
     return IndexError_Unsupported;
   }
   int search(uint32_t, HnswContext &) const {
@@ -263,7 +266,7 @@ struct HnswQuantizedGraph::Impl {
   uint32_t entry() const {
     return UINT32_MAX;
   }
-  int load(const HnswEntity &, SnapshotReader &) {
+  int load(const HnswEntity &, SnapshotReader &, const ailego::Params &) {
     return IndexError_Unsupported;
   }
   int dump(const IndexDumper::Pointer &) const {
@@ -345,7 +348,8 @@ int HnswQuantizedGraph::load(const HnswEntity &entity, size_t dimension,
                              bool cosine, size_t stored_vector_bytes,
                              const std::string &router_data, bool fp16,
                              const IndexStorage::Segment::Pointer &segment,
-                             std::shared_ptr<HnswQuantizedGraph> &out) {
+                             std::shared_ptr<HnswQuantizedGraph> &out,
+                             const ailego::Params &page_params) {
   if (!supported()) return IndexError_Unsupported;
   if (!segment) return IndexError_NoExist;
   SnapshotReader read{segment};
@@ -358,19 +362,22 @@ int HnswQuantizedGraph::load(const HnswEntity &entity, size_t dimension,
       header[7] > read.remaining() || header[8] != router_data.size() ||
       header[9] != ailego::Crc32c::Hash(router_data.data(), router_data.size()))
     return IndexError_InvalidFormat;
-  std::string codec(size_t(header[7]), '\0');
-  if (!read(codec.data(), codec.size())) return IndexError_ReadData;
   try {
+    std::string codec(size_t(header[7]), '\0');
+    if (!read(codec.data(), codec.size())) return IndexError_ReadData;
     auto graph = std::make_shared<HnswQuantizedGraph>(
         dimension, size_t(header[6]), cosine, stored_vector_bytes, router_data,
         fp16, codec);
     if (!graph->impl_) return IndexError_Unsupported;
-    const int ret = graph->impl_->load(entity, read);
+    const int ret = graph->impl_->load(entity, read, page_params);
     if (ret != 0) return ret;
     if (read.remaining() != 0 || read.crc != segment->data_crc())
       return IndexError_InvalidFormat;
     out = std::move(graph);
     return 0;
+  } catch (const std::bad_alloc &e) {
+    LOG_ERROR("Quantized graph snapshot allocation failed: %s", e.what());
+    return IndexError_NoMemory;
   } catch (const std::exception &e) {
     LOG_ERROR("Invalid quantized graph snapshot: %s", e.what());
     return IndexError_InvalidFormat;
@@ -444,8 +451,9 @@ int HnswQuantizedGraph::train_router(const HnswEntity &entity, size_t dimension,
 #endif
 }
 int HnswQuantizedGraph::prebuild(const HnswEntity &entity, size_t count,
-                                 size_t threads) {
-  return impl_ ? impl_->prebuild(entity, count, threads)
+                                 size_t threads,
+                                 const ailego::Params &page_params) {
+  return impl_ ? impl_->prebuild(entity, count, threads, page_params)
                : IndexError_Unsupported;
 }
 int HnswQuantizedGraph::search(uint32_t entry_id, HnswContext &ctx) const {

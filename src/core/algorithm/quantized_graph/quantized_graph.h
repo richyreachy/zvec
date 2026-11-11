@@ -34,6 +34,7 @@
 #include "quantized_graph_integer_center.h"
 #include "quantized_graph_integer_router.h"
 #include "quantized_graph_neighbors.h"
+#include "quantized_graph_pages.h"
 #include "quantized_graph_sq8_center.h"
 #include "quantized_graph_visit_set.h"
 #if defined(__linux__)
@@ -70,13 +71,15 @@ class QuantizedGraph {
                  size_t stored_vector_bytes, bool cosine,
                  std::string model_data);
   template <class Graph>
-  int prebuild(const Graph &graph, size_t doc_cnt, size_t threads);
+  int prebuild(const Graph &graph, size_t doc_cnt, size_t threads,
+               const ailego::Params &page_params = {});
   // The enclosing snapshot versions the codec, rotation and Block layout.
   // Readers/writers stream bounded chunks; no second arena-sized copy.
   template <class Writer>
   bool dump(Writer &write) const;
   template <class Graph, class Reader>
-  int load(const Graph &graph, size_t doc_cnt, Reader &read, size_t bytes);
+  int load(const Graph &graph, size_t doc_cnt, Reader &read, size_t bytes,
+           const ailego::Params &page_params = {});
   size_t max_neighbors() const {
     return max_neighbors_;
   }
@@ -391,7 +394,8 @@ bool QuantizedGraph<Codec>::dump(Writer &write) const {
 template <class Codec>
 template <class Graph, class Reader>
 int QuantizedGraph<Codec>::load(const Graph &entity, size_t doc_cnt,
-                                Reader &read, size_t bytes) {
+                                Reader &read, size_t bytes,
+                                const ailego::Params &page_params) {
   uint64_t header[3]{};
   if (bytes < sizeof(header) || !read(header, sizeof(header)) ||
       doc_cnt >= kInvalidNodeId || header[0] != stride_ ||
@@ -437,6 +441,9 @@ int QuantizedGraph<Codec>::load(const Graph &entity, size_t doc_cnt,
   }
   if (has_valid_node != (header[2] != kInvalidNodeId))
     return IndexError_InvalidFormat;
+  const int pages_ret = quantized_graph_pages::prepare_arena(
+      arena.get(), doc_cnt * stride_, page_params);
+  if (pages_ret != 0) return pages_ret;
   arena_ = std::move(arena);
   arena_count_ = NodeId(doc_cnt);
   entry_ = NodeId(header[2]);
@@ -446,7 +453,8 @@ int QuantizedGraph<Codec>::load(const Graph &entity, size_t doc_cnt,
 template <class Codec>
 template <class Graph>
 int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
-                                    size_t threads) {
+                                    size_t threads,
+                                    const ailego::Params &page_params) {
   if (dimension_ == 0 || dimension_ > 4096 ||
       !__builtin_cpu_supports("avx512vnni"))
     return IndexError_Mismatch;
@@ -570,6 +578,9 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
 
   // Published under the caller's exclusive lock; searches only
   // start afterwards, so reads need no synchronization.
+  const int pages_ret = quantized_graph_pages::prepare_arena(
+      arena.get(), doc_cnt * stride_, page_params);
+  if (pages_ret != 0) return pages_ret;
   arena_ = std::move(arena);
   arena_count_ = static_cast<NodeId>(doc_cnt);
   return 0;
