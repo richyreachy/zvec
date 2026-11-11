@@ -71,6 +71,48 @@ TEST(DiskAnnBuildMemory, ReadOnlyCannotCreateStorage) {
     test_util::RemoveTestFiles(path);
   }
 }
+TEST(DiskAnnBuildMemory, PreservesBuildListSizeAfterReopen) {
+  for (int list_size : {80, 200, 512}) {
+    for (bool fp16 : {false, true}) {
+      SCOPED_TRACE(::testing::Message() << list_size << " fp16=" << fp16);
+      const std::string path = "diskann_build_list_size";
+      test_util::RemoveTestFiles(path);
+      auto param = parameter(fp16);
+      param->list_size = list_size;
+      auto inspected = std::make_shared<InspectableDiskAnn>();
+      ASSERT_EQ(0, inspected->initialize(*param));
+      Index::Pointer index = inspected;
+      ASSERT_EQ(0, index->open(path, {StorageOptions::StorageType::kMMAP, true}));
+      for (uint32_t id = 0; id < 64; ++id) {
+        auto data = values(id);
+        ASSERT_EQ(0, index->add(VectorData{DenseVector{data.data()}}, id));
+      }
+      ASSERT_EQ(0, index->train());
+      ASSERT_EQ(0, index->close());
+      index.reset();
+
+      auto reopened = IndexFactory::CreateAndInitIndex(*param);
+      ASSERT_NE(nullptr, reopened);
+      ASSERT_EQ(0, reopened->open(
+                       path, {StorageOptions::StorageType::kMMAP, false, true}));
+      int persisted_list_size = 0;
+      ASSERT_TRUE(reopened->index_searcher()->meta().builder_params().get(
+          core::PARAM_DISKANN_BUILDER_LIST_SIZE, &persisted_list_size));
+      EXPECT_EQ(list_size, persisted_list_size);
+      auto data = values(7);
+      auto query = std::make_shared<DiskAnnQueryParam>();
+      query->topk = 5;
+      query->list_size = 80;
+      SearchResult result;
+      ASSERT_EQ(0, reopened->search(VectorData{DenseVector{data.data()}}, query,
+                                    &result));
+      ASSERT_EQ(5U, result.doc_list_.size());
+      EXPECT_EQ(7U, result.doc_list_[0].key());
+      ASSERT_EQ(0, reopened->close());
+      test_util::RemoveTestFiles(path);
+    }
+  }
+}
 TEST(DiskAnnBuildMemory, ReleaseStateAndReopenDirectAndMerged) {
   for (bool fp16 : {false, true}) {
     for (bool merge : {false, true}) {

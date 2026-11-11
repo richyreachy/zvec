@@ -96,7 +96,6 @@ int DiskAnnIndex::create_and_init_streamer(const BaseIndexParam &param) {
 
   param_ = dynamic_cast<const DiskAnnIndexParam &>(param);
   param_.max_degree = std::min(100, param_.max_degree);
-  param_.list_size = std::min(100, param_.list_size);
   param_.pq_chunk_num = std::min(1024, param_.pq_chunk_num);
   proxima_index_params_.set(core::PARAM_DISKANN_BUILDER_MAX_DEGREE,
                             param_.max_degree);
