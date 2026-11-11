@@ -287,6 +287,15 @@ int HNSWIndex::create_and_init_streamer(const BaseIndexParam &param) {
                             param_.use_quantized_graph);
   proxima_index_params_.set(core::PARAM_HNSW_QUANTIZED_GRAPH_MODEL,
                             param_.quantized_graph_model);
+  for (const auto &key :
+       {core::PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY,
+        core::PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE,
+        core::PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR}) {
+    if (param_.params.has(key))
+      proxima_index_params_[key] = param_.params[key];
+    else
+      proxima_index_params_.erase(key);
+  }
 
   // valid
   param_.ef_construction = std::max(1, std::min(2048, param_.ef_construction));

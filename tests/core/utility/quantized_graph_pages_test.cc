@@ -147,6 +147,130 @@ TEST(QuantizedGraphPages, UnsupportedOrDeniedIsNotReportedAsNoMemory) {
   EXPECT_EQ(int(IndexError_Unsupported), admission_error(r, true));
 }
 
+TEST(QuantizedGraphPages, CoverageThresholdParsing) {
+  double minimum = 0.0;
+  ASSERT_TRUE(parse_min_coverage(nullptr, minimum));
+  EXPECT_DOUBLE_EQ(1.0, minimum);
+  for (const char *value : {"1", "1.0", "0.99", "0.9", "0.001"}) {
+    ASSERT_TRUE(parse_min_coverage(value, minimum));
+    EXPECT_DOUBLE_EQ(std::strtod(value, nullptr), minimum);
+  }
+  for (const char *value : {"", " ", "0", "-0.1", "1.01", "99", "99%",
+                            "0.99junk", "nan", "inf", "1e-999", "1e999"})
+    EXPECT_FALSE(parse_min_coverage(value, minimum)) << value;
+}
+
+TEST(QuantizedGraphPages, PartialCoverageCanMeetExplicitThreshold) {
+  Fake f{std::vector<bool>(100, true)};
+  f.huge.back() = false;
+  f.error = ENOMEM;
+  auto r = prepare(0, 100 * kPage + 4096, f);
+  EXPECT_EQ(99 * kPage, r.after);
+  EXPECT_FALSE(r.ready());
+  EXPECT_TRUE(r.ready(0.99));
+  EXPECT_EQ(int(IndexError_NoMemory), admission_error(r, true));
+  EXPECT_EQ(0, admission_error(r, true, 0.99));
+  EXPECT_EQ(int(IndexError_NoMemory), admission_error(r, true, 0.9901));
+  r.after = 90 * kPage;
+  EXPECT_TRUE(r.ready(0.9));  // Decimal boundary must not round up the minimum.
+  EXPECT_FALSE(r.ready(0.99));
+  r.after = 0;
+  EXPECT_FALSE(r.ready(0.001));
+  r.after = kUnknown;
+  EXPECT_EQ(int(IndexError_Unsupported), admission_error(r, true, 0.001));
+  r.eligible = r.after = 0;
+  EXPECT_TRUE(r.ready(0.99));
+  r.eligible = kUnknown - 1;
+  r.after = r.eligible - 1;
+  EXPECT_FALSE(r.ready());  // 100% still requires exact integer equality.
+}
+
+TEST(QuantizedGraphPages, NativeCoverageAcceptsNumbersAndStrictStrings) {
+  ailego::Params params;
+  const auto &key = PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE;
+  double minimum = 0;
+  params.set(key, 0.95);
+  ASSERT_TRUE(read_min_coverage(params, minimum));
+  EXPECT_DOUBLE_EQ(0.95, minimum);
+  params.set(key, std::string("0.99"));
+  ASSERT_TRUE(read_min_coverage(params, minimum));
+  EXPECT_DOUBLE_EQ(0.99, minimum);
+  for (const char *value : {"0.95junk", "nan", "", "95"}) {
+    params.set(key, std::string(value));
+    EXPECT_FALSE(read_min_coverage(params, minimum));
+  }
+  for (double value :
+       {0.0, -1.0, 1.01, std::numeric_limits<double>::quiet_NaN()}) {
+    params.set(key, value);
+    EXPECT_FALSE(read_min_coverage(params, minimum));
+  }
+  params.set(key, ailego::Params{});
+  EXPECT_FALSE(read_min_coverage(params, minimum));
+}
+
+TEST(QuantizedGraphPages, FallbackFloorIsExplicitAndValidated) {
+  ailego::Params params;
+  double floor = 0;
+  ASSERT_TRUE(read_coverage_floor(params, 0.95, floor));
+  EXPECT_DOUBLE_EQ(0.95, floor);
+  const auto &key = PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR;
+  for (double value : {0.80, 0.85, 0.90, 0.95}) {
+    params.set(key, value);
+    ASSERT_TRUE(read_coverage_floor(params, 0.95, floor));
+    EXPECT_DOUBLE_EQ(value, floor);
+  }
+  params.set(key, std::string("0.80"));
+  ASSERT_TRUE(read_coverage_floor(params, 0.95, floor));
+  EXPECT_DOUBLE_EQ(0.80, floor);
+  for (const char *value : {"", "80", "0.8junk", "nan", "inf"}) {
+    params.set(key, std::string(value));
+    EXPECT_FALSE(read_coverage_floor(params, 0.95, floor));
+  }
+  for (double value :
+       {0.0, -0.1, 0.96, 1.01, std::numeric_limits<double>::quiet_NaN()}) {
+    params.set(key, value);
+    EXPECT_FALSE(read_coverage_floor(params, 0.95, floor));
+  }
+  params.set(key, ailego::Params{});
+  EXPECT_FALSE(read_coverage_floor(params, 0.95, floor));
+}
+
+TEST(QuantizedGraphPages, FallbackSelectsHighestTierAndNeverCrossesFloor) {
+  Result r;
+  r.eligible = 100 * kPage;
+  r.last_error = ENOMEM;
+  for (size_t pages = 0; pages <= 100; ++pages) {
+    r.after = pages * kPage;
+    const double expected = pages >= 95   ? 0.95
+                            : pages >= 90 ? 0.90
+                            : pages >= 85 ? 0.85
+                                          : 0.80;
+    const double threshold = admission_minimum(r, 0.95, 0.80);
+    EXPECT_DOUBLE_EQ(expected, threshold) << pages;
+    EXPECT_EQ(pages >= 80 ? 0 : int(IndexError_NoMemory),
+              admission_error(r, true, threshold))
+        << pages;
+    EXPECT_DOUBLE_EQ(0.95, admission_minimum(r, 0.95, 0.95));
+  }
+  // One byte below each boundary must not pass that boundary.
+  for (size_t pages : {80, 85, 90, 95}) {
+    r.after = pages * kPage - 1;
+    EXPECT_FALSE(r.ready(static_cast<double>(pages) / 100.0));
+    EXPECT_EQ(pages > 80 ? 0 : int(IndexError_NoMemory),
+              admission_error(r, true, admission_minimum(r, 0.95, 0.80)));
+  }
+  r.after = 81 * kPage;
+  EXPECT_DOUBLE_EQ(0.83, admission_minimum(r, 0.95, 0.83));
+  EXPECT_NE(0, admission_error(r, true, admission_minimum(r, 0.95, 0.83)));
+  r.after = kUnknown;
+  EXPECT_DOUBLE_EQ(0.95, admission_minimum(r, 0.95, 0.80));
+  EXPECT_EQ(int(IndexError_Unsupported),
+            admission_error(r, true, admission_minimum(r, 0.95, 0.80)));
+  r.after = r.eligible = 0;
+  EXPECT_DOUBLE_EQ(0.95, admission_minimum(r, 0.95, 0.80));
+  EXPECT_EQ(0, admission_error(r, true, admission_minimum(r, 0.95, 0.80)));
+}
+
 TEST(QuantizedGraphPages, LivePreparationPreservesEveryByte) {
   constexpr size_t bytes = 2 * kPage + 4096;
   auto *data = static_cast<unsigned char *>(
@@ -173,18 +297,37 @@ TEST(QuantizedGraphPages, StrictModeRejectsUnavailablePagesBeforeQueries) {
   const char *old = std::getenv("QG_THP_POLICY");
   const bool was_set = old != nullptr;
   const std::string saved = old ? old : "";
+  const char *old_minimum = std::getenv("QG_THP_MIN_COVERAGE");
+  const bool minimum_was_set = old_minimum != nullptr;
+  const std::string saved_minimum = old_minimum ? old_minimum : "";
+  ::unsetenv("QG_THP_MIN_COVERAGE");
   auto *data = static_cast<unsigned char *>(
       ::operator new(kPage, std::align_val_t{kPage}));
   ASSERT_EQ(0, ::madvise(data, kPage, MADV_NOHUGEPAGE));
   std::memset(data, 123, kPage);
   ::setenv("QG_THP_POLICY", "require", 1);
   EXPECT_NE(0, prepare_arena(data, kPage));
+  ::setenv("QG_THP_MIN_COVERAGE", "0.99", 1);
+  EXPECT_NE(0, prepare_arena(data, kPage));  // Zero coverage is still rejected.
+  EXPECT_EQ(0, prepare_arena(data, 0));
+  ::setenv("QG_THP_MIN_COVERAGE", "99", 1);
+  EXPECT_EQ(int(IndexError_InvalidArgument), prepare_arena(data, 0));
   ::setenv("QG_THP_POLICY", "prepare", 1);
   EXPECT_EQ(0, prepare_arena(data, kPage));
   ::setenv("QG_THP_POLICY", "hint", 1);
   EXPECT_EQ(0, prepare_arena(data, kPage));
   ::setenv("QG_THP_POLICY", "typo", 1);
   EXPECT_EQ(int(IndexError_InvalidArgument), prepare_arena(data, kPage));
+  ailego::Params params;
+  params.set(PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY, std::string("require"));
+  params.set(PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE, 0.95);
+  // Both environment values are invalid; explicit native Params win.
+  EXPECT_EQ(0, prepare_arena(data, 0, params));
+  EXPECT_NE(0, prepare_arena(data, kPage, params));
+  params.set(PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE, 1.01);
+  EXPECT_EQ(int(IndexError_InvalidArgument), prepare_arena(data, 0, params));
+  params.set(PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY, 42);
+  EXPECT_EQ(int(IndexError_InvalidArgument), prepare_arena(data, 0, params));
   EXPECT_TRUE(std::all_of(data, data + kPage,
                           [](unsigned char c) { return c == 123; }));
   ::operator delete(data, std::align_val_t{kPage});
@@ -192,6 +335,10 @@ TEST(QuantizedGraphPages, StrictModeRejectsUnavailablePagesBeforeQueries) {
     ::setenv("QG_THP_POLICY", saved.c_str(), 1);
   else
     ::unsetenv("QG_THP_POLICY");
+  if (minimum_was_set)
+    ::setenv("QG_THP_MIN_COVERAGE", saved_minimum.c_str(), 1);
+  else
+    ::unsetenv("QG_THP_MIN_COVERAGE");
 }
 #endif
 }  // namespace zvec::core::quantized_graph_pages

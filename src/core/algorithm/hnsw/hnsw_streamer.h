@@ -280,6 +280,7 @@ class HnswStreamer : public IndexStreamer {
   IndexStorage::Pointer snapshot_storage_;
   bool quantized_graph_enabled_{false};
   bool quantized_graph_persist_{false};
+  ailego::Params quantized_graph_page_params_;
   std::shared_ptr<HnswQuantizedGraph> quantized_graph_;
   mutable std::shared_mutex quantized_graph_mutex_;
   std::unique_ptr<HnswStreamerEntity> entity_;
