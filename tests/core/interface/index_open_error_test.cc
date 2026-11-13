@@ -7,14 +7,19 @@
 #include "tests/test_util.h"
 
 namespace zvec::core_interface {
+
 namespace {
+
 class FailingStreamer : public core::HnswStreamer {
  public:
   using core::HnswStreamer::open;
+
   explicit FailingStreamer(int error) : error_(error) {}
+
   int open(core::IndexStorage::Pointer, bool) override {
     return error_;
   }
+
   int close() override {
     return 0;
   }
@@ -26,6 +31,7 @@ class FailingStreamer : public core::HnswStreamer {
 class FailingIndex : public HNSWIndex {
  public:
   using HNSWIndex::init;
+
   explicit FailingIndex(int error) : error_(error) {}
 
  protected:
@@ -37,10 +43,12 @@ class FailingIndex : public HNSWIndex {
  private:
   int error_;
 };
+
 }  // namespace
 
 TEST(IndexOpenError, PreservesResourceAndPermanentFailures) {
   const std::string path = "index_open_error.index";
+
   for (int error :
        {int(core::IndexError_NoMemory), int(core::IndexError_NoReady),
         int(core::IndexError_Unsupported), int(core::IndexError_Denied),
@@ -52,11 +60,15 @@ TEST(IndexOpenError, PreservesResourceAndPermanentFailures) {
       HNSWIndexParam param(MetricType::kL2sq, 4, 16, 100);
       param.data_type = DataType::DT_FP32;
       ASSERT_EQ(0, index.init(param));
+
       EXPECT_EQ(error ? error : int(core::IndexError_Runtime),
                 index.open(path, {StorageOptions::StorageType::kMMAP, true}));
+
       // Destruction after failed open releases storage before an outer retry.
     }
+
     test_util::RemoveTestFiles(path + "*");
   }
 }
+
 }  // namespace zvec::core_interface

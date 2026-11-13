@@ -615,6 +615,7 @@ int Index::open(const std::string &file_path, StorageOptions storage_options) {
   if (ret != 0) {
     return ret;
   }
+
   if (!pending_quantizer_training_) {
     ret = streamer_ ? streamer_->open(storage_, storage_options.read_only)
                     : int(core::IndexError_Runtime);

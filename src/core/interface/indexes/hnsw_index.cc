@@ -285,6 +285,7 @@ int HNSWIndex::create_and_init_streamer(const BaseIndexParam &param) {
   }
   proxima_index_params_.set(core::PARAM_HNSW_QUANTIZED_GRAPH_ENABLED,
                             param_.use_quantized_graph);
+
   for (const auto &key : core::PARAM_HNSW_QUANTIZED_GRAPH_PAGE_KEYS) {
     if (param_.params.has(key))
       proxima_index_params_[key] = param_.params[key];
