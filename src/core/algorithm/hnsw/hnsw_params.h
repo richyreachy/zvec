@@ -18,7 +18,19 @@
 namespace zvec {
 namespace core {
 
-inline const std::string PARAM_HNSW_BUILDER_THREAD_COUNT(
+const std::string PARAM_HNSW_QUANTIZED_GRAPH_ENABLED =
+    "proxima.hnsw.quantized_graph.enabled";
+const std::string PARAM_HNSW_QUANTIZED_GRAPH_MODEL =
+    "proxima.hnsw.quantized_graph.model";
+
+inline const std::string PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY =
+    "proxima.hnsw.quantized_graph.thp_policy";
+inline const std::string PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE =
+    "proxima.hnsw.quantized_graph.thp_min_coverage";
+inline const std::string PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR =
+    "proxima.hnsw.quantized_graph.thp_min_coverage_floor";
+
+static const std::string PARAM_HNSW_BUILDER_THREAD_COUNT(
     "proxima.hnsw.builder.thread_count");
 inline const std::string PARAM_HNSW_BUILDER_MEMORY_QUOTA(
     "proxima.hnsw.builder.memory_quota");

@@ -1,0 +1,17 @@
+# SIFT-128 FP32; measured build chain for the 2026-11-03 campaign in ../TESTING.zh-CN.md.
+# Build the base graph first, then derive v1/v2 from the same raw snapshot.
+# ./build/bin/local_builder tools/core/bench/config/sift_fp32_base_build.yaml
+BuilderCommon:
+  BuildFile: /data/sift/sift-base.zvec.vecs
+  BuilderClass: HnswStreamer
+  DumpFormat: streamer
+  DumpPath: /data/sift/sift-raw.index
+  IndexPath: /data/sift/sift-work.index
+  LogLevel: info
+  MaxDocs: 1000000
+  MetricName: SquaredEuclidean
+  ThreadCount: 4
+BuilderParams:
+  proxima.hnsw.streamer.efconstruction: 400
+  proxima.hnsw.streamer.get_vector_enable: true
+  proxima.hnsw.streamer.max_neighbor_count: 32

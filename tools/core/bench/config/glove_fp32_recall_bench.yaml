@@ -1,0 +1,46 @@
+# Default target: STRICT ID Recall@10 >= 90%, not ANN distance-tolerance recall.
+# Measured on the saved full graph; rebuilds require recall calibration.
+# See ../GLOVE.zh-CN.md. Only replace paths to use the matching build snapshot.
+# ./build/bin/recall tools/core/bench/config/glove_fp32_recall_bench.yaml
+# ./build/bin/bench tools/core/bench/config/glove_fp32_recall_bench.yaml
+IndexCommon:
+  IndexConfig: >-
+    {"index_type":"kHNSW","data_type":"DT_FP32",
+     "metric_type":"kCosine","dimension":100,
+     "m":32,"ef_construction":400,
+     "use_id_map":true,"use_quantized_graph":true,
+     "quantizer_param":{"type":"kNone"}}
+  IndexPath: /data/glove/glove_fp32_full.index
+  TopK: 10
+  QueryFile: /data/glove/queries.txt
+  QueryFirstSep: ";"
+  QuerySecondSep: " "
+  QueryType: float
+  RetrievalMode: dense
+  FilterMode: none
+  GroundTruthFile: /data/glove/neighbors.txt
+  GroundTruthFirstSep: ";"
+  GroundTruthSecondSep: " "
+  CompareById: true
+  RecallThreadCount: 1
+  RecallBatchCount: 0
+  RecallGTCount: 10
+  RecallLogDir: /data/glove/fp32_recall_logs
+  BenchThreadCount: 1
+  BenchThreadCounts: [1]
+  BenchRounds: 5
+  BenchSecs: 6
+  BenchBatchCount: 1
+  BenchIterCount: 1000000000
+  LogLevel: info
+
+# This single configuration is used unless QueryParams is explicitly added.
+# The saved codec/router already contain RotationViews; no QG_* env is needed.
+QueryConfig:
+  QueryParam: >-
+    {"index_type":"kHNSW","ef_search":2048,
+     "quantized_graph_margin":0.065,
+     "quantized_graph_bucket_width":0.008,
+     "quantized_graph_max_expansions":384,
+     "quantized_graph_route_beam":1,
+     "quantized_graph_uncertainty_bonus":0}
