@@ -1395,16 +1395,19 @@ int build_from_index(const YAML::Node &config_root) {
   if (meta.streamer_name() != "HnswStreamer") return IndexError_Unsupported;
   auto streamer = IndexFactory::CreateStreamer("HnswStreamer");
   if (!streamer) return IndexError_NoExist;
+
   auto params = meta.streamer_params();
   ailego::Params overrides;
   auto builder_params = config_root["BuilderParams"];
   if (builder_params && !prepare_params(std::move(builder_params), overrides))
     return IndexError_InvalidArgument;
+
   for (const auto &key : {PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY,
                           PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE,
                           PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR}) {
     if (overrides.has(key)) params[key] = overrides[key];
   }
+
   params.set(PARAM_HNSW_QUANTIZED_GRAPH_ENABLED, false);
   params.set(PARAM_HNSW_QUANTIZED_GRAPH_MODEL, string{});
   std::shared_ptr<zvec::turbo::Quantizer> quantizer;

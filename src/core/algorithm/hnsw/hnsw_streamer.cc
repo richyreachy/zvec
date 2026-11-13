@@ -253,6 +253,7 @@ int HnswStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
       persisted_params.erase(key);
     }
   }
+
   quantized_graph_router_data_.clear();
   snapshot_storage_.reset();
   quantized_graph_model_.clear();
@@ -915,6 +916,7 @@ int HnswStreamer::close() {
     return ret;
   }
   snapshot_storage_.reset();
+
   quantized_graph_router_data_.clear();
   quantized_graph_persist_ = false;
   state_ = STATE_INITED;
@@ -1034,6 +1036,7 @@ int HnswStreamer::build_quantized_graph(
     ret = graph->prebuild(*entity_, entity_->doc_cnt(), options.threads,
                           quantized_graph_page_params_);
     if (ret != 0) return ret;
+
     quantized_graph_ = std::move(graph);
     quantized_graph_persist_ = true;
     if (quantized_graph_enabled_) alg_->set_quantized_graph(quantized_graph_);

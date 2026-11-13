@@ -73,28 +73,35 @@ class QuantizedGraph {
   QuantizedGraph(size_t dimension, Codec codec, size_t max_neighbors,
                  size_t stored_vector_bytes, bool cosine,
                  std::string model_data);
+
   void clear();
   template <class Graph>
   int prebuild(const Graph &graph, size_t doc_cnt, size_t threads,
                const ailego::Params &page_params = {});
+
   // The enclosing snapshot versions the codec, rotation and Block layout.
   // Readers/writers stream bounded chunks; no second arena-sized copy.
   template <class Writer>
   bool dump(Writer &write) const;
+
   template <class Graph, class Reader>
   int load(const Graph &graph, size_t doc_cnt, Reader &read, size_t bytes,
            const ailego::Params &page_params = {});
+
   size_t max_neighbors() const {
     return max_neighbors_;
   }
+
   const Codec &codec() const {
     return codec_;
   }
+
   template <class Graph, class Context>
   int search(NodeId entry, const Graph &graph, Context &ctx) const {
     return cosine_ ? search_impl<true>(entry, graph, ctx)
                    : search_impl<false>(entry, graph, ctx);
   }
+
   NodeId entry() const {
     return entry_;
   }
@@ -115,6 +122,7 @@ class QuantizedGraph {
     for (size_t line = 0; line < Lines; ++line)
       __builtin_prefetch(ptr + line * 64, 0, 3);
   }
+
   __attribute__((always_inline)) static inline void prefetch_span(
       const char *ptr, size_t bytes) {
     // Unroll common center, vector and code spans; retain arbitrary lengths.
@@ -182,6 +190,7 @@ class QuantizedGraph {
 
     uint32_t neighbor_cnt;
     uint32_t center_bytes;
+
     // Rounded-up capacity of the neighbor region so the codes offset does
     // not depend on the actual degree.
     uint32_t neighbor_bytes;
@@ -193,13 +202,16 @@ class QuantizedGraph {
     const uint8_t *center() const {
       return reinterpret_cast<const uint8_t *>(this) + kCenterOffset;
     }
+
     uint8_t *center() {
       return const_cast<uint8_t *>(std::as_const(*this).center());
     }
+
     const NodeId *neighbors() const {
       return reinterpret_cast<const NodeId *>(
           reinterpret_cast<const char *>(this) + kCenterOffset + center_bytes);
     }
+
     const char *codes() const {
       return reinterpret_cast<const char *>(neighbors()) + neighbor_bytes;
     }
@@ -207,6 +219,7 @@ class QuantizedGraph {
 
   struct ArenaDeleter {
     static constexpr size_t kAlignment = 2 * 1024 * 1024;
+
     void operator()(char *ptr) const {
       ::operator delete(ptr, std::align_val_t{kAlignment});
     }
@@ -230,8 +243,10 @@ class QuantizedGraph {
 #endif
       arena.reset(static_cast<char *>(mem));
     }
+
     return arena;
   }
+
   template <class Graph>
   int prepare_router(const Graph &graph, size_t doc_cnt);
 
@@ -244,6 +259,7 @@ class QuantizedGraph {
   const Block *get_block(NodeId id) const {
     return id < arena_count_ ? slot(id) : nullptr;
   }
+
   // Writes one fixed-stride block into slot; false on error, with no cleanup
   // (the caller owns the memory).
   template <class Graph>
@@ -262,6 +278,7 @@ class QuantizedGraph {
   size_t neighbor_bytes_{0};
   Codec codec_;
   QuantizedGraphIntegerRouter integer_router_;
+
   // Immutable after prebuild and before the next clear(); read lock-free.
   std::unique_ptr<char[], ArenaDeleter> arena_;
   NodeId arena_count_{0};
@@ -314,6 +331,7 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
       entity, id, static_cast<const float *>(center_ptr), dimension_,
       max_neighbors_, scratch.neighbors, scratch.selection_cache);
   if (error != 0) return false;
+
   const size_t neighbor_cnt = scratch.neighbors.size();
   const size_t code_bytes =
       ((neighbor_cnt + batch_size - 1) / batch_size) * batch_bytes;
@@ -322,10 +340,12 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
   block->neighbor_cnt = static_cast<uint32_t>(neighbor_cnt);
   block->center_bytes = static_cast<uint32_t>(stored_center_bytes_);
   block->neighbor_bytes = static_cast<uint32_t>(neighbor_bytes_);
+
   if (center_shift_.size() != dimension_) {
     error = IndexError_Mismatch;
     return false;
   }
+
   auto *center_codes = block->center();
   const bool encoded =
       cosine_ ? SQ8Center::encode_shifted(
@@ -345,11 +365,13 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
       block->center_mean_dot =
           double(block->center_coded_norm) * block->center_coded_norm;
   }
+
   if (!encoded || !std::isfinite(block->center_error) ||
       !std::isfinite(block->center_norm2)) {
     error = IndexError_Mismatch;
     return false;
   }
+
   std::copy(scratch.neighbors.begin(), scratch.neighbors.end(),
             const_cast<NodeId *>(block->neighbors()));
 
@@ -366,10 +388,13 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
                       block->center_offset, block->center_scale);
     encoding_center = reconstructed.data();
   }
+
   codec_.transform(encoding_center, scratch.encoded_center);
+
   scratch.encoded.assign(batch_size * dim, 0.0f);
   for (size_t offset = 0; offset < neighbor_cnt; offset += batch_size) {
     const size_t count = std::min(batch_size, neighbor_cnt - offset);
+
     for (size_t i = 0; i < count; ++i) {
       typename Graph::Vector neighbor;
       const int ret =
@@ -378,18 +403,22 @@ bool QuantizedGraph<Codec>::build_block(const Graph &entity, NodeId id,
         error = ret;
         return false;
       }
+
       if (neighbor.data() == nullptr) {
         error = IndexError_Mismatch;
         return false;
       }
+
       codec_.transform(neighbor.data(), scratch.vector);
       std::copy(scratch.vector.begin(), scratch.vector.end(),
                 scratch.encoded.begin() + i * dim);
     }
+
     codec_.encode(scratch.encoded_center.data(), scratch.encoded.data(), count,
                   const_cast<char *>(block->codes()) +
                       (offset / batch_size) * batch_bytes);
   }
+
   return true;
 }
 
@@ -403,11 +432,13 @@ int QuantizedGraph<Codec>::prepare_router(const Graph &entity, size_t doc_cnt) {
       !QuantizedGraphIntegerRouter::read_mean_data(
           model_data_, doc_cnt, center_shift_, dimension_, cosine_))
     return IndexError_Mismatch;
+
   center_shift_norm2_ = 0;
   for (float v : center_shift_) {
     if (!std::isfinite(v)) return IndexError_Mismatch;
     center_shift_norm2_ += double(v) * v;
   }
+
   if (!model_data_.empty()) {
     std::vector<float> route_mean;
     codec_.transform(center_shift_.data(), route_mean);
@@ -415,6 +446,7 @@ int QuantizedGraph<Codec>::prepare_router(const Graph &entity, size_t doc_cnt) {
                                    &route_mean, cosine_))
       return IndexError_Mismatch;
   }
+
   return 0;
 }
 
@@ -441,15 +473,19 @@ int QuantizedGraph<Codec>::load(const Graph &entity, size_t doc_cnt,
       (header[2] != kInvalidNodeId &&
        (header[2] >= doc_cnt || !entity.valid(NodeId(header[2])))))
     return IndexError_InvalidFormat;
+
   const int ret = prepare_router(entity, doc_cnt);
   if (ret != 0) return ret;
+
   auto arena = allocate_arena(doc_cnt * stride_);
   if (!read(arena.get(), doc_cnt * stride_)) return IndexError_ReadData;
+
   // Check each storage-backed key once, rather than once per encoded edge.
   // This temporary table costs one byte per slot and is freed before search.
   std::vector<uint8_t> valid_nodes(doc_cnt);
   for (size_t id = 0; id < doc_cnt; ++id)
     valid_nodes[id] = entity.valid(NodeId(id));
+
   bool has_valid_node = false;
   for (size_t id = 0; id < doc_cnt; ++id) {
     const auto *block =
@@ -468,17 +504,21 @@ int QuantizedGraph<Codec>::load(const Graph &entity, size_t doc_cnt,
         !std::isfinite(block->center_residual_norm) ||
         !std::isfinite(block->center_coded_norm))
       return IndexError_InvalidFormat;
+
     for (size_t j = 0; j < block->neighbor_cnt; ++j) {
       const NodeId neighbor = block->neighbors()[j];
       if (neighbor >= doc_cnt || !valid_nodes[neighbor])
         return IndexError_InvalidFormat;
     }
   }
+
   if (has_valid_node != (header[2] != kInvalidNodeId))
     return IndexError_InvalidFormat;
+
   const int pages_ret = quantized_graph_pages::prepare_arena(
       arena.get(), doc_cnt * stride_, page_params);
   if (pages_ret != 0) return pages_ret;
+
   arena_ = std::move(arena);
   arena_count_ = NodeId(doc_cnt);
   entry_ = NodeId(header[2]);
@@ -493,16 +533,20 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
   if (dimension_ == 0 || dimension_ > 4096 ||
       !__builtin_cpu_supports("avx512vnni"))
     return IndexError_Mismatch;
+
   static_assert(sizeof(Block) <= Block::kCenterOffset,
                 "Block header overlaps center");
+
   const int router_ret = prepare_router(entity, doc_cnt);
   if (router_ret != 0) return router_ret;
+
   const size_t nthreads =
       threads == 0 ? std::max(1u, std::thread::hardware_concurrency())
                    : threads;
   if (doc_cnt >= kInvalidNodeId ||
       doc_cnt > std::numeric_limits<size_t>::max() / stride_)
     return IndexError_Mismatch;
+
   auto arena = allocate_arena(stride_ * doc_cnt);
   std::vector<std::vector<double>> centroid_parts(
       nthreads, std::vector<double>(dimension_, 0.0));
@@ -517,8 +561,10 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
       while (first_error.load(std::memory_order_relaxed) == 0) {
         const NodeId id = next_id.fetch_add(1, std::memory_order_relaxed);
         if (id >= doc_cnt) break;
+
         auto *slot = reinterpret_cast<Block *>(
             arena.get() + static_cast<size_t>(id) * stride_);
+
         // Persisted slots must not contain uninitialized padding or dead lanes.
         std::memset(slot, 0, stride_);
         if (!entity.valid(id)) {
@@ -530,19 +576,23 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
           std::fill_n(empty->center(), stored_center_bytes_, uint8_t{0});
           continue;
         }
+
         typename Graph::Vector raw;
         int ret = entity.get_vector(id, raw);
         if (ret != 0) {
           first_error.store(ret);
           return;
         }
+
         if (raw.data() == nullptr) {
           first_error.store(IndexError_Mismatch);
           return;
         }
+
         const auto *values = static_cast<const float *>(raw.data());
         for (size_t d = 0; d < dimension_; ++d) centroid[d] += values[d];
         ++valid_counts[part];
+
         int error = 0;
         if (!build_block(entity, id, raw.data(), slot, scratch, error)) {
           first_error.store(error);
@@ -560,6 +610,7 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
     for (size_t i = 0; i < nthreads; ++i) pool.emplace_back(worker, i);
     for (auto &t : pool) t.join();
   }
+
   if (first_error.load() != 0) {
     return first_error.load();
   }
@@ -584,25 +635,30 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
       const NodeId id = next_entry_id.fetch_add(1, std::memory_order_relaxed);
       if (id >= doc_cnt) break;
       if (!entity.valid(id)) continue;
+
       typename Graph::Vector raw;
       if (entity.get_vector(id, raw) != 0 || raw.data() == nullptr) continue;
+
       const auto *values = static_cast<const float *>(raw.data());
       double dist = 0.0;
       for (size_t d = 0; d < dimension_; ++d) {
         const double diff = values[d] - centroid[d];
         dist += diff * diff;
       }
+
       if (dist < best_dists[part]) {
         best_dists[part] = dist;
         best_ids[part] = id;
       }
     }
   };
+
   {
     std::vector<std::thread> pool;
     for (size_t i = 0; i < nthreads; ++i) pool.emplace_back(entry_worker, i);
     for (auto &t : pool) t.join();
   }
+
   entry_ = kInvalidNodeId;
   double best = std::numeric_limits<double>::max();
   for (size_t i = 0; i < nthreads; ++i) {
@@ -614,9 +670,11 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
 
   // Published under the caller's exclusive lock; searches only
   // start afterwards, so reads need no synchronization.
+
   const int pages_ret = quantized_graph_pages::prepare_arena(
       arena.get(), doc_cnt * stride_, page_params);
   if (pages_ret != 0) return pages_ret;
+
   arena_ = std::move(arena);
   arena_count_ = static_cast<NodeId>(doc_cnt);
   return 0;
@@ -630,10 +688,12 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
   results.clear();
   if (entry == kInvalidNodeId || ctx.topk() == 0) return 0;
   if (!entity.valid(entry)) return IndexError_Mismatch;
+
   auto &state = search_state();
   auto &visited = state.visited;
   visited.reset(results.limit(), arena_count_);
   auto &beam = state.beam;
+
   auto &batch_query = state.query;
   codec_.prepare_query(ctx.query(), batch_query);
   if (!IntegerCenter::prepare(
@@ -641,8 +701,10 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
           Cosine ? center_shift_.data() : integer_shift_.data(), dimension_,
           state.integer_query))
     return IndexError_Mismatch;
+
   auto &expanded = state.expanded;
   expanded.clear();
+
   const auto &options = ctx.quantized_graph_options();
   if (!integer_router_.empty() && options.route_beam != 0) {
     const size_t route_beam = options.route_beam;
@@ -654,15 +716,18 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     if (chosen == kInvalidNodeId) return IndexError_Mismatch;
     entry = chosen;
   }
+
   beam.reset();
   beam.insert(entry, std::numeric_limits<float>::max());
   state.refine_candidates.clear();
   state.refine_best.clear();
+
   struct StopState {
     std::vector<float> &best;
     size_t k, expanded = 0;
     float margin = .02f;
     size_t cap = 64;
+
     void observe(float d, bool eligible) {
       ++expanded;
       if (eligible && (best.size() < k || d < best.back())) {
@@ -670,17 +735,20 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
         if (best.size() > k) best.pop_back();
       }
     }
+
     bool stop(float next) const {
       return best.size() == k && expanded >= 10 &&
              next - best.back() >= margin * std::max(best.back(), 1e-6f);
     }
   };
+
   state.best_estimated.clear();
   StopState stopping{state.best_estimated, ctx.topk()};
   stopping.margin =
       options.margin >= 0 ? options.margin : (Cosine ? .02f : .085f);
   stopping.cap =
       options.max_expansions ? options.max_expansions : (Cosine ? 64 : 256);
+
   struct Scan {
     enum { kVisitOnExpansion = true };
     const QuantizedGraph &index;
@@ -697,10 +765,12 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     const NodeId *neighbors = nullptr;
     const char *codes = nullptr;
     float navigation_center = 0;
+
     int begin(NodeId id) {
       expanded.push_back(id);
       block = index.get_block(id);
       if (block == nullptr) return IndexError_Mismatch;
+
       neighbors = reinterpret_cast<const NodeId *>(
           reinterpret_cast<const char *>(block->center()) +
           index.stored_center_bytes_);
@@ -714,10 +784,12 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       const size_t bytes = std::min(size_t{4096}, index.stride_ - code_offset);
       index.prefetch_span(codes, bytes);
       const size_t batch_bytes = index.codec_.batch_bytes();
+
       // The end of the first block contains SymphonyQG's score factors.
       if (batch_bytes > bytes && batch_bytes >= 256)
         index.template prefetch_fixed<4>(codes + batch_bytes - 256);
 #endif
+
       const bool eligible = !ctx.excluded(id);
       float estimate;
       if constexpr (Cosine) {
@@ -745,22 +817,28 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
             block->center_coded_norm, index.dimension_);
         if (eligible) refine_candidates.emplace_back(lower, id);
       }
+
       if (expanded.size() == 1) bucket->set_scale(estimate, bucket_width);
+
       // Heuristic navigation threshold; interval bounds still certify terminal
       // Top-K over expanded nodes, not navigation/global recall.
       stopping->observe(estimate, eligible);
       ctx.on_expand();
       return 0;
     }
+
     size_t neighbor_count() const {
       return block->neighbor_cnt;
     }
+
     size_t batch_size() const {
       return Codec::kBatchSize;
     }
+
     const NodeId *neighbor_data(size_t offset) const {
       return neighbors + offset;
     }
+
     int score(size_t offset, const NodeId *, size_t count, float *distances) {
       index.codec_.scan(
           codes + (offset / Codec::kBatchSize) * index.codec_.batch_bytes(),
@@ -772,6 +850,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
             maximum = std::max(maximum, distances[i]);
         bucket->cover_initial_range(maximum);
       }
+
       return 0;
     }
   } scan{*this,
@@ -785,6 +864,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
          state.refine_candidates,
          &beam,
          &stopping};
+
   struct Frontier {
     const QuantizedGraph &index;
     Bucket &beam;
@@ -792,24 +872,29 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     StopState *stopping;
     LocalVisitSet *visited;
     NodeId prefetched = kInvalidNodeId;
+
     bool has_next() const {
       // Enforce the hard budget before processing any more frontier entries.
       // Filtered nodes need not fill best or consume the exact-scan budget.
       if (stopping->expanded >= stopping->cap) return false;
+
       // SearchGraph rejects duplicate pops. A duplicate that fails stopping
       // cannot hide an admissible node: remaining bucket scores are no lower.
       if (beam.has_next() && stopping->stop(beam.next_distance())) return false;
       return beam.has_next() && !ctx.reach_scan_limit();
     }
+
     NodeId pop() {
       return beam.pop();
     }
+
     void push_batch(const NodeId *ids, const float *distances, size_t count) {
       static_assert(Codec::kBatchSize <= 32);
       std::array<uint32_t, Codec::kBatchSize> bins;
       beam.locate_batch(distances, bins.data(), count);
       uint32_t accepted = visited->unvisited_batch(ids, distances, count);
       beam.reserve_insertions(count);
+
       // The estimated Top-K threshold can only decrease. Once stopping is
       // enabled, a bin that fails the stop rule now can never be expanded.
       // Visits are marked on expansion, so later better estimates still enter.
@@ -819,14 +904,17 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       const float allowance = stopping->margin * std::max(worst, 1e-6f);
       if (prune)
         accepted &= beam.admissible_mask(bins.data(), count, worst, allowance);
+
       while (accepted) {
         const unsigned i = __builtin_ctz(accepted);
         accepted &= accepted - 1;
         beam.insert_reserved(ids[i], bins[i]);
       }
+
       // Even when all lanes were pruned, prefetch the next queued node.
       prefetch_next();
     }
+
     void prefetch_next() {
       // Remove already-expanded queue heads before choosing a prefetch target.
       // Their remaining copies cannot affect expansion or stopping order.
@@ -834,6 +922,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
 #if defined(__GNUC__) || defined(__clang__)
       if (beam.has_next()) {
         const NodeId next = beam.next_id();
+
         // Only prefetch published arena slots.
         if (next < index.arena_count_ && next != prefetched) {
           prefetched = next;
@@ -848,12 +937,15 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
 #endif
     }
   } frontier{*this, beam, ctx, &stopping, &visited};
+
   const int search_ret = SearchGraph(scan, frontier, visited, state.scratch);
   if (search_ret != 0) return search_ret;
+
   // Exact Top-K of the expanded set, via conservative interval ordering.
   // Navigational estimates still use reconstructed-center coordinates.
   auto &refine = state.refine_candidates;
   auto &best = state.refine_best;
+
   // For small Top-K, select only the required minima with SIMD. The packed
   // key preserves (lower bound, ID) order, including signed zero and ties.
   // Larger candidate sets retain incremental partitioning and sorting.
@@ -868,6 +960,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       keys[i] = (uint64_t(ordered_bits) << 32) | refine[i].second;
     }
   }
+
   size_t ordered = 0;
   for (size_t first = 0; first < refine.size(); first += 4) {
     std::array<std::pair<float, NodeId>, 4> selected;
@@ -886,6 +979,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
           offsets = _mm512_mask_mov_epi64(
               offsets, better, _mm512_add_epi64(lanes, _mm512_set1_epi64(j)));
         }
+
         const uint64_t minimum = _mm512_reduce_min_epu64(values);
         const unsigned lane = __builtin_ctz(unsigned(
             _mm512_cmpeq_epi64_mask(values, _mm512_set1_epi64(minimum))));
@@ -896,6 +990,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
         keys[index] = UINT64_MAX;
       }
     }
+
     if (!select && first == ordered) {
       // Preserve the full-sort order while only ordering candidates needed
       // by exact refinement. Grow the prefix to bound partitioning work for
@@ -906,10 +1001,12 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
                          refine.end());
       std::sort(refine.begin() + first, refine.begin() + ordered);
     }
+
     if (best.size() == ctx.topk() &&
         (select ? selected[0] : refine[first]).first > best.back())
       break;
     if (ctx.reach_scan_limit()) break;
+
     // Keep owning/pinning handles alive until every vector in the batch has
     // been scored. Storage backends need not return permanent pointers.
     std::array<typename Graph::Vector, 4> raw;
@@ -918,22 +1015,27 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       const auto &candidate = select ? selected[count] : refine[first + count];
       if (best.size() == ctx.topk() && candidate.first > best.back()) break;
       if (candidate.second >= arena_count_) return IndexError_Mismatch;
+
       const int ret = entity.get_vector(candidate.second, raw[count]);
       if (ret != 0) return ret;
       if (raw[count].data() == nullptr) return IndexError_Mismatch;
+
       const char *ptr = static_cast<const char *>(raw[count].data());
       prefetch_span(ptr, stored_vector_bytes_);
     }
+
     for (size_t i = 0; i < count; ++i) {
       const auto &candidate = select ? selected[i] : refine[first + i];
       if (best.size() == ctx.topk() && candidate.first > best.back()) break;
       if (ctx.reach_scan_limit()) break;
+
       const float exact = ctx.distance(raw[i].data());
       results.emplace(candidate.second, exact);
       best.insert(std::lower_bound(best.begin(), best.end(), exact), exact);
       if (best.size() > ctx.topk()) best.pop_back();
     }
   }
+
   // As in SymphonyQG's result completion step, score unvisited neighbors if
   // duplicate estimates or filters left fewer than k eligible results. Avoid
   // building additional cached blocks and respect the exact-distance budget.
@@ -944,16 +1046,20 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       if (results.size() >= ctx.topk() || ctx.reach_scan_limit()) break;
       const NodeId candidate = neighbors[i];
       if (visited.visited(candidate) || !entity.valid(candidate)) continue;
+
       visited.set_visited(candidate);
       if (ctx.excluded(candidate)) continue;
+
       typename Graph::Vector raw;
       int ret = entity.get_vector(candidate, raw);
       if (ret != 0) return ret;
       if (raw.data() == nullptr) return IndexError_Mismatch;
+
       const float exact = ctx.distance(raw.data());
       results.emplace(candidate, exact);
     }
   }
+
   return 0;
 }
 

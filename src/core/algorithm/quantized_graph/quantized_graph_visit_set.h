@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
 #pragma once
+
 #include <immintrin.h>
 #include <algorithm>
 #include <cassert>
@@ -10,7 +11,9 @@
 #include <cstdint>
 #include <unordered_set>
 #include <vector>
+
 namespace zvec::core {
+
 // Expanded-node membership. UINT32_MAX is reserved; batches contain at most
 // 32 IDs. Use a bounded bitmap for dense domains, clearing only touched words.
 // Otherwise retain linear probing and overflow storage. Both paths preserve
@@ -18,8 +21,10 @@ namespace zvec::core {
 class QuantizedGraphVisitSet {
  public:
   using NodeId = uint32_t;
+
   void reset(size_t expect, size_t domain = 0) {
     const size_t words = domain / 32 + (domain % 32 != 0);
+
     // Bound bitmap storage relative to the hash table, and leave the reserved
     // ID outside the bitmap even when the domain ends in a partial word.
     if (words && words <= size_t{kEmpty} / 32 &&
@@ -32,14 +37,17 @@ class QuantizedGraphVisitSet {
       overflow_.clear();
       return;
     }
+
     dense_.clear();
     touched_.clear();
+
     size_t cap = 64;
     while (cap < expect * 8) cap *= 2;
     if (table_.size() != cap)
       table_.assign(cap, kEmpty);
     else
       std::fill(table_.begin(), table_.end(), kEmpty);
+
     mask_ = cap - 1;
     overflow_.clear();
   }
@@ -50,6 +58,7 @@ class QuantizedGraphVisitSet {
         return (dense_[id / 32] & (uint32_t{1} << (id % 32))) != 0;
       return id == kEmpty || overflow_.find(id) != overflow_.end();
     }
+
     size_t i = id & mask_;
     for (size_t n = 0; n <= mask_; ++n) {
       const NodeId v = table_[i];
@@ -57,6 +66,7 @@ class QuantizedGraphVisitSet {
       if (v == kEmpty) return false;
       i = (i + 1) & mask_;
     }
+
     // Table completely full: entries beyond it live in the overflow set.
     return id == kEmpty || overflow_.find(id) != overflow_.end();
   }
@@ -72,6 +82,7 @@ class QuantizedGraphVisitSet {
           accepted |= uint32_t{1} << i;
       return accepted;
     }
+
     const __m512i table_mask = _mm512_set1_epi32(int(mask_));
     for (size_t first = 0; first < count; first += 16) {
       const size_t lanes = std::min(size_t{16}, count - first);
@@ -100,26 +111,31 @@ class QuantizedGraphVisitSet {
         keep = active & empty & ~equal;
         pending = active & ~empty & ~equal;
       }
+
       const __m512i bits = _mm512_maskz_loadu_epi32(active, distances + first);
       const __mmask16 finite = _mm512_cmplt_epi32_mask(
           _mm512_and_si512(bits, _mm512_set1_epi32(0x7fffffff)),
           _mm512_set1_epi32(0x7f800000));
       keep &= finite;
       pending &= finite;
+
       // Bitmap overflow and hash collisions share the scalar lookup.
       while (pending) {
         const unsigned lane = __builtin_ctz(pending);
         pending &= pending - 1;
         if (!visited(ids[first + lane])) keep |= uint32_t{1} << lane;
       }
+
       accepted |= keep << first;
     }
+
     return accepted;
   }
 
   // Return true only for the first insertion in this query.
   bool set_visited(NodeId id) {
     if (id == kEmpty) return false;
+
     if (!dense_.empty()) {
       if (id / 32 < dense_.size()) {
         uint32_t &word = dense_[id / 32];
@@ -129,8 +145,10 @@ class QuantizedGraphVisitSet {
         word |= mask;
         return true;
       }
+
       return overflow_.insert(id).second;
     }
+
     size_t i = id & mask_;
     for (size_t n = 0; n <= mask_; ++n) {
       const NodeId v = table_[i];
@@ -139,8 +157,10 @@ class QuantizedGraphVisitSet {
         table_[i] = id;
         return true;
       }
+
       i = (i + 1) & mask_;
     }
+
     return overflow_.insert(id).second;
   }
 

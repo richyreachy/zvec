@@ -52,6 +52,7 @@ class SymQGCodecBuilder {
         native.data.append(reinterpret_cast<const char *>(&views),
                            sizeof(views));
       }
+
       return native;
     }
 
@@ -60,6 +61,7 @@ class SymQGCodecBuilder {
       if (id >= docs || !graph.valid(id) || graph.get_vector(id, raw) ||
           !raw.data())
         throw std::domain_error("unreadable codec training vector");
+
       const auto *v = static_cast<const float *>(raw.data());
       std::vector<float> out(v, v + dimension);
       double norm = 0;
@@ -68,10 +70,12 @@ class SymQGCodecBuilder {
           throw std::domain_error("nonfinite codec training vector");
         norm += double(x) * x;
       }
+
       if (norm > std::numeric_limits<float>::max() / 16.)
         throw std::domain_error("codec training norm overflows FP32");
       return out;
     };
+
     // Use a single 32-neighbor batch for training regardless of the output
     // graph's degree. This keeps the estimator and its sampling cost stable.
     std::unordered_map<uint32_t, std::vector<uint32_t>> neighbor_cache;
@@ -79,6 +83,7 @@ class SymQGCodecBuilder {
     auto neighbors = [&](uint32_t id) -> const std::vector<uint32_t> & {
       auto it = neighbor_cache.find(id);
       if (it != neighbor_cache.end()) return it->second;
+
       const auto center = read_vector(id);
       std::vector<uint32_t> selected;
       if (SelectQuantizedGraphNeighbors(graph, id, center.data(), dimension, 32,
@@ -86,10 +91,12 @@ class SymQGCodecBuilder {
         throw std::domain_error("cannot sample codec training neighbors");
       return neighbor_cache.emplace(id, std::move(selected)).first->second;
     };
+
     struct Row {
       std::vector<float> center;
       std::vector<uint32_t> neighbors, proxies;
     };
+
     // Sample live internal IDs, not external keys or a dense-prefix assumption.
     // The temporary ID list costs four bytes per live node, never a database
     // vector copy, and also handles snapshots containing large ID holes.
@@ -97,6 +104,7 @@ class SymQGCodecBuilder {
     for (uint32_t id = 0; id < docs; ++id)
       if (graph.valid(id)) live.push_back(id);
     if (live.empty()) throw std::domain_error("no live codec training vectors");
+
     std::vector<Row> rows;
     const size_t wanted = std::min(live.size(), options.training_samples);
     rows.reserve(wanted);
@@ -107,6 +115,7 @@ class SymQGCodecBuilder {
          ++attempt) {
       const uint32_t id = live[random() % live.size()];
       if (used.count(id)) continue;
+
       Row row;
       row.neighbors = neighbors(id);
       for (size_t trial = 0;
@@ -123,6 +132,7 @@ class SymQGCodecBuilder {
                 row.proxies.end())
           row.proxies.push_back(target);
       }
+
       // Small or disconnected graphs may not have eight distinct two-hop
       // proxies. Their direct neighbors still provide valid training pairs.
       if (row.proxies.empty()) row.proxies = row.neighbors;
@@ -136,15 +146,18 @@ class SymQGCodecBuilder {
         SQ8Center::decode(codes.data(), dimension, row.center.data(), offset,
                           scale);
       }
+
       used.insert(id);
       rows.push_back(std::move(row));
     }
+
     if (rows.empty()) throw std::domain_error("no live codec training vectors");
 
     Eigen::VectorXd mean = Eigen::VectorXd::Zero(dimension);
     for (const auto &row : rows)
       for (size_t d = 0; d < dimension; ++d) mean[d] += row.center[d];
     mean /= double(rows.size());
+
     Eigen::MatrixXd centers(rows.size(), dimension);
     Eigen::MatrixXd neighbor_means(rows.size(), dimension);
     double b = 0, c = 0;
@@ -155,15 +168,18 @@ class SymQGCodecBuilder {
       centers.row(i) = center.transpose();
       neighbor_means.row(i) = center.transpose();
       if (row.neighbors.empty()) continue;
+
       Eigen::MatrixXd r(dimension, row.neighbors.size());
       for (size_t j = 0; j < row.neighbors.size(); ++j) {
         const auto vector = read_vector(row.neighbors[j]);
         for (size_t d = 0; d < dimension; ++d) r(d, j) = vector[d] - center[d];
       }
+
       neighbor_means.row(i) += r.rowwise().mean().transpose();
       const Eigen::VectorXd u = mean - center;
       const double uu = u.squaredNorm();
       const Eigen::VectorXd ru = r.transpose() * u;
+
       for (uint32_t proxy : row.proxies) {
         const auto vector = read_vector(proxy);
         Eigen::VectorXd s(dimension);
@@ -173,8 +189,10 @@ class SymQGCodecBuilder {
         const double ss = s.squaredNorm(), su = s.dot(u);
         const Eigen::VectorXd rs = r.transpose() * s;
         const double weight = 1. / (row.neighbors.size() * row.proxies.size());
+
         for (size_t j = 0; j < row.neighbors.size(); ++j) {
           const double rr = r.col(j).squaredNorm();
+
           // Squared triangle area A(lambda) = A(0) + 2 B lambda + C lambda^2.
           b += weight * (ru[j] * (rs[j] - ss) - (rr - rs[j]) * su);
           c += weight *
@@ -182,26 +200,32 @@ class SymQGCodecBuilder {
         }
       }
     }
+
     if (!std::isfinite(b) || !std::isfinite(c))
       throw std::domain_error("nonfinite codec training objective");
+
     Result result;
     result.samples = rows.size();
     result.lambda = float(options.center_weight *
                           (c > 0 ? std::clamp(-b / c, 0., 1.) : 0.));
+
     const auto words = train_words(options);
     const uint32_t header[]{0x51474243, options.rotation_views == 1 ? 1u : 2u,
                             uint32_t(dimension),
                             uint32_t(options.block_dimension),
                             options.codec == Options::Codec::LowRank ? 3u : 1u};
+
     auto put = [&](const void *data, size_t bytes) {
       result.data.append(static_cast<const char *>(data), bytes);
     };
+
     put(header, sizeof(header));
     put(&result.lambda, sizeof(result.lambda));
     if (options.rotation_views != 1) {
       const uint32_t views = options.rotation_views;
       put(&views, sizeof(views));
     }
+
     std::vector<float> mean32(dimension);
     for (size_t d = 0; d < dimension; ++d) mean32[d] = float(mean[d]);
     put(mean32.data(), dimension * sizeof(float));
@@ -210,6 +234,7 @@ class SymQGCodecBuilder {
     if (options.codec == Options::Codec::LowRank) {
       turbo::SymQGRotation rotation(dimension, options.rotation_views);
       const size_t padded = rotation.padded_dim();
+
       // The frame is isometric: train in source coordinates, then transform
       // its eigenvectors. Avoid a views^2 larger covariance for multi-view
       // models. Keep the legacy path and its floating-point results intact.
@@ -230,12 +255,14 @@ class SymQGCodecBuilder {
           for (size_t d = 0; d < padded; ++d) delta(i, d) = rotated[d];
         }
       }
+
       // Uncentered second moment: U minimizes E||delta - U U^T delta||^2.
       const Eigen::MatrixXd covariance =
           delta.transpose() * delta / rows.size();
       Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig(covariance);
       if (eig.info() != Eigen::Success || !eig.eigenvectors().allFinite())
         throw std::runtime_error("codec eigendecomposition failed");
+
       const uint32_t rank = options.rank;
       std::vector<float> basis(rank * padded);
       double energy = 0;
@@ -254,6 +281,7 @@ class SymQGCodecBuilder {
           energy += std::max(0., eig.eigenvalues()[training_dim - 1 - j]);
           continue;
         }
+
         Eigen::Index pivot;
         axis.cwiseAbs().maxCoeff(&pivot);
         const double sign = axis[pivot] < 0 ? -1 : 1;
@@ -261,11 +289,14 @@ class SymQGCodecBuilder {
           basis[j * padded + d] = float(sign * axis[d]);
         energy += std::max(0., eig.eigenvalues()[padded - 1 - j]);
       }
+
       result.captured_energy =
           covariance.trace() > 0 ? energy / covariance.trace() : 0;
+
       put(&rank, sizeof(rank));
       put(basis.data(), basis.size() * sizeof(float));
     }
+
     return result;
   }
 
@@ -282,6 +313,7 @@ class SymQGCodecBuilder {
               (j < 8 ? 1.f : -1.f);
       return words;
     }
+
     // An orthogonal random rotation motivates a standard Gaussian reference
     // distribution. Learn eight antipodal pairs with three deterministic
     // Lloyd restarts and select on an independent synthetic validation set.
@@ -292,6 +324,7 @@ class SymQGCodecBuilder {
     for (auto *matrix : {&train, &validation})
       for (size_t i = 0; i < kSamples; ++i)
         for (size_t d = 0; d < dim; ++d) (*matrix)(i, d) = normal(random);
+
     double best = std::numeric_limits<double>::infinity();
     for (size_t restart = 0; restart < 3; ++restart) {
       Eigen::MatrixXd centers(8, dim);
@@ -299,6 +332,7 @@ class SymQGCodecBuilder {
         centers.row(j) = train.row(random() % kSamples);
         centers.row(j) *= std::sqrt(dim * .7) / centers.row(j).norm();
       }
+
       for (size_t iteration = 0; iteration < kIterations; ++iteration) {
         const Eigen::MatrixXd dot = train * centers.transpose();
         const Eigen::VectorXd norms = centers.rowwise().squaredNorm();
@@ -314,9 +348,11 @@ class SymQGCodecBuilder {
               label = j;
             }
           }
+
           sums.row(label) += (dot(i, label) >= 0 ? 1. : -1.) * train.row(i);
           ++counts[label];
         }
+
         for (size_t j = 0; j < 8; ++j) {
           if (counts[j])
             centers.row(j) = sums.row(j) / counts[j];
@@ -324,6 +360,7 @@ class SymQGCodecBuilder {
             centers.row(j) = train.row(random() % kSamples);
         }
       }
+
       const Eigen::MatrixXd dot = validation * centers.transpose();
       const Eigen::VectorXd norms = centers.rowwise().squaredNorm();
       double loss = 0;
@@ -333,6 +370,7 @@ class SymQGCodecBuilder {
           score = std::max(score, 2 * std::abs(dot(i, j)) - norms[j]);
         loss += validation.row(i).squaredNorm() - score;
       }
+
       if (loss < best) {
         best = loss;
         for (size_t j = 0; j < 8; ++j)
@@ -342,7 +380,9 @@ class SymQGCodecBuilder {
           }
       }
     }
+
     return words;
   }
 };
+
 }  // namespace zvec::core

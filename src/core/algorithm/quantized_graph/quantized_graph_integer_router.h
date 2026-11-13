@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #pragma once
+
 #include <immintrin.h>
 #include <algorithm>
 #include <array>
@@ -25,6 +26,7 @@
 #include "quantized_graph_router_format.h"
 
 namespace zvec::core {
+
 // Database-trained hierarchy. Scores only select a graph entry;
 // they provide no recall guarantee and do not replace terminal refinement.
 class QuantizedGraphIntegerRouter {
@@ -32,27 +34,33 @@ class QuantizedGraphIntegerRouter {
   static constexpr uint32_t kTransform = 0x53514701;
   static constexpr size_t kWidth = 16, kMaxBeam = 4;
   static constexpr int32_t kInvalid = INT32_MIN;
+
   // Routing needs only projected 8-bit codes, not refinement error bounds.
   struct Query {
     std::vector<int8_t> codes;
     float scale = 0;
     int32_t code_sum = 0;
   };
+
   struct alignas(64) Group {
     std::vector<uint8_t> codes;
     float scale[kWidth]{}, offset[kWidth]{}, mean_dot[kWidth]{};
     int32_t target[kWidth]{};
     uint32_t count = 0;
   };
+
   void clear() {
     groups_.clear();
   }
+
   bool empty() const {
     return groups_.empty();
   }
+
   bool cosine() const {
     return format_.metric == 0;
   }
+
   static bool read_mean_data(std::string_view data, size_t docs,
                              std::vector<float> &mean, size_t dimension = 768,
                              bool cosine = true) {
@@ -61,12 +69,15 @@ class QuantizedGraphIntegerRouter {
     bool ok = header.read_bytes(read) && header.docs == docs &&
               header.dimension == dimension &&
               header.metric == (cosine ? 0u : 1u);
+
     std::vector<float> parsed(ok ? dimension : 0);
     ok = ok && read(parsed.data(), dimension * sizeof(float));
     for (float value : parsed) ok = ok && std::isfinite(value);
+
     if (ok) mean = std::move(parsed);
     return ok;
   }
+
   template <class Graph>
   bool load_data(std::string_view data, const std::vector<float> &mean,
                  const Graph &entity, size_t docs,
@@ -74,6 +85,7 @@ class QuantizedGraphIntegerRouter {
                  bool cosine = true) {
     clear();
     if (!__builtin_cpu_supports("avx512vnni")) return false;
+
     QuantizedGraphRouterReader read{data};
     QuantizedGraphRouterFormat header;
     bool ok = header.read_bytes(read) && header.docs == docs &&
@@ -84,10 +96,12 @@ class QuantizedGraphIntegerRouter {
         uint64_t(header.dimension + header.rotated) * sizeof(float) + 4 +
         uint64_t(header.groups) * (4 + 16 * 16 + uint64_t(16) * header.stride);
     ok = ok && data.size() == expected;
+
     std::vector<float> stored_mean(ok ? header.dimension : 0);
     ok = ok && read(stored_mean.data(), stored_mean.size() * sizeof(float)) &&
          std::memcmp(stored_mean.data(), mean.data(),
                      stored_mean.size() * sizeof(float)) == 0;
+
     uint32_t tag = 0;
     std::vector<float> projected_mean(ok ? header.rotated : 0);
     ok = ok && rotated_mean && rotated_mean->size() == header.rotated &&
@@ -97,6 +111,7 @@ class QuantizedGraphIntegerRouter {
                      projected_mean.size() * sizeof(float)) == 0;
     for (float v : stored_mean) ok = ok && std::isfinite(v);
     for (float v : projected_mean) ok = ok && std::isfinite(v);
+
     std::vector<Group> parsed(ok ? header.groups : 0);
     std::vector<unsigned> parents(parsed.size(), 0), depth(parsed.size(), 0);
     for (size_t i = 0; ok && i < parsed.size(); ++i) {
@@ -107,6 +122,7 @@ class QuantizedGraphIntegerRouter {
            read(g.scale, sizeof(g.scale)) && read(g.offset, sizeof(g.offset)) &&
            read(g.mean_dot, sizeof(g.mean_dot)) &&
            read(g.codes.data(), g.codes.size());
+
       for (size_t j = 0; ok && j < g.count; ++j) {
         ok = std::isfinite(g.scale[j]) && g.scale[j] >= 0 &&
              std::isfinite(g.offset[j]) && std::isfinite(g.mean_dot[j]);
@@ -123,16 +139,20 @@ class QuantizedGraphIntegerRouter {
           ok = ok && t != kInvalid && id < docs && entity.valid(id);
         }
       }
+
       if (ok && i > 0) ok = parents[i] == 1;
     }
+
     ok = ok && read.offset == data.size();
     if (ok) {
       format_ = header;
       projected_mean_ = std::move(projected_mean);
       groups_ = std::move(parsed);
     }
+
     return ok;
   }
+
   // Sum all sixteen dot-product rows together, keeping partial sums in SIMD
   // registers instead of reducing each row through scalar registers.
   __attribute__((target("avx512f"))) static __m512i reduce_products(
@@ -143,16 +163,19 @@ class QuantizedGraphIntegerRouter {
       halves[i] = _mm512_add_epi32(
           _mm512_shuffle_i32x4(rows[2 * i], rows[2 * i + 1], 0x44),
           _mm512_shuffle_i32x4(rows[2 * i], rows[2 * i + 1], 0xEE));
+
 #pragma GCC unroll 4
     for (size_t i = 0; i < 4; ++i)
       quarters[i] = _mm512_add_epi32(
           _mm512_shuffle_i32x4(halves[2 * i], halves[2 * i + 1], 0x88),
           _mm512_shuffle_i32x4(halves[2 * i], halves[2 * i + 1], 0xDD));
+
 #pragma GCC unroll 2
     for (size_t i = 0; i < 2; ++i)
       pairs[i] = _mm512_add_epi32(
           _mm512_unpacklo_epi64(quarters[2 * i], quarters[2 * i + 1]),
           _mm512_unpackhi_epi64(quarters[2 * i], quarters[2 * i + 1]));
+
     const __m512i sums = _mm512_add_epi32(
         _mm512_castps_si512(_mm512_shuffle_ps(_mm512_castsi512_ps(pairs[0]),
                                               _mm512_castsi512_ps(pairs[1]),
@@ -164,6 +187,7 @@ class QuantizedGraphIntegerRouter {
         _mm512_setr_epi32(0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15),
         sums);
   }
+
   template <size_t FixedStride = 0>
   __attribute__((target("avx512f,avx512bw,avx512vnni,fma"))) void score_impl(
       const Group &g, const Query &q, float *scores) const {
@@ -171,6 +195,7 @@ class QuantizedGraphIntegerRouter {
     __m512i acc[16];
 #pragma GCC unroll 16
     for (size_t i = 0; i < 16; ++i) acc[i] = _mm512_setzero_si512();
+
     for (size_t d = 0; d < stride; d += 64) {
       const __m512i query = _mm512_loadu_si512(q.codes.data() + d);
 #pragma GCC unroll 16
@@ -178,6 +203,7 @@ class QuantizedGraphIntegerRouter {
         acc[i] = _mm512_dpbusd_epi32(
             acc[i], _mm512_loadu_si512(g.codes.data() + i * stride + d), query);
     }
+
     const __m512i dots = reduce_products(acc);
     const __m512 residual =
         _mm512_fmadd_ps(_mm512_loadu_ps(g.scale), _mm512_cvtepi32_ps(dots),
@@ -189,9 +215,11 @@ class QuantizedGraphIntegerRouter {
         _mm512_loadu_ps(g.mean_dot));
     _mm512_storeu_ps(
         scores, cosine() ? _mm512_sub_ps(_mm512_setzero_ps(), value) : value);
+
     for (size_t i = g.count; i < 16; ++i)
       scores[i] = std::numeric_limits<float>::infinity();
   }
+
   void score(const Group &g, const Query &q, float *scores) const {
     switch (format_.stride) {
       case 384:
@@ -211,15 +239,18 @@ class QuantizedGraphIntegerRouter {
         break;
     }
   }
+
   // Heuristic routing codes only: no terminal-refinement error bound is
   // implied.
   __attribute__((target("avx512f,avx512bw"))) bool prepare_projected(
       const float *rotated_query, Query &q) const {
     if (!rotated_query || empty()) return false;
+
     const size_t projected = format_.projected;
     const size_t vectorized = projected & ~size_t{15};
     q.codes.resize(format_.stride);
     std::fill(q.codes.begin() + vectorized, q.codes.end(), int8_t{0});
+
     __m512 maximum = _mm512_setzero_ps();
     for (size_t d = 0; d < vectorized; d += 16) {
       const __m512 r =
@@ -231,14 +262,18 @@ class QuantizedGraphIntegerRouter {
                                      _mm512_set1_epi32(int32_t(0x80000000u)),
                                      _mm512_castps_si512(r))));
     }
+
     float max_abs = _mm512_reduce_max_ps(maximum);
+
     for (size_t d = vectorized; d < projected; ++d) {
       const float r = rotated_query[d] - projected_mean_[d];
       if (!std::isfinite(r)) return false;
       max_abs = std::max(max_abs, std::abs(r));
     }
+
     q.scale = max_abs / 127.f;
     if (!std::isfinite(q.scale)) return false;
+
     const __m512 inverse = _mm512_set1_ps(q.scale > 0 ? 1.f / q.scale : 0.f);
     __m512i sum = _mm512_setzero_si512();
     for (size_t d = 0; d < vectorized; d += 16) {
@@ -254,22 +289,28 @@ class QuantizedGraphIntegerRouter {
                        _mm512_cvtsepi32_epi8(k));
       sum = _mm512_add_epi32(sum, k);
     }
+
     q.code_sum = _mm512_reduce_add_epi32(sum);
+
     for (size_t d = vectorized; d < projected; ++d) {
       const float v = (rotated_query[d] - projected_mean_[d]) *
                       (q.scale > 0 ? 1.f / q.scale : 0.f);
       q.codes[d] = int8_t(std::clamp(std::nearbyint(v), -127.f, 127.f));
       q.code_sum += q.codes[d];
     }
+
     return true;
   }
+
   uint32_t choose(const Query &q, size_t beam) const {
     if (empty() || q.codes.size() != format_.stride) return UINT32_MAX;
+
     beam = std::clamp(beam, size_t{1}, kMaxBeam);
     std::array<uint32_t, kMaxBeam> current{};
     size_t count = 1;
     std::pair<float, uint32_t> best{std::numeric_limits<float>::infinity(),
                                     UINT32_MAX};
+
     for (size_t level = 0; level < 16 && count; ++level) {
       std::array<std::pair<float, uint32_t>, kMaxBeam> next;
       next.fill({std::numeric_limits<float>::infinity(), UINT32_MAX});
@@ -286,19 +327,23 @@ class QuantizedGraphIntegerRouter {
             const auto candidate =
                 std::make_pair(values[j], uint32_t(g.target[j]));
             if (candidate >= next[beam - 1]) continue;
+
             size_t pos = beam - 1;
             while (pos && candidate < next[pos - 1]) {
               next[pos] = next[pos - 1];
               --pos;
             }
+
             next[pos] = candidate;
           }
         }
       }
+
       count = 0;
       for (size_t j = 0; j < beam && next[j].second != UINT32_MAX; ++j)
         current[count++] = next[j].second;
     }
+
     return best.second;
   }
 
@@ -307,4 +352,5 @@ class QuantizedGraphIntegerRouter {
   std::vector<float> projected_mean_;
   QuantizedGraphRouterFormat format_;
 };
+
 }  // namespace zvec::core

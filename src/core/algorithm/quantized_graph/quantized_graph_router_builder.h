@@ -31,6 +31,7 @@ class QuantizedGraphRouterBuilder {
   static constexpr size_t kDim = 768, kProjected = 384, kWidth = 16;
   static constexpr size_t kMaxAnchors = 65536;
   using Vector = std::vector<float>;
+
   struct Data {
     uint32_t docs = 0;
     Vector mean = Vector(kDim);
@@ -38,6 +39,7 @@ class QuantizedGraphRouterBuilder {
     std::vector<uint32_t> ids;
     std::vector<Vector> vectors;
   };
+
   // Read vectors in internal-ID order to preserve deterministic anchors and
   // full-corpus mean accumulation. The callback returns dimension floats,
   // valid until its next call, or nullptr for an unreadable/deleted vector.
@@ -48,6 +50,7 @@ class QuantizedGraphRouterBuilder {
         dimension > QuantizedGraphRouterFormat::kMaxDimension || !anchors ||
         anchors > kMaxAnchors)
       throw std::invalid_argument("invalid router sampling shape");
+
     Data data;
     data.docs = docs;
     data.cosine = cosine;
@@ -55,6 +58,7 @@ class QuantizedGraphRouterBuilder {
     anchors = std::min(anchors, size_t(docs));
     data.ids.resize(anchors);
     data.vectors.assign(anchors, Vector(dimension));
+
     // Preserve the historical Cohere sequence; a coprime stride keeps IDs
     // unique for other corpus sizes too.
     uint64_t stride = 2654435761ULL;
@@ -65,10 +69,12 @@ class QuantizedGraphRouterBuilder {
       data.ids[i] = id;
       selected[id] = i;
     }
+
     std::vector<double> sum(dimension);
     for (uint32_t id = 0; id < docs; ++id) {
       const float *v = read_vector(id);
       if (!v) throw std::domain_error("unreadable router training vector");
+
       double norm = 0;
       for (size_t d = 0; d < dimension; ++d) {
         if (!std::isfinite(v[d]))
@@ -76,28 +82,34 @@ class QuantizedGraphRouterBuilder {
         sum[d] += v[d];
         norm += double(v[d]) * v[d];
       }
+
       if (cosine && std::abs(std::sqrt(norm) - 1.) > 1e-4)
         throw std::domain_error("router training vectors must be normalized");
       if (selected[id] >= 0)
         std::copy_n(v, dimension, data.vectors[selected[id]].begin());
     }
+
     for (size_t d = 0; d < dimension; ++d) data.mean[d] = float(sum[d] / docs);
     return data;
   }
+
   struct Options {
     uint64_t seed = 202610261259ULL;
     size_t iterations = 10;
     size_t projected = 0;  // Zero selects half the original dimension.
     size_t rotation_views = 1;
   };
+
   struct Group {
     std::array<Vector, kWidth> centers{};
     std::array<int32_t, kWidth> targets{};
     uint32_t count = 0;
+
     Group() {
       targets.fill(INT32_MIN);
     }
   };
+
   struct Model {
     uint32_t docs = 0;
     Vector mean = Vector(kDim);
@@ -117,25 +129,30 @@ class QuantizedGraphRouterBuilder {
       const size_t rotated_dim = rotate.padded_dim();
       if (projection == 0 || projection > rotated_dim)
         throw std::invalid_argument("invalid router projection");
+
       const size_t stride = (projection + 63) & ~size_t{63};
       const uint32_t version =
           rotation_views != 1
               ? 4
               : (dim == 768 && projection == 384 && cosine ? 2 : 3);
+
       const uint32_t endian = 1;
       if (*reinterpret_cast<const uint8_t *>(&endian) != 1)
         throw std::runtime_error("router writer requires little-endian host");
       if (groups.empty() || groups.size() > 100000)
         throw std::runtime_error("invalid router group count");
+
       auto put = [&](const void *p, size_t n) {
         out.write(static_cast<const char *>(p), n);
         if (!out) throw std::runtime_error("writing router model failed");
       };
+
       const uint32_t header[]{0x51475259, version, uint32_t(projection),
                               uint32_t(groups.size()), docs};
       const uint32_t tag = 0x53514701;
       std::vector<float> rotated_mean;
       rotate.rotate(mean.data(), rotated_mean);
+
       put(header, sizeof(header));
       if (version == 3 || version == 4) {
         const uint32_t extra[]{uint32_t(dim), cosine ? 0u : 1u,
@@ -146,9 +163,11 @@ class QuantizedGraphRouterBuilder {
           put(&views, sizeof(views));
         }
       }
+
       put(mean.data(), dim * sizeof(float));
       put(&tag, sizeof(tag));
       put(rotated_mean.data(), rotated_dim * sizeof(float));
+
       for (const auto &group : groups) {
         std::array<float, kWidth> scales{}, offsets{}, mean_dot{};
         std::vector<uint8_t> codes(kWidth * stride);
@@ -157,6 +176,7 @@ class QuantizedGraphRouterBuilder {
           std::vector<float> rotated;
           const auto &center = j < group.count ? group.centers[j] : zero;
           rotate.rotate(center.data(), rotated);
+
           double dot = 0;
           for (size_t d = 0; d < rotated_dim; ++d)
             rotated[d] -= rotated_mean[d];
@@ -164,7 +184,9 @@ class QuantizedGraphRouterBuilder {
             const double residual = double(center[d]) - mean[d];
             dot += cosine ? double(mean[d]) * center[d] : residual * residual;
           }
+
           mean_dot[j] = float(dot);
+
           auto range = std::minmax_element(rotated.begin(),
                                            rotated.begin() + projection);
           offsets[j] = *range.first;
@@ -176,6 +198,7 @@ class QuantizedGraphRouterBuilder {
                 uint8_t(std::clamp(std::nearbyint(code), 0.f, 255.f));
           }
         }
+
         put(&group.count, sizeof(group.count));
         put(group.targets.data(), sizeof(group.targets));
         put(scales.data(), sizeof(scales));
@@ -196,18 +219,21 @@ class QuantizedGraphRouterBuilder {
     for (float v : data.mean)
       if (!std::isfinite(v) || (data.cosine && std::abs(v) > 1.0001f))
         throw std::invalid_argument("invalid normalized corpus mean");
+
     std::unordered_set<uint32_t> seen;
     for (size_t i = 0; i < data.ids.size(); ++i) {
       if (data.ids[i] >= data.docs || !seen.insert(data.ids[i]).second)
         throw std::invalid_argument("invalid or duplicate anchor internal ID");
       if (data.vectors[i].size() != dim)
         throw std::invalid_argument("anchor dimension mismatch");
+
       double norm = 0;
       for (float v : data.vectors[i]) {
         if (!std::isfinite(v))
           throw std::invalid_argument("nonfinite anchor vector");
         norm += double(v) * v;
       }
+
       if (!std::isfinite(norm) ||
           norm > std::numeric_limits<float>::max() / 16.)
         throw std::invalid_argument("anchor norm overflows FP32 distance");
@@ -220,6 +246,7 @@ class QuantizedGraphRouterBuilder {
     validate(data);
     if (options.iterations == 0 || options.iterations > 100)
       throw std::invalid_argument("iterations must be in [1, 100]");
+
     const size_t projected = options.projected
                                  ? options.projected
                                  : std::max(size_t{1}, data.mean.size() / 2);
@@ -227,9 +254,11 @@ class QuantizedGraphRouterBuilder {
         turbo::SymQGRotation(data.mean.size(), options.rotation_views)
             .padded_dim())
       throw std::invalid_argument("projection exceeds rotated dimension");
+
     QuantizedGraphRouterBuilder builder(data, options);
     builder.model_.projected = projected;
     builder.model_.rotation_views = options.rotation_views;
+
     std::vector<size_t> rows(data.ids.size());
     std::iota(rows.begin(), rows.end(), size_t{0});
     builder.split(rows, 0);
@@ -260,15 +289,18 @@ class QuantizedGraphRouterBuilder {
     std::vector<double> sum(dim);
     for (size_t row : rows)
       for (size_t d = 0; d < dim; ++d) sum[d] += data_.vectors[row][d];
+
     Vector result(dim);
     double norm = 0;
     for (size_t d = 0; d < dim; ++d) {
       result[d] = float(sum[d] / rows.size());
       norm += double(result[d]) * result[d];
     }
+
     const float scale = float(std::max(std::sqrt(norm), 1e-30));
     if (data_.cosine)
       for (float &v : result) v /= scale;
+
     return result;
   }
 
@@ -290,6 +322,7 @@ class QuantizedGraphRouterBuilder {
               data_.vectors[row].data(), centers[j].data(), data_.mean.size(),
               &dot);
         }
+
         // Turbo returns negative inner product and positive squared L2.
         dot = -dot;
         if (dot > best_dot) {
@@ -297,8 +330,10 @@ class QuantizedGraphRouterBuilder {
           best_dot = dot;
         }
       }
+
       parts[best].push_back(row);
     }
+
     parts.erase(std::remove_if(parts.begin(), parts.end(),
                                [](const auto &p) { return p.empty(); }),
                 parts.end());
@@ -316,20 +351,25 @@ class QuantizedGraphRouterBuilder {
         g.centers[j] = data_.vectors[rows[j]];
         g.targets[j] = -int32_t(data_.ids[rows[j]]) - 1;
       }
+
       return group;
     }
+
     std::vector<size_t> shuffled(rows);
     std::vector<Vector> centers;
     for (size_t j = 0; j < kWidth; ++j) {
       std::swap(shuffled[j], shuffled[j + random_below(rows.size() - j)]);
       centers.push_back(data_.vectors[shuffled[j]]);
     }
+
     for (size_t i = 0; i < options_.iterations; ++i) {
       auto parts = assign(rows, centers);
       centers.clear();
       for (const auto &part : parts) centers.push_back(center(part));
     }
+
     auto parts = assign(rows, centers);
+
     // As in Python, degenerate splits are balanced contiguous partitions.
     // Also bound pathological chains: with <=65536 anchors, balancing from
     // depth 11 reaches leaves by depth 14, within the loader's <16 limit.
@@ -343,16 +383,19 @@ class QuantizedGraphRouterBuilder {
         start += count;
       }
     }
+
     model_.groups[group].count = parts.size();
     for (size_t j = 0; j < parts.size(); ++j) {
       const auto &part = parts[j];
       model_.groups[group].centers[j] =
           part.size() == 1 ? data_.vectors[part[0]] : center(part);
+
       // Recursive push_back may reallocate groups_: never keep a reference.
       const int32_t target = part.size() == 1 ? -int32_t(data_.ids[part[0]]) - 1
                                               : int32_t(split(part, depth + 1));
       model_.groups[group].targets[j] = target;
     }
+
     return group;
   }
 
@@ -361,4 +404,5 @@ class QuantizedGraphRouterBuilder {
   std::mt19937_64 rng_;
   Model model_;
 };
+
 }  // namespace zvec::core

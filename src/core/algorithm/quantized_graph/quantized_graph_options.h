@@ -12,16 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #pragma once
+
 #include <cstdint>
+
 namespace zvec::core {
+
 struct QuantizedGraphSearchOptions {
   // Defaults select the existing metric-specific preset. Beam zero disables
   // routing while retaining the same model/mean for a controlled comparison.
   float margin = -1;
   float bucket_width = 0;
+
   // Hard cap on expanded nodes, including filtered nodes; 0 uses the preset.
   uint32_t max_expansions = 0;
+
   uint32_t route_beam = 1;
+
   float uncertainty_bonus = 0;
 };
+
 }  // namespace zvec::core

@@ -14,16 +14,20 @@ namespace zvec::core {
 struct QuantizedGraphBuildOptions {
   enum class Codec { Native, Global, LowRank };
   enum class Codebook { Hadamard, Gaussian };
+
   size_t max_neighbors = 32;
   size_t threads = 8;
+
   // Independent signed rotations; persisted with the codec (1 is legacy).
   size_t rotation_views = 1;
   Codec codec = Codec::Native;
   Codebook codebook = Codebook::Hadamard;
   size_t block_dimension = 6;
   size_t rank = 8;
+
   size_t training_samples = 1024;  // Maximum number of sampled graph centers.
   uint32_t seed = 20261031;
+
   // Shrink the fitted center displacement toward the graph node. This is a
   // dataset-independent hyperparameter, not the fitted lambda itself.
   double center_weight = 1;
@@ -44,4 +48,5 @@ struct QuantizedGraphBuildOptions {
            center_weight >= 0 && center_weight <= 1;
   }
 };
+
 }  // namespace zvec::core

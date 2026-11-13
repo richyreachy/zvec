@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #pragma once
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
 #include <vector>
+
 namespace zvec::core {
+
 struct SQ8Center {
   // Shared shift is an immutable database-trained vector. Error is measured
   // against the actual FP32 reconstruction, including the rounded addition.
@@ -28,6 +31,7 @@ struct SQ8Center {
     for (size_t j = 0; j < n; ++j) residual[j] = x[j] - shift[j];
     if (!encode(residual.data(), n, out, error, norm2, offset, scale))
       return false;
+
     double err = 0, norm = 0;
     for (size_t j = 0; j < n; ++j) {
       const float y = std::fma(float(out[j]), scale, offset) + shift[j];
@@ -36,18 +40,22 @@ struct SQ8Center {
       err += e * e;
       norm += double(x[j]) * x[j];
     }
+
     error = std::nextafter(float(std::sqrt(err)),
                            std::numeric_limits<float>::infinity());
     norm2 = std::nextafter(float(norm), std::numeric_limits<float>::infinity());
     return true;
   }
+
   static bool encode(const float *x, size_t n, uint8_t *out, float &error,
                      float &norm2, float &offset, float &scale) {
     offset = *std::min_element(x, x + n);
     float maximum = *std::max_element(x, x + n);
     scale = (maximum - offset) / 255.f;
+
     double err = 0, norm = 0;
     if (!std::isfinite(offset) || !std::isfinite(scale)) return false;
+
     for (size_t i = 0; i < n; ++i) {
       const float code =
           scale > 0 ? std::floor((x[i] - offset) / scale + .5f) : 0;
@@ -57,15 +65,18 @@ struct SQ8Center {
       err += e * e;
       norm += double(x[i]) * x[i];
     }
+
     error = std::nextafter(float(std::sqrt(err)),
                            std::numeric_limits<float>::infinity());
     norm2 = std::nextafter(float(norm), std::numeric_limits<float>::infinity());
     return true;
   }
+
   static void decode(const uint8_t *h, size_t n, float *out, float offset,
                      float scale) {
     for (size_t i = 0; i < n; ++i)
       out[i] = std::fma(float(h[i]), scale, offset);
   }
 };
+
 }  // namespace zvec::core

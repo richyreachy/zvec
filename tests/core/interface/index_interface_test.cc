@@ -6241,22 +6241,27 @@ TEST(QuantizedGraphSnapshot, PageParamsReachBuildAndLoad) {
   QuantizedGraphTestEnvironment environment;
   const std::string prefix = "qg_page_params";
   zvec::test_util::RemoveTestFiles(prefix + "*");
+
   HNSWIndexParam param(MetricType::kL2sq, 65, 16, 100);
   param.data_type = DataType::DT_FP32;
   param.params.set(zvec::core::PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY,
                    std::string("require"));
   param.params.set(zvec::core::PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE,
                    1.01);
+
   BudgetHnswIndex builder;
   ASSERT_EQ(0, builder.init(param));
   ASSERT_EQ(0, builder.open(prefix + ".work",
                             {StorageOptions::StorageType::kMMAP, true}));
+
   std::vector<float> vector(65);
   for (size_t id = 0; id < 128; ++id) {
     std::fill(vector.begin(), vector.end(), float(id));
     ASSERT_EQ(0, builder.add({DenseVector{vector.data()}}, id));
   }
+
   ASSERT_EQ(0, DumpQuantizedGraphForTest(builder, prefix + ".base"));
+
   zvec::core::QuantizedGraphBuildOptions options;
   options.threads = 2;
   EXPECT_EQ(
@@ -6271,6 +6276,7 @@ TEST(QuantizedGraphSnapshot, PageParamsReachBuildAndLoad) {
                    0.95);
   param.params.set(
       zvec::core::PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR, 0.8);
+
   BudgetHnswIndex good;
   ASSERT_EQ(0, good.init(param));
   EXPECT_FALSE(good.native_streamer()->meta().streamer_params().has(
@@ -6279,39 +6285,48 @@ TEST(QuantizedGraphSnapshot, PageParamsReachBuildAndLoad) {
       zvec::core::PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE));
   EXPECT_FALSE(good.native_streamer()->meta().streamer_params().has(
       zvec::core::PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR));
+
   ASSERT_EQ(0, good.open(prefix + ".base", storage));
   ASSERT_EQ(
       0, zvec::core::BuildHnswSnapshotGraph(*good.native_streamer(), options));
   ASSERT_EQ(0, DumpQuantizedGraphForTest(good, prefix + ".saved"));
   ASSERT_EQ(0, good.close());
+
   param.use_quantized_graph = true;
+
   // Both on-open prebuild and persisted snapshot load use the native Params.
   for (const char *suffix : {".base", ".saved"}) {
     param.params.set(zvec::core::PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE,
                      1.01);
     // Invalid floor must reach both prebuild and persisted-load paths.
+
     param.params.set(zvec::core::PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE,
                      0.95);
     param.params.set(
         zvec::core::PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR, 0.96);
+
     BudgetHnswIndex bad;
     ASSERT_EQ(0, bad.init(param));
     EXPECT_EQ(zvec::core::IndexError_InvalidArgument,
               bad.open(prefix + suffix, storage));
+
     auto defaults = param;
     defaults.params.clear();
     ASSERT_EQ(0, bad.init(defaults));
     ASSERT_EQ(0, bad.open(prefix + suffix, storage));
     ASSERT_EQ(0, bad.close());
+
     param.params.set(zvec::core::PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE,
                      0.95);
     param.params.set(
         zvec::core::PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR, 0.80);
+
     BudgetHnswIndex reopened;
     ASSERT_EQ(0, reopened.init(param));
     ASSERT_EQ(0, reopened.open(prefix + suffix, storage));
     ASSERT_EQ(0, reopened.close());
   }
+
   zvec::test_util::RemoveTestFiles(prefix + "*");
 }
 
