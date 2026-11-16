@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <type_traits>
 #include <ailego/internal/cpu_features.h>
 #include <turbo/distance/common/symqg_kernels.h>
 #include <zvec/ailego/internal/platform.h>
@@ -433,11 +434,14 @@ bool symqg_mul(const float *factors, float *v, size_t n) {
   return true;
 }
 
-bool symqg_scan(const uint8_t *codes, const uint8_t *lut, size_t padded_dim,
-                const void *add, const void *scale, float center_distance,
-                float delta, float sum_vl, float k1xsumq, float *distances) {
-  if (!symqg_avx512_available() || padded_dim == 0 || (padded_dim & 15) != 0)
-    return false;
+// Keep one arithmetic implementation for specialized and generic scans.
+// Fixed == 0 preserves support for all other valid dimensions.
+template <size_t Fixed>
+static bool symqg_scan_impl(
+    const uint8_t *codes, const uint8_t *lut, size_t dimension, const void *add,
+    const void *scale, float center_distance, float delta, float sum_vl,
+    float k1xsumq, float *distances) {
+  const size_t padded_dim = Fixed ? Fixed : dimension;
 
   __m512i sums0 = _mm512_setzero_si512();
   __m512i sums1 = _mm512_setzero_si512();
@@ -449,6 +453,7 @@ bool symqg_scan(const uint8_t *codes, const uint8_t *lut, size_t padded_dim,
     const size_t slice = (padded_dim - dim < 1024) ? padded_dim - dim : 1024;
     __m512i a0 = _mm512_setzero_si512(), a1 = _mm512_setzero_si512();
     __m512i a2 = _mm512_setzero_si512(), a3 = _mm512_setzero_si512();
+#pragma GCC unroll 4
     for (size_t offset = dim * 4; offset < (dim + slice) * 4; offset += 64) {
       const __m512i c = _mm512_loadu_si512(codes + offset);
       const __m512i table = _mm512_loadu_si512(lut + offset);
@@ -493,6 +498,33 @@ bool symqg_scan(const uint8_t *codes, const uint8_t *lut, size_t padded_dim,
     _mm512_storeu_ps(distances + i, _mm512_add_ps(base, estimate));
   }
   return true;
+}
+
+bool symqg_scan(const uint8_t *codes, const uint8_t *lut, size_t padded_dim,
+                const void *add, const void *scale, float center_distance,
+                float delta, float sum_vl, float k1xsumq, float *distances) {
+  if (!symqg_avx512_available() || padded_dim == 0 || (padded_dim & 15) != 0)
+    return false;
+
+  const auto scan = [&](auto fixed) {
+    return symqg_scan_impl<decltype(fixed)::value>(
+        codes, lut, padded_dim, add, scale, center_distance, delta, sum_vl,
+        k1xsumq, distances);
+  };
+  switch (padded_dim) {
+    case 64:
+      return scan(std::integral_constant<size_t, 64>{});
+    case 128:
+      return scan(std::integral_constant<size_t, 128>{});
+    case 256:
+      return scan(std::integral_constant<size_t, 256>{});
+    case 512:
+      return scan(std::integral_constant<size_t, 512>{});
+    case 1024:
+      return scan(std::integral_constant<size_t, 1024>{});
+    default:
+      return scan(std::integral_constant<size_t, 0>{});
+  }
 }
 
 }  // namespace zvec::turbo

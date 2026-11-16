@@ -854,9 +854,7 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
       while (accepted) {
         const unsigned i = __builtin_ctz(accepted);
         accepted &= accepted - 1;
-        const bool changes_first = bins[i] <= beam.first();
         beam.insert_reserved(ids[i], bins[i]);
-        if (changes_first) prefetch_next();
       }
 
       // Even when all lanes were pruned, prefetch the next queued node.
@@ -864,6 +862,8 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     }
 
     void prefetch_next() {
+      // Discard expanded queue heads before choosing a prefetch target.
+      while (beam.has_next() && visited->visited(beam.next_id())) beam.pop();
 #if defined(__GNUC__) || defined(__clang__)
       if (beam.has_next()) {
         const NodeId next = beam.next_id();

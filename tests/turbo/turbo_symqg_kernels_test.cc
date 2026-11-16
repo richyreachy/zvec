@@ -10,8 +10,55 @@
 #include <vector>
 #include <gtest/gtest.h>
 #include <turbo/distance/common/symqg_kernels.h>
+#if RABITQ_SUPPORTED
+#include <rabitqlib/fastscan/fastscan.hpp>
+#endif
 
 namespace zvec::turbo {
+#if RABITQ_SUPPORTED
+TEST(SymQGKernels, ScanSpecializationsMatchIndependentAccumulator) {
+  std::mt19937 random(261116);
+  std::uniform_real_distribution<float> value(-10, 10);
+  std::array<int32_t, 32> sums;
+  std::array<float, 32> zero{}, one, add, scale, actual;
+  one.fill(1);
+  std::array<char, sizeof(add) + 3> packed_add, packed_scale;
+  for (size_t n : {16, 64, 128, 256, 512, 768, 1024, 2048, 4096, 16384}) {
+    std::vector<uint8_t> codes(n * 4 + 1), lut(n * 4 + 3);
+    for (int trial = 0; trial < 32; ++trial) {
+      SCOPED_TRACE(testing::Message() << n << ':' << trial);
+      for (auto &x : codes) x = random();
+      for (auto &x : lut) x = trial == 0 ? 255 : random();
+      if (!symqg_scan(codes.data() + 1, lut.data() + 3, n, zero.data(),
+                      one.data(), 0, 1, 0, 0, actual.data()))
+        GTEST_SKIP();
+      rabitqlib::fastscan::accumulate(codes.data() + 1, lut.data() + 3,
+                                     sums.data(), n);
+      for (size_t j = 0; j < sums.size(); ++j) {
+        EXPECT_EQ(float(sums[j]), actual[j]);
+        if (trial == 0) EXPECT_EQ(int32_t(n / 4 * 255), sums[j]);
+        add[j] = value(random);
+        scale[j] = value(random);
+      }
+      std::memcpy(packed_add.data() + 1, add.data(), sizeof(add));
+      std::memcpy(packed_scale.data() + 3, scale.data(), sizeof(scale));
+      ASSERT_TRUE(symqg_scan(codes.data() + 1, lut.data() + 3, n,
+                             packed_add.data() + 1, packed_scale.data() + 3,
+                             .25f, .03f, -.75f, .125f, actual.data()));
+      for (size_t j = 0; j < sums.size(); ++j) {
+        const double term = double(.03f) * sums[j];
+        const double expected =
+            (double(add[j]) + .25) + scale[j] * (term - .75 + .125);
+        const double magnitude = std::abs(add[j]) + .25 +
+            std::abs(scale[j]) * (term + .75 + .125);
+        EXPECT_NEAR(expected, actual[j],
+                    8 * std::numeric_limits<float>::epsilon() * magnitude);
+      }
+    }
+  }
+}
+#endif
+
 TEST(SymQGKernels, ScanAcceptsUnalignedPackedFactors) {
   std::mt19937 random(77);
   std::uniform_real_distribution<float> value(-10.f, 10.f);
