@@ -10,6 +10,7 @@
 #include <vector>
 #include <gtest/gtest.h>
 #include <turbo/distance/common/symqg_kernels.h>
+#include <turbo/distance/common/symqg_distance.h>
 #if RABITQ_SUPPORTED
 #include <rabitqlib/fastscan/fastscan.hpp>
 #endif
@@ -57,6 +58,48 @@ TEST(SymQGKernels, ScanSpecializationsMatchIndependentAccumulator) {
     }
   }
 }
+TEST(SymQGKernels, DirectBatchMatchesIndependentAccumulator) {
+  std::mt19937 random(261117);
+  std::uniform_real_distribution<float> value(-10.f, 10.f);
+  using Offsets = rabitqlib::detail::BatchCodeOffsets<float>;
+  for (size_t n : {16, 64, 128, 256, 512, 768, 1024, 2048, 16384}) {
+    SCOPED_TRACE(n);
+    std::vector<float> query_values(n);
+    std::vector<char> packed(Offsets::rescale(n) + 32 * sizeof(float) + 1);
+    char *codes = packed.data() + 1;
+    std::array<float, 32> add, scale, actual;
+    std::array<int32_t, 32> sums;
+    for (int trial = 0; trial < 32; ++trial) {
+      for (float &v : query_values) v = trial == 0 ? 0.f : value(random);
+      for (size_t i = 0; i < n * 4; ++i) codes[i] = random();
+      for (size_t i = 0; i < 32; ++i) {
+        add[i] = value(random);
+        scale[i] = value(random);
+      }
+      std::memcpy(codes + Offsets::add(n), add.data(), sizeof(add));
+      std::memcpy(codes + Offsets::rescale(n), scale.data(), sizeof(scale));
+      SymQGQuery query;
+      query.reset(query_values.data(), n);
+      query.set_g_add(.25f);
+      query.set_priority_bonus(.125f);
+      ScanSymQGBatch(codes, query, n, actual.data());
+      rabitqlib::fastscan::accumulate(
+          reinterpret_cast<const uint8_t *>(codes), query.lut(), sums.data(), n);
+      for (size_t i = 0; i < 32; ++i) {
+        const double term = double(query.delta()) * sums[i];
+        const double expected = double(add[i]) + query.g_add() +
+            double(scale[i]) * (term + query.sum_vl_lut() + query.k1xsumq());
+        const double magnitude = 1. + std::abs(double(add[i])) +
+            std::abs(double(query.g_add())) + std::abs(double(scale[i])) *
+            (std::abs(term) + std::abs(double(query.sum_vl_lut())) +
+             std::abs(double(query.k1xsumq())));
+        EXPECT_NEAR(expected, actual[i],
+                    8 * std::numeric_limits<float>::epsilon() * magnitude);
+      }
+    }
+  }
+}
+
 #endif
 
 TEST(SymQGKernels, ScanAcceptsUnalignedPackedFactors) {

@@ -19,9 +19,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <numeric>
+#include <type_traits>
 #include <vector>
 #include <turbo/distance/common/symqg_kernels.h>
 #if RABITQ_SUPPORTED
+#if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+#include <turbo/distance/avx512/symqg/symqg_scan.h>
+#endif
 #include <rabitqlib/fastscan/encoder.hpp>
 #include <rabitqlib/fastscan/fastscan.hpp>
 #include <rabitqlib/fastscan/query.hpp>
@@ -167,6 +171,28 @@ inline void ScanSymQGBatch(const char *codes, const SymQGQuery &query,
   // RaBitQ 0.7 stores factors as packed bytes. Load them directly through
   // the SIMD byte-addressed interface without creating float objects here.
   using Offsets = rabitqlib::detail::BatchCodeOffsets<float>;
+  // Dispatch common dimensions here; keep the checked public entry point
+  // below for other shapes and CPUs.
+#if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+  if (__builtin_cpu_supports("avx512f") &&
+      __builtin_cpu_supports("avx512bw") &&
+      __builtin_cpu_supports("avx512dq") && __builtin_cpu_supports("fma")) {
+    const auto scan = [&](auto fixed) {
+      detail::SymQGScan<decltype(fixed)::value, true>(
+          batch.bin_code(), query.lut(), padded_dim,
+          codes + Offsets::add(padded_dim), codes + Offsets::rescale(padded_dim),
+          query.g_add(), query.delta(), query.sum_vl_lut(), query.k1xsumq(),
+          distances);
+    };
+    switch (padded_dim) {
+      case 64: return scan(std::integral_constant<size_t, 64>{});
+      case 128: return scan(std::integral_constant<size_t, 128>{});
+      case 256: return scan(std::integral_constant<size_t, 256>{});
+      case 512: return scan(std::integral_constant<size_t, 512>{});
+      case 1024: return scan(std::integral_constant<size_t, 1024>{});
+    }
+  }
+#endif
   if (symqg_scan(batch.bin_code(), query.lut(), padded_dim,
                  codes + Offsets::add(padded_dim),
                  codes + Offsets::rescale(padded_dim), query.g_add(),
