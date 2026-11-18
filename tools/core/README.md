@@ -3,6 +3,10 @@
 
 This directory contains benchmarking scripts and reproducing steps.
 
+SIFT, GIST and GloVe succinct presets for the r7i benchmark archive are in
+[bench/config/r7i/README.txt](bench/config/r7i/README.txt), with build settings,
+per-recall query settings and measured latency/QPS provenance.
+
 ## COHERE experiments
 
 ### Getting COHERE Data
