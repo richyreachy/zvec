@@ -224,7 +224,7 @@ TEST(QuantizedGraphPages, PartialCoverageCanMeetExplicitThreshold) {
 
 TEST(QuantizedGraphPages, NativeCoverageAcceptsNumbersAndStrictStrings) {
   ailego::Params params;
-  const auto &key = PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE;
+  const auto &key = kMinimum;
   double minimum = 0;
   params.set(key, 0.95);
   ASSERT_TRUE(read_coverage(params, key, minimum));
@@ -251,11 +251,11 @@ TEST(QuantizedGraphPages, NativeCoverageAcceptsNumbersAndStrictStrings) {
 
 TEST(QuantizedGraphPages, FallbackFloorIsExplicitAndValidated) {
   ailego::Params params;
-  params.set(PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY, std::string("require"));
-  params.set(PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE, 0.95);
+  params.set(kPolicy, std::string("require"));
+  params.set(kMinimum, 0.95);
   EXPECT_EQ(0, prepare_arena(nullptr, 0, params));
 
-  const auto &key = PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR;
+  const auto &key = kFloor;
   for (double value : {0.80, 0.85, 0.90, 0.95}) {
     params.set(key, value);
     EXPECT_EQ(0, prepare_arena(nullptr, 0, params));
@@ -387,17 +387,17 @@ TEST(QuantizedGraphPages, StrictModeRejectsUnavailablePagesBeforeQueries) {
   EXPECT_EQ(int(IndexError_InvalidArgument), prepare_arena(data, kPage));
 
   ailego::Params params;
-  params.set(PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY, std::string("require"));
-  params.set(PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE, 0.95);
+  params.set(kPolicy, std::string("require"));
+  params.set(kMinimum, 0.95);
 
   // Both environment values are invalid; explicit native Params win.
   EXPECT_EQ(0, prepare_arena(data, 0, params));
   EXPECT_NE(0, prepare_arena(data, kPage, params));
 
-  params.set(PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE, 1.01);
+  params.set(kMinimum, 1.01);
   EXPECT_EQ(int(IndexError_InvalidArgument), prepare_arena(data, 0, params));
 
-  params.set(PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY, 42);
+  params.set(kPolicy, 42);
   EXPECT_EQ(int(IndexError_InvalidArgument), prepare_arena(data, 0, params));
 
   EXPECT_TRUE(std::all_of(data, data + kPage,

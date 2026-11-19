@@ -13,7 +13,7 @@
 #include <zvec/ailego/container/params.h>
 #include <zvec/ailego/logger/logger.h>
 #include <zvec/core/framework/index_error.h>
-#include "algorithm/hnsw/hnsw_params.h"
+#include "quantized_graph_params.h"
 #if defined(__linux__)
 #include <linux/fs.h>
 #include <linux/mman.h>
@@ -132,14 +132,15 @@ inline bool read_coverage(const ailego::Params &params, const std::string &key,
                           double &minimum, double fallback = 1.0,
                           const char *environment = nullptr) {
   minimum = fallback;
-  if (!params.has(key))
+  if (!params.has(parameter_key(params, key)))
     return !environment ||
            parse_min_coverage(std::getenv(environment), minimum);
 
   std::string value;
-  if (params.get<std::string>(key, &value))
+  if (params.get<std::string>(parameter_key(params, key), &value))
     return parse_min_coverage(value.c_str(), minimum);
-  return params.get(key, &minimum) && minimum > 0.0 && minimum <= 1.0;
+  return params.get(parameter_key(params, key), &minimum) && minimum > 0.0 &&
+         minimum <= 1.0;
 }
 
 // Select the highest admitted tier after one bounded preparation pass. Steps
@@ -227,8 +228,8 @@ inline int prepare_arena(void *arena, size_t bytes,
                          const ailego::Params &params = {}) {
   const char *policy = std::getenv("QG_THP_POLICY");
   std::string configured_policy;
-  if (params.has(PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY)) {
-    if (!params.get<std::string>(PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY,
+  if (params.has(parameter_key(params, kPolicy))) {
+    if (!params.get<std::string>(parameter_key(params, kPolicy),
                                  &configured_policy))
       return IndexError_InvalidArgument;
     policy = configured_policy.c_str();
@@ -246,11 +247,8 @@ inline int prepare_arena(void *arena, size_t bytes,
 
   double target = 1.0, floor = 1.0;
   if (required &&
-      (!read_coverage(params, PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE,
-                      target, 1.0, "QG_THP_MIN_COVERAGE") ||
-       !read_coverage(params, PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR,
-                      floor, target) ||
-       floor > target)) {
+      (!read_coverage(params, kMinimum, target, 1.0, "QG_THP_MIN_COVERAGE") ||
+       !read_coverage(params, kFloor, floor, target) || floor > target)) {
     LOG_ERROR(
         "Invalid quantized graph THP minimum coverage "
         "(expected 0 < floor <= minimum <= 1)");
