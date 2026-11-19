@@ -345,9 +345,12 @@ def isolate(path, command):
         # Also stop host plotting descendants, but never stop our own process tree.
         for entry in list(audit['processes']):
             for p in psutil.Process(entry['pid']).children(recursive=True):
-                if p.pid not in own and p.status() != psutil.STATUS_STOPPED:
-                    audit['processes'].append(dict(pid=p.pid, created=p.create_time(), command=p.cmdline()))
-                    save(path, audit); p.send_signal(signal.SIGSTOP)
+                try:
+                    if p.pid not in own and p.status() not in (psutil.STATUS_STOPPED, psutil.STATUS_ZOMBIE):
+                        audit['processes'].append(dict(pid=p.pid, created=p.create_time(), command=p.cmdline()))
+                        save(path, audit); p.send_signal(signal.SIGSTOP)
+                except psutil.NoSuchProcess:
+                    pass  # A controller can have an already-exited child awaiting reap.
         save(path, audit)
         env = dict(os.environ, QG_ISOLATION_MANIFEST=str(Path(path).resolve()))
         child = subprocess.Popen(command, env=env, start_new_session=True)
