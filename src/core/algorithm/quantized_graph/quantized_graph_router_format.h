@@ -4,7 +4,7 @@
 #pragma once
 
 #include <cstdint>
-#include "turbo/preprocessor/symqg_rotator/symqg_rotator.h"
+#include "turbo/preprocessor/quantized_graph_rotator/quantized_graph_rotator.h"
 #include "quantized_graph_router_io.h"
 
 namespace zvec::core {
@@ -27,11 +27,11 @@ struct QuantizedGraphRouterFormat {
         projected > rotated || stride != ((projected + 63u) & ~63u) ||
         groups == 0 || groups > 100000 || docs == 0 || docs > INT32_MAX)
       return false;
-    if (!turbo::SymQGRotation::valid_views(rotation_views) ||
+    if (!turbo::QuantizedGraphRotator::valid_views(rotation_views) ||
         (version != 4 && rotation_views != 1))
       return false;
 
-    turbo::SymQGRotation rotation(dimension, rotation_views);
+    turbo::QuantizedGraphRotator rotation(dimension, rotation_views);
     return rotated == rotation.padded_dim() &&
            (version != 2 ||
             (dimension == 768 && metric == 0 && projected == 384));

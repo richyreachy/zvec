@@ -14,9 +14,9 @@
 
 #pragma once
 
+#include <immintrin.h>
 #include <cstddef>
 #include <cstdint>
-#include <immintrin.h>
 
 namespace zvec::turbo::detail {
 
@@ -28,10 +28,10 @@ template <size_t Fixed, bool Fused>
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((target("avx512f,avx512bw,avx512dq,fma")))
 #endif
-inline bool SymQGScan(
-    const uint8_t *codes, const uint8_t *lut, size_t dimension, const void *add,
-    const void *scale, float center_distance, float delta, float sum_vl,
-    float k1xsumq, float *distances) {
+inline bool
+QuantizedGraphScan(const uint8_t *codes, const uint8_t *lut, size_t dimension,
+                   const void *add, const void *scale, float center_distance,
+                   float delta, float sum_vl, float k1xsumq, float *distances) {
   const size_t padded_dim = Fixed ? Fixed : dimension;
 
   __m512i sums0 = _mm512_setzero_si512();
@@ -87,13 +87,13 @@ inline bool SymQGScan(
     const __m512 base = _mm512_add_ps(
         _mm512_loadu_ps(static_cast<const char *>(add) + i * sizeof(float)),
         center);
-    const __m512 factor = _mm512_loadu_ps(
-        static_cast<const char *>(scale) + i * sizeof(float));
+    const __m512 factor =
+        _mm512_loadu_ps(static_cast<const char *>(scale) + i * sizeof(float));
     if constexpr (Fused)
       _mm512_storeu_ps(distances + i, _mm512_fmadd_ps(factor, estimate, base));
     else
       _mm512_storeu_ps(distances + i,
-                      _mm512_add_ps(base, _mm512_mul_ps(factor, estimate)));
+                       _mm512_add_ps(base, _mm512_mul_ps(factor, estimate)));
   }
   return true;
 }

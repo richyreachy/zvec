@@ -19,23 +19,24 @@
 #include <random>
 #include <stdexcept>
 #include <vector>
-#include <turbo/distance/common/symqg_kernels.h>
+#include <turbo/distance/common/quantized_graph_kernels.h>
 
 namespace zvec::turbo {
 // One view preserves the historical randomized orthogonal transform exactly.
 // Multiple independently signed views form an isometric frame when each view
 // is scaled by 1/sqrt(views). This adds quantization directions, not source
 // dimensions. Views are explicit model metadata, never process environment.
-class SymQGRotation {
+class QuantizedGraphRotator {
  public:
   static constexpr size_t kPasses = 1;
   static bool valid_views(size_t views) {
     return views == 1 || views == 2 || views == 4;
   }
-  explicit SymQGRotation(size_t dimension, size_t views = 1)
+  explicit QuantizedGraphRotator(size_t dimension, size_t views = 1)
       : dimension_(dimension), views_(views) {
     if (!dimension || dimension > 4096 || !valid_views(views))
-      throw std::invalid_argument("invalid SymQG rotation dimension or views");
+      throw std::invalid_argument(
+          "invalid QuantizedGraph rotation dimension or views");
     padded_ = 64;
     while (padded_ < dimension) padded_ *= 2;
     if (dimension == 768) padded_ = 768;
@@ -62,18 +63,18 @@ class SymQGRotation {
       for (size_t pass = 0; pass < kPasses; ++pass) {
         const float *signs =
             signs_.data() + pass * padded_ + view * base_padded_;
-        if (!symqg_mul(signs, part, base_padded_)) {
+        if (!quantized_graph_mul(signs, part, base_padded_)) {
           for (size_t i = 0; i < base_padded_; ++i) part[i] *= signs[i];
         }
         if (base_padded_ == 768) {
           // Query reassociation may change rounding. Keep the canonical path
           // for database/model transforms and byte-exact model validation.
-          if (fast_query && symqg_hadamard768(part)) continue;
+          if (fast_query && quantized_graph_hadamard768(part)) continue;
           // Paley H12 tensor Sylvester H64: H H^T = 768 I.
           // The normalization is already included in signs_. No zero padding.
           for (size_t block = 0; block < 12; ++block) {
             float *v = part + block * 64;
-            if (!symqg_hadamard(v, 64)) {
+            if (!quantized_graph_hadamard(v, 64)) {
               for (size_t stride = 1; stride < 64; stride *= 2)
                 for (size_t offset = 0; offset < 64; offset += 2 * stride)
                   for (size_t k = 0; k < stride; ++k) {
@@ -109,7 +110,7 @@ class SymQGRotation {
           std::copy(mixed.begin(), mixed.end(), part);
           continue;
         }
-        if (!symqg_hadamard(part, base_padded_)) {
+        if (!quantized_graph_hadamard(part, base_padded_)) {
           for (size_t stride = 1; stride < base_padded_; stride *= 2) {
             for (size_t offset = 0; offset < base_padded_;
                  offset += 2 * stride) {

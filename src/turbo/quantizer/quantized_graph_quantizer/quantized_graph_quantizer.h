@@ -24,26 +24,26 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <turbo/distance/common/symqg_distance.h>
-#include <turbo/preprocessor/symqg_rotator/symqg_rotator.h>
+#include <turbo/distance/common/quantized_graph_distance.h>
+#include <turbo/preprocessor/quantized_graph_rotator/quantized_graph_rotator.h>
 #include <zvec/ailego/utility/float_helper.h>
 
 namespace zvec::turbo {
 #if RABITQ_SUPPORTED
-class SymQGBlockQuantizer {
+class QuantizedGraphBlockQuantizer {
  public:
   static constexpr size_t kBatchSize = rabitqlib::fastscan::kBatchSize;
   struct Query {
     std::vector<float> rotated;
-    SymQGQuery lookup;
+    QuantizedGraphQuery lookup;
     float mean_distance = 0;
     std::vector<float> rank_query;
   };
   // Covers rank-32, 4096D, four-view models, including their metadata.
   static constexpr size_t kMaxModelBytes = 4 << 20;
   // Empty data selects the native codec; trained codecs are embedded bytes.
-  explicit SymQGBlockQuantizer(size_t dimension, bool cosine = false,
-                               const std::string &model_data = {})
+  explicit QuantizedGraphBlockQuantizer(size_t dimension, bool cosine = false,
+                                        const std::string &model_data = {})
       : model_data_(model_data), rotation_(dimension), cosine_(cosine) {
     if (model_data_.empty()) return;
     if (model_data_.size() > kMaxModelBytes)
@@ -59,9 +59,9 @@ class SymQGBlockQuantizer {
     if (header[1] == 2) {
       uint32_t views = 0;
       file.read(reinterpret_cast<char *>(&views), sizeof(views));
-      if (!file || !SymQGRotation::valid_views(views))
+      if (!file || !QuantizedGraphRotator::valid_views(views))
         throw std::runtime_error("invalid codec rotation views");
-      rotation_ = SymQGRotation(dimension, views);
+      rotation_ = QuantizedGraphRotator(dimension, views);
     }
     if (header[4] == 0) {
       if (header[1] != 2 || header[3] != 0 || lambda_ != 0 ||
@@ -151,8 +151,9 @@ class SymQGBlockQuantizer {
                                           codes, rabitqlib::METRIC_L2);
       if (cosine_) {
         rabitqlib::QGBatchDataMap<float> batch(codes, quantized_dim());
-        ConvertSymQGCosineFactors(center, vectors, count, encoded_dim(),
-                                  batch.f_add(), batch.f_rescale());
+        ConvertQuantizedGraphCosineFactors(center, vectors, count,
+                                           encoded_dim(), batch.f_add(),
+                                           batch.f_rescale());
       }
       return;
     }
@@ -264,8 +265,9 @@ class SymQGBlockQuantizer {
     query.lookup.reset_block(query.rotated.data(), encoded_dim(),
                              columns_.data(), block_dim_, code_dim_,
                              structured_);
-    if (symqg_block_mean_distance(query.rotated.data(), mean_.data(),
-                                  encoded_dim(), cosine_, &query.mean_distance))
+    if (quantized_graph_block_mean_distance(query.rotated.data(), mean_.data(),
+                                            encoded_dim(), cosine_,
+                                            &query.mean_distance))
       return;
     double value = 0;
     for (size_t d = 0; d < encoded_dim(); ++d) {
@@ -286,7 +288,8 @@ class SymQGBlockQuantizer {
     if (rank_) {
       float dot = 0, scale;
       std::memcpy(&scale, codes, 4);
-      if (!symqg_rank_dot(query.rank_query.data(), codes + 16, rank_, &dot)) {
+      if (!quantized_graph_rank_dot(query.rank_query.data(), codes + 16, rank_,
+                                    &dot)) {
         double exact = 0;
         for (size_t j = 0; j < rank_; ++j) {
           uint16_t value;
@@ -306,13 +309,13 @@ class SymQGBlockQuantizer {
             ? (block_dim_ ? bonus_scale_ : 1) * uncertainty_bonus *
                   std::sqrt(std::max(0.f, 2.f * center_distance))
             : 0);
-    ScanSymQGBatch(codes, query.lookup, quantized_dim(), distances);
+    ScanQuantizedGraphBatch(codes, query.lookup, quantized_dim(), distances);
   }
 
  private:
   void rank_project(const float *input, float *out) const {
-    if (symqg_rank_project(rank_basis_.data(), input, rank_, encoded_dim(),
-                           out))
+    if (quantized_graph_rank_project(rank_basis_.data(), input, rank_,
+                                     encoded_dim(), out))
       return;
     for (size_t j = 0; j < rank_; ++j) {
       double value = 0;
@@ -326,7 +329,7 @@ class SymQGBlockQuantizer {
   std::string model_data_;
   size_t rank_ = 0;
   std::vector<float> rank_basis_;
-  SymQGRotation rotation_;
+  QuantizedGraphRotator rotation_;
   bool cosine_;
   bool structured_ = false;
   size_t block_dim_ = 0, groups_ = 0, code_dim_ = 0;

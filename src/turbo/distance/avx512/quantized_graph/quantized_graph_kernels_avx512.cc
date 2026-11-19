@@ -22,17 +22,17 @@
 #include <cmath>
 #include <type_traits>
 #include <ailego/internal/cpu_features.h>
-#include <turbo/distance/common/symqg_kernels.h>
+#include <turbo/distance/common/quantized_graph_kernels.h>
 #include <zvec/ailego/internal/platform.h>
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 #include <immintrin.h>
-#include "symqg_scan.h"
+#include "quantized_graph_scan.h"
 
 namespace zvec::turbo {
 namespace {
 
-bool symqg_avx512_available() {
+bool quantized_graph_avx512_available() {
   static const bool available =
       ailego::internal::CpuFeatures::static_flags_.AVX512F &&
       ailego::internal::CpuFeatures::static_flags_.AVX512BW;
@@ -65,10 +65,10 @@ inline void hadamard64(float *v) {
 
 }  // namespace
 
-bool symqg_h8_lut(const float *q, size_t dimension, size_t block,
-                  size_t code_dim, float *scratch, uint8_t *lut, float *delta,
-                  float *sum_min) {
-  if (!symqg_avx512_available() ||
+bool quantized_graph_h8_lut(const float *q, size_t dimension, size_t block,
+                            size_t code_dim, float *scratch, uint8_t *lut,
+                            float *delta, float *sum_min) {
+  if (!quantized_graph_avx512_available() ||
       !ailego::internal::CpuFeatures::static_flags_.AVX512DQ ||
       !ailego::internal::CpuFeatures::static_flags_.AVX512VL ||
       (block != 6 && block != 8) || code_dim % 16)
@@ -113,9 +113,9 @@ bool symqg_h8_lut(const float *q, size_t dimension, size_t block,
 }
 
 
-bool symqg_rank_project(const float *matrix, const float *input, size_t rows,
-                        size_t columns, float *out) {
-  if (!symqg_avx512_available() || columns % 64) return false;
+bool quantized_graph_rank_project(const float *matrix, const float *input,
+                                  size_t rows, size_t columns, float *out) {
+  if (!quantized_graph_avx512_available() || columns % 64) return false;
   for (size_t row = 0; row < rows; ++row) {
     const float *m = matrix + row * columns;
     __m512 a = _mm512_setzero_ps(), b = a, c = a, d = a;
@@ -136,9 +136,10 @@ bool symqg_rank_project(const float *matrix, const float *input, size_t rows,
 }
 
 
-bool symqg_rank_dot(const float *query, const char *codes, size_t n,
-                    float *out) {
-  if (!symqg_avx512_available() || (n != 8 && n != 16 && n != 32)) return false;
+bool quantized_graph_rank_dot(const float *query, const char *codes, size_t n,
+                              float *out) {
+  if (!quantized_graph_avx512_available() || (n != 8 && n != 16 && n != 32))
+    return false;
   __m512 acc = _mm512_setzero_ps();
   size_t i = 0;
   for (; i + 16 <= n; i += 16) {
@@ -158,9 +159,9 @@ bool symqg_rank_dot(const float *query, const char *codes, size_t n,
   return true;
 }
 
-bool symqg_block_mean_distance(const float *q, const float *mean, size_t n,
-                               bool cosine, float *out) {
-  if (!symqg_avx512_available()) return false;
+bool quantized_graph_block_mean_distance(const float *q, const float *mean,
+                                         size_t n, bool cosine, float *out) {
+  if (!quantized_graph_avx512_available()) return false;
   __m512d a = _mm512_setzero_pd(), b = _mm512_setzero_pd();
   size_t i = 0;
   if (cosine) {
@@ -195,10 +196,12 @@ bool symqg_block_mean_distance(const float *q, const float *mean, size_t n,
   return true;
 }
 
-bool symqg_block_lut(const float *q, size_t dimension, const float *book,
-                     size_t block, size_t code_dim, float *scratch,
-                     uint8_t *lut, float *delta, float *sum_min) {
-  if (!symqg_avx512_available() || !block || !code_dim || code_dim % 16)
+bool quantized_graph_block_lut(const float *q, size_t dimension,
+                               const float *book, size_t block, size_t code_dim,
+                               float *scratch, uint8_t *lut, float *delta,
+                               float *sum_min) {
+  if (!quantized_graph_avx512_available() || !block || !code_dim ||
+      code_dim % 16)
     return false;
   const size_t groups = code_dim / 4;
   float range = 0, total_min = 0;
@@ -227,9 +230,11 @@ bool symqg_block_lut(const float *q, size_t dimension, const float *book,
   return true;
 }
 
-bool symqg_lut_build(const float *__restrict q, size_t padded_dim, uint8_t *lut,
-                     float *delta, float *sum_vl, float *k1xsumq) {
-  if (!symqg_avx512_available() || (padded_dim & 0xF) != 0) return false;
+bool quantized_graph_lut_build(const float *__restrict q, size_t padded_dim,
+                               uint8_t *lut, float *delta, float *sum_vl,
+                               float *k1xsumq) {
+  if (!quantized_graph_avx512_available() || (padded_dim & 0xF) != 0)
+    return false;
 
   float vl = 0.0f, vr = 0.0f, sumq = 0.0f;
   const __m512 zero = _mm512_setzero_ps();
@@ -276,8 +281,8 @@ bool symqg_lut_build(const float *__restrict q, size_t padded_dim, uint8_t *lut,
   return true;
 }
 
-bool symqg_hadamard(float *v, size_t padded_dim) {
-  if (!symqg_avx512_available() || padded_dim < 16 ||
+bool quantized_graph_hadamard(float *v, size_t padded_dim) {
+  if (!quantized_graph_avx512_available() || padded_dim < 16 ||
       (padded_dim & (padded_dim - 1)) != 0)
     return false;
   size_t first_stride = 16;
@@ -299,8 +304,8 @@ bool symqg_hadamard(float *v, size_t padded_dim) {
   return true;
 }
 
-bool symqg_hadamard768(float *v) {
-  if (!symqg_avx512_available()) return false;
+bool quantized_graph_hadamard768(float *v) {
+  if (!quantized_graph_avx512_available()) return false;
   for (size_t block = 0; block < 12; ++block) hadamard64(v + block * 64);
   for (size_t k = 0; k < 64; k += 16) {
     const __m512 x0 = _mm512_loadu_ps(v + 0 + k);
@@ -425,8 +430,8 @@ bool symqg_hadamard768(float *v) {
   return true;
 }
 
-bool symqg_mul(const float *factors, float *v, size_t n) {
-  if (!symqg_avx512_available()) return false;
+bool quantized_graph_mul(const float *factors, float *v, size_t n) {
+  if (!quantized_graph_avx512_available()) return false;
   for (size_t i = 0; i + 16 <= n; i += 16) {
     _mm512_storeu_ps(v + i, _mm512_mul_ps(_mm512_loadu_ps(v + i),
                                           _mm512_loadu_ps(factors + i)));
@@ -436,14 +441,16 @@ bool symqg_mul(const float *factors, float *v, size_t n) {
 }
 
 
-bool symqg_scan(const uint8_t *codes, const uint8_t *lut, size_t padded_dim,
-                const void *add, const void *scale, float center_distance,
-                float delta, float sum_vl, float k1xsumq, float *distances) {
-  if (!symqg_avx512_available() || padded_dim == 0 || (padded_dim & 15) != 0)
+bool quantized_graph_scan(const uint8_t *codes, const uint8_t *lut,
+                          size_t padded_dim, const void *add, const void *scale,
+                          float center_distance, float delta, float sum_vl,
+                          float k1xsumq, float *distances) {
+  if (!quantized_graph_avx512_available() || padded_dim == 0 ||
+      (padded_dim & 15) != 0)
     return false;
 
   const auto scan = [&](auto fixed) {
-    return detail::SymQGScan<decltype(fixed)::value, false>(
+    return detail::QuantizedGraphScan<decltype(fixed)::value, false>(
         codes, lut, padded_dim, add, scale, center_distance, delta, sum_vl,
         k1xsumq, distances);
   };
@@ -469,44 +476,46 @@ bool symqg_scan(const uint8_t *codes, const uint8_t *lut, size_t padded_dim,
 
 namespace zvec::turbo {
 
-bool symqg_h8_lut(const float *, size_t, size_t, size_t, float *, uint8_t *,
-                  float *, float *) {
+bool quantized_graph_h8_lut(const float *, size_t, size_t, size_t, float *,
+                            uint8_t *, float *, float *) {
   return false;
 }
-bool symqg_rank_project(const float *, const float *, size_t, size_t, float *) {
+bool quantized_graph_rank_project(const float *, const float *, size_t, size_t,
+                                  float *) {
   return false;
 }
-bool symqg_rank_dot(const float *, const char *, size_t, float *) {
+bool quantized_graph_rank_dot(const float *, const char *, size_t, float *) {
   return false;
 }
-bool symqg_block_mean_distance(const float *, const float *, size_t, bool,
-                               float *) {
+bool quantized_graph_block_mean_distance(const float *, const float *, size_t,
+                                         bool, float *) {
   return false;
 }
-bool symqg_block_lut(const float *, size_t, const float *, size_t, size_t,
-                     float *, uint8_t *, float *, float *) {
-  return false;
-}
-
-bool symqg_lut_build(const float *, size_t, uint8_t *, float *, float *,
-                     float *) {
+bool quantized_graph_block_lut(const float *, size_t, const float *, size_t,
+                               size_t, float *, uint8_t *, float *, float *) {
   return false;
 }
 
-bool symqg_hadamard(float *, size_t) {
+bool quantized_graph_lut_build(const float *, size_t, uint8_t *, float *,
+                               float *, float *) {
   return false;
 }
 
-bool symqg_hadamard768(float *) {
+bool quantized_graph_hadamard(float *, size_t) {
   return false;
 }
 
-bool symqg_mul(const float *, float *, size_t) {
+bool quantized_graph_hadamard768(float *) {
   return false;
 }
 
-bool symqg_scan(const uint8_t *, const uint8_t *, size_t, const void *,
-                const void *, float, float, float, float, float *) {
+bool quantized_graph_mul(const float *, float *, size_t) {
+  return false;
+}
+
+bool quantized_graph_scan(const uint8_t *, const uint8_t *, size_t,
+                          const void *, const void *, float, float, float,
+                          float, float *) {
   return false;
 }
 
