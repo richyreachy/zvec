@@ -13,7 +13,7 @@
 #include <zvec/ailego/container/params.h>
 #include <zvec/ailego/logger/logger.h>
 #include <zvec/core/framework/index_error.h>
-#include "algorithm/hnsw/hnsw_params.h"
+#include "quantized_graph_params.h"
 #if defined(__linux__)
 #include <linux/fs.h>
 #include <linux/mman.h>
@@ -137,7 +137,7 @@ inline bool read_coverage(const ailego::Params &params, const std::string &key,
 }
 
 inline bool read_min_coverage(const ailego::Params &params, double &minimum) {
-  const auto &key = PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE;
+  const auto key = parameter_key(params, kMinimum);
   return params.has(key)
              ? read_coverage(params, key, minimum)
              : parse_min_coverage(std::getenv("QG_THP_MIN_COVERAGE"), minimum);
@@ -146,7 +146,7 @@ inline bool read_min_coverage(const ailego::Params &params, double &minimum) {
 inline bool read_coverage_floor(const ailego::Params &params, double minimum,
                                 double &floor) {
   floor = minimum;  // No fallback unless explicitly configured for this index.
-  const auto &key = PARAM_HNSW_QUANTIZED_GRAPH_THP_MIN_COVERAGE_FLOOR;
+  const auto key = parameter_key(params, kFloor);
   return !params.has(key) ||
          (read_coverage(params, key, floor) && floor <= minimum);
 }
@@ -242,9 +242,9 @@ inline int prepare_arena(void *arena, size_t bytes,
                          const ailego::Params &params = {}) {
   const char *policy = std::getenv("QG_THP_POLICY");
   std::string configured_policy;
-  if (params.has(PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY)) {
-    if (!params.get<std::string>(PARAM_HNSW_QUANTIZED_GRAPH_THP_POLICY,
-                                 &configured_policy))
+  const auto policy_key = parameter_key(params, kPolicy);
+  if (params.has(policy_key)) {
+    if (!params.get<std::string>(policy_key, &configured_policy))
       return IndexError_InvalidArgument;
     policy = configured_policy.c_str();
   }

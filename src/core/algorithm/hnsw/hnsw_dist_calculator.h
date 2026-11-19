@@ -99,10 +99,6 @@ class HnswDistCalculator {
     dim_ = dim;
   }
 
-  const void *query() const {
-    return query_;
-  }
-
   //! Reset query vector data
   inline void reset_query(const void *query) {
     status_ = Status::kOk;
@@ -272,10 +268,6 @@ class HnswDistCalculator {
 
   inline void set_error() {
     status_ = Status::kError;
-  }
-
-  void record_comparison() {
-    ++compare_cnt_;
   }
 
   //! Get distances compute times

@@ -165,15 +165,6 @@ class IVFIndexParamBuilder
 class HNSWIndexParamBuilder
     : public BaseIndexParamBuilder<HNSWIndexParamBuilder, HNSWIndexParam> {
  public:
-  HNSWIndexParamBuilder &with_use_quantized_graph(bool enabled) {
-    param->use_quantized_graph = enabled;
-    return *this;
-  }
-  HNSWIndexParamBuilder &with_quantized_graph_model(const std::string &path) {
-    param->quantized_graph_model = path;
-    return *this;
-  }
-
   HNSWIndexParamBuilder() = default;
   HNSWIndexParamBuilder &with_m(int m) {
     param->m = m;

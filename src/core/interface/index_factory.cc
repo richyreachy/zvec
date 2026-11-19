@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cmath>
-#include <limits>
 #include <zvec/ailego/container/params.h>
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_meta.h>
@@ -23,39 +21,22 @@
 
 namespace zvec::core_interface {
 namespace {
-bool parse_quantized_graph_query(const ailego::JsonObject &json,
-                                 HNSWQueryParam &param) {
+bool HasLegacyQuantizedGraphOptions(const ailego::JsonObject &json) {
   ailego::JsonValue value;
-  int64_t beam = param.quantized_graph_route_beam;
-  int64_t cap = param.quantized_graph_max_expansions;
-  if (!extract_value_from_json(json, "quantized_graph_margin",
-                               param.quantized_graph_margin, value) ||
-      !extract_value_from_json(json, "quantized_graph_bucket_width",
-                               param.quantized_graph_bucket_width, value) ||
-      !extract_value_from_json(json, "quantized_graph_uncertainty_bonus",
-                               param.quantized_graph_uncertainty_bonus,
-                               value) ||
-      !extract_value_from_json(json, "quantized_graph_route_beam", beam,
-                               value) ||
-      !extract_value_from_json(json, "quantized_graph_max_expansions", cap,
-                               value))
-    return false;
-  if (!std::isfinite(param.quantized_graph_margin) ||
-      (param.quantized_graph_margin < 0 &&
-       param.quantized_graph_margin != -1) ||
-      !std::isfinite(param.quantized_graph_bucket_width) ||
-      param.quantized_graph_bucket_width < 0 ||
-      param.quantized_graph_bucket_width > 1 || beam < 0 || beam > 4 ||
-      !std::isfinite(param.quantized_graph_uncertainty_bonus) ||
-      param.quantized_graph_uncertainty_bonus < 0 ||
-      param.quantized_graph_uncertainty_bonus > 1 || cap < 0 ||
-      cap > std::numeric_limits<uint32_t>::max()) {
-    LOG_ERROR("Invalid quantized graph query options");
-    return false;
+  for (const char *key :
+       {"use_quantized_graph", "quantized_graph_model",
+        "quantized_graph_margin", "quantized_graph_bucket_width",
+        "quantized_graph_max_expansions", "quantized_graph_route_beam",
+        "quantized_graph_uncertainty_bonus"}) {
+    if (json.get(key, &value)) {
+      LOG_ERROR(
+          "%s belongs to the retired HNSW quantized-graph entry; use "
+          "QuantizedGraphIndex and QuantizedGraphQuery",
+          key);
+      return true;
+    }
   }
-  param.quantized_graph_route_beam = static_cast<uint32_t>(beam);
-  param.quantized_graph_max_expansions = static_cast<uint32_t>(cap);
-  return true;
+  return false;
 }
 }  // namespace
 
@@ -117,6 +98,7 @@ BaseIndexParam::Pointer IndexFactory::DeserializeIndexParamFromJson(
     return nullptr;
   }
   ailego::JsonObject json_obj = json_value.as_object();
+  if (HasLegacyQuantizedGraphOptions(json_obj)) return nullptr;
   ailego::JsonValue tmp_json_value;
 
   IndexType index_type;
@@ -222,26 +204,6 @@ std::string IndexFactory::QueryParamSerializeToJson(const QueryParamType &param,
     // index_type
     index_type = IndexType::kFlat;
   } else if constexpr (std::is_same_v<QueryParamType, HNSWQueryParam>) {
-    if (!omit_empty_value || param.quantized_graph_uncertainty_bonus != 0) {
-      json_obj.set("quantized_graph_uncertainty_bonus",
-                   ailego::JsonValue(param.quantized_graph_uncertainty_bonus));
-    }
-    if (!omit_empty_value || param.quantized_graph_margin != -1) {
-      json_obj.set("quantized_graph_margin",
-                   ailego::JsonValue(param.quantized_graph_margin));
-    }
-    if (!omit_empty_value || param.quantized_graph_bucket_width != 0) {
-      json_obj.set("quantized_graph_bucket_width",
-                   ailego::JsonValue(param.quantized_graph_bucket_width));
-    }
-    if (!omit_empty_value || param.quantized_graph_max_expansions != 0) {
-      json_obj.set("quantized_graph_max_expansions",
-                   ailego::JsonValue(param.quantized_graph_max_expansions));
-    }
-    if (!omit_empty_value || param.quantized_graph_route_beam != 1) {
-      json_obj.set("quantized_graph_route_beam",
-                   ailego::JsonValue(param.quantized_graph_route_beam));
-    }
     if (!omit_empty_value || param.ef_search != 0) {
       json_obj.set("ef_search", ailego::JsonValue(param.ef_search));
     }
@@ -318,6 +280,7 @@ typename QueryParamType::Pointer IndexFactory::QueryParamDeserializeFromJson(
     return nullptr;
   }
   ailego::JsonObject json_obj = tmp_json_value.as_object();
+  if (HasLegacyQuantizedGraphOptions(json_obj)) return nullptr;
 
   auto parse_common_fields = [&](auto &param) -> bool {
     if (!extract_value_from_json(json_obj, "topk", param->topk,
@@ -363,7 +326,6 @@ typename QueryParamType::Pointer IndexFactory::QueryParamDeserializeFromJson(
       return param;
     } else if (index_type == IndexType::kHNSW) {
       auto param = std::make_shared<HNSWQueryParam>();
-      if (!parse_quantized_graph_query(json_obj, *param)) return nullptr;
       if (!parse_common_fields(param)) {
         return nullptr;
       }
@@ -462,7 +424,6 @@ typename QueryParamType::Pointer IndexFactory::QueryParamDeserializeFromJson(
     }
     if constexpr (std::is_same_v<QueryParamType, FlatQueryParam>) {
     } else if constexpr (std::is_same_v<QueryParamType, HNSWQueryParam>) {
-      if (!parse_quantized_graph_query(json_obj, *param)) return nullptr;
       if (!extract_value_from_json(json_obj, "ef_search", param->ef_search,
                                    tmp_json_value)) {
         LOG_ERROR("Failed to deserialize ef_search");
