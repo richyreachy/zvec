@@ -1,56 +1,108 @@
-r7i：succinct 三数据集最佳已测配置（2026-11-18）
+Independent QG API benchmark — r7i local campaign, 2026-11-19
 
-适用分支：feat/quantized-graph-performance-exploration-succinct；复验代码：98a265b0。
-归档目录按 r7i 命名；本次虚拟机读取的 CPU 为 Intel Xeon Platinum 8369B。
-SIFT/GIST/GloVe 均为 FP32、TopK=10、单核查询；配置覆盖 ANN Recall@10 的 30/50/70/85/90/95/99% 下限。
+Actual hardware: Intel Xeon Platinum 8369B (Ice Lake), 64 logical CPUs,
+32 physical cores, one NUMA node. The ann-benchmarks branch is named c7ibench;
+that name is not a hardware identification. Query CPU 54, SMT sibling 55,
+NUMA memory node 0. Historical configurations/results are preserved byte-for-byte
+under history/20261118-845fe9ec; their new_api_revalidated flag is false.
+g9i history is not evidence for this campaign.
 
-文件与数值口径
-sift.json、gist.json、glove.json：各档构建配置、查询参数、YAML case 索引、原始结果及索引指纹。
-best_observed 为所有纳入记录中达到召回下限的最高正式 QPS；mean_query_time_us=1e6/QPS。
-它是不同批次的历史最好值，不能作为同一批次排名或性能保证。
-revalidation 给出该配置本轮两次 best-of-five 的结果；same_session_best 单独给出本轮中位数最快的配置。
-主 query_config/query_case_index 指向 best_observed；same_session_best 有自己的配置引用。case 索引从0开始。
-summary.csv 汇总三数据集；validation.json 记录 succinct 二进制、复验协议与返回 ID 检查。
-结果路径以外部 ann-benchmarks 工程为根；本目录不打包大数据集、索引或 HDF5 结果文件。
+Entry points
+  tools/core/qg_bench.cc: native export/build/query executable (JSON via YAML parser).
+  tools/core/bench/qg_bench.py: strict config loader, provider verification,
+    index manifest binding, full-query measurement, validation and aggregation.
+  tools/core/bench/qg_preflight.py: small correctness-only preflight.
+  ann-benchmarks c7ibench/scripts/run_native_qg.py: runs the configurations
+    committed on c7ibench through the selected Zvec source checkout.
 
-使用
-1. 替换 YAML 中 /data/<dataset>/ 路径。BuildFile 必须是 local_builder 的 zvec.vecs 格式，不能直接使用 HDF5/fvecs。
-2. 按 JSON profiles.<profile>.build_configs 的顺序调用已编译的 local_builder：
-   ./build-ann/bin/local_builder tools/core/bench/config/r7i/sift_base_build.yaml
-   ./build-ann/bin/local_builder tools/core/bench/config/r7i/sift_n64_build.yaml
-   GIST 只需 gist_n64_build.yaml；GloVe 先 glove_base_build.yaml，再派生 glove_n32_build.yaml / glove_n64_build.yaml。
-3. 搜索构建配置的 DumpPath；查询 YAML 的 IndexPath 与之对应。
-   QueryParams 优先于 QueryParam；要只测一档，可只保留所选 case，或移除 QueryParams 并设置 QueryParam。
-4. native bench/recall 工具可加载查询 YAML；它们的 QPS 计时口径与 ANN-Benchmarks 不同。
-   native recall 的 CompareById=true 报告严格 ID 召回；本文目标采用第10真值距离+0.001，二者不能混用。
+Build from this checkout (CMake >=3.26, Ninja, GCC 11; Python numpy/h5py,
+psutil/docker required; numactl for CPU and memory binding):
+  git submodule update --init --recursive
+  cmake -S . -B build-r7i -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_PYTHON_BINDINGS=OFF -DBUILD_TESTING=ON -DBUILD_TOOLS=ON \
+    -DBUILD_C_BINDINGS=OFF -DBUILD_ZVEC_SHARED=OFF \
+    -DBUILD_ZVEC_CORE_SHARED=OFF -DBUILD_ZVEC_AILEGO_SHARED=OFF -DENABLE_ICELAKE=ON
+  cmake --build build-r7i --target qg_bench quantized_graph_index_test -j 12
+  build-r7i/bin/quantized_graph_index_test
+  python tools/core/bench/qg_preflight.py --binary "$PWD/build-r7i/bin/qg_bench" \
+    --config-dir tools/core/bench/config/r7i --output /new/path/preflight
 
-构建与迁移边界
-GloVe 32/64 邻居是不同的量化图构建配置，不能仅修改查询参数切换。两种布局从同一原始 HNSW 图派生。
-本轮在 succinct 二进制上加载已有不可变索引并复验全部候选；部分索引最初由 exploration 构建。
-新导入的 GloVe 参数先在 succinct 上完成正式复测，JSON 中不把 exploration 的 QPS 当成 succinct 结果。
-SIFT 使用两旋转 native 编码；GIST 使用单旋转 low_rank 编码。请保留完整构建参数及路由参数。
-所有候选返回 ID 与原始记录一致；重建图、换机器或更改数据后仍需重新校准召回。
-公开查询集同时用于调参和报告；本目录代表已测范围的最佳配置，不声明全局最优。
+Run from ann-benchmarks c7ibench (set each path explicitly):
+  export BENCH_ROOT=/path/to/ann-benchmarks-with-data-and-historical-indexes
+  export ZVEC_SOURCE=/path/to/frozen-zvec-checkout
+  export ARTIFACT_ROOT=/new/path/results/succinct
+  python scripts/run_native_qg.py check --zvec-source "$ZVEC_SOURCE" \
+    --bench-root "$BENCH_ROOT" --artifacts "$ARTIFACT_ROOT"
+  python scripts/run_native_qg.py prepare --zvec-source "$ZVEC_SOURCE" \
+    --bench-root "$BENCH_ROOT" --artifacts "$ARTIFACT_ROOT"
+  python scripts/run_native_qg.py build --zvec-source "$ZVEC_SOURCE" \
+    --bench-root "$BENCH_ROOT" --artifacts "$ARTIFACT_ROOT"
+  python "$ZVEC_SOURCE/tools/core/bench/qg_bench.py" isolate \
+    --manifest "$ARTIFACT_ROOT/isolation.json" -- \
+    python scripts/run_native_qg.py measure --zvec-source "$ZVEC_SOURCE" \
+      --bench-root "$BENCH_ROOT" --artifacts "$ARTIFACT_ROOT"
+Repeat with exploration's frozen source and a DIFFERENT ARTIFACT_ROOT.
+Do not run the two variants' formal measurements concurrently.
+The isolation command stops benchmark controllers, pauses all ann-benchmarks
+containers, records restoration identities, checks for compilation, then restores
+on completion/failure. Interrupted background timings must be excluded from future
+plots. Recovery after a hard kill:
+  python "$ZVEC_SOURCE/tools/core/bench/qg_bench.py" restore \
+    --manifest "$ARTIFACT_ROOT/isolation.json"
 
-数据集 / 召回下限 / 最快实测QPS / 平均查询微秒 / 索引布局
-sift-128-euclidean / 30% / 73703 / 13.568 / n64
-sift-128-euclidean / 50% / 61135 / 16.357 / n64
-sift-128-euclidean / 70% / 49273 / 20.295 / n64
-sift-128-euclidean / 85% / 43727 / 22.869 / n64
-sift-128-euclidean / 90% / 43727 / 22.869 / n64
-sift-128-euclidean / 95% / 36073 / 27.722 / n64
-sift-128-euclidean / 99% / 23842 / 41.943 / n64
-gist-960-euclidean / 30% / 33510 / 29.842 / n64
-gist-960-euclidean / 50% / 27053 / 36.965 / n64
-gist-960-euclidean / 70% / 20850 / 47.962 / n64
-gist-960-euclidean / 85% / 14101 / 70.915 / n64
-gist-960-euclidean / 90% / 13544 / 73.835 / n64
-gist-960-euclidean / 95% / 9198 / 108.723 / n64
-gist-960-euclidean / 99% / 3360 / 297.579 / n64
-glove-100-angular / 30% / 60790 / 16.450 / n32
-glove-100-angular / 50% / 48042 / 20.815 / n32
-glove-100-angular / 70% / 31696 / 31.549 / n32
-glove-100-angular / 85% / 18586 / 53.805 / n64
-glove-100-angular / 90% / 15313 / 65.303 / n64
-glove-100-angular / 95% / 9329 / 107.194 / n64
-glove-100-angular / 99% / 3815 / 262.154 / n64
+The wrapper resolves ${BENCH_ROOT}/${ARTIFACT_ROOT} into resolved.json, actually
+read by qg_bench. A standalone snapshot query diagnostic is:
+  build-r7i/bin/qg_bench query /path/to/resolved.json n64 /new/path/query-output
+Use the Python measure entry for formal timings; it verifies the manifest contract.
+The n32 profile exists only for GloVe. Different neighbor counts/codecs/views have
+separate freshly built snapshots. Router and codec rotation_views must agree.
+
+Data/provider contract
+Full HDF5 train/test sets (SIFT 1M x128/10000; GIST 1M x960/1000;
+GloVe 1183514x100/10000), FP32, top10. Existing immutable HNSW base graphs
+are hash-checked and exported with the new source's entity reader. Every exported
+vector is checked against the original HDF5 row (normalized once for cosine),
+all IDs are a permutation, and adjacency is range checked. No old QG snapshot
+is loaded: train_codec, train_router, prebuild, dump and load all use the new API.
+CSR files are little-endian: vectors FP32[count,dim], IDs uint64[count],
+offsets uint64[count+1], edges uint32[offsets[-1]]. Owned arrays outlive queries.
+Cosine corpus vectors were normalized by the historical base builder and are
+validated, not normalized again; raw queries are normalized once during prepare.
+Exact scoring uses SIMD SquaredEuclidean or 1 + negative InnerProduct; independent
+FP64 L2/cosine validation uses raw HDF5 data, outside the query timer.
+Rebuilding a base graph is OPTIONAL and changes the experiment: base-*.yaml are
+plain HNSW local_builder recipes (no QG keys). Set their BuildFile/IndexPath/
+DumpPath to local paths, run build-r7i/bin/local_builder base-DATASET.yaml,
+then update source_index and source_sha256 in a NEW campaign configuration.
+The archived native base graphs are required for exact reproduction of this run;
+parallel HNSW rebuilding is not claimed to produce identical graph topology.
+
+Protocol and comparisons
+Each parameter slot: full-query warmup, five measured rounds; three fresh process
+repetitions loading the same immutable snapshot. Each round times each query via
+steady_clock; QPS=1/mean latency. Repetition QPS=max(five rounds); headline QPS=
+median(three repetition QPS). Mean microseconds=1e6/headline QPS (the selected
+median repetition's best round). No preflight numbers enter formal summaries.
+All result IDs, scores, latencies, expansion and exact-comparison counts persist
+per round, with fingerprints. Every round's ANN and strict ID recalls are saved.
+Repeated queries must return identical IDs AND scores across all measured rounds.
+ANN recall uses raw-data Euclidean distance (sqrt of squared L2), or cosine,
+compared to HDF5's tenth true distance +0.001. Strict ID recall is separate.
+Each target retains frozen historical search parameters first. Capacity is seeded
+from historical ef_search because the old HnswQueryAdapter reset used
+max(topk,ef), while new QuantizedGraphQuery uses max(1,topk,capacity). This is
+also tested by exhaustive small graphs and paired full-query capacity changes;
+parameter equality alone is not asserted to prove result identity.
+Tuning is predeclared: 14 additional parameter slots per dataset, two per recall
+target. Winners are measured points, never interpolated. Repeated target slots
+can share parameters (SIFT 85/90); compare first occurrence for identical configs.
+The native timer includes context reset, QG search and its exact callbacks,
+result sorting, external ID mapping and buffer copy. It excludes Python calls,
+input conversion/normalization, file I/O and independent distance verification.
+Historical Python-call timing and background load differ; the old/new table is
+NOT a direct kernel speedup comparison. Reusing one snapshot for repetitions
+does not measure random variation from rebuilding indexes.
+
+Results are added only after complete validation. Large corpus/provider/index and
+raw per-query files stay outside Git. Final provenance and summary references
+are in the campaign result manifests; config check rejects legacy query fields.
