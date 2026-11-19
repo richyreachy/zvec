@@ -21,7 +21,7 @@
 #include <numeric>
 #include <type_traits>
 #include <vector>
-#include <turbo/distance/common/symqg_kernels.h>
+#include <turbo/distance/common/quantized_graph_kernels.h>
 #if RABITQ_SUPPORTED
 #include <immintrin.h>
 #include <rabitqlib/fastscan/encoder.hpp>
@@ -36,10 +36,11 @@ namespace zvec::turbo {
 // handles zero vectors, for which simply halving L2 would be incorrect.
 // The caller supplies normalized coordinates, without any norm metadata.
 template <class AddFactors, class ScaleFactors>
-inline void ConvertSymQGCosineFactors(const float *center, const float *vectors,
-                                      size_t count, size_t dimension,
-                                      AddFactors f_add,
-                                      ScaleFactors f_rescale) {
+inline void ConvertQuantizedGraphCosineFactors(const float *center,
+                                               const float *vectors,
+                                               size_t count, size_t dimension,
+                                               AddFactors f_add,
+                                               ScaleFactors f_rescale) {
   const float center_norm =
       std::inner_product(center, center + dimension, center, 0.0f);
   for (size_t i = 0; i < count; ++i) {
@@ -59,7 +60,7 @@ inline void ConvertSymQGCosineFactors(const float *center, const float *vectors,
 // AVX512 kernel builds them in two fused passes over the rotated query (the
 // 16 entries of each 4-dim codebook are the full subset-sum lattice of four
 // query values), and the rabitqlib Lut path is the reference fallback.
-class SymQGQuery {
+class QuantizedGraphQuery {
  public:
   void reset(const float *rotated_query, size_t padded_dim) {
     g_add_ = 0;
@@ -68,8 +69,8 @@ class SymQGQuery {
     auto *aligned_lut = reinterpret_cast<uint8_t *>(
         (reinterpret_cast<uintptr_t>(lut_storage_.data()) + 63) &
         ~uintptr_t{63});
-    if (symqg_lut_build(rotated_query, padded_dim, aligned_lut, &delta_,
-                        &sum_vl_, &k1xsumq_)) {
+    if (quantized_graph_lut_build(rotated_query, padded_dim, aligned_lut,
+                                  &delta_, &sum_vl_, &k1xsumq_)) {
       lut_ = aligned_lut;
       return;
     }
@@ -92,11 +93,12 @@ class SymQGQuery {
         ~uintptr_t{63});
     ref_lut_scratch_.resize(code_dim * 4);
     const bool built =
-        structured
-            ? symqg_h8_lut(query, dimension, block, code_dim,
-                           ref_lut_scratch_.data(), out, &delta_, &sum_vl_)
-            : symqg_block_lut(query, dimension, book, block, code_dim,
-                              ref_lut_scratch_.data(), out, &delta_, &sum_vl_);
+        structured ? quantized_graph_h8_lut(query, dimension, block, code_dim,
+                                            ref_lut_scratch_.data(), out,
+                                            &delta_, &sum_vl_)
+                   : quantized_graph_block_lut(
+                         query, dimension, book, block, code_dim,
+                         ref_lut_scratch_.data(), out, &delta_, &sum_vl_);
     if (!built) {
       sum_vl_ = 0;
       float range = 0;
@@ -163,10 +165,11 @@ class SymQGQuery {
 // The pinned RaBitQ 0.7 dependency accumulates into int32_t, including the
 // maximum supported dimension with four rotation views.
 template <size_t Fixed>
-__attribute__((target("avx512f,avx512bw,avx512dq"))) inline bool SymQGFixedScan(
-    const uint8_t *codes, const uint8_t *lut, size_t, const void *add,
-    const void *scale, float center_distance, float delta, float sum_vl,
-    float k1xsumq, float *distances) {
+__attribute__((target("avx512f,avx512bw,avx512dq"))) inline bool
+QuantizedGraphFixedScan(const uint8_t *codes, const uint8_t *lut, size_t,
+                        const void *add, const void *scale,
+                        float center_distance, float delta, float sum_vl,
+                        float k1xsumq, float *distances) {
   constexpr size_t padded_dim = Fixed;
 
   __m512i sums0 = _mm512_setzero_si512();
@@ -227,50 +230,54 @@ __attribute__((target("avx512f,avx512bw,avx512dq"))) inline bool SymQGFixedScan(
   return true;
 }
 
-inline bool SymQGFixedScanDispatch(const uint8_t *codes, const uint8_t *lut,
-                                   size_t dim, const void *add,
-                                   const void *scale, float center, float delta,
-                                   float sum, float bias, float *distances) {
+inline bool QuantizedGraphFixedScanDispatch(const uint8_t *codes,
+                                            const uint8_t *lut, size_t dim,
+                                            const void *add, const void *scale,
+                                            float center, float delta,
+                                            float sum, float bias,
+                                            float *distances) {
   // Keep the portable fallback for unsupported CPUs and other dimensions.
   if (!__builtin_cpu_supports("avx512f") ||
       !__builtin_cpu_supports("avx512bw") ||
       !__builtin_cpu_supports("avx512dq"))
-    return symqg_scan(codes, lut, dim, add, scale, center, delta, sum, bias,
-                      distances);
+    return quantized_graph_scan(codes, lut, dim, add, scale, center, delta, sum,
+                                bias, distances);
   switch (dim) {
     case 64:
-      return SymQGFixedScan<64>(codes, lut, dim, add, scale, center, delta, sum,
-                                bias, distances);
+      return QuantizedGraphFixedScan<64>(codes, lut, dim, add, scale, center,
+                                         delta, sum, bias, distances);
     case 128:
-      return SymQGFixedScan<128>(codes, lut, dim, add, scale, center, delta,
-                                 sum, bias, distances);
+      return QuantizedGraphFixedScan<128>(codes, lut, dim, add, scale, center,
+                                          delta, sum, bias, distances);
     case 256:
-      return SymQGFixedScan<256>(codes, lut, dim, add, scale, center, delta,
-                                 sum, bias, distances);
+      return QuantizedGraphFixedScan<256>(codes, lut, dim, add, scale, center,
+                                          delta, sum, bias, distances);
     case 512:
-      return SymQGFixedScan<512>(codes, lut, dim, add, scale, center, delta,
-                                 sum, bias, distances);
+      return QuantizedGraphFixedScan<512>(codes, lut, dim, add, scale, center,
+                                          delta, sum, bias, distances);
     case 1024:
-      return SymQGFixedScan<1024>(codes, lut, dim, add, scale, center, delta,
-                                  sum, bias, distances);
+      return QuantizedGraphFixedScan<1024>(codes, lut, dim, add, scale, center,
+                                           delta, sum, bias, distances);
     default:
-      return symqg_scan(codes, lut, dim, add, scale, center, delta, sum, bias,
-                        distances);
+      return quantized_graph_scan(codes, lut, dim, add, scale, center, delta,
+                                  sum, bias, distances);
   }
 }
 
-inline void ScanSymQGBatchUnrolled(const char *codes, const SymQGQuery &query,
-                                   size_t padded_dim, float *distances) {
+inline void ScanQuantizedGraphBatchUnrolled(const char *codes,
+                                            const QuantizedGraphQuery &query,
+                                            size_t padded_dim,
+                                            float *distances) {
   constexpr size_t batch_size = rabitqlib::fastscan::kBatchSize;
   rabitqlib::ConstQGBatchDataMap<float> batch(codes, padded_dim);
   // RaBitQ 0.7 stores factors as packed bytes. Load them directly through
   // the SIMD byte-addressed interface without creating float objects here.
   using Offsets = rabitqlib::detail::BatchCodeOffsets<float>;
-  if (SymQGFixedScanDispatch(batch.bin_code(), query.lut(), padded_dim,
-                             codes + Offsets::add(padded_dim),
-                             codes + Offsets::rescale(padded_dim),
-                             query.g_add(), query.delta(), query.sum_vl_lut(),
-                             query.k1xsumq(), distances)) {
+  if (QuantizedGraphFixedScanDispatch(
+          batch.bin_code(), query.lut(), padded_dim,
+          codes + Offsets::add(padded_dim),
+          codes + Offsets::rescale(padded_dim), query.g_add(), query.delta(),
+          query.sum_vl_lut(), query.k1xsumq(), distances)) {
     return;
   }
   std::array<uint32_t, batch_size> sums{};
@@ -294,9 +301,10 @@ inline void ScanSymQGBatchUnrolled(const char *codes, const SymQGQuery &query,
   }
 }
 
-inline void ScanSymQGBatch(const char *codes, const SymQGQuery &query,
-                           size_t dimension, float *distances) {
-  ScanSymQGBatchUnrolled(codes, query, dimension, distances);
+inline void ScanQuantizedGraphBatch(const char *codes,
+                                    const QuantizedGraphQuery &query,
+                                    size_t dimension, float *distances) {
+  ScanQuantizedGraphBatchUnrolled(codes, query, dimension, distances);
 }
 
 #endif

@@ -13,17 +13,18 @@
 #include <unordered_set>
 #include <vector>
 #include <rabitqlib/third/Eigen/Eigenvalues>
-#include <turbo/preprocessor/symqg_rotator/symqg_rotator.h>
+#include <turbo/preprocessor/quantized_graph_rotator/quantized_graph_rotator.h>
 #include "quantized_graph_build_options.h"
 #include "quantized_graph_neighbors.h"
 #include "quantized_graph_sq8_center.h"
 
 namespace zvec::core {
 
-// Database-only training for SymQG's affine / low-rank block codec. Nearby
-// database vectors act as proxy queries; no query set or ground truth is read.
-// Source adapters expose FP32 coordinates, widening stored FP16 on demand.
-class SymQGCodecBuilder {
+// Database-only training for QuantizedGraph's affine / low-rank block codec.
+// Nearby database vectors act as proxy queries; no query set or ground truth is
+// read. Source adapters expose FP32 coordinates, widening stored FP16 on
+// demand.
+class QuantizedGraphCodecBuilder {
  public:
   struct Result {
     std::string data;
@@ -232,7 +233,7 @@ class SymQGCodecBuilder {
     put(words.data(), words.size() * sizeof(float));
 
     if (options.codec == Options::Codec::LowRank) {
-      turbo::SymQGRotation rotation(dimension, options.rotation_views);
+      turbo::QuantizedGraphRotator rotation(dimension, options.rotation_views);
       const size_t padded = rotation.padded_dim();
 
       // The frame is isometric: train in source coordinates, then transform

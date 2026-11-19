@@ -21,7 +21,7 @@
     (defined(__GNUC__) || defined(__clang__))
 #define ZVEC_QUANTIZED_GRAPH_SUPPORTED 1
 #include <turbo/norm/normalizer.h>
-#include <turbo/quantizer/symqg_quantizer/symqg_quantizer.h>
+#include <turbo/quantizer/quantized_graph_quantizer/quantized_graph_quantizer.h>
 #include "quantized_graph.h"
 #include "quantized_graph_codec_builder.h"
 #include "quantized_graph_router_builder.h"
@@ -266,15 +266,16 @@ class QuantizedGraphIndex {
     if (!QuantizedGraphSupported()) return IndexError_Unsupported;
     try {
       const auto result = fp16
-                              ? SymQGCodecBuilder::train(
+                              ? QuantizedGraphCodecBuilder::train(
                                     quantized_graph_detail::DecodedGraph<Graph>{
                                         source, dimension},
                                     count, dimension, cosine, options)
-                              : SymQGCodecBuilder::train(
+                              : QuantizedGraphCodecBuilder::train(
                                     source, count, dimension, cosine, options);
       data = result.data;
       LOG_INFO(
-          "SymQG codec trained: samples=%zu lambda=%.9g rank_energy=%.6f "
+          "QuantizedGraph codec trained: samples=%zu lambda=%.9g "
+          "rank_energy=%.6f "
           "bytes=%zu",
           result.samples, result.lambda, result.captured_energy, data.size());
       return 0;
@@ -299,7 +300,7 @@ class QuantizedGraphIndex {
     if (!QuantizedGraphSupported()) return IndexError_Unsupported;
     if (!anchors || anchors > Builder::kMaxAnchors || !dimension ||
         dimension > 4096 || !count || count > uint32_t(INT32_MAX) ||
-        !turbo::SymQGRotation::valid_views(rotation_views))
+        !turbo::QuantizedGraphRotator::valid_views(rotation_views))
       return IndexError_InvalidArgument;
     try {
       typename Graph::Vector block;
@@ -342,7 +343,7 @@ class QuantizedGraphIndex {
   }
 
  private:
-  using Codec = turbo::SymQGBlockQuantizer;
+  using Codec = turbo::QuantizedGraphBlockQuantizer;
 
   static Codec make_codec(size_t dimension, size_t neighbors, bool cosine,
                           size_t vector_bytes, bool fp16,

@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 #include <turbo/distance/matrix.h>
-#include "turbo/preprocessor/symqg_rotator/symqg_rotator.h"
+#include "turbo/preprocessor/quantized_graph_rotator/quantized_graph_rotator.h"
 #include "quantized_graph_router_format.h"
 
 namespace zvec::core {
@@ -125,7 +125,7 @@ class QuantizedGraphRouterBuilder {
     void write(std::ostream &out, size_t projection = 0) const {
       const size_t dim = mean.size();
       if (projection == 0) projection = projected;
-      turbo::SymQGRotation rotate(dim, rotation_views);
+      turbo::QuantizedGraphRotator rotate(dim, rotation_views);
       const size_t rotated_dim = rotate.padded_dim();
       if (projection == 0 || projection > rotated_dim)
         throw std::invalid_argument("invalid router projection");
@@ -251,7 +251,7 @@ class QuantizedGraphRouterBuilder {
                                  ? options.projected
                                  : std::max(size_t{1}, data.mean.size() / 2);
     if (projected >
-        turbo::SymQGRotation(data.mean.size(), options.rotation_views)
+        turbo::QuantizedGraphRotator(data.mean.size(), options.rotation_views)
             .padded_dim())
       throw std::invalid_argument("projection exceeds rotated dimension");
 
