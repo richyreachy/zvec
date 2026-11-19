@@ -2,6 +2,14 @@ include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
 include(${PROJECT_ROOT_DIR}/cmake/option.cmake)
 
 cc_binary(
+    NAME qg_bench
+    STRICT PACKED
+    SRCS qg_bench.cc
+    INCS ${PROJECT_ROOT_DIR}/src/core/
+    LIBS yaml-cpp core_framework core_metric core_utility core_knn_hnsw rabitqlib zvec_turbo
+)
+
+cc_binary(
     NAME txt2vecs
     STRICT PACKED
     SRCS txt2vecs.cc
