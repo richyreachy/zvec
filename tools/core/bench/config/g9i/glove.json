@@ -1,0 +1,479 @@
+{
+  "schema_version": 1,
+  "hardware_label": "g9i",
+  "dataset": "glove-100-angular",
+  "measured_revision": "b44f0e09+python-qg-binding",
+  "archive_head": "3634b4a6",
+  "new_api_revalidated": false,
+  "profiles": {
+    "full": {
+      "legacy_build_params": {
+        "anchors": 65536,
+        "projected": 64,
+        "router_seed": 202610261259,
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 2,
+        "codec": "native"
+      },
+      "base_graph": {
+        "m": 32,
+        "ef_construction": 400
+      },
+      "native_build_options": {
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 2,
+        "codec": "native"
+      },
+      "router": {
+        "anchors": 65536,
+        "projected_dimension": 64,
+        "seed": 202610261259,
+        "rotation_views": 2
+      },
+      "measured_index": {
+        "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/full.index",
+        "bytes": 4378948032,
+        "sha256": "eaca0b0be8e6d70ee8c539961bffa4c89c7cb852fcfa9ee53a0fbe653aab6418"
+      }
+    },
+    "no_router": {
+      "legacy_build_params": {
+        "anchors": 65536,
+        "projected": 64,
+        "router_seed": 202610261259,
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 2,
+        "codec": "native"
+      },
+      "base_graph": {
+        "m": 32,
+        "ef_construction": 400
+      },
+      "native_build_options": {
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 2,
+        "codec": "native"
+      },
+      "router": {
+        "anchors": 65536,
+        "projected_dimension": 64,
+        "seed": 202610261259,
+        "rotation_views": 2
+      },
+      "measured_index": {
+        "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/full.index",
+        "bytes": 4378948032,
+        "sha256": "eaca0b0be8e6d70ee8c539961bffa4c89c7cb852fcfa9ee53a0fbe653aab6418"
+      }
+    },
+    "one_view": {
+      "legacy_build_params": {
+        "anchors": 65536,
+        "projected": 64,
+        "router_seed": 202610261259,
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 1,
+        "codec": "native"
+      },
+      "base_graph": {
+        "m": 32,
+        "ef_construction": 400
+      },
+      "native_build_options": {
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 1,
+        "codec": "native"
+      },
+      "router": {
+        "anchors": 65536,
+        "projected_dimension": 64,
+        "seed": 202610261259,
+        "rotation_views": 1
+      },
+      "measured_index": {
+        "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/one_view.index",
+        "bytes": 3167029152,
+        "sha256": "995112205343e00fc5cb962cc009cd8842ae3204efb70060aab9583bdc976786"
+      }
+    }
+  },
+  "presets": [
+    {
+      "target_ann_recall": 0.3,
+      "profile": "full",
+      "legacy_query_params": {
+        "ef_search": 128,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 1.0,
+        "quantized_graph_max_expansions": 12,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 1.0,
+          "max_expansions": 12,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 128,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 95980.2630794056,
+        "mean_query_time_us": 10.418808700000001,
+        "qps_each": [
+          95980.2630794056,
+          95709.11351175515,
+          96632.27533650667
+        ],
+        "ann_recall": 0.35348,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-0-point-71.npz",
+            "sha256": "f14223b17924e3599be118455a8df7f9053ee3777ebb514c2da09d6dd43cf6f9",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-1-point-80.npz",
+            "sha256": "ffc6391e44324f6d456aa09a17e9fb009567d87809a603ffc4e4f384fb4bc666",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-2-point-9.npz",
+            "sha256": "15a7bf90a4fc0b67c9400a260c705949bbe73f6e25c58e7475abd1664606816b",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.5,
+      "profile": "no_router",
+      "legacy_query_params": {
+        "ef_search": 128,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 1.0,
+        "quantized_graph_max_expansions": 24,
+        "quantized_graph_route_beam": 0,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 1.0,
+          "max_expansions": 24,
+          "route_beam": 0,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 128,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 64766.635094875055,
+        "mean_query_time_us": 15.4400487,
+        "qps_each": [
+          64219.7676485137,
+          64863.984958612695,
+          64766.635094875055
+        ],
+        "ann_recall": 0.53785,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-0-point-10.npz",
+            "sha256": "e12952e62ffe9cd1d6a7b657c5bfd560a555de43d96fca3f21c649171d442a1d",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-1-point-10.npz",
+            "sha256": "73fcd944a3107f9df209e73108f3c7bf3a4cfa5fe59b54f285b4771bc7e17398",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-2-point-56.npz",
+            "sha256": "b60b322b74185bf1c0fcf4f5f44e521f1e0ff5ce65af38244ef2abdf93689f78",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.7,
+      "profile": "no_router",
+      "legacy_query_params": {
+        "ef_search": 2048,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 0,
+        "quantized_graph_max_expansions": 2048,
+        "quantized_graph_route_beam": 0,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 0,
+          "max_expansions": 2048,
+          "route_beam": 0,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 2048,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 44784.360326866175,
+        "mean_query_time_us": 22.3292237,
+        "qps_each": [
+          44784.360326866175,
+          44194.59823833172,
+          44854.09691153751
+        ],
+        "ann_recall": 0.73153,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-0-point-88.npz",
+            "sha256": "bb8f7c93c9cc782dde2fd07dd54d07c4b4e670cfea633975f35c4ccac39056a9",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-1-point-5.npz",
+            "sha256": "aa601d2bdec375b4663496aa6baefc6f543d0efec1aef059cba9dc5f85d45d63",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-2-point-34.npz",
+            "sha256": "77f2a589e73b0cbdbadbbae3c8da976bca4d1dfd73ff3858ef36b631a00ded75",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.85,
+      "profile": "one_view",
+      "legacy_query_params": {
+        "ef_search": 2048,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 0.02,
+        "quantized_graph_max_expansions": 2048,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 0.02,
+          "max_expansions": 2048,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 2048,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 19009.294282687093,
+        "mean_query_time_us": 52.6058456,
+        "qps_each": [
+          19009.294282687093,
+          19036.79389261883,
+          18957.61914097268
+        ],
+        "ann_recall": 0.87336,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-0-point-100.npz",
+            "sha256": "d6dc49d06b4b8d8cc27515f5c67315e197576f73faf1f6fd3f98046153d442ff",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-1-point-46.npz",
+            "sha256": "2e739b8f536883a251e0e1aa1c8595df1d1f8266e14851445147c22da5dccb7c",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-2-point-84.npz",
+            "sha256": "33ee00b2e44ae335cad69d88ba147763b0fa4c68a750cc9555e31645e4625948",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.9,
+      "profile": "full",
+      "legacy_query_params": {
+        "ef_search": 1024,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.016,
+        "quantized_graph_margin": 0.055,
+        "quantized_graph_max_expansions": 384,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.016,
+          "margin": 0.055,
+          "max_expansions": 384,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 1024,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 18082.755193895304,
+        "mean_query_time_us": 55.30130720000001,
+        "qps_each": [
+          18182.31535243743,
+          18082.755193895304,
+          18044.302324151067
+        ],
+        "ann_recall": 0.90685,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-0-point-29.npz",
+            "sha256": "ba7d99e07b7b1ca13dfabd4f69614c48cc1252881c03f5d8ebace6af0dd68d5e",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-1-point-86.npz",
+            "sha256": "08e5cae088b3fcc7b8ebfcf98ea0a4a32f6afdc2a5def1ce11d88c68b00a892d",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-2-point-90.npz",
+            "sha256": "14c702b56a1c80b2439311627f8254faba8c0a9b83ae7301425f136b7ee360b4",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.95,
+      "profile": "no_router",
+      "legacy_query_params": {
+        "ef_search": 2048,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 0.09,
+        "quantized_graph_max_expansions": 768,
+        "quantized_graph_route_beam": 0,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 0.09,
+          "max_expansions": 768,
+          "route_beam": 0,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 2048,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 10589.731717894045,
+        "mean_query_time_us": 94.43109860000001,
+        "qps_each": [
+          10569.448429053104,
+          10719.142339468615,
+          10589.731717894045
+        ],
+        "ann_recall": 0.95575,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-0-point-102.npz",
+            "sha256": "b398e71897ff6488306d23d2fed31e0b0f946500fe38f29a2a5f3a10b0023b6a",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-1-point-104.npz",
+            "sha256": "04eb8cebe59270a99a227b9e3cd177da467e1788d449edac374a298915cc6096",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-2-point-1.npz",
+            "sha256": "0dc0a212fe67c593b2178537e810559c38e055d84bb198be63c035ce6f90fdb0",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.99,
+      "profile": "no_router",
+      "legacy_query_params": {
+        "ef_search": 2048,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.004,
+        "quantized_graph_margin": 0.14,
+        "quantized_graph_max_expansions": 1536,
+        "quantized_graph_route_beam": 0,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.004,
+          "margin": 0.14,
+          "max_expansions": 1536,
+          "route_beam": 0,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 2048,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 3494.2990824956,
+        "mean_query_time_us": 286.180426,
+        "qps_each": [
+          3500.1422725580446,
+          3486.6959486807473,
+          3494.2990824956
+        ],
+        "ann_recall": 0.9933,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-0-point-20.npz",
+            "sha256": "6d0fdefa52fc61e603c2f2e9cb1836fbfe3128c9f33e0a5fe767854f97361d8b",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-1-point-59.npz",
+            "sha256": "9fbe30962354f385f1898b1d802229057b0abe7a24483959ab49f57de6ee8e12",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/glove-100-angular/repeat-2-point-94.npz",
+            "sha256": "95a012b4cf4c981c0e4cdcc69310f840a712551e5610c82006ee6487da0e8fce",
+            "repeat": 2
+          }
+        ]
+      }
+    }
+  ]
+}

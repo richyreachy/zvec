@@ -1,0 +1,515 @@
+{
+  "schema_version": 1,
+  "hardware_label": "g9i",
+  "dataset": "gist-960-euclidean",
+  "measured_revision": "b44f0e09+python-qg-binding",
+  "archive_head": "3634b4a6",
+  "new_api_revalidated": false,
+  "profiles": {
+    "hadamard_low_rank": {
+      "legacy_build_params": {
+        "anchors": 8192,
+        "projected": 256,
+        "router_seed": 202610261259,
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 1,
+        "codec": "low_rank",
+        "block_dimension": 8,
+        "codebook": "hadamard",
+        "rank": 8,
+        "training_samples": 1024,
+        "seed": 20261031,
+        "center_weight": 1.0
+      },
+      "base_graph": {
+        "m": 50,
+        "ef_construction": 500
+      },
+      "native_build_options": {
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 1,
+        "codec": "low_rank",
+        "block_dimension": 8,
+        "codebook": "hadamard",
+        "rank": 8,
+        "training_samples": 1024,
+        "seed": 20261031,
+        "center_weight": 1.0
+      },
+      "router": {
+        "anchors": 8192,
+        "projected_dimension": 256,
+        "seed": 202610261259,
+        "rotation_views": 1
+      },
+      "measured_index": {
+        "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/hadamard_low_rank.index",
+        "bytes": 10219964128,
+        "sha256": "32ff729205efd11fa81bfa5ccb646414a42457041cf5bc187e30ccf181827345"
+      }
+    },
+    "full": {
+      "legacy_build_params": {
+        "anchors": 8192,
+        "projected": 256,
+        "router_seed": 202610261259,
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 1,
+        "codec": "low_rank",
+        "block_dimension": 8,
+        "codebook": "gaussian",
+        "rank": 8,
+        "training_samples": 1024,
+        "seed": 20261031,
+        "center_weight": 1.0
+      },
+      "base_graph": {
+        "m": 50,
+        "ef_construction": 500
+      },
+      "native_build_options": {
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 1,
+        "codec": "low_rank",
+        "block_dimension": 8,
+        "codebook": "gaussian",
+        "rank": 8,
+        "training_samples": 1024,
+        "seed": 20261031,
+        "center_weight": 1.0
+      },
+      "router": {
+        "anchors": 8192,
+        "projected_dimension": 256,
+        "seed": 202610261259,
+        "rotation_views": 1
+      },
+      "measured_index": {
+        "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/full.index",
+        "bytes": 10219964128,
+        "sha256": "e0baf8d271bece6ff430629b45b53656e8b0bf3f09a8e76e50c4fd8e44d72faf"
+      }
+    },
+    "no_router": {
+      "legacy_build_params": {
+        "anchors": 8192,
+        "projected": 256,
+        "router_seed": 202610261259,
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 1,
+        "codec": "low_rank",
+        "block_dimension": 8,
+        "codebook": "gaussian",
+        "rank": 8,
+        "training_samples": 1024,
+        "seed": 20261031,
+        "center_weight": 1.0
+      },
+      "base_graph": {
+        "m": 50,
+        "ef_construction": 500
+      },
+      "native_build_options": {
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 1,
+        "codec": "low_rank",
+        "block_dimension": 8,
+        "codebook": "gaussian",
+        "rank": 8,
+        "training_samples": 1024,
+        "seed": 20261031,
+        "center_weight": 1.0
+      },
+      "router": {
+        "anchors": 8192,
+        "projected_dimension": 256,
+        "seed": 202610261259,
+        "rotation_views": 1
+      },
+      "measured_index": {
+        "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/full.index",
+        "bytes": 10219964128,
+        "sha256": "e0baf8d271bece6ff430629b45b53656e8b0bf3f09a8e76e50c4fd8e44d72faf"
+      }
+    }
+  },
+  "presets": [
+    {
+      "target_ann_recall": 0.3,
+      "profile": "hadamard_low_rank",
+      "legacy_query_params": {
+        "ef_search": 128,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 1.0,
+        "quantized_graph_max_expansions": 10,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 1.0,
+          "max_expansions": 10,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 128,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 68664.81743158014,
+        "mean_query_time_us": 14.563499,
+        "qps_each": [
+          68664.81743158014,
+          69098.9974426461,
+          67872.45245840131
+        ],
+        "ann_recall": 0.3056,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-0-point-78.npz",
+            "sha256": "6c0c68e35df0ca1eaf51bbdb7792837a0666ea57ccad09a7e10f4432f5ad754a",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-1-point-94.npz",
+            "sha256": "322113bbfeb632ef237e1e55b4c59a2770ef10e3bf30702dd5903a634d26d921",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-2-point-1.npz",
+            "sha256": "e1da7871368d682fc5df197fae59187a9976fb1f421429c3f70039b72c21cedb",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.5,
+      "profile": "full",
+      "legacy_query_params": {
+        "ef_search": 128,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 1.0,
+        "quantized_graph_max_expansions": 16,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 1.0,
+          "max_expansions": 16,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 128,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 48550.07624789474,
+        "mean_query_time_us": 20.59729,
+        "qps_each": [
+          48883.11133964509,
+          47893.2203410936,
+          48550.07624789474
+        ],
+        "ann_recall": 0.5003,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-0-point-179.npz",
+            "sha256": "1d663c2f886bf9a2bb1724124fd0d69ed5cc49451052561d50e5bd07cd91e943",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-1-point-20.npz",
+            "sha256": "cdb4941adb42a7af8751bb84f6ba99531f29b4773d7287f60ff6bb37f6b0d0dd",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-2-point-155.npz",
+            "sha256": "42722afd433446aee6e0d497c68e13f98cb23400750a9212985131da351202d1",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.7,
+      "profile": "no_router",
+      "legacy_query_params": {
+        "ef_search": 2048,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 0,
+        "quantized_graph_max_expansions": 2048,
+        "quantized_graph_route_beam": 0,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 0,
+          "max_expansions": 2048,
+          "route_beam": 0,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 2048,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 32937.80084975573,
+        "mean_query_time_us": 30.360254000000005,
+        "qps_each": [
+          33031.49810990464,
+          32937.80084975573,
+          32579.11381682823
+        ],
+        "ann_recall": 0.7193,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-0-point-42.npz",
+            "sha256": "ff8b747d54b0a9c90286bfb9c32a886acbefb403795485e0dcd992f7446e7a06",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-1-point-137.npz",
+            "sha256": "5319d91ead6f9e5367143ae4447bdb6a0cba096688edb43f7dac1409586d55ef",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-2-point-57.npz",
+            "sha256": "bde5e1fd3627768a52a4d293b2de3ff2f304c9a63c06bc0d71b56d53f2b4e0a6",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.85,
+      "profile": "full",
+      "legacy_query_params": {
+        "ef_search": 2048,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 0.04,
+        "quantized_graph_max_expansions": 2048,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 0.04,
+          "max_expansions": 2048,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 2048,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 18291.674654031263,
+        "mean_query_time_us": 54.66968000000001,
+        "qps_each": [
+          18352.933256640095,
+          18291.674654031263,
+          18288.51972373874
+        ],
+        "ann_recall": 0.9052,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-0-point-163.npz",
+            "sha256": "3c90642220e6be16b17152fe14a44358ac42f1f23f8955fd04b52bbcb551fd0f",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-1-point-83.npz",
+            "sha256": "ddfedca5656602ebafed8eef0de5a216dd843be336c0f3773d40c8c8bf6a9b31",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-2-point-118.npz",
+            "sha256": "d54c42300557c23f2d223e60b069c31dd9ca9ea57cd1a0f17279474275ac5228",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.9,
+      "profile": "full",
+      "legacy_query_params": {
+        "ef_search": 2048,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 0.04,
+        "quantized_graph_max_expansions": 2048,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 0.04,
+          "max_expansions": 2048,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 2048,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 18291.674654031263,
+        "mean_query_time_us": 54.66968000000001,
+        "qps_each": [
+          18352.933256640095,
+          18291.674654031263,
+          18288.51972373874
+        ],
+        "ann_recall": 0.9052,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-0-point-163.npz",
+            "sha256": "3c90642220e6be16b17152fe14a44358ac42f1f23f8955fd04b52bbcb551fd0f",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-1-point-83.npz",
+            "sha256": "ddfedca5656602ebafed8eef0de5a216dd843be336c0f3773d40c8c8bf6a9b31",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-2-point-118.npz",
+            "sha256": "d54c42300557c23f2d223e60b069c31dd9ca9ea57cd1a0f17279474275ac5228",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.95,
+      "profile": "full",
+      "legacy_query_params": {
+        "ef_search": 2048,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 0.06,
+        "quantized_graph_max_expansions": 256,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 0.06,
+          "max_expansions": 256,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 2048,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 11940.659222302476,
+        "mean_query_time_us": 83.74747,
+        "qps_each": [
+          11940.659222302476,
+          12135.16034806261,
+          11918.368993133088
+        ],
+        "ann_recall": 0.9559,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-0-point-16.npz",
+            "sha256": "96602bf37bb79d61fad68f5685fab677bdd573f242b584fa4427fde9eba985b0",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-1-point-11.npz",
+            "sha256": "215751fbe376a0200c7788bd6d812d80423dc2180b205e5f62ce491a0377e178",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-2-point-98.npz",
+            "sha256": "f5fc2d8412273b6f0d6defeaf62bb0680349dbc46f9d4e0b66756c36d2ac4c91",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.99,
+      "profile": "no_router",
+      "legacy_query_params": {
+        "ef_search": 2048,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 0.12000000000000001,
+        "quantized_graph_max_expansions": 512,
+        "quantized_graph_route_beam": 0,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 0.12000000000000001,
+          "max_expansions": 512,
+          "route_beam": 0,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 2048,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 4016.6422986350576,
+        "mean_query_time_us": 248.96416599999998,
+        "qps_each": [
+          4016.6422986350576,
+          4005.2237730537677,
+          4023.9988717351007
+        ],
+        "ann_recall": 0.9937,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-0-point-159.npz",
+            "sha256": "9053930549bf29fe5efdcd23cfdbcda5959ab06a11cab5f6ab9716c6efc2d5ea",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-1-point-178.npz",
+            "sha256": "7fb700d7b3623e81eca149dc48b7d3eafc4df80eec3bd44849e7ee553053d03d",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/gist-960-euclidean/repeat-2-point-154.npz",
+            "sha256": "fb52db275f683dbc71383396a97e6c4fb01d24cc86ac5a8a3c3dfa1de8dfe7a6",
+            "repeat": 2
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,447 @@
+{
+  "schema_version": 1,
+  "hardware_label": "g9i",
+  "dataset": "sift-128-euclidean",
+  "measured_revision": "b44f0e09+python-qg-binding",
+  "archive_head": "3634b4a6",
+  "new_api_revalidated": false,
+  "profiles": {
+    "no_router": {
+      "legacy_build_params": {
+        "anchors": 65536,
+        "projected": 64,
+        "router_seed": 202610261259,
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 2,
+        "codec": "native"
+      },
+      "base_graph": {
+        "m": 32,
+        "ef_construction": 400
+      },
+      "native_build_options": {
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 2,
+        "codec": "native"
+      },
+      "router": {
+        "anchors": 65536,
+        "projected_dimension": 64,
+        "seed": 202610261259,
+        "rotation_views": 2
+      },
+      "measured_index": {
+        "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/full.index",
+        "bytes": 3831191424,
+        "sha256": "8d7d2f860294b2f087a258bda721c9f36149630085ce8790824aef66331625d3"
+      }
+    },
+    "full": {
+      "legacy_build_params": {
+        "anchors": 65536,
+        "projected": 64,
+        "router_seed": 202610261259,
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 2,
+        "codec": "native"
+      },
+      "base_graph": {
+        "m": 32,
+        "ef_construction": 400
+      },
+      "native_build_options": {
+        "threads": 1,
+        "max_neighbors": 64,
+        "rotation_views": 2,
+        "codec": "native"
+      },
+      "router": {
+        "anchors": 65536,
+        "projected_dimension": 64,
+        "seed": 202610261259,
+        "rotation_views": 2
+      },
+      "measured_index": {
+        "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/full.index",
+        "bytes": 3831191424,
+        "sha256": "8d7d2f860294b2f087a258bda721c9f36149630085ce8790824aef66331625d3"
+      }
+    }
+  },
+  "presets": [
+    {
+      "target_ann_recall": 0.3,
+      "profile": "no_router",
+      "legacy_query_params": {
+        "ef_search": 128,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 1.0,
+        "quantized_graph_max_expansions": 10,
+        "quantized_graph_route_beam": 0,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 1.0,
+          "max_expansions": 10,
+          "route_beam": 0,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 128,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 129348.42567314795,
+        "mean_query_time_us": 7.7310566000000005,
+        "qps_each": [
+          129348.42567314795,
+          129014.02796619022,
+          129428.75763587604
+        ],
+        "ann_recall": 0.32093,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-0-point-127.npz",
+            "sha256": "083509defdf1b234275e6d696ef4ace463e3ed9a541be218309edab1e5f7ac0f",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-1-point-68.npz",
+            "sha256": "4ffca1d7c9c605d5db08fb2910f3e6376fadd82b0a0fd6cd858963fbcbe14a76",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-2-point-130.npz",
+            "sha256": "9281b75943884176385f078b25754ca109fc2079f7e476f26404032f40cf39ab",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.5,
+      "profile": "full",
+      "legacy_query_params": {
+        "ef_search": 128,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 1.0,
+        "quantized_graph_max_expansions": 10,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 1.0,
+          "max_expansions": 10,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 128,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 104523.91962482687,
+        "mean_query_time_us": 9.5671881,
+        "qps_each": [
+          104523.91962482687,
+          104076.71078044783,
+          104548.34217066529
+        ],
+        "ann_recall": 0.51758,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-0-point-82.npz",
+            "sha256": "b260312a289652421afff206767ed5bd05c759b02dc6c81ff7e06f86c0827a64",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-1-point-128.npz",
+            "sha256": "b830272fdcbe1fb6a713b47fadb9b3545c60dcb6bb1ccd91d07cedbbf6d43fab",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-2-point-86.npz",
+            "sha256": "ab06969538592f1ad9367dc67bce9c0d2239752cfe8147e395e9940a27a0272d",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.7,
+      "profile": "full",
+      "legacy_query_params": {
+        "ef_search": 128,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 1.0,
+        "quantized_graph_max_expansions": 16,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 1.0,
+          "max_expansions": 16,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 128,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 76901.31207711343,
+        "mean_query_time_us": 13.003679300000002,
+        "qps_each": [
+          76737.43019023316,
+          76999.40406311225,
+          76901.31207711343
+        ],
+        "ann_recall": 0.73709,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-0-point-52.npz",
+            "sha256": "f3b2c433a12ef5e27c0670a0f80a1a026d0ecaaed0a4b28c9a0eb0388a966ff3",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-1-point-96.npz",
+            "sha256": "d30ab82366d5596fbf9cf640c3fcd3cf62b8606f6e552248d86d22964a790e4c",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-2-point-17.npz",
+            "sha256": "0ea0f0c523fa0bf8dd717349fc61921ddd63812616f1acc60009d6ddcb810584",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.85,
+      "profile": "full",
+      "legacy_query_params": {
+        "ef_search": 128,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 0,
+        "quantized_graph_max_expansions": 48,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 0,
+          "max_expansions": 48,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 128,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 62511.978857948656,
+        "mean_query_time_us": 15.996934,
+        "qps_each": [
+          62511.978857948656,
+          62936.204936143185,
+          62183.507709983875
+        ],
+        "ann_recall": 0.88805,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-0-point-48.npz",
+            "sha256": "0e466c53182c0f2d5efffc915b66602a0c0318a136bbb88e0d38d005698c8aa0",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-1-point-115.npz",
+            "sha256": "be9d5f708f6a1d6c61737fecbf8ba172e9857e8983a662a699d023fd4571f793",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-2-point-104.npz",
+            "sha256": "0c34eeecd21b38273bc9080ee48389fd409aefe9ebcd946101acfec1f03f63e0",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.9,
+      "profile": "full",
+      "legacy_query_params": {
+        "ef_search": 128,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 0.008,
+        "quantized_graph_max_expansions": 48,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 0.008,
+          "max_expansions": 48,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 128,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 59400.618298659836,
+        "mean_query_time_us": 16.834841600000004,
+        "qps_each": [
+          59638.69281575249,
+          59298.83890620065,
+          59400.618298659836
+        ],
+        "ann_recall": 0.90301,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-0-point-18.npz",
+            "sha256": "7fa48497eb54e0e3e51043fa159d0efeed9ebe6b3ec1bc37e8d403f43567c0e8",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-1-point-13.npz",
+            "sha256": "5073faf0257e7d90204d115c565968dcb16c5fe2db198915719dbe9e00595b0a",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-2-point-87.npz",
+            "sha256": "52bec764557f4be65cf1f2a6829b5ae2e33184d8a0976d509acb39a5992fe7a9",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.95,
+      "profile": "full",
+      "legacy_query_params": {
+        "ef_search": 128,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 0.038,
+        "quantized_graph_max_expansions": 64,
+        "quantized_graph_route_beam": 1,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 0.038,
+          "max_expansions": 64,
+          "route_beam": 1,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 128,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 47210.384192158046,
+        "mean_query_time_us": 21.1817806,
+        "qps_each": [
+          47210.384192158046,
+          47869.554239237485,
+          47156.15894543588
+        ],
+        "ann_recall": 0.95178,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-0-point-50.npz",
+            "sha256": "91ae55ba234caadba1ce0c9d4d1ad91862b3f36acde770fe7cccd9af71748c0e",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-1-point-108.npz",
+            "sha256": "0f8f446c7f08beed95aa005025d72db689fc6461dc8149dc3402e3e20cc9c79b",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-2-point-123.npz",
+            "sha256": "9db7c7d5e5a386f25f8db52b96c4c17939edc5587f8561f7fdbf11c276249c71",
+            "repeat": 2
+          }
+        ]
+      }
+    },
+    {
+      "target_ann_recall": 0.99,
+      "profile": "no_router",
+      "legacy_query_params": {
+        "ef_search": 2048,
+        "index_type": "kHNSW",
+        "quantized_graph_bucket_width": 0.002,
+        "quantized_graph_margin": 0.088,
+        "quantized_graph_max_expansions": 128,
+        "quantized_graph_route_beam": 0,
+        "quantized_graph_uncertainty_bonus": 0
+      },
+      "native_api_mapping": {
+        "search_options": {
+          "bucket_width": 0.002,
+          "margin": 0.088,
+          "max_expansions": 128,
+          "route_beam": 0,
+          "uncertainty_bonus": 0
+        },
+        "capacity_candidate": 2048,
+        "topk": 10,
+        "scan_limit": 0,
+        "validated_on_new_api": false
+      },
+      "same_session_best": {
+        "qps_median": 28695.66851796772,
+        "mean_query_time_us": 34.848465000000004,
+        "qps_each": [
+          28712.007811871208,
+          28666.357788572583,
+          28695.66851796772
+        ],
+        "ann_recall": 0.99018,
+        "evidence": [
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-0-point-31.npz",
+            "sha256": "11155428133ee533dad67297385b9bac66eec99d7c714a21c4aca859cf0677d1",
+            "repeat": 0
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-1-point-101.npz",
+            "sha256": "2458f7d13f58db1ea09eae8218edde893ca369e5f6cad799e85777289d996943",
+            "repeat": 1
+          },
+          {
+            "path": "bench_runs/zvec-ablation-full-20261117/sift-128-euclidean/repeat-2-point-97.npz",
+            "sha256": "169db4bb2c4ed5f1e3f972a35c0bdd04fcc6b21630f96fba68cbbbd8c1b8b5f7",
+            "repeat": 2
+          }
+        ]
+      }
+    }
+  ]
+}

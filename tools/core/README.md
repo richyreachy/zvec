@@ -7,6 +7,10 @@ SIFT, GIST and GloVe succinct presets for the r7i benchmark archive are in
 [bench/config/r7i/README.txt](bench/config/r7i/README.txt), with build settings,
 per-recall query settings and measured latency/QPS provenance.
 
+G9i historical full-query presets and explicit migration notes for the new native
+QG API are in [bench/config/g9i/README.txt](bench/config/g9i/README.txt).
+Their measured revision is `b44f0e09`; they are not revalidation of `3634b4a6`.
+
 ## COHERE experiments
 
 ### Getting COHERE Data
