@@ -72,7 +72,8 @@ Exact scoring uses SIMD SquaredEuclidean or 1 + negative InnerProduct; independe
 FP64 L2/cosine validation uses raw HDF5 data, outside the query timer.
 Rebuilding a base graph is OPTIONAL and changes the experiment: base-*.yaml are
 plain HNSW local_builder recipes (no QG keys). Set their BuildFile/IndexPath/
-DumpPath to local paths, run build-r7i/bin/local_builder base-DATASET.yaml,
+DumpPath to local paths, build its executable with cmake --build build-r7i --target local_builder -j 12,
+then run build-r7i/bin/local_builder base-DATASET.yaml,
 then update source_index and source_sha256 in a NEW campaign configuration.
 The archived native base graphs are required for exact reproduction of this run;
 parallel HNSW rebuilding is not claimed to produce identical graph topology.
@@ -103,6 +104,41 @@ Historical Python-call timing and background load differ; the old/new table is
 NOT a direct kernel speedup comparison. Reusing one snapshot for repetitions
 does not measure random variation from rebuilding indexes.
 
-Results are added only after complete validation. Large corpus/provider/index and
+Full revalidation is COMPLETE for this variant: 63 parameter slots, 945 measured rounds, 6,615,000 timed queries. All seven recall floors are reached on all three datasets. Large corpus/provider/index and
 raw per-query files stay outside Git. Final provenance and summary references
 are in the campaign result manifests; config check rejects legacy query fields.
+
+Validated deliverables
+  summary.csv / winners.json: actual ANN recall, strict ID recall, three repetition
+    QPS values, their median, mean query microseconds, full winning query parameters.
+  best-sift.json / best-gist.json / best-glove.json: executable winner replay inputs.
+    Set a fresh ARTIFACT_ROOT, then use qg_bench.py check/prepare/build/measure
+    with --config pointing to the chosen best-*.json (same --binary as above).
+  validation/DATASET/: per-round measurements, complete source/index/provider
+    manifests and references to every raw ID/score/latency/expansion file.
+  validation/provenance.json and hardware.txt: actual source, binary, build flags,
+    toolchain and hardware; raw large artifacts remain outside Git.
+  validation/paired-correctness.json: historical IDs and distance ties separately.
+  validation/capacity-validation.json: full-query paired capacity measurements.
+  comparison.txt: both branches' measured recall tiers under this native protocol.
+  validation/comparison.json: historical versus migrated versus tuned values;
+    historical timings are explicitly NOT directly comparable.
+
+Consistency checks (no external large files needed for metadata checks):
+  python tools/core/bench/config/r7i/check_configs.py
+Full audit on this machine, including every raw file hash and latency-derived QPS:
+  python tools/core/bench/config/r7i/check_configs.py --raw
+
+GloVe capacity caveat: ceil(1183514/1024)=1156 is the visited-bitmap threshold.
+capacity=2048 uses the bitmap. capacity=128 uses a 1024-slot probing table,
+which saturates for many high-recall queries; do not replace the high-recall
+capacity with a small value just because the returned IDs stay unchanged.
+The provider layout and Python/native timing boundary also changed from history;
+new/old QPS differences are not a measurement of kernel optimization alone.
+
+Measured source commit: 35afef03b24c5e8fa452b1f1523142471a53afbe
+ANN-Benchmarks test entry/config commit: 200f3c65be7e912a117d793bc1aff1359d2cab4f (c7ibench).
+New and historical output comparison: SIFT 70000/70000 and GIST 7000/7000 ordered ID lists match; GloVe 69994/70000 match across the seven parameter groups. The six differing query/parameter cases, including actual distances, are listed separately. They are not classified as ties or claimed to be ID-identical. All within-new-version repeats are bitwise stable.
+For all 126 campaign parameter slots, recall computed from native FP32 scores equals the independently recomputed FP64 distance-tolerance recall; see native-vs-independent-recall.json.
+
+The tuning budget is at most 14 added parameter slots per dataset. SIFT has 18 distinct configurations in 21 slots (12 distinct additions); GIST/GloVe each have 21 distinct configurations (14 additions). Duplicate SIFT target slots are excluded from repeated winner selection.
