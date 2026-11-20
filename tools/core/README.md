@@ -3,6 +3,9 @@
 
 This directory contains benchmarking scripts and reproducing steps.
 
+The [benchmark entry guide](bench/README.md) links to the r7i and g9i
+quantized graph presets in ANN-Benchmarks.
+
 ## COHERE experiments
 
 ### Getting COHERE Data

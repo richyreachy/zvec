@@ -30,9 +30,18 @@ cc_binary(
     STRICT PACKED
     SRCS bench.cc
     INCS ${PROJECT_ROOT_DIR}/src/core/
-    LIBS gflags yaml-cpp magic_enum core_framework core_metric core_quantizer core_utility core_knn_flat core_knn_flat_sparse core_knn_hnsw core_knn_hnsw_sparse core_knn_hnsw_rabitq core_knn_ivf_rabitq core_knn_vamana core_knn_cluster core_knn_ivf roaring core_interface core_knn_diskann
+    LIBS gflags yaml-cpp magic_enum core_framework core_metric core_quantizer core_utility core_knn_flat core_knn_flat_sparse core_knn_hnsw core_knn_hnsw_sparse core_knn_hnsw_rabitq core_knn_ivf_rabitq core_knn_vamana core_knn_cluster core_knn_ivf roaring core_interface core_knn_diskann rabitqlib zvec_turbo
 )
 
+# Historical runners build this target and invoke qg_bench directly.
+add_custom_target(qg_bench ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:bench>"
+            "$<TARGET_FILE_DIR:bench>/qg_bench${CMAKE_EXECUTABLE_SUFFIX}"
+    DEPENDS bench
+    VERBATIM
+)
+install(PROGRAMS "$<TARGET_FILE:bench>" DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        RENAME "qg_bench${CMAKE_EXECUTABLE_SUFFIX}")
 
 cc_binary(
     NAME recall_original

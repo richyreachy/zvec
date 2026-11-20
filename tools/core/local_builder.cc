@@ -227,6 +227,12 @@ int setup_build_from_original(const string &builder_class,
 }
 
 bool check_config(YAML::Node &config_root) {
+  if (config_root["QuantizedGraph"] || config_root["QuantizedGraphRouter"]) {
+    LOG_ERROR(
+        "Quantized graph construction now uses the independent "
+        "QuantizedGraphIndex API; HnswStreamer only builds HNSW");
+    return false;
+  }
   auto common = config_root["BuilderCommon"];
   if (!common) {
     LOG_ERROR("Can not find [BuilderClass] in config");
