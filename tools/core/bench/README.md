@@ -1,5 +1,17 @@
 # Quantized graph benchmarks
 
+The native runner in `tools/core/bench.cc` accepts the following commands:
+
+```sh
+bench qg export CONFIG
+bench qg build CONFIG PROFILE
+bench qg query CONFIG PROFILE OUT
+```
+
+`export` prepares a provider from a historical HNSW index. With an existing
+provider, start at `build`. Older scripts can invoke the same program as
+`qg_bench export|build|query`.
+
 ## r7i (Ice Lake)
 
 Use the [c7ibench adapter guide](https://github.com/richyreachy/ann-benchmarks/blob/c7ibench/ann_benchmarks/algorithms/zvec_qg/README.md)
