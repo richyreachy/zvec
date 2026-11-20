@@ -3,9 +3,8 @@
 
 This directory contains benchmarking scripts and reproducing steps.
 
-Quantized graph dataset presets are maintained in ANN-Benchmarks (`g9ibench`,
-`zvec_qg`). See [the benchmark entry guide](bench/README.md). The r7i campaign
-configuration is retained until its separate cleanup on the other server.
+The [benchmark entry guide](bench/README.md) links to the r7i and g9i
+quantized graph presets in ANN-Benchmarks.
 
 ## COHERE experiments
 
