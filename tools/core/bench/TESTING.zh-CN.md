@@ -1,23 +1,28 @@
 # 构建、检索配置与验证记录
 
-本目录的 `config/` 保存各数据集的构建、查询配置，`results/` 仅保存 SIFT、GIST、GloVe 三张 ANN Recall/QPS PNG 图。最近更新：2026-11-03。
+> 历史记录：本文保留原实验的说明、参数和实测值。旧 HNSW-QG YAML 已迁至
+> [ANN-Benchmarks 历史归档](https://github.com/richyreachy/ann-benchmarks/tree/g9ibench/benchmark_configs/legacy-qg-20261106/)。
+> 下文命令描述当时版本，不适用于当前独立 QG 入口；当前测试请使用
+> [zvec_qg 配置与说明](README.md)。r7i 配置不在本次清理范围内。
+
+原实验将构建、查询配置保存在 `config/`；这些 YAML 现已迁入上述历史归档。`results/` 仍保留 SIFT、GIST、GloVe 三张历史 ANN Recall/QPS PNG 图。实验记录更新至 2026-11-06（GloVe 配置；历史对比表保留原日期）。
 “最佳”限定为已有参数扫描和指定快照上的最佳已测选择，不保证任意机器、新建图或数据分布均最优。
 
 FP32/FP16 的统一配置与精度语义见 [存储精度说明](FP16.zh-CN.md)。
-当前构建配置在 C++ 中训练量化参数并持久化量化块，无需外部码本文件；历史表有单独的日期标题。
+该轮构建配置在 C++ 中训练量化参数并持久化量化块，无需外部码本文件；历史表有单独的日期标题。
 
 ## 配置选择
 
 | 场景 | 构建配置 | 检索配置 |
 |---|---|---|
-| Cohere FP32，嵌入路由 | [cohere_fp32_build.yaml](config/cohere_fp32_build.yaml) | [cohere_fp32_recall_bench.yaml](config/cohere_fp32_recall_bench.yaml) |
-| GIST FP32，嵌入路由 | [gist_fp32_build.yaml](config/gist_fp32_build.yaml) | [gist_fp32_recall_bench.yaml](config/gist_fp32_recall_bench.yaml) |
-| Cohere FP16，嵌入路由 | [cohere_fp16_build.yaml](config/cohere_fp16_build.yaml) | [cohere_fp16_recall_bench.yaml](config/cohere_fp16_recall_bench.yaml) |
-| GIST FP16，嵌入路由 | [gist_fp16_build.yaml](config/gist_fp16_build.yaml) | [gist_fp16_recall_bench.yaml](config/gist_fp16_recall_bench.yaml) |
-| GloVe FP32，双视图 | [glove_fp32_build.yaml](config/glove_fp32_build.yaml) | [glove_fp32_recall_bench.yaml](config/glove_fp32_recall_bench.yaml) |
-| SIFT FP32，单/双视图 | [原始图](config/sift_fp32_base_build.yaml) → [单视图](config/sift_fp32_v1_build.yaml) / [双视图](config/sift_fp32_v2_build.yaml) | [sift_fp32_recall_bench.yaml](config/sift_fp32_recall_bench.yaml) |
+| Cohere FP32，嵌入路由 | [cohere_fp32_build.yaml](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/cohere_fp32_build.yaml) | [cohere_fp32_recall_bench.yaml](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/cohere_fp32_recall_bench.yaml) |
+| GIST FP32，嵌入路由 | [gist_fp32_build.yaml](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/gist_fp32_build.yaml) | [gist_fp32_recall_bench.yaml](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/gist_fp32_recall_bench.yaml) |
+| Cohere FP16，嵌入路由 | [cohere_fp16_build.yaml](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/cohere_fp16_build.yaml) | [cohere_fp16_recall_bench.yaml](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/cohere_fp16_recall_bench.yaml) |
+| GIST FP16，嵌入路由 | [gist_fp16_build.yaml](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/gist_fp16_build.yaml) | [gist_fp16_recall_bench.yaml](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/gist_fp16_recall_bench.yaml) |
+| GloVe FP32，双视图 | [glove_fp32_build.yaml](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/glove_fp32_build.yaml) | [glove_fp32_recall_bench.yaml](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/glove_fp32_recall_bench.yaml) |
+| SIFT FP32，单/双视图 | [原始图](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/sift_fp32_base_build.yaml) → [单视图](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/sift_fp32_v1_build.yaml) / [双视图](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/sift_fp32_v2_build.yaml) | [sift_fp32_recall_bench.yaml](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/sift_fp32_recall_bench.yaml) |
 
-GloVe 的数据准备、七档查询 sweep、两种召回定义与资源说明见 [GloVe 最佳实践](GLOVE.zh-CN.md)。
+GloVe 的 M64/efConstruction800 构建、官方 ANN 90%/95%/99% 三档查询、数据准备与内存开销见 [GloVe 最佳实践](GLOVE.zh-CN.md)。
 
 文件名中的 `fp32` / `fp16` 表示数据库存储精度，接口输入均为 FP32。各组配置使用独立的工作索引、dump 和召回日志路径。旧的 `cohere_build.yaml`、`cohere_recall_bench.yaml`、`gist_build.yaml`、`gist_recall_bench.yaml` 也保留在 `config/` 中；已有命令需要在配置路径中补上 `config/`。
 
@@ -171,7 +176,7 @@ Cohere 的历史验证单独保留在下节。
 
 ![GloVe ANN Recall/QPS](results/glove.png)
 
-[完整查询参数和协议](config/annbenchmark_three_datasets.yaml) 保存在 `config/`。
+[完整查询参数和协议](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/annbenchmark_three_datasets.yaml) 保存在 `config/`。
 完整报告、汇总 CSV、确认点、原始结果及日志保存在本机
 `~/workspace/annbenchmark/ann-benchmarks/results/three-datasets-20261103/`。
 其中 `all-confirmed.json` 可作为 `plot_results.py` 的输入；SIFT 原生 recall 配置复核记录为 `native-cli-audit.json`，文本入口与 ANN 运行器使用的同一配置得到相同严格召回。

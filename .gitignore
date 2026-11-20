@@ -63,9 +63,10 @@ allure-*
 # config
 doc/
 config/
-# Versioned benchmark presets live under this specific config directory.
+# Dataset presets live in ANN-Benchmarks; retain the active r7i campaign.
 !/tools/core/bench/config/
-!/tools/core/bench/config/**
+/tools/core/bench/config/*
+!/tools/core/bench/config/r7i/
 examples/python/
 examples/c_api/
 logs/
