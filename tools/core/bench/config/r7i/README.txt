@@ -142,3 +142,9 @@ New and historical output comparison: SIFT 70000/70000 and GIST 7000/7000 ordere
 For all 126 campaign parameter slots, recall computed from native FP32 scores equals the independently recomputed FP64 distance-tolerance recall; see native-vs-independent-recall.json.
 
 The tuning budget is at most 14 added parameter slots per dataset. SIFT has 18 distinct configurations in 21 slots (12 distinct additions); GIST/GloVe each have 21 distinct configurations (14 additions). Duplicate SIFT target slots are excluded from repeated winner selection.
+
+Codec naming: executable presets now spell the RaBitQ neighbor codec as
+"rabitq". The former "native" spelling remains accepted as an alias. This
+changes neither encoding nor index format; archived validation/history records
+retain the original spelling and measured values. "native" in timing/entrypoint
+descriptions still means C++ execution, not a codec.

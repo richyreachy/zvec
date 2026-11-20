@@ -56,7 +56,7 @@ class QuantizedGraphBlockQuantizer {
       throw std::runtime_error("cannot read block codebook file");
     return data;
   }
-  // An explicit byte string (including empty/native) never consults the
+  // An explicit byte string (including empty/RaBitQ) never consults the
   // environment. Persisted snapshots must use exactly their embedded codec.
   explicit QuantizedGraphBlockQuantizer(size_t dimension, bool cosine = false,
                                         const std::string *model_data = nullptr)
@@ -86,7 +86,7 @@ class QuantizedGraphBlockQuantizer {
     if (header[4] == 0) {
       if (header[1] != 2 || header[3] != 0 || lambda_ != 0 ||
           file.peek() != std::char_traits<char>::eof())
-        throw std::runtime_error("invalid native transform model");
+        throw std::runtime_error("invalid RaBitQ transform model");
       return;
     }
     if ((header[4] != 1 && header[4] != 3) ||

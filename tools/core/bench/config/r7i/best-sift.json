@@ -25,7 +25,7 @@
       "name": "n64",
       "index_prefix": "${ARTIFACT_ROOT}/sift/n64",
       "encoding": {
-        "codec": "native",
+        "codec": "rabitq",
         "max_neighbors": 64,
         "threads": 8,
         "rotation_views": 2,

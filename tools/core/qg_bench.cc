@@ -123,7 +123,7 @@ QuantizedGraphBuildOptions build_options(const YAML::Node &p) {
   o.max_neighbors=c["max_neighbors"].as<size_t>(); o.threads=c["threads"].as<size_t>();
   o.rotation_views=c["rotation_views"].as<size_t>();
   auto codec=c["codec"].as<std::string>(), book=c["codebook"].as<std::string>();
-  if(codec=="native") o.codec=decltype(o.codec)::Native;
+  if(codec=="rabitq" || codec=="native") o.codec=decltype(o.codec)::RaBitQ;
   else if(codec=="global") o.codec=decltype(o.codec)::Global;
   else if(codec=="low_rank") o.codec=decltype(o.codec)::LowRank;
   else throw std::runtime_error("unknown codec");

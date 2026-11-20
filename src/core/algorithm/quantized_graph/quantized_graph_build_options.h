@@ -12,7 +12,8 @@ namespace zvec::core {
 // Build-time options only. The resulting codec and graph blocks are embedded
 // in the snapshot; search never trains or reads an external codec file.
 struct QuantizedGraphBuildOptions {
-  enum class Codec { Native, Global, LowRank };
+  // Native remains an alias for source compatibility. Keep the enum values.
+  enum class Codec { RaBitQ = 0, Global = 1, LowRank = 2, Native = RaBitQ };
   enum class Codebook { Hadamard, Gaussian };
 
   size_t max_neighbors = 32;
@@ -20,7 +21,7 @@ struct QuantizedGraphBuildOptions {
 
   // Independent signed rotations; persisted with the codec (1 is legacy).
   size_t rotation_views = 1;
-  Codec codec = Codec::Native;
+  Codec codec = Codec::RaBitQ;
   Codebook codebook = Codebook::Hadamard;
   size_t block_dimension = 6;
   size_t rank = 8;
@@ -37,7 +38,7 @@ struct QuantizedGraphBuildOptions {
            max_neighbors % 32 == 0 && threads <= 1024 &&
            (rotation_views == 1 || rotation_views == 2 ||
             rotation_views == 4) &&
-           (codec == Codec::Native || codec == Codec::Global ||
+           (codec == Codec::RaBitQ || codec == Codec::Global ||
             codec == Codec::LowRank) &&
            (codebook == Codebook::Hadamard || codebook == Codebook::Gaussian) &&
            (block_dimension == 4 || block_dimension == 6 ||

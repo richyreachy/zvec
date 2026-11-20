@@ -45,7 +45,7 @@ inline bool QuantizedGraphSupported() {
 
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 namespace quantized_graph_detail {
-// Version 1 binds the Block layout and codec packing. Empty/native and V1
+// Version 1 binds the Block layout and codec packing. Empty/RaBitQ and V1
 // codec payloads use one rotation; V2 payloads carry explicit rotation views.
 // All fields are little-endian uint64_t on the supported x86-64 platform.
 // Followed by codec bytes, graph {stride, count, entry}, then the raw arena.

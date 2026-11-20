@@ -40,21 +40,21 @@ class QuantizedGraphCodecBuilder {
     if (!options.valid() || !dimension || dimension > 4096 || !docs ||
         docs >= UINT32_MAX)
       throw std::invalid_argument("invalid codec training options or shape");
-    if (options.codec == Options::Codec::Native) {
-      Result native;
+    if (options.codec == Options::Codec::RaBitQ) {
+      Result rabitq;
       if (options.rotation_views != 1) {
         const uint32_t header[]{0x51474243, 2, uint32_t(dimension), 0, 0};
         const float lambda = 0;
         const uint32_t views = options.rotation_views;
-        native.data.append(reinterpret_cast<const char *>(header),
+        rabitq.data.append(reinterpret_cast<const char *>(header),
                            sizeof(header));
-        native.data.append(reinterpret_cast<const char *>(&lambda),
+        rabitq.data.append(reinterpret_cast<const char *>(&lambda),
                            sizeof(lambda));
-        native.data.append(reinterpret_cast<const char *>(&views),
+        rabitq.data.append(reinterpret_cast<const char *>(&views),
                            sizeof(views));
       }
 
-      return native;
+      return rabitq;
     }
 
     auto read_vector = [&](uint32_t id) {
