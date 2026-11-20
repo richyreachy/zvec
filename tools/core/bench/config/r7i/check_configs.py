@@ -58,7 +58,7 @@ def main():
         require(config['profiles'] == best_config['profiles'], 'winner changes build profile')
         for name, p in config['profiles'].items():
             require(p['encoding']['rotation_views'] == p['router']['rotation_views'], name + ': views mismatch')
-            require(p['encoding']['codec'] in ('native', 'global', 'low_rank'), 'unknown codec')
+            require(p['encoding']['codec'] in ('rabitq', 'native', 'global', 'low_rank'), 'unknown codec')
             require(p['encoding']['codebook'] in ('hadamard', 'gaussian'), 'unknown codebook')
         require(len(measurements) == len(config['points']) * 3, 'missing repetitions')
         require(len(summary['points']) == len(config['points']), 'missing point summaries')

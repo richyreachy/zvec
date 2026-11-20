@@ -125,11 +125,11 @@ TEST(QuantizedGraphRotatorViews,
 }
 
 TEST(QuantizedGraphRotatorViews,
-     NativeCodecMetadataIsSelfDescribingAndValidated) {
+     RaBitQCodecMetadataIsSelfDescribingAndValidated) {
   const std::string legacy;
   EXPECT_EQ(128u,
             QuantizedGraphBlockQuantizer(100, true, legacy).encoded_dim());
-  // V2 native descriptor: magic, version, input dimension, block=0, kind=0,
+  // V2 RaBitQ descriptor: magic, version, input dimension, block=0, kind=0,
   // lambda=0 (float bits), followed by rotation views.
   const uint32_t words[]{0x51474243, 2, 100, 0, 0, 0, 2};
   const std::string model(reinterpret_cast<const char *>(words), sizeof(words));

@@ -41,7 +41,7 @@ class QuantizedGraphBlockQuantizer {
   };
   // Covers rank-32, 4096D, four-view models, including their metadata.
   static constexpr size_t kMaxModelBytes = 4 << 20;
-  // Empty data selects the native codec; trained codecs are embedded bytes.
+  // Empty data selects the RaBitQ codec; trained codecs are embedded bytes.
   explicit QuantizedGraphBlockQuantizer(size_t dimension, bool cosine = false,
                                         const std::string &model_data = {})
       : model_data_(model_data), rotation_(dimension), cosine_(cosine) {
@@ -66,7 +66,7 @@ class QuantizedGraphBlockQuantizer {
     if (header[4] == 0) {
       if (header[1] != 2 || header[3] != 0 || lambda_ != 0 ||
           file.peek() != std::char_traits<char>::eof())
-        throw std::runtime_error("invalid native transform model");
+        throw std::runtime_error("invalid RaBitQ transform model");
       return;
     }
     if ((header[4] != 1 && header[4] != 3) ||

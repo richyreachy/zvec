@@ -63,7 +63,7 @@ def validate_config(c):
     for name, p in c['profiles'].items():
         e, r = p['encoding'], p['router']
         require(p['name'] == name and e['rotation_views'] == r['rotation_views'], 'profile/views')
-        require(e['codec'] in ('native', 'global', 'low_rank') and e['codebook'] in ('hadamard', 'gaussian'), 'enum mapping')
+        require(e['codec'] in ('rabitq', 'native', 'global', 'low_rank') and e['codebook'] in ('hadamard', 'gaussian'), 'enum mapping')
         require(32 <= e['max_neighbors'] <= 256 and e['max_neighbors'] % 32 == 0 and
                 e['rotation_views'] in (1, 2, 4), 'build shape')
     for p in c['points']:
