@@ -35,3 +35,32 @@ the g9i load-only adapter profiles; do not interchange the two formats.
 `config/r7i/` remains unchanged while the other server completes its campaign;
 its cleanup is handled separately. Its historical timings retain their own
 hardware, source and protocol provenance.
+
+## Construct directly from FP32 vectors
+
+Link `core_quantized_graph_builder` and pass row-major FP32 data to
+[`QuantizedGraphBuilder`](../../../src/core/algorithm/quantized_graph/quantized_graph_builder.h).
+The builder constructs a single-layer Vamana-style graph, trains the codec and
+optional router on the database vectors, and encodes the quantized blocks.
+Existing g9i profiles load their original frozen indexes.
+
+```cpp
+QuantizedGraphBuilder::Options options;
+options.encoding.max_neighbors = 64;
+options.search_list_size = 200;
+
+QuantizedGraphBuilder::Result built;
+int rc = QuantizedGraphBuilder::build(std::move(vectors), dimension, cosine,
+                                     options, built);
+```
+
+On success, IDs are input row numbers. Keep `built.data` alive when calling
+`built.index->search(*built.data, context)`. For cosine search, normalize the
+query before resetting the context and use cosine for exact scoring. To reopen
+a snapshot, persist the FP32 rows, adjacency and router alongside the QG blocks.
+
+Construction starts at the database row closest to the centroid. Each shuffled
+pass refines outgoing and reverse edges. The first pass uses alpha 1.0, and
+later passes use 1.2. The degree cap is `encoding.max_neighbors`. A directed
+cycle keeps each node reachable. A single construction thread makes the graph
+repeatable for a fixed seed. Parallel builds can produce different graphs.

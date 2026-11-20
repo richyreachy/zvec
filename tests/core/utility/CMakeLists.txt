@@ -9,6 +9,8 @@ foreach(CC_SRCS ${ALL_TEST_SRCS})
   set(QG_TEST_LIBS)
   if(CC_TARGET STREQUAL "quantized_graph_index_test")
     list(APPEND QG_TEST_LIBS core_quantized_graph)
+  elseif(CC_TARGET STREQUAL "quantized_graph_builder_test")
+    list(APPEND QG_TEST_LIBS core_quantized_graph_builder)
   endif()
 
   cc_gtest(
