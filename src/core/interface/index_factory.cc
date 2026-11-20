@@ -20,6 +20,25 @@
 #include "core/interface/utils/utils.h"
 
 namespace zvec::core_interface {
+namespace {
+bool HasLegacyQuantizedGraphOptions(const ailego::JsonObject &json) {
+  ailego::JsonValue value;
+  for (const char *key :
+       {"use_quantized_graph", "quantized_graph_model",
+        "quantized_graph_margin", "quantized_graph_bucket_width",
+        "quantized_graph_max_expansions", "quantized_graph_route_beam",
+        "quantized_graph_uncertainty_bonus"}) {
+    if (json.get(key, &value)) {
+      LOG_ERROR(
+          "%s belongs to the retired HNSW quantized-graph entry; use "
+          "QuantizedGraphIndex and QuantizedGraphQuery",
+          key);
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
 
 
 Index::Pointer IndexFactory::CreateAndInitIndex(const BaseIndexParam &param) {
@@ -79,6 +98,7 @@ BaseIndexParam::Pointer IndexFactory::DeserializeIndexParamFromJson(
     return nullptr;
   }
   ailego::JsonObject json_obj = json_value.as_object();
+  if (HasLegacyQuantizedGraphOptions(json_obj)) return nullptr;
   ailego::JsonValue tmp_json_value;
 
   IndexType index_type;
@@ -258,6 +278,7 @@ typename QueryParamType::Pointer IndexFactory::QueryParamDeserializeFromJson(
     return nullptr;
   }
   ailego::JsonObject json_obj = tmp_json_value.as_object();
+  if (HasLegacyQuantizedGraphOptions(json_obj)) return nullptr;
 
   auto parse_common_fields = [&](auto &param) -> bool {
     if (!extract_value_from_json(json_obj, "topk", param->topk,

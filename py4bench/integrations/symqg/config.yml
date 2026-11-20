@@ -1,0 +1,14 @@
+float:
+  any:
+    - name: symqg-py4bench
+      module: py4bench.ann
+      constructor: SymQGBench
+      docker_tag: ann-benchmarks-symqg-py4bench
+      disabled: false
+      base_args: ['@metric', {m: 16, ef_construction: 200}, 1]
+      run_groups:
+        search:
+          args: []
+          query_arg_groups:
+            - ef_search: [100, 200]
+              quantized_graph_max_expansions: [200]

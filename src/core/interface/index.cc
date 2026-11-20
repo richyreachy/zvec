@@ -592,6 +592,20 @@ int Index::open(const std::string &file_path, StorageOptions storage_options) {
   int ret = storage_options.type == StorageOptions::StorageType::kBufferPool
                 ? storage_->open(file_path, open_options)
                 : storage_->open(file_path, storage_options.create_new);
+  // FileDumper snapshots have their segment directory at the end of the file,
+  // whereas mutable MMapFileStorage requires a directory address in the header.
+  // Read-only consumers can load the same native chunks through ReadStorage.
+  if (ret == core::IndexError_Unsupported && storage_options.read_only &&
+      !storage_options.create_new) {
+    storage_ = core::IndexFactory::CreateStorage(
+        storage_options.type == StorageOptions::StorageType::kMMAP
+            ? "MMapFileReadStorage"
+            : "BufferReadStorage");
+    if (!storage_) return core::IndexError_Runtime;
+    ret = storage_->init(storage_params);
+    if (ret == 0) ret = storage_->open(file_path, false);
+  }
+
   if (ret != 0) {
     LOG_ERROR("Failed to open storage, path: %s, err: %s", file_path.c_str(),
               core::IndexError::What(ret));
@@ -601,11 +615,15 @@ int Index::open(const std::string &file_path, StorageOptions storage_options) {
   if (ret != 0) {
     return ret;
   }
-  if (!pending_quantizer_training_ &&
-      (streamer_ == nullptr ||
-       streamer_->open(storage_, storage_options.read_only) != 0)) {
-    LOG_ERROR("Failed to open streamer, path: %s", file_path.c_str());
-    return core::IndexError_Runtime;
+
+  if (!pending_quantizer_training_) {
+    ret = streamer_ ? streamer_->open(storage_, storage_options.read_only)
+                    : int(core::IndexError_Runtime);
+    if (ret != 0) {
+      LOG_ERROR("Failed to open streamer, path: %s, err: %s", file_path.c_str(),
+                core::IndexError::What(ret));
+      return ret;
+    }
   }
 
   // If a converter exists but reformer was not created during init() because

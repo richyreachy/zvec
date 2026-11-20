@@ -15,6 +15,7 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <functional>
@@ -36,6 +37,7 @@
 #endif
 #include <zvec/ailego/buffer/block_eviction_queue.h>
 #include <zvec/ailego/buffer/vector_page_table.h>
+#include <zvec/ailego/hash/crc32c.h>
 #include <zvec/ailego/utility/float_helper.h>
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_holder.h>
@@ -5617,4 +5619,17 @@ TEST(IndexInterface, NativeFp16CandidateBatchAroundTwelveIsExact) {
     ASSERT_EQ(0, index->close());
     zvec::test_util::RemoveTestFiles(path);
   }
+}
+
+
+TEST(IndexInterface, RejectRetiredQuantizedGraphEntry) {
+  EXPECT_EQ(nullptr,
+            IndexFactory::DeserializeIndexParamFromJson(
+                R"({"index_type":"kHNSW","use_quantized_graph":true})"));
+  EXPECT_EQ(nullptr,
+            IndexFactory::QueryParamDeserializeFromJson<HNSWQueryParam>(
+                R"({"index_type":"kHNSW","quantized_graph_margin":0.1})"));
+  EXPECT_NE(nullptr,
+            IndexFactory::QueryParamDeserializeFromJson<HNSWQueryParam>(
+                R"({"index_type":"kHNSW","ef_search":64})"));
 }
