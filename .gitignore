@@ -63,10 +63,10 @@ allure-*
 # config
 doc/
 config/
+# Dataset presets live in ANN-Benchmarks; retain the active r7i campaign.
 !/tools/core/bench/config/
 /tools/core/bench/config/*
 !/tools/core/bench/config/r7i/
-!/tools/core/bench/config/g9i/
 examples/python/
 examples/c_api/
 logs/

@@ -3,13 +3,9 @@
 
 This directory contains benchmarking scripts and reproducing steps.
 
-SIFT, GIST and GloVe succinct presets for the r7i benchmark archive are in
-[bench/config/r7i/README.txt](bench/config/r7i/README.txt), with build settings,
-per-recall query settings and measured latency/QPS provenance.
-
-G9i historical full-query presets and explicit migration notes for the new native
-QG API are in [bench/config/g9i/README.txt](bench/config/g9i/README.txt).
-Their measured revision is `b44f0e09`; they are not revalidation of `3634b4a6`.
+Quantized graph dataset presets are maintained in ANN-Benchmarks (`g9ibench`,
+`zvec_qg`). See [the benchmark entry guide](bench/README.md). The r7i campaign
+configuration is retained until its separate cleanup on the other server.
 
 ## COHERE experiments
 
