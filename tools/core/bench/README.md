@@ -1,5 +1,14 @@
 # Quantized graph benchmarks
 
+## r7i (Ice Lake)
+
+Use the [c7ibench adapter guide](https://github.com/richyreachy/ann-benchmarks/blob/c7ibench/ann_benchmarks/algorithms/zvec_qg/README.md)
+and the [exploration SIFT, GIST and GloVe presets](https://github.com/richyreachy/ann-benchmarks/tree/c7ibench/ann_benchmarks/algorithms/zvec_qg/configs/r7i-exploration).
+The [native campaign archive](https://github.com/richyreachy/ann-benchmarks/tree/c7ibench/benchmark-configs/r7i-new-api/exploration)
+contains the build inputs, recorded measurements and earlier configurations.
+
+## g9i
+
 Maintain dataset presets in [richyreachy/ann-benchmarks, branch g9ibench](https://github.com/richyreachy/ann-benchmarks/tree/g9ibench).
 Both exploration and succinct use its `zvec_qg` entry and
 [adapter instructions](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/ann_benchmarks/algorithms/zvec_qg/README.md).
@@ -32,6 +41,3 @@ ANN Recall@10 and report actual recall and memory alongside QPS.
 `qg_bench.py` and `qg_preflight.py` remain generic native-API tools and accept
 external configuration paths. Their native-campaign JSON schema differs from
 the g9i load-only adapter profiles; do not interchange the two formats.
-`config/r7i/` remains unchanged while the other server completes its campaign;
-its cleanup is handled separately. Its historical timings retain their own
-hardware, source and protocol provenance.
