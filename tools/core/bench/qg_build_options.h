@@ -3,6 +3,7 @@
 #pragma once
 
 #include <stdexcept>
+#include <string>
 #include "algorithm/quantized_graph/quantized_graph_builder.h"
 #include "algorithm/quantized_graph/quantized_graph_params.h"
 #include <yaml-cpp/yaml.h>
@@ -22,6 +23,37 @@ inline ailego::Params page_params(const YAML::Node &params) {
   return out;
 }
 
+inline QuantizedGraphBuildOptions encoding_options(const YAML::Node &e,
+                                                  bool legacy = false) {
+  QuantizedGraphBuildOptions enc;
+  const auto codec = e["codec"].as<std::string>();
+  using Codec = QuantizedGraphBuildOptions::Codec;
+  if (codec == "rabitq" || (legacy && codec == "native"))
+    enc.codec = Codec::RaBitQ;
+  else if (codec == "global")
+    enc.codec = Codec::Global;
+  else if (codec == "low_rank")
+    enc.codec = Codec::LowRank;
+  else
+    throw std::invalid_argument("unknown QG codec: " + codec);
+  const auto book = e["codebook"].as<std::string>();
+  using Codebook = QuantizedGraphBuildOptions::Codebook;
+  if (book == "hadamard")
+    enc.codebook = Codebook::Hadamard;
+  else if (book == "gaussian")
+    enc.codebook = Codebook::Gaussian;
+  else
+    throw std::invalid_argument("unknown QG codebook: " + book);
+  enc.max_neighbors = e["max_neighbors"].as<size_t>();
+  enc.rotation_views = e["rotation_views"].as<size_t>();
+  enc.block_dimension = e["block_dimension"].as<size_t>();
+  enc.rank = e["rank"].as<size_t>();
+  enc.training_samples = e["training_samples"].as<size_t>();
+  enc.center_weight = e["center_weight"].as<double>();
+  enc.seed = e["seed"].as<uint32_t>();
+  return enc;
+}
+
 inline QuantizedGraphBuilder::Options build_options(const YAML::Node &profile) {
   const auto b = profile["build"];
   QuantizedGraphBuilder::Options o;
@@ -34,33 +66,7 @@ inline QuantizedGraphBuilder::Options build_options(const YAML::Node &profile) {
   o.router_seed = b["router_seed"].as<uint64_t>();
   o.page_params = page_params(profile["page_params"]);
 
-  const auto e = b["encoding"];
-  using Encoding = QuantizedGraphBuildOptions;
-  auto &enc = o.encoding;
-  const auto codec = e["codec"].as<std::string>();
-  if (codec == "rabitq")
-    enc.codec = Encoding::Codec::RaBitQ;
-  else if (codec == "low_rank")
-    enc.codec = Encoding::Codec::LowRank;
-  else if (codec == "global")
-    enc.codec = Encoding::Codec::Global;
-  else
-    throw std::invalid_argument("unknown QG codec: " + codec);
-
-  const auto book = e["codebook"].as<std::string>();
-  if (book == "gaussian")
-    enc.codebook = Encoding::Codebook::Gaussian;
-  else if (book == "hadamard")
-    enc.codebook = Encoding::Codebook::Hadamard;
-  else
-    throw std::invalid_argument("unknown QG codebook: " + book);
-  enc.max_neighbors = e["max_neighbors"].as<size_t>();
-  enc.rotation_views = e["rotation_views"].as<size_t>();
-  enc.block_dimension = e["block_dimension"].as<size_t>();
-  enc.rank = e["rank"].as<size_t>();
-  enc.training_samples = e["training_samples"].as<size_t>();
-  enc.center_weight = e["center_weight"].as<double>();
-  enc.seed = e["seed"].as<uint32_t>();
+  o.encoding = encoding_options(b["encoding"]);
   return o;
 }
 
