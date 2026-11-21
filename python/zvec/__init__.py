@@ -30,7 +30,7 @@ if sys.maxsize <= 2**32:
     )
 
 
-from zvec._zvec import io_backend_description, io_backend_type
+from zvec._zvec import QuantizedGraph, io_backend_description, io_backend_type
 
 # ==============================
 # Public API — grouped by category
@@ -124,6 +124,7 @@ __all__ = [
     "io_backend_description",
     # Core classes
     "Collection",
+    "QuantizedGraph",
     "Doc",
     "DocList",
     # Schema
