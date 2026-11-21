@@ -90,7 +90,8 @@ class QuantizedGraphBlockQuantizer {
       return;
     }
     if ((header[4] != 1 && header[4] != 3) ||
-        (header[3] != 4 && header[3] != 6 && header[3] != 8))
+        (header[3] != 2 && header[3] != 3 &&
+         header[3] != 4 && header[3] != 6 && header[3] != 8))
       throw std::runtime_error("invalid block codebook shape");
     block_dim_ = header[3];
     groups_ = (encoded_dim() + block_dim_ - 1) / block_dim_;
