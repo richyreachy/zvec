@@ -5,6 +5,10 @@ Zvec core module
 from __future__ import annotations
 
 import collections
+from typing import Any
+
+import numpy as np
+from numpy.typing import NDArray
 
 from . import typing
 from .extension import ReRanker, RrfReRanker, WeightedReRanker
@@ -50,6 +54,45 @@ from .typing import (
 )
 from .typing.enum import LogLevel, LogType
 from .zvec import create_and_open, init, open
+
+class QuantizedGraph:
+    """Standalone quantized graph over FP32 rows with zero-based row IDs.
+
+    build accepts a C-contiguous matrix and either "l2" or "cosine".
+    Options include threads, passes, search_list_size, seed, router_anchors,
+    router_dimension, router_seed and an encoding dictionary. Encoding accepts
+    codec (rabitq, low_rank, global), max_neighbors, rotation_views,
+    block_dimension, rank, codebook, training_samples, center_weight and seed.
+
+    open reads the five independent snapshot files sharing the given prefix.
+    Build and open accept native proxima.quantized_graph.thp_* page parameters.
+    configure replaces the capacity, margin, max_expansions, route_beam,
+    bucket_width and uncertainty_bonus settings. search takes a contiguous
+    query vector and returns uint64 row IDs in increasing distance order.
+    Queries on one instance share a context and execute serially.
+    """
+
+    @staticmethod
+    def supported() -> bool: ...
+    @staticmethod
+    def build(
+        vectors: NDArray[np.float32],
+        *,
+        metric: str = "l2",
+        options: dict[str, Any] = ...,
+        page_params: dict[str, Any] = ...,
+    ) -> QuantizedGraph: ...
+    @staticmethod
+    def open(
+        prefix: str,
+        *,
+        count: int,
+        dimension: int,
+        metric: str = "l2",
+        page_params: dict[str, Any] = ...,
+    ) -> QuantizedGraph: ...
+    def configure(self, options: dict[str, Any]) -> None: ...
+    def search(self, query: NDArray[np.float32], k: int = 10) -> NDArray[np.uint64]: ...
 
 def io_backend_type() -> IOBackendType:
     """Returns the current I/O backend type for DiskAnn disk reads.
@@ -103,6 +146,7 @@ __all__: list = [
     "MetricType",
     "OptimizeOption",
     "QuantizeType",
+    "QuantizedGraph",
     "QuantizerParam",
     "Query",
     "ReRanker",
