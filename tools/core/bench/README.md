@@ -3,6 +3,10 @@
 The native runner in `tools/core/bench.cc` accepts the following commands:
 
 ```sh
+bench qg build G9I_PROFILE TRAIN.f32 SNAPSHOT_DIRECTORY
+bench qg query G9I_PROFILE SNAPSHOT_DIRECTORY QUERIES.f32 NEW_RESULT_DIRECTORY
+
+# Historical provider-based campaigns
 bench qg export CONFIG
 bench qg build CONFIG PROFILE
 bench qg query CONFIG PROFILE OUT
@@ -23,22 +27,25 @@ and the [CPU0 replay command](https://github.com/richyreachy/ann-benchmarks/blob
 
 ## g9i
 
-Maintain dataset presets in [richyreachy/ann-benchmarks, branch g9ibench](https://github.com/richyreachy/ann-benchmarks/tree/g9ibench).
-Both exploration and succinct use its `zvec_qg` entry and
-[adapter instructions](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/ann_benchmarks/algorithms/zvec_qg/README.md).
+Both Zvec worktrees use the `zvec_qg` entry in
+[richyreachy/ann-benchmarks](https://github.com/richyreachy/ann-benchmarks).
+Develop g9i presets on `g9ibench_test` and promote validated changes to
+`g9ibench`. The [test branch guide](https://github.com/richyreachy/ann-benchmarks/tree/g9ibench_test/ann_benchmarks/algorithms/zvec_qg) describes setup and use.
 
 - Current FP32 SIFT, GIST and GloVe presets:
   `ann_benchmarks/algorithms/zvec_qg/configs/g9i/{sift,gist,glove}.json`.
-- Historical g9i measurements and their checker: `benchmark_configs/g9i/`.
-- Retired HNSW-QG YAML recipes: `benchmark_configs/legacy-qg-20261106/`.
-  These preserve old experiments; they are not inputs to the current QG API.
+- [Historical measurements and configuration revisions](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench_test/ann_benchmarks/algorithms/zvec_qg/HISTORICAL_RESULTS.md).
 
-Set the three `ZVEC_QG_*_INDEX` paths and `ZVEC_QG_ARTIFACT` as described by the
-adapter. It verifies the frozen FP32 corpus/index/runtime fingerprints and
-queries the independent QuantizedGraphIndex API. It loads existing indexes;
-it does not build a graph or validate FP16 performance.
+The g9i presets build a single-layer independent graph directly from training
+rows, with degree 64 and construction list sizes 200 (SIFT/GIST) or 400
+(GloVe). The ANN adapter builds in memory by default. Set the corresponding
+`ZVEC_QG_*_INDEX` prefix to replay the five fingerprinted independent snapshot
+parts. Install the zvec package from the source branch being tested; the adapter
+imports `zvec.QuantizedGraph` and records the loaded extension fingerprint.
+The native build command above writes a new directory with prefix `index`.
+The public improved environment has its own release workflow.
 
-To save resolved copies for a new run, from your ANN-Benchmarks checkout:
+To save resolved copies for a new run, from your `g9ibench_test` checkout:
 
 ```bash
 # Use the registered exploration Python and a fresh role-specific output path.
@@ -54,4 +61,4 @@ ANN Recall@10 and report actual recall and memory alongside QPS.
 
 `qg_bench.py` and `qg_preflight.py` remain generic native-API tools and accept
 external configuration paths. Their native-campaign JSON schema differs from
-the g9i load-only adapter profiles; do not interchange the two formats.
+the g9i independent graph profiles; do not interchange the two formats.
