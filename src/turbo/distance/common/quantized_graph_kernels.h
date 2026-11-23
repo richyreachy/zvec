@@ -23,7 +23,6 @@ bool quantized_graph_rank_dot(const float *, const char *, size_t, float *);
 bool quantized_graph_rank_project(const float *, const float *, size_t, size_t,
                                   float *);
 
-
 bool quantized_graph_h8_lut(const float *, size_t, size_t, size_t, float *,
                             uint8_t *, float *, float *);
 
@@ -33,7 +32,6 @@ bool quantized_graph_block_lut(const float *q, size_t dimension,
                                const float *book, size_t block, size_t code_dim,
                                float *scratch, uint8_t *lut, float *delta,
                                float *sum_min);
-
 
 
 // Fused equivalent of rabitqlib's Lut::reset plus BatchQuery's correction

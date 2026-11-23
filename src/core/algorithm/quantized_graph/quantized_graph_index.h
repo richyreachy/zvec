@@ -141,12 +141,7 @@ struct DecodedGraph {
 
 }  // namespace quantized_graph_detail
 
-// Immutable index over any provider implementing valid(id), neighbors(id), and
-// get_vector(id, Vector&). It does not build the input graph: HNSW, Vamana, or
-// a caller-supplied adjacency list may provide it. The provider owns the
-// vectors, IDs and fallback adjacency; keep it alive and immutable through all
-// searches. The segment stores only quantized blocks/codec, bound to the
-// supplied router. Callers persist and bind the original corpus separately.
+// The provider must remain alive and immutable during searches.
 class QuantizedGraphIndex {
  public:
   static constexpr const char *kSnapshotSegment = "quantized_graph.blocks";

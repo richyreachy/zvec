@@ -46,22 +46,6 @@
 
 namespace zvec::core {
 
-// Fixed-batch quantized neighbor search over an externally owned FP32 graph.
-// Graph: valid(id), neighbors(id) (size/index access), and get_vector(id,
-// Vector&). A Graph::Vector owns/pins its FP32 data until destruction; data()
-// exposes it. IDs occupy [0, doc_cnt), with holes reported by valid(). Reads
-// must be safe across prebuild workers and concurrent searches. Codec:
-// kBatchSize, encoded_dim(), batch_bytes(), transform(), encode(), and
-// Query/prepare_query()/scan(..., uncertainty_bonus). Estimates and exact
-// scores must use the same metric; centroid selection and diversity pruning use
-// squared L2 on the first dimension coordinates. Optional trailing FP32
-// metadata is retained in storage vectors for exact scoring but excluded from
-// graph geometry. Context: reset_results() returns a bounded heap with
-// limit/size/emplace; query(), topk(), distance(), excluded(id),
-// reach_scan_limit(), on_expand(), quantized_graph_options(). distance()
-// accounts for the exact scan budget; excluded() means EXCLUDE. The caller
-// serializes prebuild/clear against searches. The source graph remains
-// immutable while this snapshot is active.
 template <class Codec>
 class QuantizedGraph {
  public:

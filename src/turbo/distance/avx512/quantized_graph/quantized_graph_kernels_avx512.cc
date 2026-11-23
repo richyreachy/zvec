@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include <algorithm>
 #include <cmath>
 #include <ailego/internal/cpu_features.h>
@@ -105,7 +104,6 @@ bool quantized_graph_h8_lut(const float *q, size_t dimension, size_t block,
   return true;
 }
 
-
 bool quantized_graph_rank_project(const float *matrix, const float *input,
                                   size_t rows, size_t columns, float *out) {
   if (!quantized_graph_avx512_available() || columns % 64) return false;
@@ -127,7 +125,6 @@ bool quantized_graph_rank_project(const float *matrix, const float *input,
   }
   return true;
 }
-
 
 bool quantized_graph_rank_dot(const float *query, const char *codes, size_t n,
                               float *out) {

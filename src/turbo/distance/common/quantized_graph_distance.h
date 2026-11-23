@@ -54,7 +54,6 @@ inline void ConvertQuantizedGraphCosineFactors(const float *center,
 
 #if RABITQ_SUPPORTED
 
-
 class QuantizedGraphQuery {
  public:
   void reset(const float *rotated_query, size_t padded_dim) {

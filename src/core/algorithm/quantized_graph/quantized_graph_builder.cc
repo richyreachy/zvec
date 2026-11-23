@@ -525,7 +525,6 @@ int QuantizedGraphBuilder::serialize(Part part) {
   return 0;
 }
 
-
 int QuantizedGraphBuilder::dump(const IndexDumper::Pointer &dumper) {
   if (!dumper || !built_.index) return IndexError_InvalidArgument;
   int rc = IndexHelper::SerializeToDumper(meta_, dumper.get());

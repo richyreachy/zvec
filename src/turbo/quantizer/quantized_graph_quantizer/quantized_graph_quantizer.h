@@ -353,7 +353,6 @@ class QuantizedGraphBlockQuantizer {
     }
   }
 
-
   std::string model_data_;
   size_t rank_ = 0;
   std::vector<float> rank_basis_;
