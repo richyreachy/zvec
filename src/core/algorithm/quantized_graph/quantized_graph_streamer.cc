@@ -3,7 +3,6 @@
 #include <zvec/core/framework/index_factory.h>
 #include "quantized_graph_searcher.h"
 
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 namespace zvec::core {
 class QuantizedGraphStreamer final : public IndexStreamer {
  public:
@@ -55,4 +54,3 @@ class QuantizedGraphStreamer final : public IndexStreamer {
 
 INDEX_FACTORY_REGISTER_STREAMER(QuantizedGraphStreamer);
 }  // namespace zvec::core
-#endif

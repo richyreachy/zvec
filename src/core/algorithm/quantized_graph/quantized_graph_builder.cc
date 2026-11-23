@@ -123,10 +123,6 @@ bool write_part(IndexStorage &store, const char *name, Emit emit) {
   seg->update_data_crc(crc);
   return true;
 }
-}  // namespace
-
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
-namespace {
 
 // Vamana-style refinement over the owned corpus and temporary adjacency.
 class VamanaGraph {
@@ -413,13 +409,6 @@ int QuantizedGraphBuilder::build(std::vector<float> vectors, size_t dimension,
   }
 }
 
-#else
-int QuantizedGraphBuilder::build(std::vector<float>, size_t, bool,
-                                 const Options &, Result &) {
-  return IndexError_Unsupported;
-}
-#endif
-
 int QuantizedGraphBuilder::init(const IndexMeta &meta,
                                 const ailego::Params &params) {
   Options options;
@@ -500,7 +489,6 @@ int QuantizedGraphBuilder::build(IndexThreads::Pointer,
   return 0;
 }
 
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 template <class Part>
 int QuantizedGraphBuilder::serialize(Part part) {
   if (!built_.index) return IndexError_InvalidArgument;
@@ -549,12 +537,4 @@ INDEX_FACTORY_REGISTER_BUILDER(QuantizedGraphBuilder);
 // Existing framework configurations and snapshots use this factory name.
 INDEX_FACTORY_REGISTER_BUILDER_ALIAS(QuantizedGraphIndexBuilder,
                                      QuantizedGraphBuilder);
-#else
-int QuantizedGraphBuilder::dump(const IndexDumper::Pointer &) {
-  return IndexError_Unsupported;
-}
-int QuantizedGraphBuilder::dump(IndexStorage &) {
-  return IndexError_Unsupported;
-}
-#endif
 }  // namespace zvec::core

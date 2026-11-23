@@ -4,7 +4,6 @@
 #include <zvec/core/framework/index_factory.h>
 #include "quantized_graph_query.h"
 
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 namespace zvec::core {
 namespace {
 template <class Buffer>
@@ -203,4 +202,3 @@ int QuantizedGraphSearcher::search_impl(const void *v, const IndexQueryMeta &m,
 
 INDEX_FACTORY_REGISTER_SEARCHER(QuantizedGraphSearcher);
 }  // namespace zvec::core
-#endif
