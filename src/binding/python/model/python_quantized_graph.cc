@@ -59,21 +59,6 @@ std::vector<T> read_part(const std::string &path, size_t max_elements) {
   return part;
 }
 
-// Keep the provider local so the compiler can inline the traversal.
-struct Provider {
-  using Vector = QuantizedGraphData::Vector;
-  const QuantizedGraphData &data;
-  bool valid(uint32_t id) const {
-    return data.valid(id);
-  }
-  int get_vector(uint32_t id, Vector &v) const {
-    return data.get_vector(id, v);
-  }
-  auto neighbors(uint32_t id) const {
-    return data.neighbors(id);
-  }
-};
-
 bool cosine_metric(const std::string &name) {
   if (name == "cosine") return true;
   if (name == "l2") return false;
@@ -207,7 +192,7 @@ class PythonQuantizedGraph {
     status(storage->init({}));
     status(storage->open(prefix + ".qg", false));
     status(QuantizedGraphIndex::load(
-        Provider{*data}, n, dim, cosine, dim * sizeof(float), router, false,
+        *data, n, dim, cosine, dim * sizeof(float), router, false,
         storage->get(QuantizedGraphIndex::kSnapshotSegment), index_, params));
     status(storage->close());
     data_ = std::move(data);
@@ -260,7 +245,7 @@ class PythonQuantizedGraph {
             "query coordinate exceeds the finite L2 range");
       }
       status(query_->reset(q, k, capacity_, options_));
-      status(index_->search(Provider{*data_}, *query_));
+      status(index_->search(*data_, *query_));
       const auto &hits = query_->results();
       check(hits.size() >= k, "insufficient results");
       for (size_t i = 0; i < k; ++i) ids[i] = hits[i].first;

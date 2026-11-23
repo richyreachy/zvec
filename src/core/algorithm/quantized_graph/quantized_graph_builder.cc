@@ -12,11 +12,120 @@
 #include <random>
 #include <thread>
 #include <utility>
+#include <zvec/ailego/encoding/json.h>
+#include <zvec/core/framework/index_factory.h>
+#include <zvec/core/framework/index_helper.h>
 #include <zvec/turbo/turbo.h>
 
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
-
 namespace zvec::core {
+namespace {
+class OptionsReader {
+ public:
+  explicit OptionsReader(const ailego::JsonObject &o) : obj_(o) {}
+  template <class T>
+  void take(const char *key, T &out) {
+    ailego::JsonValue v;
+    if (!obj_.get(key, &v)) return;
+    ++consumed_;
+    if constexpr (std::is_integral_v<T>) {
+      if (!v.is_integer() || v.as_integer() < 0 ||
+          uint64_t(v.as_integer()) > std::numeric_limits<T>::max()) {
+        ok_ = false;
+        return;
+      }
+      out = static_cast<T>(v.as_integer());
+    } else if constexpr (std::is_floating_point_v<T>) {
+      if (!v.is_integer() && !v.is_float()) {
+        ok_ = false;
+        return;
+      }
+      out = v.is_float() ? v.as_float() : double(v.as_integer());
+    } else {
+      if (!obj_.get(key, &out)) ok_ = false;
+    }
+  }
+  bool valid() const {
+    return ok_ && consumed_ == obj_.size();
+  }
+
+ private:
+  ailego::JsonObject obj_;
+  size_t consumed_ = 0;
+  bool ok_ = true;
+};
+
+bool parse_options(const std::string &json,
+                   QuantizedGraphBuilder::Options &out) {
+  ailego::JsonValue value;
+  if (!value.parse(json) || !value.is_object()) return false;
+  OptionsReader r(value.as_object());
+  r.take("passes", out.passes);
+  r.take("threads", out.threads);
+  r.take("search_list_size", out.search_list_size);
+  r.take("seed", out.seed);
+  r.take("router_seed", out.router_seed);
+  r.take("router_dimension", out.router_dimension);
+  r.take("router_anchors", out.router_anchors);
+  ailego::JsonObject encoding;
+  r.take("encoding", encoding);
+  auto &enc = out.encoding;
+  OptionsReader e(encoding);
+  std::string codec = "rabitq", codebook = "hadamard";
+  e.take("codec", codec);
+  e.take("codebook", codebook);
+  if (codec == "rabitq")
+    enc.codec = QuantizedGraphBuildOptions::Codec::RaBitQ;
+  else if (codec == "global")
+    enc.codec = QuantizedGraphBuildOptions::Codec::Global;
+  else if (codec == "low_rank")
+    enc.codec = QuantizedGraphBuildOptions::Codec::LowRank;
+  else
+    return false;
+  if (codebook == "gaussian")
+    enc.codebook = QuantizedGraphBuildOptions::Codebook::Gaussian;
+  else if (codebook != "hadamard")
+    return false;
+  e.take("max_neighbors", enc.max_neighbors);
+  e.take("rank", enc.rank);
+  e.take("rotation_views", enc.rotation_views);
+  e.take("block_dimension", enc.block_dimension);
+  e.take("training_samples", enc.training_samples);
+  e.take("center_weight", enc.center_weight);
+  e.take("seed", enc.seed);
+  return e.valid() && r.valid() && enc.valid() && out.passes &&
+         out.passes <= 8 && out.threads && out.threads <= 256 &&
+         out.search_list_size >= enc.max_neighbors &&
+         out.search_list_size <= (1u << 20) &&
+         (!out.router_anchors || out.router_dimension);
+}
+
+template <class Emit>
+bool write_part(IndexStorage &store, const char *name, Emit emit) {
+  size_t bytes = 0;
+  auto count = [&](const void *, size_t n) {
+    bytes += n;
+    return true;
+  };
+  if (!emit(count) || store.append(name, std::max<size_t>(bytes, 1)) != 0)
+    return false;
+  auto seg = store.get(name);
+  if (!seg) return false;
+  uint32_t crc = 0;
+  size_t pos = 0;
+  auto write = [&](const void *p, size_t n) {
+    if (!n) return true;
+    if (seg->write(pos, p, n) != n) return false;
+    pos += n;
+    crc = ailego::Crc32c::Hash(p, n, crc);
+    return true;
+  };
+  if (!emit(write) || pos != bytes || seg->resize(bytes) != bytes) return false;
+  seg->update_data_crc(crc);
+  return true;
+}
+}  // namespace
+
+#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 namespace {
 
 // Vamana-style refinement over the owned corpus and temporary adjacency.
@@ -305,12 +414,150 @@ int QuantizedGraphBuilder::build(std::vector<float> vectors, size_t dimension,
   }
 }
 
-}  // namespace zvec::core
 #else
-namespace zvec::core {
 int QuantizedGraphBuilder::build(std::vector<float>, size_t, bool,
                                  const Options &, Result &) {
   return IndexError_Unsupported;
 }
-}  // namespace zvec::core
 #endif
+
+int QuantizedGraphBuilder::init(const IndexMeta &meta,
+                                const ailego::Params &params) {
+  Options options;
+  std::string json = "{}";
+  if (!QuantizedGraphSupported()) return IndexError_Unsupported;
+  if (!QuantizedGraphSupportsMeta(meta) ||
+      (params.has("options") && !params.get("options", &json)) ||
+      !parse_options(json, options))
+    return IndexError_InvalidArgument;
+  cleanup();
+  meta_ = meta;
+  meta_.set_builder(name().empty() ? "QuantizedGraphBuilder" : name(), 0,
+                    params);
+  meta_.set_searcher("QuantizedGraphSearcher", 0, ailego::Params{});
+  meta_.set_streamer("QuantizedGraphStreamer", 0, ailego::Params{});
+  options_ = std::move(options);
+  initialized_ = true;
+  return 0;
+}
+
+int QuantizedGraphBuilder::cleanup() {
+  built_ = {};
+  keys_.clear();
+  stats_.clear();
+  initialized_ = false;
+  return 0;
+}
+
+bool QuantizedGraphBuilder::compatible(const IndexHolder::Pointer &h) const {
+  return initialized_ && h && h->count() && h->count() < UINT32_MAX &&
+         h->dimension() == meta_.dimension() &&
+         h->data_type() == IndexMeta::DT_FP32 &&
+         h->element_size() == meta_.element_size() &&
+         h->count() <= SIZE_MAX / meta_.element_size();
+}
+
+int QuantizedGraphBuilder::train(IndexThreads::Pointer,
+                                 IndexHolder::Pointer h) {
+  // Topology, codec and router are trained together during build().
+  return compatible(h) ? 0 : IndexError_InvalidArgument;
+}
+
+int QuantizedGraphBuilder::build(IndexThreads::Pointer,
+                                 IndexHolder::Pointer h) {
+  if (!compatible(h)) return IndexError_InvalidArgument;
+  const auto n = h->count(), dim = h->dimension();
+  std::vector<uint64_t> keys;
+  std::vector<float> rows(n * dim);
+  keys.reserve(n);
+  auto it = h->create_iterator();
+  if (!it) return IndexError_ReadData;
+  for (; it->is_valid(); it->next()) {
+    if (keys.size() >= n || !it->data()) return IndexError_ReadData;
+    std::memcpy(rows.data() + keys.size() * dim, it->data(),
+                dim * sizeof(float));
+    keys.push_back(it->key());
+  }
+  if (it->status() || keys.size() != n) return IndexError_ReadData;
+  if (!std::is_sorted(keys.begin(), keys.end())) {
+    std::vector<size_t> order(n);
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(),
+              [&](size_t a, size_t b) { return keys[a] < keys[b]; });
+    std::vector<float> sorted(rows.size());
+    for (size_t i = 0; i < n; ++i)
+      std::copy_n(rows.data() + order[i] * dim, dim, sorted.data() + i * dim);
+    rows.swap(sorted);
+    std::sort(keys.begin(), keys.end());
+  }
+  if (std::adjacent_find(keys.begin(), keys.end()) != keys.end())
+    return IndexError_InvalidArgument;
+  Result result;
+  int rc = build(std::move(rows), dim, meta_.metric_name() == "Cosine",
+                 options_, result);
+  if (rc) return rc;
+  keys_ = std::move(keys);
+  built_ = std::move(result);
+  stats_.set_built_count(n);
+  return 0;
+}
+
+#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
+template <class Part>
+int QuantizedGraphBuilder::serialize(Part part) {
+  if (!built_.index) return IndexError_InvalidArgument;
+  auto buffer = [&](const char *name, const auto &values) {
+    return part(name, [&](auto &write) {
+      return write(values.data(), values.size() * sizeof(*values.data()));
+    });
+  };
+  if (keys_.back() <= UINT32_MAX) {
+    std::vector<uint32_t> compact(keys_.begin(), keys_.end());
+    if (!buffer("qg.keys", compact)) return IndexError_WriteData;
+  } else if (!buffer("qg.keys64", keys_))
+    return IndexError_WriteData;
+  if (!buffer("qg.vectors", built_.data->vectors) ||
+      !buffer("qg.offsets", built_.data->offsets) ||
+      !buffer("qg.edges", built_.data->edges) ||
+      !buffer("qg.router", built_.router) ||
+      !part(QuantizedGraphIndex::kSnapshotSegment,
+            [&](auto &write) { return built_.index->write_snapshot(write); }))
+    return IndexError_WriteData;
+  stats_.set_dumped_count(keys_.size());
+  return 0;
+}
+
+
+int QuantizedGraphBuilder::dump(const IndexDumper::Pointer &dumper) {
+  if (!dumper || !built_.index) return IndexError_InvalidArgument;
+  int rc = IndexHelper::SerializeToDumper(meta_, dumper.get());
+  if (rc) return rc;
+  return serialize([&](const char *name, auto emit) {
+    quantized_graph_detail::SnapshotWriter write{dumper};
+    if (!emit(write)) return false;
+    const size_t pad = (32 - write.bytes % 32) % 32;
+    const char zeros[32]{};
+    return (!pad || dumper->write(zeros, pad) == pad) &&
+           dumper->append(name, write.bytes, pad, write.crc) == 0;
+  });
+}
+
+int QuantizedGraphBuilder::dump(IndexStorage &storage) {
+  return serialize([&](const char *name, auto emit) {
+    return write_part(storage, name, emit);
+  });
+}
+
+INDEX_FACTORY_REGISTER_BUILDER(QuantizedGraphBuilder);
+// Existing framework configurations and snapshots use this factory name.
+INDEX_FACTORY_REGISTER_BUILDER_ALIAS(QuantizedGraphIndexBuilder,
+                                     QuantizedGraphBuilder);
+#else
+int QuantizedGraphBuilder::dump(const IndexDumper::Pointer &) {
+  return IndexError_Unsupported;
+}
+int QuantizedGraphBuilder::dump(IndexStorage &) {
+  return IndexError_Unsupported;
+}
+#endif
+}  // namespace zvec::core

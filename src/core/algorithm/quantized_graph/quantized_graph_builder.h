@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <zvec/core/framework/index_builder.h>
 #include "quantized_graph_index.h"
 
 namespace zvec::core {
@@ -55,7 +56,7 @@ struct QuantizedGraphData {
 
 // Builds the topology, codec, router and quantized graph directly from FP32
 // rows.
-class QuantizedGraphBuilder {
+class QuantizedGraphBuilder final : public IndexBuilder {
  public:
   struct Options {
     QuantizedGraphBuildOptions encoding;
@@ -82,6 +83,30 @@ class QuantizedGraphBuilder {
   // On error, result retains its previous value.
   static int build(std::vector<float> vectors, size_t dimension, bool cosine,
                    const Options &options, Result &result);
+
+  using IndexBuilder::build;
+  using IndexBuilder::train;
+  int init(const IndexMeta &meta, const ailego::Params &params) override;
+  int train(IndexThreads::Pointer, IndexHolder::Pointer holder) override;
+  int build(IndexThreads::Pointer, IndexHolder::Pointer holder) override;
+  int dump(const IndexDumper::Pointer &dumper) override;
+  // Append the same QG segments to an existing Collection vector column.
+  int dump(IndexStorage &storage);
+  int cleanup() override;
+  const Stats &stats() const override {
+    return stats_;
+  }
+
+ private:
+  bool compatible(const IndexHolder::Pointer &holder) const;
+  template <class Part>
+  int serialize(Part part);
+  Stats stats_;
+  IndexMeta meta_;
+  Options options_;
+  Result built_;
+  std::vector<uint64_t> keys_;
+  bool initialized_ = false;
 };
 
 }  // namespace zvec::core

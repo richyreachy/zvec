@@ -6,8 +6,8 @@
 #include <optional>
 #include <tuple>
 #include <unordered_set>
-#include "algorithm/quantized_graph/quantized_graph_framework.h"
-#include "algorithm/quantized_graph/quantized_graph_index.h"
+#include <zvec/core/framework/index_factory.h>
+#include "algorithm/quantized_graph/quantized_graph_builder.h"
 
 namespace zvec {
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED
@@ -38,8 +38,7 @@ struct QuantizedGraphColumn::State {
 
 Status QuantizedGraphColumn::validate_options(
     const QuantizedGraphIndexParams &p) {
-  auto builder =
-      core::IndexFactory::CreateBuilder("QuantizedGraphIndexBuilder");
+  auto builder = core::IndexFactory::CreateBuilder("QuantizedGraphBuilder");
   if (!builder || !core::QuantizedGraphSupported())
     return Status::NotSupported("quantized graph unavailable");
   if (builder->init(core::IndexMeta{}, build_params(p)))
@@ -84,15 +83,15 @@ Status QuantizedGraphColumn::build(const FieldSchema &field,
   auto rows = raw.create_index_provider();
   if (!rows) return Status::InternalError("missing raw row provider");
   if (!rows->count()) return Status::OK();
-  auto builder =
-      core::IndexFactory::CreateBuilder("QuantizedGraphIndexBuilder");
+  auto builder = std::dynamic_pointer_cast<core::QuantizedGraphBuilder>(
+      core::IndexFactory::CreateBuilder("QuantizedGraphBuilder"));
   if (!builder) return Status::InternalError("missing QG builder");
   int rc = builder->init(
       make_meta(field),
       build_params(*std::static_pointer_cast<QuantizedGraphIndexParams>(
           field.index_params())));
   if (!rc) rc = builder->build(rows);
-  if (!rc) rc = core::AppendQuantizedGraph(*builder, *raw.storage_);
+  if (!rc) rc = builder->dump(*raw.storage_);
   if (rc) return native_status(rc);
   builder.reset();
   return open(field, raw, false, false);

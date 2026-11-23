@@ -14,6 +14,7 @@
 #include <zvec/ailego/utility/float_helper.h>
 #include <zvec/core/framework/index_dumper.h>
 #include <zvec/core/framework/index_error.h>
+#include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_storage.h>
 #include "quantized_graph_build_options.h"
 
@@ -30,6 +31,14 @@
 #endif
 
 namespace zvec::core {
+
+inline bool QuantizedGraphSupportsMeta(const IndexMeta &m) {
+  return m.meta_type() == IndexMeta::MT_DENSE &&
+         m.data_type() == IndexMeta::DT_FP32 && m.dimension() &&
+         m.dimension() <= 4096 &&
+         m.element_size() == size_t(m.dimension()) * sizeof(float) &&
+         (m.metric_name() == "Cosine" || m.metric_name() == "SquaredEuclidean");
+}
 
 inline bool QuantizedGraphSupported() {
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED

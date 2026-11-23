@@ -101,7 +101,8 @@ materialize documents and external IDs. A read-only collection also supports
 ## QG through the core index framework
 
 Link `core_quantized_graph_builder` together with the storage and metric modules.
-Use `IndexFactory::CreateBuilder("QuantizedGraphIndexBuilder")`, initialize it
+Use `IndexFactory::CreateBuilder("QuantizedGraphBuilder")`. The previous factory
+name `QuantizedGraphIndexBuilder` resolves to the same builder. Initialize it
 with dense FP32 metadata and a build-options JSON string in the `options`
 parameter, and call `build(holder)`. The holder supplies vectors and external
 64-bit keys. Topology construction and codec/router training share a single

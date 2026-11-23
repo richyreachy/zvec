@@ -114,7 +114,10 @@ TEST(QuantizedGraphFramework, BuildDumpAndQueryThroughBothReaders) {
     auto x = vectors(n, dim);
     auto holder = std::make_shared<RandomAccessIndexHolder>(meta);
     for (size_t i = n; i--;) holder->emplace(base + i, x.data() + i * dim);
-    auto b = IndexFactory::CreateBuilder("QuantizedGraphIndexBuilder");
+    const char *builder_name =
+        cosine ? "QuantizedGraphBuilder" : "QuantizedGraphIndexBuilder";
+    auto b = std::dynamic_pointer_cast<QuantizedGraphBuilder>(
+        IndexFactory::CreateBuilder(builder_name));
     ASSERT_TRUE(b);
     ailego::Params params;
     params.set("options",
@@ -143,6 +146,7 @@ TEST(QuantizedGraphFramework, BuildDumpAndQueryThroughBothReaders) {
     IndexFlow flow;
     ASSERT_EQ(0, flow.load(path));
     ASSERT_EQ("QuantizedGraphSearcher", flow.searcher()->name());
+    EXPECT_EQ(builder_name, flow.meta().builder_name());
     auto ctx = flow.create_context();
     ctx->set_topk(3);
     ASSERT_EQ(0, flow.search<IndexMeta::DT_FP32>(x.data(), dim, 2, ctx));
