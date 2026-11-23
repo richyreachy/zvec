@@ -31,6 +31,9 @@ cc_directory(interface)
 cc_directory(mixed_reducer)
 
 file(GLOB_RECURSE ALL_CORE_SRCS *.cc *.c *.h)
+list(FILTER ALL_CORE_SRCS EXCLUDE REGEX "/algorithm/quantized_graph/.*[.]cc$")
+get_target_property(qg_sources core_quantized_graph_builder SOURCES)
+list(APPEND ALL_CORE_SRCS ${qg_sources})
 
 # Remove algorithm/hnsw_rabitq implementation files if not supported.
 # interface/indexes/hnsw_rabitq_index.cc is kept because it provides the vtable
