@@ -26,6 +26,7 @@
 #include "db/common/utils.h"
 #include "db/index/column/fts_column/fts_types.h"
 #include "db/index/column/fts_column/tokenizer/tokenizer_factory.h"
+#include "db/index/column/vector_column/quantized_graph_column.h"
 #include "db/index/common/identifier_validation.h"
 #include "db/index/common/type_helper.h"
 
@@ -53,9 +54,9 @@ std::unordered_set<DataType> support_sparse_vector_type = {
 };
 
 std::unordered_set<IndexType> support_dense_vector_index = {
-    IndexType::FLAT,  IndexType::HNSW,       IndexType::HNSW_RABITQ,
-    IndexType::IVF,   IndexType::IVF_RABITQ, IndexType::DISKANN,
-    IndexType::VAMANA};
+    IndexType::FLAT,   IndexType::HNSW,           IndexType::HNSW_RABITQ,
+    IndexType::IVF,    IndexType::IVF_RABITQ,     IndexType::DISKANN,
+    IndexType::VAMANA, IndexType::QUANTIZED_GRAPH};
 
 std::unordered_set<IndexType> support_sparse_vector_index = {IndexType::FLAT,
                                                              IndexType::HNSW};
@@ -146,7 +147,9 @@ Status FieldSchema::validate() const {
             support_dense_vector_index.end()) {
           return Status::InvalidArgument(
               "Invalid schema: dense_vector's index_params only "
-              "support FLAT|HNSW|HNSW_RABITQ|IVF|IVF_RABITQ|DISKANN|VAMANA "
+              "support "
+              "FLAT|HNSW|HNSW_RABITQ|IVF|IVF_RABITQ|DISKANN|VAMANA|QUANTIZED_"
+              "GRAPH "
               "index, but "
               "field[",
               name_, "]'s index_type is ",
@@ -154,6 +157,21 @@ Status FieldSchema::validate() const {
         }
       }
 
+      if (index_params_->type() == IndexType::QUANTIZED_GRAPH) {
+        auto qg =
+            std::dynamic_pointer_cast<QuantizedGraphIndexParams>(index_params_);
+        if (!qg || data_type_ != DataType::VECTOR_FP32 || !dimension_ ||
+            dimension_ > 4096 ||
+            qg->quantize_type() != QuantizeType::UNDEFINED ||
+            (qg->metric_type() != MetricType::L2 &&
+             qg->metric_type() != MetricType::COSINE)) {
+          return Status::InvalidArgument(
+              "QuantizedGraph requires FP32 L2 or cosine vectors with "
+              "dimension 1..4096");
+        }
+        auto status = QuantizedGraphColumn::validate_options(*qg);
+        if (!status.ok()) return status;
+      }
       if (index_params_->type() == IndexType::HNSW_RABITQ ||
           index_params_->type() == IndexType::IVF_RABITQ) {
         if (dimension_ < kMinRabitqDimSize || dimension_ > kMaxRabitqDimSize) {

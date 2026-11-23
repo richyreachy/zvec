@@ -61,6 +61,64 @@ ANN Recall@10 and report actual recall and memory alongside QPS.
 external configuration paths. Their native-campaign JSON schema differs from
 the g9i independent graph profiles; do not interchange the two formats.
 
+## Query through a Collection
+
+On a QG-capable CPU, build an independent graph on a dense FP32 field with L2
+or cosine distance. Given a populated collection and a contiguous FP32 query
+vector, the public Python API accepts the same build and search settings as
+the standalone graph.
+
+```python
+import zvec
+
+collection.create_index(
+    "embedding",
+    zvec.QuantizedGraphIndexParam(
+        metric_type=zvec.MetricType.L2,
+        options={"threads": 8, "encoding": {"max_neighbors": 64}},
+    ),
+)
+collection.optimize()
+hits = collection.query(
+    zvec.Query(
+        field_name="embedding",
+        vector=query_vector,
+        param=zvec.QuantizedGraphQueryParam(capacity=128, max_expansions=64),
+    ),
+    topk=10,
+    include_vector=False,
+    output_fields=[],
+)
+external_ids = [doc.id for doc in hits]
+```
+
+Each sealed segment stores its graph, router and row mapping together with the
+FP32 rows in the segment index file. Opening a collection restores the graph.
+New writes follow the usual mutable-segment lifecycle. Standard queries
+materialize documents and external IDs. A read-only collection also supports
+`query_internal_ids()` for callers that need numeric internal IDs.
+
+## QG through the core index framework
+
+Link `core_quantized_graph_builder` together with the storage and metric modules.
+Use `IndexFactory::CreateBuilder("QuantizedGraphIndexBuilder")`, initialize it
+with dense FP32 metadata and a build-options JSON string in the `options`
+parameter, and call `build(holder)`. The holder supplies vectors and external
+64-bit keys. Topology construction and codec/router training share a single
+build. Dump to a framework dumper and use `IndexFlow::load(path)` to select
+`QuantizedGraphSearcher` from the persisted metadata. Alternatively, initialize
+`QuantizedGraphStreamer` with the same geometry and open the sealed storage.
+Both accept raw FP32 query vectors, including unnormalized cosine queries.
+Create one context per concurrent caller, set Top-K, and call `context->update`
+with the query parameters (`capacity`, `margin`, `bucket_width`,
+`max_expansions`, `route_beam`, `uncertainty_bonus`).
+
+Collection uses the same builder. Its segment file also contains the raw vector
+column, so the builder appends named QG segments to that storage. Build-time
+readers use the streamer; reopened read-only segments use the searcher.
+The streamer queries immutable graphs. Pending inserts use Collection's mutable
+segment until the next seal or merge.
+
 ## Construct directly from FP32 vectors
 
 Link `core_quantized_graph_builder` and pass row-major FP32 data to

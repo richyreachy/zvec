@@ -220,6 +220,7 @@ class IndexType:
     IVF: typing.ClassVar[IndexType]  # value = <IndexType.IVF: 2>
     IVF_RABITQ: typing.ClassVar[IndexType]  # value = <IndexType.IVF_RABITQ: 7>
     UNDEFINED: typing.ClassVar[IndexType]  # value = <IndexType.UNDEFINED: 0>
+    QUANTIZED_GRAPH: typing.ClassVar[IndexType]
     VAMANA: typing.ClassVar[IndexType]  # value = <IndexType.VAMANA: 6>
     __members__: typing.ClassVar[
         dict[str, IndexType]

@@ -233,6 +233,19 @@ class QuantizedGraphIndex {
            const std::string &segment = kSnapshotSegment) const {
     using namespace quantized_graph_detail;
     if (!dumper) return IndexError_InvalidArgument;
+    SnapshotWriter write{dumper};
+    if (!write_snapshot(write)) return IndexError_WriteData;
+
+    const size_t padding = (32 - write.bytes % 32) % 32;
+    const char zero[32]{};
+    if (padding && dumper->write(zero, padding) != padding)
+      return IndexError_WriteData;
+    return dumper->append(segment, write.bytes, padding, write.crc);
+  }
+
+  template <class Writer>
+  bool write_snapshot(Writer &write) const {
+    using namespace quantized_graph_detail;
     const auto &codec = graph_.codec().model_data();
     const SnapshotHeader header{kSnapshotMagic,
                                 1,
@@ -244,17 +257,8 @@ class QuantizedGraphIndex {
                                 codec.size(),
                                 router_bytes_,
                                 router_crc_};
-    SnapshotWriter write{dumper};
-    if (!write(header.data(), sizeof(header)) ||
-        !write(codec.data(), codec.size()) || !graph_.dump(write))
-      return IndexError_WriteData;
-
-    // Retain the legacy segment alignment and CRC (padding is not payload).
-    const size_t padding = (32 - write.bytes % 32) % 32;
-    const char zero[32]{};
-    if (padding && dumper->write(zero, padding) != padding)
-      return IndexError_WriteData;
-    return dumper->append(segment, write.bytes, padding, write.crc);
+    return write(header.data(), sizeof(header)) &&
+           write(codec.data(), codec.size()) && graph_.dump(write);
   }
 
   template <class Graph>

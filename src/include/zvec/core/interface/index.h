@@ -37,6 +37,10 @@
 #include <zvec/export.h>
 #include "zvec/core/framework/index_provider.h"
 
+namespace zvec {
+class QuantizedGraphColumn;
+}
+
 namespace zvec::turbo {
 class Quantizer;
 }  // namespace zvec::turbo
@@ -166,6 +170,7 @@ class ZVEC_CORE_API Index {
 
   uint32_t get_doc_count() const;
 
+
   core::IndexStreamer::Pointer index_searcher();
 
   core::IndexProvider::Pointer create_index_provider() const;
@@ -232,6 +237,7 @@ class ZVEC_CORE_API Index {
 
  protected:
   friend class IndexFactory;
+  friend class zvec::QuantizedGraphColumn;
   Index() = default;
   int init(const BaseIndexParam &param);
 
