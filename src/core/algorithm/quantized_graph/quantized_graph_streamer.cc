@@ -5,8 +5,6 @@
 
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 namespace zvec::core {
-// Like DiskANN, the streamer serves a sealed index. Collection buffers new
-// documents in its writable segment and rebuilds the graph when sealing it.
 class QuantizedGraphStreamer final : public IndexStreamer {
  public:
   int init(const IndexMeta &meta, const ailego::Params &params) override {

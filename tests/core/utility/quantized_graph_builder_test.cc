@@ -102,8 +102,6 @@ void check_queries(const QuantizedGraphBuilder::Result &built) {
   }
 }
 
-// Exercise registration and default IndexFlow dispatch with no Collection
-// dependencies. Shuffled 64-bit external keys must survive the round trip.
 TEST(QuantizedGraphFramework, BuildDumpAndQueryThroughBothReaders) {
   if (!QuantizedGraphSupported()) GTEST_SKIP();
   for (bool cosine : {false, true}) {

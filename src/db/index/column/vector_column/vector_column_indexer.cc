@@ -39,8 +39,6 @@ Status VectorColumnIndexer::create_proxima_index(
     const vector_column_params::ReadOptions &read_options) {
   FieldSchema backing = field_schema_;
   if (field_schema_.index_type() == IndexType::QUANTIZED_GRAPH) {
-    // The ordinary segment reducer owns row-ID rewriting, deletion and raw FP32
-    // storage.
     backing.set_index_params(FlatIndexParams(MetricType::L2));
   }
   auto index_param_result =
