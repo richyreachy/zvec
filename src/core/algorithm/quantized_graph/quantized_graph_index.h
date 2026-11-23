@@ -46,19 +46,15 @@ inline bool QuantizedGraphSupportsMeta(const IndexMeta &m) {
          (m.metric_name() == "Cosine" || m.metric_name() == "SquaredEuclidean");
 }
 
-inline bool QuantizedGraphSupported() {
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED
+inline bool QuantizedGraphSupported() {
   return __builtin_cpu_supports("avx512f") &&
          __builtin_cpu_supports("avx512bw") &&
          __builtin_cpu_supports("avx512dq") &&
          __builtin_cpu_supports("avx512vl") &&
          __builtin_cpu_supports("avx512vnni") && __builtin_cpu_supports("fma");
-#else
-  return false;
-#endif
 }
 
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 namespace quantized_graph_detail {
 // Version 1 binds the Block layout and codec packing. Empty/RaBitQ and V1
 // codec payloads use one rotation; V2 payloads carry explicit rotation views.
@@ -372,6 +368,10 @@ class QuantizedGraphIndex {
   size_t stored_vector_bytes_, router_bytes_;
   uint32_t router_crc_;
 };
+#else
+inline bool QuantizedGraphSupported() {
+  return false;
+}
 #endif  // ZVEC_QUANTIZED_GRAPH_SUPPORTED
 
 }  // namespace zvec::core

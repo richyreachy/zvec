@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include <gtest/gtest.h>
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 #include <random>
 #include "algorithm/quantized_graph/quantized_graph_integer_center.h"
 #include "algorithm/quantized_graph/quantized_graph_integer_router.h"
@@ -220,4 +219,3 @@ TEST(QuantizedGraphIntegerCenter, ShiftedCosineBoundsIncludeExactDistances) {
   }
 }
 }  // namespace zvec::core
-#endif
