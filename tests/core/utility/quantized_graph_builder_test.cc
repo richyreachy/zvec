@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "algorithm/quantized_graph/quantized_graph_builder.h"
-#include <cmath>
-#include <cstdio>
-#include <zvec/core/framework/index_factory.h>
-#include <zvec/core/framework/index_flow.h>
+#include <gtest/gtest.h>
+
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 #include <unistd.h>
-#endif
+#include <cmath>
+#include <cstdio>
 #include <limits>
 #include <numeric>
 #include <random>
 #include <set>
-#include <gtest/gtest.h>
+#include <zvec/core/framework/index_factory.h>
+#include <zvec/core/framework/index_flow.h>
 #include "algorithm/quantized_graph/quantized_graph_query.h"
 
 namespace zvec::core {
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 namespace {
 
 std::vector<float> vectors(size_t count, size_t dimension) {
@@ -273,12 +272,14 @@ TEST(QuantizedGraphBuilder, RejectsInvalidInputsWithoutReplacingResult) {
 }
 
 }  // namespace
+}  // namespace zvec::core
 #else
+namespace zvec::core {
 TEST(QuantizedGraphBuilder, ReportsUnsupportedBackend) {
   QuantizedGraphBuilder::Result result;
   QuantizedGraphBuilder::Options config;
   EXPECT_EQ(IndexError_Unsupported,
             QuantizedGraphBuilder::build({}, 32, false, config, result));
 }
-#endif
 }  // namespace zvec::core
+#endif

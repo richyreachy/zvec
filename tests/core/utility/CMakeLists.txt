@@ -16,6 +16,9 @@ include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
 include(${PROJECT_ROOT_DIR}/cmake/option.cmake)
 
 file(GLOB_RECURSE ALL_TEST_SRCS *_test.cc)
+if(NOT ZVEC_QUANTIZED_GRAPH_SUPPORTED)
+  list(FILTER ALL_TEST_SRCS EXCLUDE REGEX "/quantized_graph_(index|integer_center|visit_set)_test[.]cc$")
+endif()
 
 foreach(CC_SRCS ${ALL_TEST_SRCS})
   get_filename_component(CC_TARGET ${CC_SRCS} NAME_WE)

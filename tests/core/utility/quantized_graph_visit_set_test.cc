@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include <gtest/gtest.h>
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 #include <array>
 #include <limits>
 #include <random>
@@ -102,4 +101,3 @@ TEST(QuantizedGraphVisitSet, DenseAndHashResetsMatchReference) {
   }
 }
 }  // namespace zvec::core
-#endif

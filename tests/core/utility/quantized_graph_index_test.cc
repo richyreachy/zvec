@@ -21,7 +21,6 @@
 #include "algorithm/quantized_graph/quantized_graph_query.h"
 
 namespace zvec::core {
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 namespace {
 
 struct ArrayGraph {
@@ -350,5 +349,4 @@ TEST(QuantizedGraphPages, IndependentParamsOverrideLegacyKeys) {
 }
 
 }  // namespace
-#endif
 }  // namespace zvec::core
