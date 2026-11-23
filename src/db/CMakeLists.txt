@@ -49,11 +49,10 @@ endif()
 cc_library(
   NAME zvec STATIC STRICT SRCS_NO_GLOB PACKED ${ZVEC_DB_LIBRARY_OPTIONS}
   SRCS ${ALL_DB_SRCS}
-  INCS . ${CMAKE_CURRENT_BINARY_DIR}
+  INCS . ${CMAKE_CURRENT_BINARY_DIR} ${PROJECT_ROOT_DIR}/src/core
   PUBINCS ${PROJECT_ROOT_DIR}/src/include/
   LIBS
     zvec_ailego
-    core_quantized_graph_builder
     zvec_core
     glog
     roaring
