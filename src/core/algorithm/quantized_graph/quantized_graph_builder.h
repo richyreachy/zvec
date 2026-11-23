@@ -83,7 +83,8 @@ class QuantizedGraphBuilder final : public IndexBuilder {
     bool valid() const {
       return encoding.valid() && passes > 0 && passes <= 8 && threads > 0 &&
              threads <= 256 && search_list_size >= encoding.max_neighbors &&
-             search_list_size <= (1u << 20) && (!router_anchors || router_dimension);
+             search_list_size <= (1u << 20) &&
+             (!router_anchors || router_dimension);
     }
   };
 

@@ -111,6 +111,35 @@ void check_queries(const QuantizedGraphBuilder::Result &built) {
   }
 }
 
+TEST(QuantizedGraphFramework, ValidateBuildOptions) {
+  if (!QuantizedGraphSupported()) GTEST_SKIP();
+  QuantizedGraphBuilder builder;
+  IndexMeta meta(IndexMeta::DT_FP32, 32);
+  auto init = [&](const char *json) {
+    ailego::Params params;
+    params.set("options", std::string(json));
+    return builder.init(meta, params);
+  };
+  EXPECT_EQ(0, builder.init(meta, {}));
+  for (const char *json : {
+           "{}", R"({"encoding":{}})",
+           R"({"seed":4294967295,"encoding":{"center_weight":1}})",
+           R"({"encoding":{"center_weight":0.5}})",
+           R"({"encoding":{"codebook":"gaussian","block_dimension":2}})"}) {
+    EXPECT_EQ(0, init(json)) << json;
+  }
+  for (const char *json : {
+           "[]", "{", R"({"thread":2})", R"({"threads":null})",
+           R"({"threads":"2"})", R"({"threads":2.0})", R"({"threads":0})",
+           R"({"seed":-1})", R"({"seed":4294967296})", R"({"encoding":[]})",
+           R"({"encoding":{"rotation_view":1}})",
+           R"({"encoding":{"center_weight":true}})",
+           R"({"encoding":{"codec":"unknown"}})",
+           R"({"encoding":{"codebook":"hadamard","block_dimension":2}})"}) {
+    EXPECT_EQ(IndexError_InvalidArgument, init(json)) << json;
+  }
+}
+
 TEST(QuantizedGraphFramework, BuildDumpAndQueryThroughBothReaders) {
   if (!QuantizedGraphSupported()) GTEST_SKIP();
   for (bool cosine : {false, true}) {
