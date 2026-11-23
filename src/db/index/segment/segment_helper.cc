@@ -766,14 +766,18 @@ Status SegmentHelper::ReduceVectorIndex(
 namespace {
 
 // Only the first indexer's file is reused as the merge base; the remaining
-// indexers are merged in via Merge(). Reuse is restricted to streaming
-// indexes (HNSW, FLAT). Builder-rebuild indexes (IVF, VAMANA) and HNSW_RABITQ,
-// IVF_RABITQ fall back to the full-rebuild merge.
+// indexers are appended via Merge(). A filter can renumber the base rows.
 bool CanReuseFirstIndexer(const std::vector<VectorColumnIndexer::Ptr> &indexers,
                           const FieldSchema &output_field,
                           const IndexFilter::Ptr &filter) {
   if (filter != nullptr || indexers.empty()) {
     return false;
+  }
+  if (output_field.index_type() == IndexType::DISKANN) {
+    const auto &params =
+        static_cast<const DiskAnnIndexParams &>(*output_field.index_params());
+    return params.streaming() &&
+           indexers.front()->field_schema() == output_field;
   }
   if (output_field.index_type() != IndexType::HNSW &&
       output_field.index_type() != IndexType::FLAT) {
