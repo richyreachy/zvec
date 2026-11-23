@@ -17,7 +17,6 @@
 #include "quantized_graph_builder.h"
 
 namespace zvec::core {
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 class QuantizedGraphSearcher final : public IndexSearcher {
  public:
   int init(const ailego::Params &p) override {
@@ -55,5 +54,4 @@ class QuantizedGraphSearcher final : public IndexSearcher {
   std::shared_ptr<QuantizedGraphIndex> graph_;
   IndexMetric::MatrixDistance distance_;
 };
-#endif
 }  // namespace zvec::core
