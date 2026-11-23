@@ -22,6 +22,7 @@
 #include <numeric>
 #include <random>
 #include <thread>
+#include <type_traits>
 #include <utility>
 #include <zvec/ailego/encoding/json.h>
 #include <zvec/core/framework/index_factory.h>
@@ -30,60 +31,43 @@
 
 namespace zvec::core {
 namespace {
-class OptionsReader {
- public:
-  explicit OptionsReader(const ailego::JsonObject &o) : obj_(o) {}
-  template <class T>
-  void take(const char *key, T &out) {
-    ailego::JsonValue v;
-    if (!obj_.get(key, &v)) return;
-    ++consumed_;
-    if constexpr (std::is_integral_v<T>) {
-      if (!v.is_integer() || v.as_integer() < 0 ||
-          uint64_t(v.as_integer()) > std::numeric_limits<T>::max()) {
-        ok_ = false;
-        return;
-      }
-      out = static_cast<T>(v.as_integer());
-    } else if constexpr (std::is_floating_point_v<T>) {
-      if (!v.is_integer() && !v.is_float()) {
-        ok_ = false;
-        return;
-      }
-      out = v.is_float() ? v.as_float() : double(v.as_integer());
-    } else {
-      if (!obj_.get(key, &out)) ok_ = false;
-    }
+template <class T>
+void take_option(ailego::JsonObject &options, const char *key, T &out) {
+  ailego::JsonValue value;
+  if (!options.get(key, &value)) return;
+  if constexpr (std::is_integral_v<T>) {
+    if (!value.is_integer() || value.as_integer() < 0 ||
+        uint64_t(value.as_integer()) > std::numeric_limits<T>::max())
+      return;
+    out = static_cast<T>(value.as_integer());
+  } else if constexpr (std::is_floating_point_v<T>) {
+    if (!value.is_integer() && !value.is_float()) return;
+    out = value.is_float() ? value.as_float() : double(value.as_integer());
+  } else if (!options.get(key, &out)) {
+    return;
   }
-  bool valid() const {
-    return ok_ && consumed_ == obj_.size();
-  }
-
- private:
-  ailego::JsonObject obj_;
-  size_t consumed_ = 0;
-  bool ok_ = true;
-};
+  // Unknown keys and invalid values remain for the final empty check.
+  options.unset(key);
+}
 
 bool parse_options(const std::string &json,
                    QuantizedGraphBuilder::Options &out) {
   ailego::JsonValue value;
   if (!value.parse(json) || !value.is_object()) return false;
-  OptionsReader r(value.as_object());
-  r.take("passes", out.passes);
-  r.take("threads", out.threads);
-  r.take("search_list_size", out.search_list_size);
-  r.take("seed", out.seed);
-  r.take("router_seed", out.router_seed);
-  r.take("router_dimension", out.router_dimension);
-  r.take("router_anchors", out.router_anchors);
+  auto &build = value.as_object();
+  take_option(build, "passes", out.passes);
+  take_option(build, "threads", out.threads);
+  take_option(build, "search_list_size", out.search_list_size);
+  take_option(build, "seed", out.seed);
+  take_option(build, "router_seed", out.router_seed);
+  take_option(build, "router_dimension", out.router_dimension);
+  take_option(build, "router_anchors", out.router_anchors);
   ailego::JsonObject encoding;
-  r.take("encoding", encoding);
+  take_option(build, "encoding", encoding);
   auto &enc = out.encoding;
-  OptionsReader e(encoding);
   std::string codec = "rabitq", codebook = "hadamard";
-  e.take("codec", codec);
-  e.take("codebook", codebook);
+  take_option(encoding, "codec", codec);
+  take_option(encoding, "codebook", codebook);
   if (codec == "rabitq")
     enc.codec = QuantizedGraphBuildOptions::Codec::RaBitQ;
   else if (codec == "global")
@@ -96,18 +80,14 @@ bool parse_options(const std::string &json,
     enc.codebook = QuantizedGraphBuildOptions::Codebook::Gaussian;
   else if (codebook != "hadamard")
     return false;
-  e.take("max_neighbors", enc.max_neighbors);
-  e.take("rank", enc.rank);
-  e.take("rotation_views", enc.rotation_views);
-  e.take("block_dimension", enc.block_dimension);
-  e.take("training_samples", enc.training_samples);
-  e.take("center_weight", enc.center_weight);
-  e.take("seed", enc.seed);
-  return e.valid() && r.valid() && enc.valid() && out.passes &&
-         out.passes <= 8 && out.threads && out.threads <= 256 &&
-         out.search_list_size >= enc.max_neighbors &&
-         out.search_list_size <= (1u << 20) &&
-         (!out.router_anchors || out.router_dimension);
+  take_option(encoding, "max_neighbors", enc.max_neighbors);
+  take_option(encoding, "rank", enc.rank);
+  take_option(encoding, "rotation_views", enc.rotation_views);
+  take_option(encoding, "block_dimension", enc.block_dimension);
+  take_option(encoding, "training_samples", enc.training_samples);
+  take_option(encoding, "center_weight", enc.center_weight);
+  take_option(encoding, "seed", enc.seed);
+  return build.empty() && encoding.empty() && out.valid();
 }
 
 template <class Emit>
@@ -354,11 +334,7 @@ int QuantizedGraphBuilder::build(std::vector<float> vectors, size_t dimension,
   if (!QuantizedGraphSupported()) return IndexError_Unsupported;
   if (!dimension || dimension > 4096 || vectors.empty() ||
       vectors.size() % dimension || vectors.size() / dimension >= UINT32_MAX ||
-      !options.encoding.valid() || !options.threads || options.threads > 256 ||
-      !options.passes || options.passes > 8 ||
-      options.search_list_size < options.encoding.max_neighbors ||
-      options.search_list_size > (1u << 20) ||
-      (options.router_anchors && !options.router_dimension))
+      !options.valid())
     return IndexError_InvalidArgument;
 
   try {
