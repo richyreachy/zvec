@@ -83,6 +83,10 @@ class MmapForwardStore : public BaseForwardStore {
     return physic_schema_;
   }
 
+  bool uses_buffered_ipc() const {
+    return ipc_cache_budget_ != 0;
+  }
+
   TablePtr get_table() override {
     return table_;
   }

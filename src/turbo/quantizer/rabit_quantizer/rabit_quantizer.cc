@@ -32,6 +32,7 @@
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_stats.h>
 #include <zvec/core/framework/index_threads.h>
+#include <zvec/core/interface/constants.h>
 
 
 #ifdef _MSC_VER
@@ -248,7 +249,7 @@ int RabitQuantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   uint32_t total_bits = 0;
   params.get(PARAM_RABITQ_TOTAL_BITS, &total_bits);
   if (total_bits == 0) {
-    total_bits = static_cast<uint32_t>(kDefaultRabitqTotalBits);
+    total_bits = core_interface::kDefaultRabitqTotalBits;
   }
   if (total_bits < 1 || total_bits > 9) {
     LOG_ERROR("Invalid total_bits: %u, must be in [1, 9]", total_bits);
@@ -260,7 +261,8 @@ int RabitQuantizer::init(const IndexMeta &meta, const ailego::Params &params) {
   // Parse num_clusters (default 16)
   uint32_t clusters = 0;
   params.get(PARAM_RABITQ_NUM_CLUSTERS, &clusters);
-  impl_->num_clusters = clusters ? clusters : kDefaultNumClusters;
+  impl_->num_clusters =
+      clusters ? clusters : core_interface::kDefaultHnswRabitqNumClusters;
 
   params.get(PARAM_RABITQ_FIXED_ZERO_CENTER, &impl_->fixed_center);
   if (impl_->fixed_center) impl_->num_clusters = 1;
