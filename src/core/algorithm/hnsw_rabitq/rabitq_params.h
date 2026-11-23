@@ -25,6 +25,9 @@ enum class RabitqMetricType {
   kIP = 1,
 };
 
+inline const std::string PARAM_RABITQ_FIXED_ZERO_CENTER(
+    "proxima.rabitq.fixed_zero_center");
+
 // RaBitQ Converter parameters
 inline const std::string PARAM_RABITQ_NUM_CLUSTERS(
     "proxima.rabitq.num_clusters");
