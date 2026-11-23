@@ -17,6 +17,15 @@
 
 using namespace zvec;
 
+TEST(IndexParamsTest, QuantizedGraphRejectsInvalidMetricAndQuantization) {
+  QuantizedGraphIndexParams params(MetricType::IP);
+  const IndexParams &base = params;
+  EXPECT_EQ(StatusCode::INVALID_ARGUMENT, base.validate().code());
+  params.set_metric_type(MetricType::L2);
+  params.set_quantize_type(QuantizeType::FP16);
+  EXPECT_EQ(StatusCode::INVALID_ARGUMENT, base.validate().code());
+}
+
 TEST(IndexParamsTest, IndexParamsBaseClass) {
   // Test that IndexParams is abstract and can't be instantiated directly
   // This is more of a compile-time check - we can't directly instantiate an
