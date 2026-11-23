@@ -49,21 +49,11 @@ inline QuantizedGraphBuilder::Options build_options(const YAML::Node &profile) {
   using Encoding = QuantizedGraphBuildOptions;
   auto &enc = o.encoding;
   const auto codec = e["codec"].as<std::string>();
-  if (codec == "rabitq")
-    enc.codec = Encoding::Codec::RaBitQ;
-  else if (codec == "low_rank")
-    enc.codec = Encoding::Codec::LowRank;
-  else if (codec == "global")
-    enc.codec = Encoding::Codec::Global;
-  else
+  if (!Encoding::parse_name(codec, enc.codec))
     throw std::invalid_argument("unknown QG codec: " + codec);
 
   const auto book = e["codebook"].as<std::string>();
-  if (book == "gaussian")
-    enc.codebook = Encoding::Codebook::Gaussian;
-  else if (book == "hadamard")
-    enc.codebook = Encoding::Codebook::Hadamard;
-  else
+  if (!Encoding::parse_name(book, enc.codebook))
     throw std::invalid_argument("unknown QG codebook: " + book);
   enc.max_neighbors = e["max_neighbors"].as<size_t>();
   enc.rotation_views = e["rotation_views"].as<size_t>();
