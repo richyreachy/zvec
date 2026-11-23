@@ -24,7 +24,7 @@
 #include <thread>
 #include <type_traits>
 #include <utility>
-#include <zvec/ailego/encoding/json.h>
+#include "quantized_graph_params.h"
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_helper.h>
 #include <zvec/turbo/turbo.h>
@@ -32,49 +32,51 @@
 namespace zvec::core {
 namespace {
 template <class T>
-void take_option(ailego::JsonObject &options, const char *key, T &out) {
-  ailego::JsonValue value;
-  if (!options.get(key, &value)) return;
-  if constexpr (std::is_integral_v<T>) {
-    if (!value.is_integer() || value.as_integer() < 0 ||
-        uint64_t(value.as_integer()) > std::numeric_limits<T>::max())
-      return;
-    out = static_cast<T>(value.as_integer());
-  } else if constexpr (std::is_floating_point_v<T>) {
-    if (!value.is_integer() && !value.is_float()) return;
-    out = value.as_float();
-  } else if (!QuantizedGraphBuildOptions::parse_name(value.as_stl_string(), out)) {
-    return;
+bool read_build_param(const ailego::Params &params, const std::string &key,
+                      T &out) {
+  const auto *value = params.hypercube().get(key);
+  if constexpr (std::is_enum_v<T>) {
+    return value->compatible<std::string>() &&
+           QuantizedGraphBuildOptions::parse_name(
+               value->unsafe_cast<std::string>(), out);
+  } else {
+    const bool unsigned_int = value->compatible<unsigned char>() ||
+                              value->compatible<unsigned short>() ||
+                              value->compatible<unsigned int>() ||
+                              value->compatible<unsigned long>() ||
+                              value->compatible<unsigned long long>();
+    const bool signed_int = value->compatible<signed char>() ||
+                            value->compatible<short>() || value->compatible<int>() ||
+                            value->compatible<long>() ||
+                            value->compatible<long long>();
+    if constexpr (std::is_floating_point_v<T>) {
+      return (signed_int || unsigned_int || value->compatible<double>() ||
+              value->compatible<float>()) && params.get(key, &out);
+    } else {
+      uint64_t n;
+      if (signed_int) {
+        int64_t i;
+        if (!params.get(key, &i) || i < 0) return false;
+        n = static_cast<uint64_t>(i);
+      } else if (!unsigned_int || !params.get(key, &n)) {
+        return false;
+      }
+      if (n > std::numeric_limits<T>::max() || n > INT64_MAX) return false;
+      out = static_cast<T>(n);
+      return true;
+    }
   }
-  // Unknown keys and invalid values remain for the final empty check.
-  options.unset(key);
 }
 
-bool parse_options(const std::string &json,
-                   QuantizedGraphBuilder::Options &out) {
-  ailego::JsonValue value;
-  if (!value.parse(json) || !value.is_object()) return false;
-  auto &build = value.as_object();
-  take_option(build, "passes", out.passes);
-  take_option(build, "threads", out.threads);
-  take_option(build, "search_list_size", out.search_list_size);
-  take_option(build, "seed", out.seed);
-  take_option(build, "router_seed", out.router_seed);
-  take_option(build, "router_dimension", out.router_dimension);
-  take_option(build, "router_anchors", out.router_anchors);
-  ailego::JsonObject encoding;
-  if (build.get("encoding", &encoding)) build.unset("encoding");
-  auto &enc = out.encoding;
-  take_option(encoding, "codec", enc.codec);
-  take_option(encoding, "codebook", enc.codebook);
-  take_option(encoding, "max_neighbors", enc.max_neighbors);
-  take_option(encoding, "rank", enc.rank);
-  take_option(encoding, "rotation_views", enc.rotation_views);
-  take_option(encoding, "block_dimension", enc.block_dimension);
-  take_option(encoding, "training_samples", enc.training_samples);
-  take_option(encoding, "center_weight", enc.center_weight);
-  take_option(encoding, "seed", enc.seed);
-  return build.empty() && encoding.empty() && out.valid();
+bool read_build_params(const ailego::Params &params,
+                       QuantizedGraphBuilder::Options &options) {
+  size_t read = 0;
+  auto load = [&](const std::string &key, auto &field) {
+    if (params.has(key) && read_build_param(params, key, field)) ++read;
+  };
+  qg_build_params::build_fields(options, load);
+  qg_build_params::encoding_fields(options.encoding, load);
+  return read == params.hypercube().cubes().size() && options.valid();
 }
 
 template <class Emit>
@@ -386,11 +388,9 @@ int QuantizedGraphBuilder::build(std::vector<float> vectors, size_t dimension,
 int QuantizedGraphBuilder::init(const IndexMeta &meta,
                                 const ailego::Params &params) {
   Options options;
-  std::string json = "{}";
   if (!QuantizedGraphSupported()) return IndexError_Unsupported;
   if (!QuantizedGraphSupportsMeta(meta) ||
-      (params.has("options") && !params.get("options", &json)) ||
-      !parse_options(json, options))
+      !read_build_params(params, options))
     return IndexError_InvalidArgument;
   cleanup();
   meta_ = meta;

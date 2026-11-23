@@ -26,6 +26,35 @@ TEST(IndexParamsTest, QuantizedGraphRejectsInvalidMetricAndQuantization) {
   EXPECT_EQ(StatusCode::INVALID_ARGUMENT, base.validate().code());
 }
 
+TEST(IndexParamsTest, QuantizedGraphTypedAndLegacyBuildConfig) {
+  QuantizedGraphIndexParams::BuildConfig config;
+  config.threads = 1;
+  config.router_seed = 202610261259;
+  auto &encoding = config.encoding.emplace();
+  encoding.codebook = "gaussian";
+  encoding.block_dimension = 2;
+  encoding.center_weight = 0.12345678901234566;
+  QuantizedGraphIndexParams typed(config, MetricType::COSINE);
+  QuantizedGraphIndexParams legacy(MetricType::COSINE, typed.options());
+  ASSERT_TRUE(legacy.build_config());
+  const auto &decoded = *legacy.build_config();
+  EXPECT_EQ(decoded.threads, config.threads);
+  EXPECT_EQ(decoded.router_seed, config.router_seed);
+  EXPECT_FALSE(decoded.passes);
+  ASSERT_TRUE(decoded.encoding);
+  EXPECT_EQ(decoded.encoding->center_weight, encoding.center_weight);
+  EXPECT_EQ(decoded.encoding->codebook, encoding.codebook);
+  EXPECT_EQ(decoded.encoding->block_dimension, encoding.block_dimension);
+
+  for (const char *json : {"[]", "{", R"({"unknown":1})", R"({"threads":null})",
+                           R"({"threads":"2"})", R"({"threads":2.0})",
+                           R"({"encoding":[]})", R"({"encoding":{"typo":1}})",
+                           R"({"encoding":{"center_weight":true}})"}) {
+    EXPECT_FALSE(QuantizedGraphIndexParams(MetricType::L2, json).build_config())
+        << json;
+  }
+}
+
 TEST(IndexParamsTest, IndexParamsBaseClass) {
   // Test that IndexParams is abstract and can't be instantiated directly
   // This is more of a compile-time check - we can't directly instantiate an

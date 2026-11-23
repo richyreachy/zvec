@@ -1118,14 +1118,22 @@ Examples:
   py::class_<QuantizedGraphIndexParams, VectorIndexParams,
              std::shared_ptr<QuantizedGraphIndexParams>>(
       m, "QuantizedGraphIndexParam")
-      .def(py::init([](MetricType metric_type, const py::dict &options) {
-             auto json = py::module_::import("json");
-             auto encoded =
-                 json.attr("dumps")(options, py::arg("sort_keys") = true,
-                                    py::arg("allow_nan") = false)
-                     .cast<std::string>();
-             return std::make_shared<QuantizedGraphIndexParams>(
-                 metric_type, std::move(encoded));
+      .def(py::init([](MetricType metric_type, const py::dict &options,
+                       const py::kwargs &fields) {
+             py::dict config = options.attr("copy")();
+             for (const auto &field : fields) {
+               if (config.contains(field.first))
+                 throw py::value_error("duplicate QG build option: " +
+                                       py::str(field.first).cast<std::string>());
+               config[field.first] = field.second;
+             }
+             auto encoded = py::module_::import("json").attr("dumps")(
+                 config, py::arg("sort_keys") = true, py::arg("allow_nan") = false);
+             auto params = std::make_shared<QuantizedGraphIndexParams>(
+                 metric_type, encoded.cast<std::string>());
+             if (!fields.empty() && !params->build_config())
+               throw py::value_error("invalid QG build options");
+             return params;
            }),
            py::arg("metric_type") = MetricType::L2,
            py::arg("options") = py::dict())

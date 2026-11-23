@@ -115,29 +115,27 @@ TEST(QuantizedGraphFramework, ValidateBuildOptions) {
   if (!QuantizedGraphSupported()) GTEST_SKIP();
   QuantizedGraphBuilder builder;
   IndexMeta meta(IndexMeta::DT_FP32, 32);
-  auto init = [&](const char *json) {
+  auto init = [&](const char *key, auto value) {
     ailego::Params params;
-    params.set("options", std::string(json));
+    params.set(std::string("zvec.quantized_graph.builder.") + key, value);
     return builder.init(meta, params);
   };
   EXPECT_EQ(0, builder.init(meta, {}));
-  for (const char *json : {
-           "{}", R"({"encoding":{}})",
-           R"({"seed":4294967295,"encoding":{"center_weight":1}})",
-           R"({"encoding":{"center_weight":0.5}})",
-           R"({"encoding":{"codebook":"gaussian","block_dimension":2}})"}) {
-    EXPECT_EQ(0, init(json)) << json;
-  }
-  for (const char *json : {
-           "[]", "{", R"({"thread":2})", R"({"threads":null})",
-           R"({"threads":"2"})", R"({"threads":2.0})", R"({"threads":0})",
-           R"({"seed":-1})", R"({"seed":4294967296})", R"({"encoding":[]})",
-           R"({"encoding":{"rotation_view":1}})",
-           R"({"encoding":{"center_weight":true}})",
-           R"({"encoding":{"codec":"unknown"}})",
-           R"({"encoding":{"codebook":"hadamard","block_dimension":2}})"}) {
-    EXPECT_EQ(IndexError_InvalidArgument, init(json)) << json;
-  }
+  EXPECT_EQ(0, init("seed", UINT32_MAX));
+  EXPECT_EQ(0, init("encoding.center_weight", 0.5));
+  EXPECT_EQ(0, init("encoding.center_weight", 1));
+  EXPECT_EQ(0, init("encoding.codebook", std::string("gaussian")));
+  EXPECT_EQ(IndexError_InvalidArgument, init("threads", std::string("2")));
+  EXPECT_EQ(IndexError_InvalidArgument, init("threads", 2.0));
+  EXPECT_EQ(IndexError_InvalidArgument, init("threads", 0));
+  EXPECT_EQ(IndexError_InvalidArgument, init("seed", -1));
+  EXPECT_EQ(IndexError_InvalidArgument, init("seed", uint64_t{1} << 32));
+  EXPECT_EQ(IndexError_InvalidArgument, init("encoding.center_weight", true));
+  EXPECT_EQ(IndexError_InvalidArgument, init("encoding.rotation_view", 1));
+  EXPECT_EQ(IndexError_InvalidArgument, init("encoding.codec", std::string("unknown")));
+  ailego::Params old;
+  old.set("options", std::string("{}"));
+  EXPECT_EQ(IndexError_InvalidArgument, builder.init(meta, old));
 }
 
 TEST(QuantizedGraphFramework, BuildDumpAndQueryThroughBothReaders) {
@@ -156,9 +154,11 @@ TEST(QuantizedGraphFramework, BuildDumpAndQueryThroughBothReaders) {
         IndexFactory::CreateBuilder(builder_name));
     ASSERT_TRUE(b);
     ailego::Params params;
-    params.set("options",
-               std::string(
-                   R"({"threads":1,"router_anchors":8,"router_dimension":8})"));
+    params.set("zvec.quantized_graph.builder.threads", 1);
+    params.set("zvec.quantized_graph.builder.router_anchors", 8);
+    params.set("zvec.quantized_graph.builder.router_dimension", 8);
+    const double weight = 0.12345678901234566;
+    params.set("zvec.quantized_graph.builder.encoding.center_weight", weight);
     ASSERT_EQ(0, b->init(meta, params));
     ASSERT_EQ(0, b->train(holder));
     ASSERT_EQ(0, b->build(holder));
@@ -183,6 +183,11 @@ TEST(QuantizedGraphFramework, BuildDumpAndQueryThroughBothReaders) {
     ASSERT_EQ(0, flow.load(path));
     ASSERT_EQ("QuantizedGraphSearcher", flow.searcher()->name());
     EXPECT_EQ(builder_name, flow.meta().builder_name());
+    const auto &saved = flow.meta().builder_params();
+    EXPECT_FALSE(saved.has("options"));
+    EXPECT_EQ(1u, saved.get_as_uint32("zvec.quantized_graph.builder.threads"));
+    EXPECT_EQ(weight, saved.get_as_double(
+                          "zvec.quantized_graph.builder.encoding.center_weight"));
     auto ctx = flow.create_context();
     ctx->set_topk(3);
     ASSERT_EQ(0, flow.search<IndexMeta::DT_FP32>(x.data(), dim, 2, ctx));
