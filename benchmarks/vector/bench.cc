@@ -979,19 +979,10 @@ QuantizedGraphBuildOptions build_options(const YAML::Node &p) {
   o.rotation_views = c["rotation_views"].as<size_t>();
   auto codec = c["codec"].as<std::string>(),
        book = c["codebook"].as<std::string>();
-  if (codec == "rabitq" || codec == "native")
-    o.codec = decltype(o.codec)::RaBitQ;
-  else if (codec == "global")
-    o.codec = decltype(o.codec)::Global;
-  else if (codec == "low_rank")
-    o.codec = decltype(o.codec)::LowRank;
-  else
+  if (codec == "native") codec = "rabitq";
+  if (!QuantizedGraphBuildOptions::parse_name(codec, o.codec))
     throw std::runtime_error("unknown codec");
-  if (book == "hadamard")
-    o.codebook = decltype(o.codebook)::Hadamard;
-  else if (book == "gaussian")
-    o.codebook = decltype(o.codebook)::Gaussian;
-  else
+  if (!QuantizedGraphBuildOptions::parse_name(book, o.codebook))
     throw std::runtime_error("unknown codebook");
   o.block_dimension = c["block_dimension"].as<size_t>();
   o.rank = c["rank"].as<size_t>();

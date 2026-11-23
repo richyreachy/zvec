@@ -42,8 +42,8 @@ void take_option(ailego::JsonObject &options, const char *key, T &out) {
     out = static_cast<T>(value.as_integer());
   } else if constexpr (std::is_floating_point_v<T>) {
     if (!value.is_integer() && !value.is_float()) return;
-    out = value.is_float() ? value.as_float() : double(value.as_integer());
-  } else if (!options.get(key, &out)) {
+    out = value.as_float();
+  } else if (!QuantizedGraphBuildOptions::parse_name(value.as_stl_string(), out)) {
     return;
   }
   // Unknown keys and invalid values remain for the final empty check.
@@ -63,23 +63,10 @@ bool parse_options(const std::string &json,
   take_option(build, "router_dimension", out.router_dimension);
   take_option(build, "router_anchors", out.router_anchors);
   ailego::JsonObject encoding;
-  take_option(build, "encoding", encoding);
+  if (build.get("encoding", &encoding)) build.unset("encoding");
   auto &enc = out.encoding;
-  std::string codec = "rabitq", codebook = "hadamard";
-  take_option(encoding, "codec", codec);
-  take_option(encoding, "codebook", codebook);
-  if (codec == "rabitq")
-    enc.codec = QuantizedGraphBuildOptions::Codec::RaBitQ;
-  else if (codec == "global")
-    enc.codec = QuantizedGraphBuildOptions::Codec::Global;
-  else if (codec == "low_rank")
-    enc.codec = QuantizedGraphBuildOptions::Codec::LowRank;
-  else
-    return false;
-  if (codebook == "gaussian")
-    enc.codebook = QuantizedGraphBuildOptions::Codebook::Gaussian;
-  else if (codebook != "hadamard")
-    return false;
+  take_option(encoding, "codec", enc.codec);
+  take_option(encoding, "codebook", enc.codebook);
   take_option(encoding, "max_neighbors", enc.max_neighbors);
   take_option(encoding, "rank", enc.rank);
   take_option(encoding, "rotation_views", enc.rotation_views);

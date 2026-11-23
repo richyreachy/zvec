@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 
 namespace zvec::core {
 
@@ -42,6 +43,21 @@ struct QuantizedGraphBuildOptions {
   // Shrink the fitted center displacement toward the graph node. This is a
   // dataset-independent hyperparameter, not the fitted lambda itself.
   double center_weight = 1;
+
+  static bool parse_name(std::string_view name, Codec &out) {
+    if (name == "rabitq") out = Codec::RaBitQ;
+    else if (name == "global") out = Codec::Global;
+    else if (name == "low_rank") out = Codec::LowRank;
+    else return false;
+    return true;
+  }
+
+  static bool parse_name(std::string_view name, Codebook &out) {
+    if (name == "hadamard") out = Codebook::Hadamard;
+    else if (name == "gaussian") out = Codebook::Gaussian;
+    else return false;
+    return true;
+  }
 
   bool valid() const {
     return max_neighbors >= 32 && max_neighbors <= 256 &&
