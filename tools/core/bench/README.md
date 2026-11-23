@@ -62,3 +62,22 @@ ANN Recall@10 and report actual recall and memory alongside QPS.
 `qg_bench.py` and `qg_preflight.py` remain generic native-API tools and accept
 external configuration paths. Their native-campaign JSON schema differs from
 the g9i independent graph profiles; do not interchange the two formats.
+
+## Collection and standalone QG
+
+Use a dense FP32 field and L2 or cosine distance. On a populated collection:
+
+```python
+collection.create_index("v", zvec.QuantizedGraphIndexParam(
+    metric_type=zvec.MetricType.L2, options={"encoding": {"max_neighbors": 64}}))
+hits = collection.query(zvec.Query(
+    field_name="v", vector=query, param=zvec.QuantizedGraphQueryParam(capacity=128)),
+    topk=10, output_fields=[], include_vector=False)
+```
+
+The standalone API builds directly from FP32 rows with
+`zvec.QuantizedGraph.build(rows, metric="l2", options=...)` and returns row IDs
+from `graph.search(query, 10)`. Collection persists external keys and the QG
+snapshot in each sealed segment. Native framework users can create
+`QuantizedGraphBuilder` (also registered as `QuantizedGraphIndexBuilder`),
+then open its dump with `IndexFlow` or `QuantizedGraphStreamer`.

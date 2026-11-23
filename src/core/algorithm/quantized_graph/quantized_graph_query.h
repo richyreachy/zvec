@@ -15,12 +15,7 @@
 
 namespace zvec::core {
 
-// One context per concurrent query. Geometry queries are FP32 in the same
-// coordinate space as training (normalized for cosine). The supplied exact
-// distance handles the provider's FP32/FP16 storage and any trailing metadata.
-// distance_dimension may include trailing metric metadata; dimension is only
-// the geometry dimension. This avoids an extra distance wrapper per refinement.
-// Neither the query pointer nor the original vectors are copied or owned here.
+// Each concurrent query needs its own context and normalized cosine input.
 class QuantizedGraphQuery {
  public:
   using Heap = ailego::KeyValueHeap<uint32_t, float>;

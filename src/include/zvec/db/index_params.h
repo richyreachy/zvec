@@ -56,7 +56,7 @@ class ZVEC_API IndexParams {
     return type_ == IndexType::FLAT || type_ == IndexType::HNSW ||
            type_ == IndexType::HNSW_RABITQ || type_ == IndexType::IVF ||
            type_ == IndexType::IVF_RABITQ || type_ == IndexType::DISKANN ||
-           type_ == IndexType::VAMANA;
+           type_ == IndexType::VAMANA || type_ == IndexType::QUANTIZED_GRAPH;
   }
 
   IndexType type() const {
@@ -266,9 +266,34 @@ class ZVEC_API VectorIndexParams : public IndexParams {
   QuantizerParam quantizer_param_;
 };
 
-/*
- * Vector: Hnsw index params
- */
+// Build options use the native QG JSON vocabulary and are stored in the
+// collection manifest.
+class ZVEC_API QuantizedGraphIndexParams : public VectorIndexParams {
+ public:
+  explicit QuantizedGraphIndexParams(MetricType metric,
+                                     std::string options = "{}")
+      : VectorIndexParams(IndexType::QUANTIZED_GRAPH, metric),
+        options_(std::move(options)) {}
+  Ptr clone() const override {
+    return std::make_shared<QuantizedGraphIndexParams>(*this);
+  }
+  bool operator==(const IndexParams &other) const override {
+    auto p = dynamic_cast<const QuantizedGraphIndexParams *>(&other);
+    return p && metric_type_ == p->metric_type_ && options_ == p->options_;
+  }
+  std::string to_string() const override {
+    return vector_index_params_to_string("QuantizedGraphIndexParams",
+                                         metric_type_, quantize_type_) +
+           options_;
+  }
+  const std::string &options() const {
+    return options_;
+  }
+
+ private:
+  std::string options_;
+};
+
 class ZVEC_API HnswIndexParams : public VectorIndexParams {
  public:
   HnswIndexParams(

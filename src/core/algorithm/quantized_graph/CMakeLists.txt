@@ -10,8 +10,8 @@ target_link_libraries(core_quantized_graph INTERFACE
 
 # Standalone construction from FP32 rows is an opt-in link dependency.
 cc_library(
-    NAME core_quantized_graph_builder STATIC STRICT
-    SRCS quantized_graph_builder.cc
+    NAME core_quantized_graph_builder STATIC STRICT ALWAYS_LINK
+    SRCS quantized_graph_builder.cc quantized_graph_searcher.cc quantized_graph_streamer.cc
     LIBS core_quantized_graph
     INCS ${PROJECT_ROOT_DIR}/src/core
   )

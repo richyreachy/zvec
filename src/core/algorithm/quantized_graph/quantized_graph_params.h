@@ -13,8 +13,6 @@ inline const std::string kMinimum = "proxima.quantized_graph.thp_min_coverage";
 inline const std::string kFloor =
     "proxima.quantized_graph.thp_min_coverage_floor";
 
-// Independent names take precedence; old HNSW snapshots/callers remain usable.
-// Page admission parameters are runtime-only and never stored in the snapshot.
 inline std::string parameter_key(const ailego::Params &params,
                                  const std::string &key) {
   return params.has(key) ? key : "proxima.hnsw." + key.substr(8);

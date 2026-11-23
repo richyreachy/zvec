@@ -14,8 +14,6 @@
 
 namespace zvec::core {
 
-// Shared by codec training and block construction. Selection depends only on
-// the source graph and stored coordinates, never on a query or learned codec.
 template <class Graph>
 int SelectQuantizedGraphNeighbors(const Graph &entity, uint32_t id,
                                   const float *center_ptr, size_t dimension,
@@ -36,8 +34,6 @@ int SelectQuantizedGraphNeighbors(const Graph &entity, uint32_t id,
 
   const size_t original_neighbor_count = neighbors_out.size();
 
-  // Offline two-hop candidate repair. Fixed row capacity and the exact same
-  // query kernel are retained. No query or GT is used during construction.
   if (neighbors_out.size() < max_neighbors) {
     const size_t original = neighbors_out.size();
     std::array<NodeId, 512> seen;
@@ -71,12 +67,6 @@ int SelectQuantizedGraphNeighbors(const Graph &entity, uint32_t id,
     }
   }
 
-  // Trim to the block's degree bound like upstream SymphonyQG's fixed
-  // degree_bound_, but with the HNSW diversity heuristic so the truncated
-  // graph keeps short and long-range links and stays navigable: plain
-  // truncation loses several recall points because HNSW's link order is
-  // newest-first. Distances use squared L2 in coordinate space; for cosine
-  // these are the normalized coordinates, with norm metadata excluded.
   const size_t kMaxBlockNeighbors = max_neighbors;
   if (neighbors_out.size() > kMaxBlockNeighbors) {
     const size_t cnt = neighbors_out.size();

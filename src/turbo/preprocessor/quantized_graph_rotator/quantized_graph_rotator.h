@@ -22,10 +22,6 @@
 #include <turbo/distance/common/quantized_graph_kernels.h>
 
 namespace zvec::turbo {
-// One view preserves the historical randomized orthogonal transform exactly.
-// Multiple independently signed views form an isometric frame when each view
-// is scaled by 1/sqrt(views). This adds quantization directions, not source
-// dimensions. Views are explicit model metadata, never process environment.
 class QuantizedGraphRotator {
  public:
   static constexpr size_t kPasses = 1;

@@ -43,22 +43,6 @@
 
 namespace zvec::core {
 
-// Fixed-batch quantized neighbor search over an externally owned FP32 graph.
-// Graph: valid(id), neighbors(id) (size/index access), and get_vector(id,
-// Vector&). A Graph::Vector owns/pins its FP32 data until destruction; data()
-// exposes it. IDs occupy [0, doc_cnt), with holes reported by valid(). Reads
-// must be safe across prebuild workers and concurrent searches. Codec:
-// kBatchSize, encoded_dim(), batch_bytes(), transform(), encode(), and
-// Query/prepare_query()/scan(..., uncertainty_bonus). Estimates and exact
-// scores must use the same metric; centroid selection and diversity pruning use
-// squared L2 on the first dimension coordinates. Optional trailing FP32
-// metadata is retained in storage vectors for exact scoring but excluded from
-// graph geometry. Context: reset_results() returns a bounded heap with
-// limit/size/emplace; query(), topk(), distance(), excluded(id),
-// reach_scan_limit(), on_expand(), quantized_graph_options(). distance()
-// accounts for the exact scan budget; excluded() means EXCLUDE. The caller
-// serializes prebuild/load against searches. The source graph remains
-// immutable while this snapshot is active.
 template <class Codec>
 class QuantizedGraph {
  public:
@@ -176,11 +160,6 @@ class QuantizedGraph {
     return state;
   }
 
-  // One fixed-stride slot per node inside a single arena allocation, like
-  // upstream SymphonyQG's row layout: header, center vector, neighbor ids,
-  // then codec payloads. The fixed stride makes every block address pure
-  // arithmetic (base + id * stride) and keeps the index in one contiguous
-  // mapping. Trivially destructible; the arena is freed wholesale.
   struct Block {
     static constexpr size_t kCenterOffset = 64;
 
@@ -251,7 +230,6 @@ class QuantizedGraph {
                                            static_cast<size_t>(id) * stride_);
   }
 
-  // Prebuilt blocks are immutable for the lifetime of the snapshot.
   const Block *get_block(NodeId id) const {
     return id < arena_count_ ? slot(id) : nullptr;
   }
@@ -530,8 +508,6 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
         // Persisted slots must not contain uninitialized padding or dead lanes.
         std::memset(slot, 0, stride_);
         if (!entity.valid(id)) {
-          // Deleted ids never become expandable (blocks only store valid keys),
-          // but leave their slots as defined empty blocks instead of garbage.
           auto *empty = new (slot) Block{};
           empty->center_bytes = static_cast<uint32_t>(stored_center_bytes_);
           empty->neighbor_bytes = static_cast<uint32_t>(neighbor_bytes_);
@@ -586,8 +562,6 @@ int QuantizedGraph<Codec>::prebuild(const Graph &entity, size_t doc_cnt,
     for (double &value : centroid) value /= valid_count;
   }
 
-  // Entry point: level-0 node nearest the corpus centroid, matching upstream
-  // SymphonyQG, whose single-level search starts there.
   std::atomic<NodeId> next_entry_id{0};
   std::vector<NodeId> best_ids(nthreads, kInvalidNodeId);
   std::vector<double> best_dists(nthreads, std::numeric_limits<double>::max());
@@ -736,9 +710,6 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
           index.stored_center_bytes_);
       codes = reinterpret_cast<const char *>(neighbors) + index.neighbor_bytes_;
 #if defined(__GNUC__) || defined(__clang__)
-      // Fetch the row header and the start of its packed codes while the
-      // exact center distance is being computed. The layout is fixed for
-      // all arena blocks, so this needs no dependent header load.
       __builtin_prefetch(block, 0, 3);
       const size_t code_offset = codes - reinterpret_cast<const char *>(block);
       const size_t bytes = std::min(size_t{4096}, index.stride_ - code_offset);
@@ -1000,9 +971,6 @@ int QuantizedGraph<Codec>::search_impl(NodeId entry, const Graph &entity,
     }
   }
 
-  // As in SymphonyQG's result completion step, score unvisited neighbors if
-  // duplicate estimates or filters left fewer than k eligible results. Avoid
-  // building additional cached blocks and respect the exact-distance budget.
   for (NodeId id : expanded) {
     if (results.size() >= ctx.topk() || ctx.reach_scan_limit()) break;
     const auto &neighbors = entity.neighbors(id);

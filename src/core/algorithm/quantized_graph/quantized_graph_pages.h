@@ -143,9 +143,6 @@ inline bool read_coverage(const ailego::Params &params, const std::string &key,
          minimum <= 1.0;
 }
 
-// Select the highest admitted tier after one bounded preparation pass. Steps
-// are five percentage points; the final step is clamped to the configured
-// floor. Computing in percent avoids cumulative subtraction at 95/90/85/80.
 inline double admission_minimum(const Result &r, double target, double floor) {
   if (r.after == kUnknown) return target;
 
@@ -158,8 +155,6 @@ inline double admission_minimum(const Result &r, double target, double floor) {
   return minimum;
 }
 
-// Keep transient resource failures distinguishable from unsupported policy or
-// invalid input. Callers can release the failed index and retry with backoff.
 inline int admission_error(const Result &r, bool required,
                            double minimum = 1.0) {
   if (!required || r.ready(minimum)) return 0;
@@ -180,10 +175,6 @@ inline int admission_error(const Result &r, bool required,
   }
 }
 
-// Called only after all arena writes/validation and before publication. One
-// pass, at most 32 failed collapses, and a soft five-second budget: a blocking
-// kernel call itself cannot be interrupted by this deadline. Never touch the
-// partial trailing 2 MiB or discard/rewrite any vector data.
 template <class Ops>
 Result prepare(uintptr_t start, size_t bytes, Ops &ops, bool collapse = true) {
   Result r;
@@ -217,13 +208,6 @@ Result prepare(uintptr_t start, size_t bytes, Ops &ops, bool collapse = true) {
   return r;
 }
 
-// Runtime Params override QG_THP_POLICY/QG_THP_MIN_COVERAGE. prepare (default)
-// is best effort; hint only observes; require checks 0 < floor <= target <= 1.
-// Default target is 1; omitting the Params-only floor disables stepped
-// fallback. Coverage excludes the partial trailing 2 MiB. Admission does not
-// reserve pages: benchmarks must recheck mappings after timing. Callers may
-// retry NoMemory/NoReady with a fresh index; this function neither retries nor
-// exits.
 inline int prepare_arena(void *arena, size_t bytes,
                          const ailego::Params &params = {}) {
   const char *policy = std::getenv("QG_THP_POLICY");

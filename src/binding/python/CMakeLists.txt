@@ -57,6 +57,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
             $<TARGET_FILE:core_knn_vamana_static>
             $<TARGET_FILE:core_knn_cluster_static>
             $<TARGET_FILE:core_knn_diskann_static>
+            $<TARGET_FILE:core_quantized_graph_builder>
             $<TARGET_FILE:core_mix_reducer_static>
             $<TARGET_FILE:core_metric_static>
             $<TARGET_FILE:core_utility_static>
@@ -96,6 +97,7 @@ elseif (APPLE)
             -Wl,-force_load,$<TARGET_FILE:core_knn_vamana_static>
             -Wl,-force_load,$<TARGET_FILE:core_knn_cluster_static>
             -Wl,-force_load,$<TARGET_FILE:core_knn_diskann_static>
+            -Wl,-force_load,$<TARGET_FILE:core_quantized_graph_builder>
             -Wl,-force_load,$<TARGET_FILE:core_mix_reducer_static>
             -Wl,-force_load,$<TARGET_FILE:core_metric_static>
             -Wl,-force_load,$<TARGET_FILE:core_utility_static>
@@ -118,6 +120,7 @@ elseif (MSVC)
             core_knn_vamana_static
             core_knn_cluster_static
             core_knn_diskann_static
+            core_quantized_graph_builder
             core_mix_reducer_static
             core_metric_static
             core_utility_static

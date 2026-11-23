@@ -22,6 +22,7 @@
 #include <zvec/db/status.h>
 #include "zvec/db/index_params.h"
 #include "zvec/db/type.h"
+#include "quantized_graph_column.h"
 #include "vector_column_indexer.h"
 #include "vector_column_params.h"
 
@@ -105,6 +106,13 @@ class ProximaEngineHelper {
       int64_t *output_ids, float *output_scores) {
     auto *index = indexer.index.get();
     if (!index) return Status::InvalidArgument("Index not opened");
+    if (indexer.qg_) {
+      if (reference_indexer)
+        return Status::NotSupported("QG uses its stored FP32 distances");
+      return indexer.qg_->search_ids(
+          std::get<core_interface::DenseVector>(vector_data.vector).data,
+          query_params, topk, filter, output_ids, output_scores);
+    }
     auto search = [&](auto engine_query_param) -> Status {
       engine_query_param.topk = topk;
       if (query_params) {
@@ -232,6 +240,10 @@ class ProximaEngineHelper {
     }
     bool valid = false;
     switch (index_type) {
+      case IndexType::QUANTIZED_GRAPH:
+        valid = !params ||
+                dynamic_cast<const QuantizedGraphQueryParams *>(params.get());
+        break;
       case IndexType::VAMANA:
         valid = _update_query_param<VamanaQueryParams,
                                     core_interface::VamanaQueryParam>(

@@ -341,7 +341,6 @@ TEST(QuantizedGraphPages, LivePreparationPreservesEveryByte) {
   EXPECT_LE(r.attempts, 2);
   EXPECT_TRUE(r.after == kUnknown || r.after <= r.eligible);
 
-  // Availability depends on the host; preservation does not.
   bool identical = true;
   for (size_t i = 0; i < bytes; ++i)
     if (data[i] != static_cast<unsigned char>(i * 37 + 19)) identical = false;
@@ -390,7 +389,6 @@ TEST(QuantizedGraphPages, StrictModeRejectsUnavailablePagesBeforeQueries) {
   params.set(kPolicy, std::string("require"));
   params.set(kMinimum, 0.95);
 
-  // Both environment values are invalid; explicit native Params win.
   EXPECT_EQ(0, prepare_arena(data, 0, params));
   EXPECT_NE(0, prepare_arena(data, kPage, params));
 
