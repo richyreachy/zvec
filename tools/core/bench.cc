@@ -828,21 +828,25 @@ void status(int rc, const char *what) {
   if (rc)
     throw std::runtime_error(std::string(what) + ": " + std::to_string(rc));
 }
-template <class T>
-std::vector<T> read(const std::string &path) {
+template <class Buffer>
+Buffer read(const std::string &path) {
   std::ifstream f(path, std::ios::binary | std::ios::ate);
   check(bool(f), "open " + path);
-  auto size = f.tellg();
-  check(size >= 0 && size % sizeof(T) == 0, "size " + path);
-  std::vector<T> v(size / sizeof(T));
+  const auto size = f.tellg();
+  constexpr auto width = sizeof(typename Buffer::value_type);
+  check(size >= 0 && size % width == 0, "size " + path);
+  Buffer data;
+  data.resize(size / width);
   f.seekg(0);
-  check(bool(f.read(reinterpret_cast<char *>(v.data()), size)), "read " + path);
-  return v;
+  check(bool(f.read(reinterpret_cast<char *>(data.data()), size)),
+        "read " + path);
+  return data;
 }
-template <class T>
-void write(const std::string &path, const std::vector<T> &v) {
+template <class Buffer>
+void write(const std::string &path, const Buffer &data) {
   std::ofstream f(path, std::ios::binary);
-  f.write(reinterpret_cast<const char *>(v.data()), v.size() * sizeof(T));
+  f.write(reinterpret_cast<const char *>(data.data()),
+          data.size() * sizeof(typename Buffer::value_type));
   f.close();
   check(bool(f), "write " + path);
 }
@@ -864,15 +868,15 @@ struct Graph : QuantizedGraphData {
                              : c["train_shape"][0].as<size_t>();
     const auto p =
         snapshot.empty() ? c["provider_prefix"].as<std::string>() : snapshot;
-    vectors = read<float>(p + ".vectors");
-    offsets = read<uint64_t>(p + ".offsets");
-    edges = read<uint32_t>(p + ".edges");
+    vectors = read<std::vector<float>>(p + ".vectors");
+    offsets = read<std::vector<uint64_t>>(p + ".offsets");
+    edges = read<std::vector<uint32_t>>(p + ".edges");
     check(dimension && count && vectors.size() % dimension == 0 &&
               size() == count && offsets.size() == count + 1 &&
               offsets.front() == 0 && offsets.back() == edges.size(),
           "provider shape");
     if (snapshot.empty()) {
-      ids = read<uint64_t>(p + ".ids");
+      ids = read<std::vector<uint64_t>>(p + ".ids");
       check(ids.size() == count, "provider ID count");
       auto sorted = ids;
       std::sort(sorted.begin(), sorted.end());
@@ -961,7 +965,7 @@ QuantizedGraphBuildOptions build_options(const YAML::Node &p) {
 }
 void dump_graph(const std::string &prefix, const QuantizedGraphIndex &index,
                 const std::string &router) {
-  write(prefix + ".router", std::vector<char>(router.begin(), router.end()));
+  write(prefix + ".router", router);
   auto dumper = IndexFactory::CreateDumper("FileDumper");
   check(bool(dumper), "dumper");
   status(dumper->init({}), "dumper init");
@@ -996,8 +1000,6 @@ void build(const YAML::Node &c, const YAML::Node &p) {
 void build_from_rows(const YAML::Node &profile, const std::string &input,
                      const std::filesystem::path &output) {
   namespace fs = std::filesystem;
-  check(profile["graph_format"].as<std::string>() == "independent-fp32-v1",
-        "independent FP32 profile required");
   const auto shape = profile["train_shape"].as<std::vector<size_t>>();
   const auto dim = profile["dimension"].as<size_t>();
   const auto metric = profile["metric"].as<std::string>();
@@ -1005,7 +1007,7 @@ void build_from_rows(const YAML::Node &profile, const std::string &input,
             (metric == "euclidean" || metric == "angular"),
         "profile shape/metric");
   check(!fs::exists(output), "snapshot output already exists");
-  auto rows = read<float>(input);
+  auto rows = read<std::vector<float>>(input);
   check(rows.size() % dim == 0 && rows.size() / dim == shape[0],
         "training shape");
   QuantizedGraphBuilder::Result result;
@@ -1048,8 +1050,7 @@ void query(const YAML::Node &c, const YAML::Node &p, const std::string &dest,
   if (!independent) build_options(p);
   const auto prefix =
       independent ? snapshot : p["index_prefix"].as<std::string>();
-  auto rb = read<char>(prefix + ".router");
-  std::string router(rb.begin(), rb.end());
+  const auto router = read<std::string>(prefix + ".router");
   auto storage = IndexFactory::CreateStorage("MMapFileReadStorage");
   check(bool(storage), "snapshot storage factory");
   status(storage->init({}), "init snapshot storage");
@@ -1075,8 +1076,8 @@ void query(const YAML::Node &c, const YAML::Node &p, const std::string &dest,
     distance(a, b, d, out);
     if (cosine) *out += 1.f;
   };
-  auto queries = read<float>(independent ? query_file
-                                         : c["queries_file"].as<std::string>());
+  auto queries = read<std::vector<float>>(
+      independent ? query_file : c["queries_file"].as<std::string>());
   const size_t nq =
       independent ? queries.size() / dim : c["query_count"].as<size_t>();
   const size_t k = independent ? 10 : c["protocol"]["topk"].as<size_t>();
