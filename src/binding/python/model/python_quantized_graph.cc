@@ -125,22 +125,12 @@ QuantizedGraphBuilder::Options build_options(const py::dict &options) {
   using Encoding = QuantizedGraphBuildOptions;
   if (e.contains("codec")) {
     auto codec = e.attr("pop")("codec").cast<std::string>();
-    if (codec == "rabitq")
-      enc.codec = Encoding::Codec::RaBitQ;
-    else if (codec == "global")
-      enc.codec = Encoding::Codec::Global;
-    else if (codec == "low_rank")
-      enc.codec = Encoding::Codec::LowRank;
-    else
+    if (!Encoding::parse_name(codec, enc.codec))
       throw std::invalid_argument("Unknown QG codec: " + codec);
   }
   if (e.contains("codebook")) {
     auto book = e.attr("pop")("codebook").cast<std::string>();
-    if (book == "gaussian")
-      enc.codebook = Encoding::Codebook::Gaussian;
-    else if (book == "hadamard")
-      enc.codebook = Encoding::Codebook::Hadamard;
-    else
+    if (!Encoding::parse_name(book, enc.codebook))
       throw std::invalid_argument("Unknown QG codebook: " + book);
   }
   take(e, "max_neighbors", enc.max_neighbors);

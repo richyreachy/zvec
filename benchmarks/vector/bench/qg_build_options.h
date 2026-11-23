@@ -37,23 +37,12 @@ inline ailego::Params page_params(const YAML::Node &params) {
 inline QuantizedGraphBuildOptions encoding_options(const YAML::Node &e,
                                                   bool legacy = false) {
   QuantizedGraphBuildOptions enc;
-  const auto codec = e["codec"].as<std::string>();
-  using Codec = QuantizedGraphBuildOptions::Codec;
-  if (codec == "rabitq" || (legacy && codec == "native"))
-    enc.codec = Codec::RaBitQ;
-  else if (codec == "global")
-    enc.codec = Codec::Global;
-  else if (codec == "low_rank")
-    enc.codec = Codec::LowRank;
-  else
+  auto codec = e["codec"].as<std::string>();
+  if (legacy && codec == "native") codec = "rabitq";
+  if (!QuantizedGraphBuildOptions::parse_name(codec, enc.codec))
     throw std::invalid_argument("unknown QG codec: " + codec);
   const auto book = e["codebook"].as<std::string>();
-  using Codebook = QuantizedGraphBuildOptions::Codebook;
-  if (book == "hadamard")
-    enc.codebook = Codebook::Hadamard;
-  else if (book == "gaussian")
-    enc.codebook = Codebook::Gaussian;
-  else
+  if (!QuantizedGraphBuildOptions::parse_name(book, enc.codebook))
     throw std::invalid_argument("unknown QG codebook: " + book);
   enc.max_neighbors = e["max_neighbors"].as<size_t>();
   enc.rotation_views = e["rotation_views"].as<size_t>();
