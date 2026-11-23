@@ -56,6 +56,8 @@ struct IndexTypeCodeBook {
         return IndexType::IVF;
       case wire::IndexType::IT_VAMANA:
         return IndexType::VAMANA;
+      case wire::IndexType::IT_QUANTIZED_GRAPH:
+        return IndexType::QUANTIZED_GRAPH;
       case wire::IndexType::IT_INVERT:
         return IndexType::INVERT;
       case wire::IndexType::IT_DISKANN:
@@ -83,6 +85,8 @@ struct IndexTypeCodeBook {
         return wire::IndexType::IT_IVF;
       case IndexType::VAMANA:
         return wire::IndexType::IT_VAMANA;
+      case IndexType::QUANTIZED_GRAPH:
+        return wire::IndexType::IT_QUANTIZED_GRAPH;
       case IndexType::INVERT:
         return wire::IndexType::IT_INVERT;
       case IndexType::DISKANN:
@@ -112,6 +116,8 @@ struct IndexTypeCodeBook {
         return "DISKANN";
       case IndexType::VAMANA:
         return "VAMANA";
+      case IndexType::QUANTIZED_GRAPH:
+        return "QUANTIZED_GRAPH";
       case IndexType::INVERT:
         return "INVERT";
       case IndexType::FTS:

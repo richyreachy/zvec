@@ -32,6 +32,7 @@
 
 namespace zvec {
 
+class QuantizedGraphColumn;
 class ProximaEngineHelper;
 
 class VectorColumnIndexer {
@@ -138,6 +139,7 @@ class VectorColumnIndexer {
 
  protected:
   friend ProximaEngineHelper;
+  std::shared_ptr<QuantizedGraphColumn> qg_;
   core_interface::Index::Pointer index;
   FieldSchema field_schema_{};
   std::string index_file_path_{};

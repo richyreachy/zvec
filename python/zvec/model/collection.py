@@ -202,7 +202,7 @@ class Collection:
     ) -> None:
         """Create an index on a field.
 
-        Vector index types (HNSW, HNSW_RABITQ, IVF, IVF_RABITQ, FLAT) can only be applied to vector fields.
+        Vector index types (HNSW, HNSW_RABITQ, IVF, IVF_RABITQ, FLAT, QUANTIZED_GRAPH) can only be applied to vector fields.
         Inverted index (`InvertIndexParam`) is for scalar fields.
         FTS index (`FtsIndexParam`) is for full-text search on STRING fields.
 

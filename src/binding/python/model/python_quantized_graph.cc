@@ -59,7 +59,6 @@ std::vector<T> read_part(const std::string &path, size_t max_elements) {
   return part;
 }
 
-// Keep the provider local so the compiler can inline the traversal.
 struct Provider {
   using Vector = QuantizedGraphData::Vector;
   const QuantizedGraphData &data;

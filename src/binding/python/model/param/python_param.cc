@@ -38,6 +38,8 @@ static std::string index_type_to_string(const IndexType type) {
       return "IVF_RABITQ";
     case IndexType::DISKANN:
       return "DISKANN";
+    case IndexType::QUANTIZED_GRAPH:
+      return "QUANTIZED_GRAPH";
     case IndexType::VAMANA:
       return "VAMANA";
     case IndexType::FTS:
@@ -1093,6 +1095,42 @@ Examples:
                                : DataType::VECTOR_FP32);
           }));
 
+  py::class_<QuantizedGraphIndexParams, VectorIndexParams,
+             std::shared_ptr<QuantizedGraphIndexParams>>(
+      m, "QuantizedGraphIndexParam")
+      .def(py::init([](MetricType metric_type, const py::dict &options) {
+             auto json = py::module_::import("json");
+             auto encoded =
+                 json.attr("dumps")(options, py::arg("sort_keys") = true,
+                                    py::arg("allow_nan") = false)
+                     .cast<std::string>();
+             return std::make_shared<QuantizedGraphIndexParams>(
+                 metric_type, std::move(encoded));
+           }),
+           py::arg("metric_type") = MetricType::L2,
+           py::arg("options") = py::dict())
+      .def("to_dict",
+           [](const QuantizedGraphIndexParams &p) {
+             py::dict d;
+             d["type"] = index_type_to_string(p.type());
+             d["metric_type"] = metric_type_to_string(p.metric_type());
+             d["options"] =
+                 py::module_::import("json").attr("loads")(p.options());
+             return d;
+           })
+      .def(py::pickle(
+          [](const QuantizedGraphIndexParams &p) {
+            return py::make_tuple(p.metric_type(), p.options());
+          },
+          [](py::tuple t) {
+            if (t.size() != 2)
+              throw std::runtime_error("invalid QuantizedGraphIndexParam");
+            return std::make_shared<QuantizedGraphIndexParams>(
+                t[0].cast<MetricType>(), t[1].cast<std::string>());
+          }))
+      .def_property_readonly("options", [](const QuantizedGraphIndexParams &p) {
+        return py::module_::import("json").attr("loads")(p.options());
+      });
   // FlatIndexParams
   py::class_<FlatIndexParams, VectorIndexParams,
              std::shared_ptr<FlatIndexParams>>
@@ -1481,6 +1519,35 @@ Attributes:
           }));
 
   // binding hnsw query params
+  py::class_<QuantizedGraphQueryParams, QueryParams,
+             std::shared_ptr<QuantizedGraphQueryParams>>(
+      m, "QuantizedGraphQueryParam")
+      .def(py::init<uint32_t, float, float, uint32_t, uint32_t, float>(),
+           py::arg("capacity") = 128, py::arg("margin") = -1,
+           py::arg("bucket_width") = 0, py::arg("max_expansions") = 0,
+           py::arg("route_beam") = 1, py::arg("uncertainty_bonus") = 0)
+      .def_readonly("capacity", &QuantizedGraphQueryParams::capacity)
+      .def_readonly("margin", &QuantizedGraphQueryParams::margin)
+      .def_readonly("bucket_width", &QuantizedGraphQueryParams::bucket_width)
+      .def_readonly("max_expansions",
+                    &QuantizedGraphQueryParams::max_expansions)
+      .def_readonly("route_beam", &QuantizedGraphQueryParams::route_beam)
+      .def_readonly("uncertainty_bonus",
+                    &QuantizedGraphQueryParams::uncertainty_bonus)
+      .def(py::pickle(
+          [](const QuantizedGraphQueryParams &p) {
+            return py::make_tuple(p.capacity, p.margin, p.bucket_width,
+                                  p.max_expansions, p.route_beam,
+                                  p.uncertainty_bonus);
+          },
+          [](py::tuple t) {
+            if (t.size() != 6)
+              throw std::runtime_error("invalid QuantizedGraphQueryParam");
+            return std::make_shared<QuantizedGraphQueryParams>(
+                t[0].cast<uint32_t>(), t[1].cast<float>(), t[2].cast<float>(),
+                t[3].cast<uint32_t>(), t[4].cast<uint32_t>(),
+                t[5].cast<float>());
+          }));
   py::class_<HnswQueryParams, QueryParams, std::shared_ptr<HnswQueryParams>>
       hnsw_params(m, "HnswQueryParam", R"pbdoc(
 Query parameters for HNSW (Hierarchical Navigable Small World) index.

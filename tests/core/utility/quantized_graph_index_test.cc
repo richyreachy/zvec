@@ -14,7 +14,6 @@ namespace zvec::core {
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 namespace {
 
-// A plain adjacency list and vector array: no HNSW classes, includes or links.
 struct ArrayGraph {
   struct Vector {
     const void *value = nullptr;
@@ -221,7 +220,6 @@ TEST_P(IndependentQuantizedGraph, BuildQueryAndSnapshotWithoutHnsw) {
     EXPECT_EQ(0u, context.results().size());
   }
 
-  // A valid outer container must not bless a modified block payload.
   IndexStorage::MemoryBlock block;
   ASSERT_EQ(segment->data_size(),
             segment->read(0, block, segment->data_size()));

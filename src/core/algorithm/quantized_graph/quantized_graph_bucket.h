@@ -15,7 +15,7 @@
 
 #include <algorithm>
 #include <cassert>
-#if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 #include <immintrin.h>
 #endif
 #include <array>
@@ -107,7 +107,7 @@ class QuantizedGraphBucket {
   // Keep a superset of bins that can pass the current stopping threshold.
   // Step the product down before subtraction to stay conservative even if
   // the caller's scalar stop expression contracts its multiply/subtract.
-#if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
   __attribute__((target("avx512f"))) uint32_t admissible_mask(
       const uint32_t *bins, size_t count, float worst, float allowance) const {
     assert(count <= 32);

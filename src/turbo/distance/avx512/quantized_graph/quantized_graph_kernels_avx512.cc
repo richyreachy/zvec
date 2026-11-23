@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This translation unit hosts the AVX512-accelerated kernels for the
-// SymphonyQG query path. The build system compiles this .cc with an
-// AVX512-capable -march when the toolchain/host supports it (see
-// src/turbo/CMakeLists.txt). Every entry point runtime-gates on CpuFeatures
-// because a binary built on an AVX512 host may run on a lower-arch machine.
-
 #include <algorithm>
 #include <cmath>
 #include <type_traits>
@@ -112,7 +106,6 @@ bool quantized_graph_h8_lut(const float *q, size_t dimension, size_t block,
   return true;
 }
 
-
 bool quantized_graph_rank_project(const float *matrix, const float *input,
                                   size_t rows, size_t columns, float *out) {
   if (!quantized_graph_avx512_available() || columns % 64) return false;
@@ -134,7 +127,6 @@ bool quantized_graph_rank_project(const float *matrix, const float *input,
   }
   return true;
 }
-
 
 bool quantized_graph_rank_dot(const float *query, const char *codes, size_t n,
                               float *out) {
@@ -439,7 +431,6 @@ bool quantized_graph_mul(const float *factors, float *v, size_t n) {
   for (size_t i = n & ~size_t{15}; i < n; ++i) v[i] *= factors[i];
   return true;
 }
-
 
 bool quantized_graph_scan(const uint8_t *codes, const uint8_t *lut,
                           size_t padded_dim, const void *add, const void *scale,

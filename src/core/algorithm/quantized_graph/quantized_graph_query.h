@@ -4,7 +4,6 @@
 #pragma once
 
 #include <algorithm>
-#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <utility>
@@ -15,12 +14,7 @@
 
 namespace zvec::core {
 
-// One context per concurrent query. Geometry queries are FP32 in the same
-// coordinate space as training (normalized for cosine). The supplied exact
-// distance handles the provider's FP32/FP16 storage and any trailing metadata.
-// distance_dimension may include trailing metric metadata; dimension is only
-// the geometry dimension. This avoids an extra distance wrapper per refinement.
-// Neither the query pointer nor the original vectors are copied or owned here.
+// Each concurrent query needs its own context and normalized cosine input.
 class QuantizedGraphQuery {
  public:
   using Heap = ailego::KeyValueHeap<uint32_t, float>;
@@ -42,12 +36,7 @@ class QuantizedGraphQuery {
     heap_.clear();
     comparisons_ = expanded_ = 0;
     if (!query || !distance_ || !dimension_ || dimension_ > 4096 ||
-        !std::isfinite(options.margin) ||
-        (options.margin < 0 && options.margin != -1) ||
-        !std::isfinite(options.bucket_width) || options.bucket_width < 0 ||
-        options.bucket_width > 1 || options.route_beam > 4 ||
-        !std::isfinite(options.uncertainty_bonus) ||
-        options.uncertainty_bonus < 0 || options.uncertainty_bonus > 1)
+        !options.valid())
       return IndexError_InvalidArgument;
 
     query_ = query;

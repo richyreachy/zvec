@@ -87,6 +87,8 @@ from .model.param import (
     IvfRabitqIndexParam,
     IvfRabitqQueryParam,
     OptimizeOption,
+    QuantizedGraphIndexParam,
+    QuantizedGraphQueryParam,
     QuantizerParam,
     VamanaIndexParam,
     VamanaQueryParam,
@@ -158,6 +160,8 @@ __all__ = [
     "IVFQueryParam",
     "QuantizerParam",
     "VamanaIndexParam",
+    "QuantizedGraphIndexParam",
+    "QuantizedGraphQueryParam",
     "VamanaQueryParam",
     # Extensions
     "DenseEmbeddingFunction",

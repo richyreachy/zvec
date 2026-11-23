@@ -14,10 +14,6 @@
 
 namespace zvec::core {
 
-// Expanded-node membership. UINT32_MAX is reserved; batches contain at most
-// 32 IDs. Use a bounded bitmap for dense domains, clearing only touched words.
-// Otherwise retain linear probing and overflow storage. Both paths preserve
-// lane order and accept IDs outside the optional bitmap domain.
 class QuantizedGraphVisitSet {
  public:
   using NodeId = uint32_t;
@@ -25,10 +21,10 @@ class QuantizedGraphVisitSet {
   void reset(size_t expect, size_t domain = 0) {
     const size_t words = domain / 32 + (domain % 32 != 0);
 
-    // Bound bitmap storage relative to the hash table, and leave the reserved
-    // ID outside the bitmap even when the domain ends in a partial word.
+    constexpr size_t small_bitmap_words = (256 * 1024) / sizeof(uint32_t);
     if (words && words <= size_t{kEmpty} / 32 &&
-        words / 32 + (words % 32 != 0) <= expect) {
+        (words <= small_bitmap_words ||
+         words / 32 + (words % 32 != 0) <= expect)) {
       if (dense_.size() != words)
         dense_.assign(words, 0);
       else
@@ -132,7 +128,6 @@ class QuantizedGraphVisitSet {
     return accepted;
   }
 
-  // Return true only for the first insertion in this query.
   bool set_visited(NodeId id) {
     if (id == kEmpty) return false;
 

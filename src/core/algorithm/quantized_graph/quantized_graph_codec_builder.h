@@ -20,10 +20,6 @@
 
 namespace zvec::core {
 
-// Database-only training for QuantizedGraph's affine / low-rank block codec.
-// Nearby database vectors act as proxy queries; no query set or ground truth is
-// read. Source adapters expose FP32 coordinates, widening stored FP16 on
-// demand.
 class QuantizedGraphCodecBuilder {
  public:
   struct Result {
@@ -77,8 +73,6 @@ class QuantizedGraphCodecBuilder {
       return out;
     };
 
-    // Use a single 32-neighbor batch for training regardless of the output
-    // graph's degree. This keeps the estimator and its sampling cost stable.
     std::unordered_map<uint32_t, std::vector<uint32_t>> neighbor_cache;
     std::vector<float> selection_cache;
     auto neighbors = [&](uint32_t id) -> const std::vector<uint32_t> & {
@@ -98,9 +92,6 @@ class QuantizedGraphCodecBuilder {
       std::vector<uint32_t> neighbors, proxies;
     };
 
-    // Sample live internal IDs, not external keys or a dense-prefix assumption.
-    // The temporary ID list costs four bytes per live node, never a database
-    // vector copy, and also handles snapshots containing large ID holes.
     std::vector<uint32_t> live;
     for (uint32_t id = 0; id < docs; ++id)
       if (graph.valid(id)) live.push_back(id);
@@ -315,9 +306,6 @@ class QuantizedGraphCodecBuilder {
       return words;
     }
 
-    // An orthogonal random rotation motivates a standard Gaussian reference
-    // distribution. Learn eight antipodal pairs with three deterministic
-    // Lloyd restarts and select on an independent synthetic validation set.
     constexpr size_t kSamples = 65536, kIterations = 48;
     std::mt19937_64 random(uint64_t(options.seed) * 100 + 4 + dim);
     std::normal_distribution<double> normal;

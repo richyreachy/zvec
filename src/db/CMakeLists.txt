@@ -39,6 +39,7 @@ cc_library(
   PUBINCS ${PROJECT_ROOT_DIR}/src/include/
   LIBS
     zvec_ailego
+    core_quantized_graph_builder
     zvec_core
     glog
     roaring

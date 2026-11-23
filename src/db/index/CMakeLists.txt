@@ -22,6 +22,7 @@ cc_library(
     SRCS *.cc segment/*.cc column/vector_column/*.cc column/inverted_column/*.cc column/fts_column/*.cc column/fts_column/tokenizer/*.cc column/fts_column/posting/*.cc column/fts_column/iterator/*.cc storage/*.cc storage/wal/*.cc common/*.cc common/manifest/*.cc
     LIBS zvec_common
          rocksdb
+         core_quantized_graph_builder
          core_interface
          Arrow::arrow_static
          Arrow::parquet_static

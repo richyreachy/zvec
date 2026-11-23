@@ -14,22 +14,27 @@
 #include <zvec/ailego/utility/float_helper.h>
 #include <zvec/core/framework/index_dumper.h>
 #include <zvec/core/framework/index_error.h>
+#include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_storage.h>
 #include "quantized_graph_build_options.h"
 
-#if RABITQ_SUPPORTED && defined(__x86_64__) && \
-    (defined(__GNUC__) || defined(__clang__))
-#define ZVEC_QUANTIZED_GRAPH_SUPPORTED 1
+#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 #include <turbo/norm/normalizer.h>
 #include <turbo/quantizer/quantized_graph_quantizer/quantized_graph_quantizer.h>
 #include "quantized_graph.h"
 #include "quantized_graph_codec_builder.h"
 #include "quantized_graph_router_builder.h"
-#else
-#define ZVEC_QUANTIZED_GRAPH_SUPPORTED 0
 #endif
 
 namespace zvec::core {
+
+inline bool QuantizedGraphSupportsMeta(const IndexMeta &m) {
+  return m.meta_type() == IndexMeta::MT_DENSE &&
+         m.data_type() == IndexMeta::DT_FP32 && m.dimension() &&
+         m.dimension() <= 4096 &&
+         m.element_size() == size_t(m.dimension()) * sizeof(float) &&
+         (m.metric_name() == "Cosine" || m.metric_name() == "SquaredEuclidean");
+}
 
 inline bool QuantizedGraphSupported() {
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED
@@ -132,14 +137,7 @@ struct DecodedGraph {
 
 }  // namespace quantized_graph_detail
 
-// Immutable index over any provider implementing valid(id), neighbors(id), and
-// get_vector(id, Vector&). It does not build the input graph: HNSW, Vamana, or
-// a caller-supplied adjacency list may provide it. The provider owns the
-// vectors, IDs and fallback adjacency; keep it alive and immutable through all
-// searches. The segment stores only quantized blocks/codec, bound to the
-// supplied router. Callers persist and bind the original corpus separately.
-// Keep translation-unit-local provider types in an anonymous namespace so
-// their search template instantiations retain internal linkage and inlining.
+// The provider must remain alive and immutable during searches.
 class QuantizedGraphIndex {
  public:
   static constexpr const char *kSnapshotSegment = "quantized_graph.blocks";
@@ -168,9 +166,6 @@ class QuantizedGraphIndex {
     return graph_.prebuild(source, count, threads, page_params);
   }
 
-  // Context supplies the FP32 geometry query and the exact stored-vector
-  // metric. QuantizedGraphQuery is a ready-to-use independent implementation;
-  // templated contexts also let legacy callers keep their original scoring.
   template <class Graph, class Context>
   int search(const Graph &source, Context &context) const {
     return search(entry(), source, context);
@@ -232,6 +227,19 @@ class QuantizedGraphIndex {
            const std::string &segment = kSnapshotSegment) const {
     using namespace quantized_graph_detail;
     if (!dumper) return IndexError_InvalidArgument;
+    SnapshotWriter write{dumper};
+    if (!write_snapshot(write)) return IndexError_WriteData;
+
+    const size_t padding = (32 - write.bytes % 32) % 32;
+    const char zero[32]{};
+    if (padding && dumper->write(zero, padding) != padding)
+      return IndexError_WriteData;
+    return dumper->append(segment, write.bytes, padding, write.crc);
+  }
+
+  template <class Writer>
+  bool write_snapshot(Writer &write) const {
+    using namespace quantized_graph_detail;
     const auto &codec = graph_.codec().model_data();
     const SnapshotHeader header{kSnapshotMagic,
                                 1,
@@ -243,17 +251,8 @@ class QuantizedGraphIndex {
                                 codec.size(),
                                 router_bytes_,
                                 router_crc_};
-    SnapshotWriter write{dumper};
-    if (!write(header.data(), sizeof(header)) ||
-        !write(codec.data(), codec.size()) || !graph_.dump(write))
-      return IndexError_WriteData;
-
-    // Retain the legacy segment alignment and CRC (padding is not payload).
-    const size_t padding = (32 - write.bytes % 32) % 32;
-    const char zero[32]{};
-    if (padding && dumper->write(zero, padding) != padding)
-      return IndexError_WriteData;
-    return dumper->append(segment, write.bytes, padding, write.crc);
+    return write(header.data(), sizeof(header)) &&
+           write(codec.data(), codec.size()) && graph_.dump(write);
   }
 
   template <class Graph>

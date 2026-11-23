@@ -23,9 +23,6 @@
 
 namespace zvec::core {
 
-// Integer center estimates for normalized cosine and squared L2. Wider query
-// codes keep terminal refinement intervals tight without enlarging centers. The
-// adapter checks dimensions <= 4096 and VNNI before any query executes.
 struct IntegerCenter {
   struct Query {
     std::vector<int16_t> codes;

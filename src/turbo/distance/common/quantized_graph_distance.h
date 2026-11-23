@@ -56,12 +56,6 @@ inline void ConvertQuantizedGraphCosineFactors(const float *center,
 
 #if RABITQ_SUPPORTED
 
-
-// Query-side state for the SymphonyQG fastscan hot loop. Produces the same
-// 8-bit LUT, delta and correction terms as rabitqlib's Lut/BatchQuery: the
-// AVX512 kernel builds them in two fused passes over the rotated query (the
-// 16 entries of each 4-dim codebook are the full subset-sum lattice of four
-// query values), and the rabitqlib Lut path is the reference fallback.
 class QuantizedGraphQuery {
  public:
   void reset(const float *rotated_query, size_t padded_dim) {
@@ -217,7 +211,6 @@ inline void ScanQuantizedGraphBatch(const char *codes,
             (query.delta() * sums[i] + query.sum_vl_lut() + query.k1xsumq());
   }
 }
-
 
 #endif
 }  // namespace zvec::turbo

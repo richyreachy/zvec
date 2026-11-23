@@ -8,10 +8,16 @@ target_include_directories(core_quantized_graph INTERFACE
 target_link_libraries(core_quantized_graph INTERFACE
     core_framework zvec_ailego zvec_turbo rabitqlib)
 
-# Standalone construction from FP32 rows is an opt-in link dependency.
+if(ZVEC_QUANTIZED_GRAPH_SUPPORTED)
+  set(qg_sources quantized_graph_builder.cc quantized_graph_searcher.cc quantized_graph_streamer.cc)
+else()
+  set(qg_sources quantized_graph_stub.cc)
+endif()
+list(TRANSFORM qg_sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
+
 cc_library(
-    NAME core_quantized_graph_builder STATIC STRICT
-    SRCS quantized_graph_builder.cc
+    NAME core_quantized_graph_builder STATIC STRICT ALWAYS_LINK
+    SRCS ${qg_sources}
     LIBS core_quantized_graph
     INCS ${PROJECT_ROOT_DIR}/src/core
-  )
+)

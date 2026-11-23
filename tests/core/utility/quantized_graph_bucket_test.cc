@@ -10,7 +10,7 @@
 
 namespace zvec::core {
 TEST(QuantizedGraphBucket, AdmissionMaskNeverPrunesAnExpandableBin) {
-#if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
   if (!__builtin_cpu_supports("avx512f")) GTEST_SKIP();
 #endif
   QuantizedGraphBucket bucket;

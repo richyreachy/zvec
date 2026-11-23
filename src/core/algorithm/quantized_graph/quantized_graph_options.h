@@ -13,13 +13,12 @@
 // limitations under the License.
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 
 namespace zvec::core {
 
 struct QuantizedGraphSearchOptions {
-  // Defaults select the existing metric-specific preset. Beam zero disables
-  // routing while retaining the same model/mean for a controlled comparison.
   float margin = -1;
   float bucket_width = 0;
 
@@ -29,6 +28,12 @@ struct QuantizedGraphSearchOptions {
   uint32_t route_beam = 1;
 
   float uncertainty_bonus = 0;
+
+  bool valid() const {
+    return std::isfinite(margin) && (margin == -1 || margin >= 0) &&
+           bucket_width >= 0 && bucket_width <= 1 && route_beam <= 4 &&
+           uncertainty_bonus >= 0 && uncertainty_bonus <= 1;
+  }
 };
 
 }  // namespace zvec::core

@@ -24,6 +24,7 @@ from . import (
     HnswRabitqQueryParam,
     IVFQueryParam,
     IvfRabitqQueryParam,
+    QuantizedGraphQueryParam,
     VamanaQueryParam,
 )
 
@@ -96,6 +97,7 @@ class Query:
             HnswRabitqQueryParam,
             IVFQueryParam,
             VamanaQueryParam,
+            QuantizedGraphQueryParam,
             IvfRabitqQueryParam,
             FtsQueryParam,
         ]

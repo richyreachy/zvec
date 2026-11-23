@@ -2,6 +2,12 @@
 // Licensed under the Apache License, Version 2.0.
 #include "algorithm/quantized_graph/quantized_graph_builder.h"
 #include <cmath>
+#include <cstdio>
+#include <zvec/core/framework/index_factory.h>
+#include <zvec/core/framework/index_flow.h>
+#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
+#include <unistd.h>
+#endif
 #include <limits>
 #include <numeric>
 #include <random>
@@ -83,7 +89,6 @@ void check_queries(const QuantizedGraphBuilder::Result &built) {
       search.route_beam = beam;
       ASSERT_EQ(0, context.reset(query, k, data.size(), search));
       ASSERT_EQ(0, built.index->search(data, context));
-      // The QG context retains a sorted candidate heap; the caller takes Top-K.
       ASSERT_GE(context.results().size(), k);
       std::set<uint32_t> ids;
       for (size_t i = 0; i < k; ++i) {
@@ -96,6 +101,83 @@ void check_queries(const QuantizedGraphBuilder::Result &built) {
   }
 }
 
+TEST(QuantizedGraphFramework, BuildDumpAndQueryThroughBothReaders) {
+  if (!QuantizedGraphSupported()) GTEST_SKIP();
+  for (bool cosine : {false, true}) {
+    const size_t n = 48, dim = 16;
+    const uint64_t base = uint64_t{1} << 40;
+    IndexMeta meta(IndexMeta::DT_FP32, dim);
+    if (cosine) meta.set_metric("Cosine", 0, ailego::Params{});
+    auto x = vectors(n, dim);
+    auto holder = std::make_shared<RandomAccessIndexHolder>(meta);
+    for (size_t i = n; i--;) holder->emplace(base + i, x.data() + i * dim);
+    const char *builder_name =
+        cosine ? "QuantizedGraphBuilder" : "QuantizedGraphIndexBuilder";
+    auto b = std::dynamic_pointer_cast<QuantizedGraphBuilder>(
+        IndexFactory::CreateBuilder(builder_name));
+    ASSERT_TRUE(b);
+    ailego::Params params;
+    params.set("options",
+               std::string(
+                   R"({"threads":1,"router_anchors":8,"router_dimension":8})"));
+    ASSERT_EQ(0, b->init(meta, params));
+    ASSERT_EQ(0, b->train(holder));
+    ASSERT_EQ(0, b->build(holder));
+    EXPECT_EQ(n, b->stats().built_count());
+    char path[] = "/tmp/zvec-qg-framework-XXXXXX";
+    int fd = mkstemp(path);
+    ASSERT_GE(fd, 0);
+    close(fd);
+    struct Remove {
+      const char *path;
+      ~Remove() {
+        std::remove(path);
+      }
+    } cleanup{path};
+    auto dumper = IndexFactory::CreateDumper("FileDumper");
+    ASSERT_TRUE(dumper);
+    ASSERT_EQ(0, dumper->init({}));
+    ASSERT_EQ(0, dumper->create(path));
+    ASSERT_EQ(0, b->dump(dumper));
+    ASSERT_EQ(0, dumper->close());
+    IndexFlow flow;
+    ASSERT_EQ(0, flow.load(path));
+    ASSERT_EQ("QuantizedGraphSearcher", flow.searcher()->name());
+    EXPECT_EQ(builder_name, flow.meta().builder_name());
+    auto ctx = flow.create_context();
+    ctx->set_topk(3);
+    ASSERT_EQ(0, flow.search<IndexMeta::DT_FP32>(x.data(), dim, 2, ctx));
+    auto storage = IndexFactory::CreateStorage("MMapFileReadStorage");
+    ASSERT_TRUE(storage);
+    ASSERT_EQ(0, storage->init({}));
+    ASSERT_EQ(0, storage->open(path, false));
+    auto stream = IndexFactory::CreateStreamer("QuantizedGraphStreamer");
+    ASSERT_TRUE(stream);
+    ASSERT_EQ(0, stream->init(meta, {}));
+    ASSERT_EQ(0, stream->open(storage, true));
+    auto sc = stream->create_context();
+    ASSERT_TRUE(sc);
+    sc->set_topk(3);
+    IndexQueryMeta qm(IndexMeta::DT_FP32, dim);
+    ASSERT_EQ(0, stream->search_impl(x.data(), qm, 2, sc));
+    for (size_t i = 0; i < 2; ++i) {
+      ASSERT_EQ(3u, sc->result(i).size());
+      ASSERT_EQ(3u, ctx->result(i).size());
+      EXPECT_EQ(base + i, ctx->result(i)[0].key());
+      EXPECT_NEAR(0.f, ctx->result(i)[0].score(), 1e-5f);
+      for (size_t j = 0; j < 3; ++j) {
+        EXPECT_EQ(ctx->result(i)[j].key(), sc->result(i)[j].key());
+        EXPECT_FLOAT_EQ(ctx->result(i)[j].score(), sc->result(i)[j].score());
+      }
+    }
+    sc->set_filter([base](uint64_t key) { return key == base; });
+    sc->set_threshold(1e-5f);
+    ASSERT_EQ(0, stream->search_impl(x.data(), qm, sc));
+    EXPECT_TRUE(sc->result().empty());
+    ASSERT_EQ(0, stream->close());
+    EXPECT_NE(0, stream->search_impl(x.data(), qm, sc));
+  }
+}
 class RawQuantizedGraph : public testing::TestWithParam<unsigned> {};
 
 TEST_P(RawQuantizedGraph, BuildsAndSearchesWithoutAnotherIndex) {

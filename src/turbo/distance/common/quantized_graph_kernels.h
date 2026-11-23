@@ -23,7 +23,6 @@ bool quantized_graph_rank_dot(const float *, const char *, size_t, float *);
 bool quantized_graph_rank_project(const float *, const float *, size_t, size_t,
                                   float *);
 
-
 bool quantized_graph_h8_lut(const float *, size_t, size_t, size_t, float *,
                             uint8_t *, float *, float *);
 
@@ -34,12 +33,6 @@ bool quantized_graph_block_lut(const float *q, size_t dimension,
                                float *scratch, uint8_t *lut, float *delta,
                                float *sum_min);
 
-
-// Runtime-dispatched AVX512 kernels for the SymphonyQG query path. The build
-// compiles quantized_graph_kernels_avx512.cc with an AVX512-capable -march;
-// each entry point returns false when AVX512 is unavailable at runtime or the
-// arguments do not meet the kernel's constraints, leaving outputs untouched
-// so callers can fall back to the reference scalar path.
 
 // Fused equivalent of rabitqlib's Lut::reset plus BatchQuery's correction
 // terms: fills the 8-bit fastscan LUT (padded_dim * 4 bytes) and writes
