@@ -110,6 +110,21 @@ class TestCollectionQuantizedGraph(unittest.TestCase):
                 self.assertNotIn("k-0", [h.id for h in hits])
                 c.close()
 
+    def test_named_build_options(self):
+        original = {"passes": 2}
+        param = zvec.QuantizedGraphIndexParam(
+            options=original, threads=1, encoding={"codebook": "gaussian"}
+        )
+        self.assertEqual(original, {"passes": 2})
+        self.assertEqual(param.options, {
+            "passes": 2, "threads": 1, "encoding": {"codebook": "gaussian"}
+        })
+        self.assertEqual(pickle.loads(pickle.dumps(param)).options, param.options)
+        with self.assertRaises(ValueError):
+            zvec.QuantizedGraphIndexParam(options=original, passes=1)
+        with self.assertRaises(ValueError):
+            zvec.QuantizedGraphIndexParam(thread=1)
+
     def test_invalid_build_and_query_options(self):
         with self.assertRaises(ValueError):
             zvec.QuantizedGraphQueryParam(capacity=0)

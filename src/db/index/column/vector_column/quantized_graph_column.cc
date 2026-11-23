@@ -19,6 +19,7 @@
 #include <unordered_set>
 #include <zvec/core/framework/index_factory.h>
 #include "algorithm/quantized_graph/quantized_graph_builder.h"
+#include "algorithm/quantized_graph/quantized_graph_params.h"
 
 namespace zvec {
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED
@@ -36,10 +37,18 @@ core::IndexMeta make_meta(const FieldSchema &field) {
     meta.set_metric("Cosine", 0, ailego::Params{});
   return meta;
 }
-ailego::Params build_params(const QuantizedGraphIndexParams &p) {
+int init_builder(core::IndexBuilder &builder, const core::IndexMeta &meta,
+                 const QuantizedGraphIndexParams &p) {
   ailego::Params params;
-  params.set("options", p.options());
-  return params;
+  namespace keys = core::qg_build_params;
+  const auto &config = p.build_config();
+  if (!config) return core::IndexError_InvalidArgument;
+  auto set = [&](const std::string &key, const auto &field) {
+    if (field) params.set(key, *field);
+  };
+  keys::build_fields(*config, set);
+  if (config->encoding) keys::encoding_fields(*config->encoding, set);
+  return builder.init(meta, params);
 }
 }  // namespace
 
@@ -48,7 +57,7 @@ Status QuantizedGraphColumn::validate_options(
   auto builder = core::IndexFactory::CreateBuilder("QuantizedGraphBuilder");
   if (!builder || !core::QuantizedGraphSupported())
     return Status::NotSupported("quantized graph unavailable");
-  if (builder->init(core::IndexMeta{}, build_params(p)))
+  if (init_builder(*builder, core::IndexMeta{}, p))
     return Status::InvalidArgument("invalid QuantizedGraph build options");
   return Status::OK();
 }
@@ -93,10 +102,9 @@ Status QuantizedGraphColumn::build(const FieldSchema &field,
   auto builder = std::dynamic_pointer_cast<core::QuantizedGraphBuilder>(
       core::IndexFactory::CreateBuilder("QuantizedGraphBuilder"));
   if (!builder) return Status::InternalError("missing QG builder");
-  int rc = builder->init(
-      make_meta(field),
-      build_params(*std::static_pointer_cast<QuantizedGraphIndexParams>(
-          field.index_params())));
+  int rc = init_builder(
+      *builder, make_meta(field),
+      *std::static_pointer_cast<QuantizedGraphIndexParams>(field.index_params()));
   if (!rc) rc = builder->build(rows);
   if (!rc) rc = builder->dump(*raw.storage_);
   if (rc) return native_status(rc);
