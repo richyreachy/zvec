@@ -34,7 +34,8 @@ VamanaStreamer::~VamanaStreamer() {
 
 int VamanaStreamer::init(const IndexMeta &imeta, const ailego::Params &params) {
   meta_ = imeta;
-  meta_.set_streamer("VamanaStreamer", VamanaEntity::kRevision, params);
+  meta_.set_streamer(name().empty() ? "VamanaStreamer" : name(),
+                     VamanaEntity::kRevision, params);
 
   params.get(PARAM_VAMANA_STREAMER_MAX_INDEX_SIZE, &max_index_size_);
   params.get(PARAM_VAMANA_STREAMER_MAX_DEGREE, &max_degree_);
@@ -239,7 +240,9 @@ int VamanaStreamer::open(IndexStorage::Pointer stg) {
     cleanup_on_error();
     return ret;
   } else {
-    if (index_meta.dimension() != meta_.dimension() ||
+    if ((!index_meta.streamer_name().empty() &&
+         index_meta.streamer_name() != meta_.streamer_name()) ||
+        index_meta.dimension() != meta_.dimension() ||
         index_meta.element_size() != meta_.element_size() ||
         index_meta.metric_name() != meta_.metric_name() ||
         index_meta.data_type() != meta_.data_type()) {

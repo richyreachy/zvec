@@ -118,7 +118,19 @@ class VamanaStreamer : public IndexStreamer {
 
   void print_debug_info() override;
 
- private:
+ protected:
+  const VamanaStreamerEntity &graph() const {
+    return *entity_;
+  }
+  uint32_t graph_magic() const {
+    return magic_;
+  }
+  float exact_graph_distance(const void *query, const void *vec) const {
+    float score;
+    search_distance_(vec, query, meta_.dimension(), &score);
+    return score;
+  }
+
   inline int check_params(const void *query,
                           const IndexQueryMeta &qmeta) const {
     if (ailego_unlikely(!query)) {
@@ -134,12 +146,12 @@ class VamanaStreamer : public IndexStreamer {
     return 0;
   }
 
+ private:
   int setup_entity();
   int update_context(VamanaContext *ctx) const;
   int finalize_build_locked();
   void update_entry_point_to_medoid();
 
- private:
   enum State { STATE_INIT = 0, STATE_INITED = 1, STATE_OPENED = 2 };
 
   class Stats : public IndexStreamer::Stats {

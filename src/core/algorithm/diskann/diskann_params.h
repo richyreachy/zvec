@@ -37,6 +37,9 @@ inline const std::string PARAM_DISKANN_BUILDER_TRAIN_SAMPLE_RATIO(
 inline const std::string PARAM_DISKANN_BUILDER_MAX_PQ_CHUNK_NUM(
     "zvec.diskann.builder.max_pq_chunk_num");
 
+inline constexpr char PARAM_DISKANN_STREAM_DIMENSION[] =
+    "zvec.diskann.stream.dimension";
+
 inline const std::string PARAM_DISKANN_SEARCHER_LIST_SIZE(
     "zvec.diskann.searcher.list_size");
 inline const std::string PARAM_DISKANN_SEARCHER_CACHE_NODE_NUM(

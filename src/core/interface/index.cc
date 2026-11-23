@@ -211,17 +211,21 @@ int CreateReformerFromConverterMeta(
 thread_local static std::array<core::IndexContext::Pointer,
                                (magic_enum::enum_count<IndexType>() - 1) * 2>
     context_list;
+// Static and mutable DiskANN use different context types under the same index
+// type.
+thread_local static std::weak_ptr<core::IndexStreamer> diskann_context_owner;
 
 
 bool Index::init_context() {
-  context_index_ = (magic_enum::enum_integer(param_.index_type) - 1) * 2 +
-                   static_cast<size_t>(is_sparse_);
-  if (context_list[context_index_] == nullptr) {
+  const bool diskann = param_.index_type == IndexType::kDiskAnn;
+  if (!context_list[context_index_] ||
+      (diskann && diskann_context_owner.lock() != streamer_)) {
     if ((context_list[context_index_] = streamer_->create_context()) ==
         nullptr) {
       LOG_ERROR("Failed to create context");
       return false;
     }
+    if (diskann) diskann_context_owner = streamer_;
   }
   return true;
 }
@@ -253,7 +257,8 @@ uint32_t Index::get_doc_count() const {
   if (is_sparse_) {
     return streamer_->create_sparse_provider()->count();
   }
-  return streamer_->create_provider()->count();
+  auto provider = streamer_->create_provider();
+  return provider ? provider->count() : static_cast<uint32_t>(-1);
 }
 
 core::IndexStreamer::Pointer Index::index_searcher() {
@@ -488,6 +493,9 @@ int Index::init(const BaseIndexParam &param) {
   param_ = param;  // will lose the original type info
 
   is_sparse_ = param.is_sparse;
+  context_index_ = (magic_enum::enum_integer(param_.index_type) - 1) * 2 +
+                   static_cast<size_t>(is_sparse_);
+
   is_huge_page_ = param.is_huge_page;
 
   proxima_index_meta_.set_meta(param.data_type, param.dimension);
@@ -688,7 +696,6 @@ int Index::close() {
   // alive until another IVF search or thread exit.
   if (context_index_ < context_list.size()) {
     context_list[context_index_].reset();
-    context_index_ = std::numeric_limits<size_t>::max();
   }
   if (ailego_unlikely(storage_->close() != 0)) {
     LOG_ERROR("Failed to close storage");
@@ -903,6 +910,12 @@ int Index::_dense_fetch(const uint32_t doc_id,
     LOG_ERROR("Failed to fetch vector, doc_id: %u", doc_id);
     return core::IndexError_Runtime;
   }
+  return decode_dense_vector(vector_block, vector_data_buffer);
+}
+
+int Index::decode_dense_vector(
+    const core::IndexStorage::MemoryBlock &vector_block,
+    VectorDataBuffer *vector_data_buffer) {
   const void *vector = vector_block.data();
 
   DenseVectorBuffer dense_vector_buffer;
