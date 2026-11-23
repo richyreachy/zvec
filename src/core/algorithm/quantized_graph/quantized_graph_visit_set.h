@@ -14,10 +14,6 @@
 
 namespace zvec::core {
 
-// Expanded-node membership. UINT32_MAX is reserved; batches contain at most
-// 32 IDs. Use a bounded bitmap for dense domains, clearing only touched words.
-// Otherwise retain linear probing and overflow storage. Both paths preserve
-// lane order and accept IDs outside the optional bitmap domain.
 class QuantizedGraphVisitSet {
  public:
   using NodeId = uint32_t;
@@ -132,7 +128,6 @@ class QuantizedGraphVisitSet {
     return accepted;
   }
 
-  // Return true only for the first insertion in this query.
   bool set_visited(NodeId id) {
     if (id == kEmpty) return false;
 

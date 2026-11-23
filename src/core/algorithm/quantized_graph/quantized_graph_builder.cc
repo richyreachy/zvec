@@ -309,7 +309,6 @@ class VamanaGraph {
 
   void refine(uint32_t id, float alpha, Context &ctx) {
     search(id, ctx);
-    // Preserve existing outgoing candidates when revisiting a node.
     {
       std::lock_guard<std::mutex> lock(locks_[id % locks_.size()]);
       for (uint32_t v : rows_[id]) ctx.best.emplace_back(distance(id, v), v);
@@ -459,7 +458,6 @@ bool QuantizedGraphBuilder::compatible(const IndexHolder::Pointer &h) const {
 
 int QuantizedGraphBuilder::train(IndexThreads::Pointer,
                                  IndexHolder::Pointer h) {
-  // Topology, codec and router are trained together during build().
   return compatible(h) ? 0 : IndexError_InvalidArgument;
 }
 

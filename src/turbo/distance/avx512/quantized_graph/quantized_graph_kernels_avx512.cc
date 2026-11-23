@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This translation unit hosts the AVX512-accelerated kernels for the
-// SymphonyQG query path. The build system compiles this .cc with an
-// AVX512-capable -march when the toolchain/host supports it (see
-// src/turbo/CMakeLists.txt). Every entry point runtime-gates on CpuFeatures
-// because a binary built on an AVX512 host may run on a lower-arch machine.
 
 #include <algorithm>
 #include <cmath>
@@ -449,9 +444,6 @@ bool quantized_graph_scan(const uint8_t *codes, const uint8_t *lut,
   __m512i sums0 = _mm512_setzero_si512();
   __m512i sums1 = _mm512_setzero_si512();
   const __m512i nibble = _mm512_set1_epi8(15);
-  // Same packed layout and shuffle accumulation as RaBitQ's FastScan. Keep
-  // sums in registers through widening and score conversion, avoiding the
-  // generic path's temporary uint16/uint32 arrays and per-lane conversion.
   for (size_t dim = 0; dim < padded_dim; dim += 1024) {
     const size_t slice = (padded_dim - dim < 1024) ? padded_dim - dim : 1024;
     __m512i a0 = _mm512_setzero_si512(), a1 = _mm512_setzero_si512();

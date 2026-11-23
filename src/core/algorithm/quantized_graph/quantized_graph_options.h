@@ -18,8 +18,6 @@
 namespace zvec::core {
 
 struct QuantizedGraphSearchOptions {
-  // Defaults select the existing metric-specific preset. Beam zero disables
-  // routing while retaining the same model/mean for a controlled comparison.
   float margin = -1;
   float bucket_width = 0;
 

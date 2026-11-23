@@ -35,11 +35,6 @@ bool quantized_graph_block_lut(const float *q, size_t dimension,
                                float *sum_min);
 
 
-// Runtime-dispatched AVX512 kernels for the SymphonyQG query path. The build
-// compiles quantized_graph_kernels_avx512.cc with an AVX512-capable -march;
-// each entry point returns false when AVX512 is unavailable at runtime or the
-// arguments do not meet the kernel's constraints, leaving outputs untouched
-// so callers can fall back to the reference scalar path.
 
 // Fused equivalent of rabitqlib's Lut::reset plus BatchQuery's correction
 // terms: fills the 8-bit fastscan LUT (padded_dim * 4 bytes) and writes

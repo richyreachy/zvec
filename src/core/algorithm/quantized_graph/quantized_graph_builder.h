@@ -90,7 +90,6 @@ class QuantizedGraphBuilder final : public IndexBuilder {
   int train(IndexThreads::Pointer, IndexHolder::Pointer holder) override;
   int build(IndexThreads::Pointer, IndexHolder::Pointer holder) override;
   int dump(const IndexDumper::Pointer &dumper) override;
-  // Append the same QG segments to an existing Collection vector column.
   int dump(IndexStorage &storage);
   int cleanup() override;
   const Stats &stats() const override {

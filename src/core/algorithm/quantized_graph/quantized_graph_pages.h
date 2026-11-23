@@ -151,9 +151,6 @@ inline bool read_coverage_floor(const ailego::Params &params, double minimum,
          (read_coverage(params, key, floor) && floor <= minimum);
 }
 
-// Select the highest admitted tier after one bounded preparation pass. Steps
-// are five percentage points; the final step is clamped to the configured
-// floor. Computing in percent avoids cumulative subtraction at 95/90/85/80.
 inline double admission_minimum(const Result &r, double target, double floor) {
   if (r.after == kUnknown) return target;
 
@@ -166,8 +163,6 @@ inline double admission_minimum(const Result &r, double target, double floor) {
   return minimum;
 }
 
-// Keep transient resource failures distinguishable from unsupported policy or
-// invalid input. Callers can release the failed index and retry with backoff.
 inline int admission_error(const Result &r, bool required,
                            double minimum = 1.0) {
   if (!required || r.ready(minimum)) return 0;
@@ -188,10 +183,6 @@ inline int admission_error(const Result &r, bool required,
   }
 }
 
-// Called only after all arena writes/validation and before publication. One
-// pass, at most 32 failed collapses, and a soft five-second budget: a blocking
-// kernel call itself cannot be interrupted by this deadline. Never touch the
-// partial trailing 2 MiB or discard/rewrite any vector data.
 template <class Ops>
 Result prepare(uintptr_t start, size_t bytes, Ops &ops, bool collapse = true) {
   Result r;
@@ -225,19 +216,6 @@ Result prepare(uintptr_t start, size_t bytes, Ops &ops, bool collapse = true) {
   return r;
 }
 
-// proxima.hnsw.quantized_graph.thp_policy: prepare (default), hint (legacy
-// advice only), require (reject coverage below the minimum or unverifiable
-// coverage). thp_min_coverage is a fraction in (0, 1], default 1 (100%).
-// Optional thp_min_coverage_floor enables five-percentage-point fallback, down
-// to that floor (inclusive). It must be in (0, thp_min_coverage]. Omitting it
-// preserves strict single-threshold admission. It has no environment fallback.
-// Explicit Params override the corresponding QG_THP_POLICY/QG_THP_MIN_COVERAGE
-// environment fallback. Configuration is per index and is not persisted.
-// The minimum applies only to require and does not change preparation. The
-// denominator excludes the partial trailing 2 MiB block. This is an admission
-// check, not a lifetime reservation: benchmarks must verify mappings after
-// runs. Callers may retry NoMemory/NoReady with a fresh index and bounded
-// backoff; the library never exits the host process or retries loading.
 inline int prepare_arena(void *arena, size_t bytes,
                          const ailego::Params &params = {}) {
   const char *policy = std::getenv("QG_THP_POLICY");

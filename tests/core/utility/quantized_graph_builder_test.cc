@@ -89,7 +89,6 @@ void check_queries(const QuantizedGraphBuilder::Result &built) {
       search.route_beam = beam;
       ASSERT_EQ(0, context.reset(query, k, data.size(), search));
       ASSERT_EQ(0, built.index->search(data, context));
-      // The QG context retains a sorted candidate heap; the caller takes Top-K.
       ASSERT_GE(context.results().size(), k);
       std::set<uint32_t> ids;
       for (size_t i = 0; i < k; ++i) {

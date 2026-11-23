@@ -11,7 +11,6 @@
 
 namespace zvec::core {
 
-// Bounded byte reader shared by external files and embedded index segments.
 struct QuantizedGraphRouterReader {
   std::string_view data;
   size_t offset = 0;

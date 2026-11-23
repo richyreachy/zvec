@@ -6,7 +6,6 @@
 
 namespace zvec {
 
-// An immutable graph block shares the segment file with its original FP32 rows.
 class QuantizedGraphColumn {
  public:
   static Status validate_options(const QuantizedGraphIndexParams &);

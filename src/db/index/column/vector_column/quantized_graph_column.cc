@@ -186,8 +186,6 @@ Result<IndexResults::Ptr> QuantizedGraphColumn::search(
         Status::NotSupported("grouping or external refinement for QG"));
   std::vector<int64_t> ids(params.topk);
   std::vector<float> scores(params.topk);
-  // A brute-force key list from the planner further restricts the eligible
-  // rows.
   auto filter = params.filter;
   std::unique_ptr<EasyIndexFilter> allowed;
   if (!params.bf_pks.empty()) {

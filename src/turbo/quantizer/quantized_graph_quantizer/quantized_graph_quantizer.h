@@ -301,8 +301,6 @@ class QuantizedGraphBlockQuantizer {
     }
     query.mean_distance = cosine_ ? float(1 - value) : float(value);
   }
-  // Inline the generic codec entry; give the optimized body a distinct symbol
-  // so a previously instantiated scan cannot interpose the old implementation.
   __attribute__((always_inline)) void scan(const char *codes, Query &query,
                                            float center_distance,
                                            float *distances,

@@ -175,9 +175,6 @@ class QuantizedGraphIndex {
     return graph_.prebuild(source, count, threads, page_params);
   }
 
-  // Context supplies the FP32 geometry query and the exact stored-vector
-  // metric. QuantizedGraphQuery is a ready-to-use independent implementation;
-  // templated contexts also let legacy callers keep their original scoring.
   template <class Graph, class Context>
   int search(const Graph &source, Context &context) const {
     return search(entry(), source, context);

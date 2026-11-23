@@ -96,8 +96,6 @@ int QuantizedGraphSearcher::load(IndexStorage::Pointer storage,
   const bool cosine = header[4];
   IndexMeta meta(IndexMeta::DT_FP32, dim);
   if (cosine) meta.set_metric("Cosine", 0, ailego::Params{});
-  // The snapshot fixes the metric. The query kernel needs squared L2 or
-  // negative inner product on the normalized FP32 rows.
   if (metric && metric->name() != meta.metric_name())
     return IndexError_InvalidArgument;
   auto exact =

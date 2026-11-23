@@ -22,10 +22,6 @@
 
 namespace zvec::core {
 
-// Offline spherical k-means (cosine) or ordinary k-means (squared L2).
-// Leaves are GRAPH INTERNAL IDs, never external keys or training-row offsets.
-// The training algorithm matches train_router59.py, but mt19937_64 and the
-// native dot-product reduction do not reproduce NumPy PCG64/BLAS bit for bit.
 class QuantizedGraphRouterBuilder {
  public:
   static constexpr size_t kDim = 768, kProjected = 384, kWidth = 16;
@@ -59,8 +55,6 @@ class QuantizedGraphRouterBuilder {
     data.ids.resize(anchors);
     data.vectors.assign(anchors, Vector(dimension));
 
-    // Preserve the historical Cohere sequence; a coprime stride keeps IDs
-    // unique for other corpus sizes too.
     uint64_t stride = 2654435761ULL;
     while (std::gcd(stride, docs) != 1) ++stride;
     std::vector<int32_t> selected(docs, -1);
@@ -119,9 +113,6 @@ class QuantizedGraphRouterBuilder {
     size_t projected = kProjected;
     size_t rotation_views = 1;
 
-    // Single view: V2 for legacy 768/384 cosine, otherwise V3. Multiple
-    // views use V4. The caller
-    // owns publication/overwrite policy; stream failures are never ignored.
     void write(std::ostream &out, size_t projection = 0) const {
       const size_t dim = mean.size();
       if (projection == 0) projection = projected;
@@ -370,9 +361,6 @@ class QuantizedGraphRouterBuilder {
 
     auto parts = assign(rows, centers);
 
-    // As in Python, degenerate splits are balanced contiguous partitions.
-    // Also bound pathological chains: with <=65536 anchors, balancing from
-    // depth 11 reaches leaves by depth 14, within the loader's <16 limit.
     if (parts.size() < 2 || depth >= 11) {
       ++model_.balanced_splits;
       parts.assign(kWidth, {});

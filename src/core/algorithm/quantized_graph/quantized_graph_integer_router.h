@@ -27,15 +27,12 @@
 
 namespace zvec::core {
 
-// Database-trained hierarchy. Scores only select a graph entry;
-// they provide no recall guarantee and do not replace terminal refinement.
 class QuantizedGraphIntegerRouter {
  public:
   static constexpr uint32_t kTransform = 0x53514701;
   static constexpr size_t kWidth = 16, kMaxBeam = 4;
   static constexpr int32_t kInvalid = INT32_MIN;
 
-  // Routing needs only projected 8-bit codes, not refinement error bounds.
   struct Query {
     std::vector<int8_t> codes;
     float scale = 0;
@@ -240,8 +237,6 @@ class QuantizedGraphIntegerRouter {
     }
   }
 
-  // Heuristic routing codes only: no terminal-refinement error bound is
-  // implied.
   __attribute__((target("avx512f,avx512bw"))) bool prepare_projected(
       const float *rotated_query, Query &q) const {
     if (!rotated_query || empty()) return false;
