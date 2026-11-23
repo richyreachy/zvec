@@ -209,6 +209,27 @@ else()
 endif()
 message(STATUS "RABITQ_SUPPORTED: ${RABITQ_SUPPORTED}")
 
+set(ZVEC_QUANTIZED_GRAPH_SUPPORTED OFF)
+if(RABITQ_SUPPORTED AND RABITQ_TARGET_PROCESSOR MATCHES "^(x86_64|amd64)$")
+  include(CheckCXXSourceCompiles)
+  check_cxx_source_compiles([=[
+    #include <immintrin.h>
+    #ifndef __x86_64__
+    #error "x86-64 target required"
+    #endif
+    __attribute__((target("avx512f,avx512bw,avx512dq,avx512vl,avx512vnni,fma")))
+    __m512i dot(__m512i acc, __m512i a, __m512i b) {
+      return _mm512_dpwssd_epi32(acc, a, b);
+    }
+    int main() { return __builtin_cpu_supports("avx512vnni") ? 0 : 1; }
+  ]=] COMPILER_SUPPORTS_QUANTIZED_GRAPH)
+  if(COMPILER_SUPPORTS_QUANTIZED_GRAPH)
+    set(ZVEC_QUANTIZED_GRAPH_SUPPORTED ON)
+  endif()
+endif()
+add_compile_definitions(ZVEC_QUANTIZED_GRAPH_SUPPORTED=$<BOOL:${ZVEC_QUANTIZED_GRAPH_SUPPORTED}>)
+message(STATUS "ZVEC_QUANTIZED_GRAPH_SUPPORTED: ${ZVEC_QUANTIZED_GRAPH_SUPPORTED}")
+
 # DiskAnn support:
 #   - Linux x86_64 and ARM64 with io_uring, libaio, or pread
 #   - 64-bit Android and iOS with the portable synchronous pread backend

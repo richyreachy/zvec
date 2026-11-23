@@ -18,16 +18,12 @@
 #include <zvec/core/framework/index_storage.h>
 #include "quantized_graph_build_options.h"
 
-#if RABITQ_SUPPORTED && defined(__x86_64__) && \
-    (defined(__GNUC__) || defined(__clang__))
-#define ZVEC_QUANTIZED_GRAPH_SUPPORTED 1
+#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 #include <turbo/norm/normalizer.h>
 #include <turbo/quantizer/quantized_graph_quantizer/quantized_graph_quantizer.h>
 #include "quantized_graph.h"
 #include "quantized_graph_codec_builder.h"
 #include "quantized_graph_router_builder.h"
-#else
-#define ZVEC_QUANTIZED_GRAPH_SUPPORTED 0
 #endif
 
 namespace zvec::core {

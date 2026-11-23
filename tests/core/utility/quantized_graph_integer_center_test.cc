@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
 #include <gtest/gtest.h>
-#if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 #include <random>
 #include "algorithm/quantized_graph/quantized_graph_integer_center.h"
 #include "algorithm/quantized_graph/quantized_graph_integer_router.h"
