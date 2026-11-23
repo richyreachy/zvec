@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include <mutex>
+#include <type_traits>
+#include <zvec/ailego/encoding/json.h>
+#include "core/algorithm/quantized_graph/quantized_graph_params.h"
 #include <sstream>
 #include <zvec/ailego/logger/logger.h>
 #include <zvec/db/index_params.h>
@@ -137,6 +140,80 @@ Status VectorIndexParams::validate() const {
   }
   return Status::OK();
 }
+
+namespace {
+namespace qg = core::qg_build_params;
+
+const char *json_field_name(const std::string &key) {
+  return key.c_str() + (key.rfind('.') + 1);
+}
+
+template <class T>
+void read_qg_field(ailego::JsonObject &object, const char *name,
+                   std::optional<T> &out) {
+  ailego::JsonValue value;
+  if (!object.get(name, &value)) return;
+  if constexpr (std::is_same_v<T, std::string>) {
+    if (!value.is_string()) return;
+    out = value.as_stl_string();
+  } else if constexpr (std::is_integral_v<T>) {
+    if (!value.is_integer()) return;
+    out = value.as_integer();
+  } else {
+    if (!value.is_integer() && !value.is_float()) return;
+    out = value.as_float();
+  }
+  object.unset(name);
+}
+
+std::optional<QuantizedGraphIndexParams::BuildConfig> decode_qg_config(
+    const std::string &json) {
+  QuantizedGraphIndexParams::BuildConfig config;
+  ailego::JsonValue root;
+  if (!root.parse(json) || !root.is_object()) return std::nullopt;
+  auto &build = root.as_object();
+  qg::build_fields(config, [&](const std::string &key, auto &value) {
+    read_qg_field(build, json_field_name(key), value);
+  });
+  ailego::JsonObject encoding;
+  if (build.get("encoding", &encoding)) {
+    build.unset("encoding");
+    qg::encoding_fields(config.encoding.emplace(), [&](const std::string &key, auto &value) {
+      read_qg_field(encoding, json_field_name(key), value);
+    });
+  }
+  if (!build.empty() || !encoding.empty()) return std::nullopt;
+  return config;
+}
+
+std::string encode_qg_config(
+    const QuantizedGraphIndexParams::BuildConfig &config) {
+  ailego::JsonObject build;
+  qg::build_fields(config, [&](const std::string &key, const auto &value) {
+    if (value) build.set(json_field_name(key), ailego::JsonValue(*value));
+  });
+  if (config.encoding) {
+    ailego::JsonObject encoding;
+    qg::encoding_fields(*config.encoding, [&](const std::string &key, const auto &value) {
+      if (value) encoding.set(json_field_name(key), ailego::JsonValue(*value));
+    });
+    build.set("encoding", ailego::JsonValue(encoding));
+  }
+  return ailego::JsonValue(build).as_json_string().as_stl_string();
+}
+}  // namespace
+
+QuantizedGraphIndexParams::QuantizedGraphIndexParams(MetricType metric,
+                                                     std::string options)
+    : VectorIndexParams(IndexType::QUANTIZED_GRAPH, metric),
+      config_(decode_qg_config(options)),
+      options_(std::move(options)) {}
+
+QuantizedGraphIndexParams::QuantizedGraphIndexParams(BuildConfig config,
+                                                     MetricType metric)
+    : VectorIndexParams(IndexType::QUANTIZED_GRAPH, metric),
+      config_(std::move(config)),
+      options_(encode_qg_config(*config_)) {}
 
 Status QuantizedGraphIndexParams::validate() const {
   if (auto s = VectorIndexParams::validate(); !s.ok()) {

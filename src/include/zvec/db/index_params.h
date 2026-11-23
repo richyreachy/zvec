@@ -14,6 +14,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -277,14 +278,37 @@ class ZVEC_API VectorIndexParams : public IndexParams {
   QuantizerParam quantizer_param_;
 };
 
-// Build options use the native QG JSON vocabulary and are stored in the
-// collection manifest.
 class ZVEC_API QuantizedGraphIndexParams : public VectorIndexParams {
  public:
+  struct Encoding {
+    std::optional<std::string> codec;
+    std::optional<std::string> codebook;
+    std::optional<int64_t> max_neighbors;
+    std::optional<int64_t> rank;
+    std::optional<int64_t> rotation_views;
+    std::optional<int64_t> block_dimension;
+    std::optional<int64_t> training_samples;
+    std::optional<double> center_weight;
+    std::optional<int64_t> seed;
+  };
+
+  struct BuildConfig {
+    std::optional<int64_t> passes;
+    std::optional<int64_t> threads;
+    std::optional<int64_t> search_list_size;
+    std::optional<int64_t> seed;
+    std::optional<int64_t> router_seed;
+    std::optional<int64_t> router_dimension;
+    std::optional<int64_t> router_anchors;
+    std::optional<Encoding> encoding;
+  };
+
   explicit QuantizedGraphIndexParams(MetricType metric,
-                                     std::string options = "{}")
-      : VectorIndexParams(IndexType::QUANTIZED_GRAPH, metric),
-        options_(std::move(options)) {}
+                                     std::string options = "{}");
+  explicit QuantizedGraphIndexParams(BuildConfig config, MetricType metric);
+  const std::optional<BuildConfig> &build_config() const {
+    return config_;
+  }
   Status validate() const override;
   Ptr clone() const override {
     return std::make_shared<QuantizedGraphIndexParams>(*this);
@@ -303,6 +327,7 @@ class ZVEC_API QuantizedGraphIndexParams : public VectorIndexParams {
   }
 
  private:
+  std::optional<BuildConfig> config_;
   std::string options_;
 };
 

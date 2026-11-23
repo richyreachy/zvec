@@ -867,7 +867,18 @@ class IVFQueryParam(QueryParam):
 
 class QuantizedGraphIndexParam(VectorIndexParam):
     def __init__(
-        self, metric_type: zvec._zvec.typing.MetricType = ..., options: dict = ...
+        self,
+        metric_type: zvec._zvec.typing.MetricType = ...,
+        options: dict = ...,
+        *,
+        passes: int = ...,
+        threads: int = ...,
+        search_list_size: int = ...,
+        seed: int = ...,
+        router_seed: int = ...,
+        router_dimension: int = ...,
+        router_anchors: int = ...,
+        encoding: dict = ...,
     ) -> None: ...
     @property
     def options(self) -> dict: ...
