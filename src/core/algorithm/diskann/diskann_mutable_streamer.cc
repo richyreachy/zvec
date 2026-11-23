@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #if RABITQ_SUPPORTED
+#include <algorithm>
 #include <cmath>
 #include <set>
 #include <shared_mutex>
@@ -223,7 +224,29 @@ class DiskAnnMutableStreamer final : public VamanaStreamer {
   }
   IndexProvider::Pointer create_provider() const override {
     std::shared_lock<std::shared_mutex> lock(lock_);
-    return storage_ && !failed_ ? VamanaStreamer::create_provider() : nullptr;
+    if (!storage_ || failed_) return nullptr;
+    if (id_to_node_.empty()) return VamanaStreamer::create_provider();
+
+    // The reducer compacts surviving rows in iterator order. Concurrent
+    // writers can allocate graph nodes in a different order from document IDs.
+    const auto count = graph().doc_cnt();
+    auto order = std::make_shared<std::vector<node_id_t>>();
+    order->reserve(count);
+    for (node_id_t id = 0; id < count; ++id) {
+      const auto node = node_for_id(id);
+      if (node != kInvalidNodeId) order->push_back(node);
+    }
+    if (order->size() < count) {
+      const auto dense_size = order->size();
+      for (const auto &[id, node] : id_to_node_) {
+        if (id >= count) order->push_back(node);
+      }
+      std::sort(order->begin() + dense_size, order->end(),
+                [this](node_id_t left, node_id_t right) {
+                  return public_id(left) < public_id(right);
+                });
+    }
+    return VamanaStreamer::create_provider(std::move(order));
   }
   int get_vector_by_id(uint32_t id,
                        IndexStorage::MemoryBlock &block) const override {

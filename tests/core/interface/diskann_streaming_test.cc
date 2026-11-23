@@ -73,6 +73,8 @@ TEST(DiskAnnStreaming, ExplicitIdsAndGeneratedIdsSurviveReopen) {
   meta.set_metric("SquaredEuclidean", 0, ailego::Params{});
   core::IndexQueryMeta qm(core::IndexMeta::DT_FP32, kDim);
   constexpr uint64_t kKey = (1ULL << 40);
+  constexpr uint32_t kSparseId = 4000000000U;
+  constexpr uint64_t kMax32BitKey = 0xffffffffULL;
   auto first = vector_for(1), second = vector_for(2), third = vector_for(3);
   size_t allocated = 0;
   for (bool create : {true, false}) {
@@ -82,22 +84,41 @@ TEST(DiskAnnStreaming, ExplicitIdsAndGeneratedIdsSurviveReopen) {
     auto index = core::IndexFactory::CreateStreamer("DiskAnnMutableStreamer");
     ailego::Params params;
     params.set(core::PARAM_VAMANA_STREAMER_GET_VECTOR_ENABLE, true);
-    params.set(core::PARAM_VAMANA_STREAMER_DOCS_HARD_LIMIT, size_t{3});
+    params.set(core::PARAM_VAMANA_STREAMER_DOCS_HARD_LIMIT, size_t{6});
     ASSERT_EQ(0, index->init(meta, params));
     ASSERT_EQ(0, index->open(storage));
     auto ctx = index->create_context();
     ctx->set_topk(1);
     if (create) {
+      auto fourth = vector_for(4), fifth = vector_for(5);
       ASSERT_EQ(0, index->add_with_id_impl(2, first.data(), qm, ctx));
       ASSERT_EQ(nullptr, index->get_vector_by_id(0));
       ASSERT_EQ(0, index->add_with_id_impl(0, second.data(), qm, ctx));
       // Physical ordinal 2 is already reserved as a public ID by the first row.
       ASSERT_EQ(0, index->add_impl(kKey, third.data(), qm, ctx));
+      ASSERT_EQ(0, index->add_with_id_impl(kSparseId, fourth.data(), qm, ctx));
+      ASSERT_EQ(0,
+                index->add_with_id_impl(kSparseId - 1, fifth.data(), qm, ctx));
+      auto sixth = vector_for(6);
+      ASSERT_EQ(0, index->add_impl(kMax32BitKey, sixth.data(), qm, ctx));
       allocated = index->stats().index_size();
       ASSERT_EQ(core::IndexError_IndexFull,
                 index->add_impl(kKey + 1, first.data(), qm, ctx));
     }
     EXPECT_EQ(allocated, index->stats().index_size());
+    {
+      auto provider = index->create_provider();
+      ASSERT_NE(nullptr, provider);
+      auto iter = provider->create_iterator();
+      ASSERT_NE(nullptr, iter);
+      for (uint64_t key : std::vector<uint64_t>{0, kKey, 2, kMax32BitKey,
+                                                kSparseId - 1, kSparseId}) {
+        ASSERT_TRUE(iter->is_valid());
+        EXPECT_EQ(key, iter->key());
+        iter->next();
+      }
+      EXPECT_FALSE(iter->is_valid());
+    }
     core::IndexStorage::MemoryBlock block;
     ASSERT_EQ(0, index->get_vector_by_id(0, block));
     EXPECT_EQ(0,
@@ -368,6 +389,46 @@ TEST(DiskAnnStreaming, RejectsUnpublishedGraph) {
   index = IndexFactory::CreateAndInitIndex(*options);
   EXPECT_NE(
       0, index->open(path, {StorageOptions::StorageType::kMMAP, false, true}));
+}
+
+TEST(DiskAnnStreaming, FilteredMergeUsesDocumentOrderAfterReopen) {
+  const std::string source_path = "diskann_merge_rows_source";
+  const std::string target_path = "diskann_merge_rows_target";
+  auto cleanup = ailego::ScopeGuard::Make([&] {
+    test_util::RemoveTestFiles(source_path);
+    test_util::RemoveTestFiles(target_path);
+  });
+  auto param = parameter(false, MetricType::kL2sq);
+  auto source = IndexFactory::CreateAndInitIndex(*param);
+  auto target = IndexFactory::CreateAndInitIndex(*param);
+  ASSERT_NE(nullptr, source);
+  ASSERT_NE(nullptr, target);
+  ASSERT_EQ(
+      0, source->open(source_path, {StorageOptions::StorageType::kMMAP, true}));
+  // A parallel writer can acquire the graph lock in any document order.
+  for (auto id : {4U, 1U, 3U, 0U, 5U, 2U}) ASSERT_EQ(0, add(*source, id));
+  ASSERT_EQ(0, source->close());
+  source = IndexFactory::CreateAndInitIndex(*param);
+  ASSERT_EQ(0, source->open(source_path,
+                            {StorageOptions::StorageType::kMMAP, false, true}));
+  ASSERT_EQ(
+      0, target->open(target_path, {StorageOptions::StorageType::kMMAP, true}));
+  IndexFilter deleted;
+  deleted.set([](uint64_t id) { return id == 1 || id == 5; });
+  ASSERT_EQ(0, target->merge({source}, deleted, MergeOptions{4}));
+  uint32_t row = 0;
+  for (auto original : {0U, 2U, 3U, 4U}) {
+    SCOPED_TRACE(original);
+    VectorDataBuffer fetched;
+    ASSERT_EQ(0, target->fetch(row++, &fetched));
+    const auto &bytes = std::get<DenseVectorBuffer>(fetched.vector_buffer).data;
+    ASSERT_EQ(kDim * sizeof(float), bytes.size());
+    EXPECT_EQ(0, std::memcmp(vector_for(original).data(), bytes.data(),
+                             bytes.size()));
+  }
+  EXPECT_EQ(row, target->get_doc_count());
+  EXPECT_EQ(0, target->close());
+  EXPECT_EQ(0, source->close());
 }
 
 TEST(DiskAnnStreaming, MergeThenAppendAndReopenLegacyParameters) {

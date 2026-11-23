@@ -45,6 +45,8 @@ class VamanaStreamer : public IndexStreamer {
   Context::Pointer create_context() const override;
 
   IndexProvider::Pointer create_provider() const override;
+  IndexProvider::Pointer create_provider(
+      std::shared_ptr<const std::vector<node_id_t>> order) const;
 
   int add_impl(uint64_t pkey, const void *query, const IndexQueryMeta &qmeta,
                Context::Pointer &context) override;

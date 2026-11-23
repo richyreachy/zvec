@@ -539,6 +539,11 @@ IndexStreamer::Context::Pointer VamanaStreamer::create_context() const {
 }
 
 IndexProvider::Pointer VamanaStreamer::create_provider() const {
+  return create_provider(nullptr);
+}
+
+IndexProvider::Pointer VamanaStreamer::create_provider(
+    std::shared_ptr<const std::vector<node_id_t>> order) const {
   LOG_DEBUG("VamanaStreamer create provider");
 
   auto entity = entity_->clone();
@@ -546,8 +551,8 @@ IndexProvider::Pointer VamanaStreamer::create_provider() const {
     LOG_ERROR("Clone VamanaEntity failed");
     return nullptr;
   }
-  return IndexProvider::Pointer(
-      new VamanaIndexProvider(meta_, entity, "VamanaStreamer"));
+  return IndexProvider::Pointer(new VamanaIndexProvider(
+      meta_, entity, "VamanaStreamer", std::move(order)));
 }
 
 int VamanaStreamer::update_context(VamanaContext *ctx) const {
