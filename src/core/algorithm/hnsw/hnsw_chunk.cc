@@ -108,6 +108,7 @@ int ChunkBroker::load_storage(uint32_t &chunk_size) {
         chunk_size, (size_t)chunk_meta_.chunk_size);
   }
   chunk_size = chunk_meta_.chunk_size;
+  stats_.set_index_size(chunk_meta_.total_size);
 
   *stats_.mutable_check_point() = stg_->check_point();
   stats_.set_revision_id(chunk_meta_.revision_id);
@@ -139,6 +140,8 @@ int ChunkBroker::open(IndexStorage::Pointer stg, uint32_t &chunk_size,
     return IndexError_Duplicate;
   }
   stg_ = std::move(stg);
+  auxiliary_size_ = 0;
+  stats_.set_index_size(0);
   if (stg_->is_huge_page()) {
     page_mask_ = ailego::MemoryHelper::HugePageSize() - 1;
   } else {
@@ -217,9 +220,9 @@ std::pair<int, Chunk::Pointer> ChunkBroker::alloc_chunk(int type,
   }
   //! align to page size
   size = (size + page_mask_) & (~page_mask_);
-  if (ailego_unlikely(chunk_meta_.total_size + size >= max_chunks_size_)) {
+  if (ailego_unlikely(!fits(size))) {
     LOG_ERROR("No space to new a chunk, curIndexSize=%zu allocSize=%zu",
-              (size_t)chunk_meta_.total_size, size);
+              stats_.index_size(), size);
     return std::make_pair(IndexError_IndexFull, chunk);
   }
 
@@ -240,6 +243,23 @@ std::pair<int, Chunk::Pointer> ChunkBroker::alloc_chunk(int type,
 
   chunk = get_chunk(type, seq_id);
   return std::make_pair(chunk ? 0 : IndexError_NoMemory, chunk);
+}
+
+void ChunkBroker::account_auxiliary_chunk(const Chunk::Pointer &chunk) {
+  auxiliary_size_ += chunk->capacity();
+  *stats_.mutable_index_size() += chunk->capacity();
+}
+
+int ChunkBroker::alloc_auxiliary_chunk(const std::string &name, size_t size,
+                                       Chunk::Pointer *chunk) {
+  size = (size + page_mask_) & ~page_mask_;
+  if (!fits(size)) return IndexError_IndexFull;
+  int ret = stg_->append(name, size);
+  if (ret != 0) return ret;
+  *chunk = stg_->get(name);
+  if (!*chunk) return IndexError_WriteData;
+  account_auxiliary_chunk(*chunk);
+  return 0;
 }
 
 Chunk::Pointer ChunkBroker::get_chunk(int type, uint64_t seq_id) const {

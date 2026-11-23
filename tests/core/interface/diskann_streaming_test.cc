@@ -9,6 +9,7 @@
 #include <zvec/core/interface/index.h>
 #include <zvec/core/interface/index_factory.h>
 #include <zvec/core/interface/index_param_builders.h>
+#include "algorithm/vamana/vamana_params.h"
 #include "tests/test_util.h"
 
 #if DISKANN_SUPPORTED && RABITQ_SUPPORTED
@@ -60,6 +61,122 @@ void expect_nearest(Index &index, uint32_t key) {
     float actual;
     std::memcpy(&actual, bytes.data() + i * sizeof(float), sizeof(actual));
     EXPECT_NEAR(data[i], actual, 0.001);
+  }
+}
+
+TEST(DiskAnnStreaming, ExplicitIdsAndGeneratedIdsSurviveReopen) {
+  const std::string path = "diskann_stream_id_lookup";
+  test_util::RemoveTestFiles(path);
+  auto cleanup =
+      ailego::ScopeGuard::Make([&] { test_util::RemoveTestFiles(path); });
+  core::IndexMeta meta(core::IndexMeta::DT_FP32, kDim);
+  meta.set_metric("SquaredEuclidean", 0, ailego::Params{});
+  core::IndexQueryMeta qm(core::IndexMeta::DT_FP32, kDim);
+  constexpr uint64_t kKey = (1ULL << 40);
+  auto first = vector_for(1), second = vector_for(2), third = vector_for(3);
+  size_t allocated = 0;
+  for (bool create : {true, false}) {
+    auto storage = core::IndexFactory::CreateStorage("MMapFileStorage");
+    ASSERT_EQ(0, storage->init({}));
+    ASSERT_EQ(0, storage->open(path, create));
+    auto index = core::IndexFactory::CreateStreamer("DiskAnnMutableStreamer");
+    ailego::Params params;
+    params.set(core::PARAM_VAMANA_STREAMER_GET_VECTOR_ENABLE, true);
+    params.set(core::PARAM_VAMANA_STREAMER_DOCS_HARD_LIMIT, size_t{3});
+    ASSERT_EQ(0, index->init(meta, params));
+    ASSERT_EQ(0, index->open(storage));
+    auto ctx = index->create_context();
+    ctx->set_topk(1);
+    if (create) {
+      ASSERT_EQ(0, index->add_with_id_impl(2, first.data(), qm, ctx));
+      ASSERT_EQ(nullptr, index->get_vector_by_id(0));
+      ASSERT_EQ(0, index->add_with_id_impl(0, second.data(), qm, ctx));
+      // Physical ordinal 2 is already reserved as a public ID by the first row.
+      ASSERT_EQ(0, index->add_impl(kKey, third.data(), qm, ctx));
+      allocated = index->stats().index_size();
+      ASSERT_EQ(core::IndexError_IndexFull,
+                index->add_impl(kKey + 1, first.data(), qm, ctx));
+    }
+    EXPECT_EQ(allocated, index->stats().index_size());
+    core::IndexStorage::MemoryBlock block;
+    ASSERT_EQ(0, index->get_vector_by_id(0, block));
+    EXPECT_EQ(0,
+              std::memcmp(second.data(), block.data(), sizeof(float) * kDim));
+    const auto *vec = index->get_vector_by_id(2);
+    ASSERT_NE(nullptr, vec);
+    EXPECT_EQ(0, std::memcmp(first.data(), vec, sizeof(float) * kDim));
+    ASSERT_EQ(0, index->search_impl(third.data(), qm, 1, ctx));
+    ASSERT_EQ(1U, ctx->result().size());
+    EXPECT_EQ(kKey, ctx->result().front().key());
+    EXPECT_EQ(1U, ctx->result().front().index());
+    ASSERT_EQ(0, index->search_bf_impl(first.data(), qm, 1, ctx));
+    ASSERT_EQ(1U, ctx->result().size());
+    EXPECT_EQ(2U, ctx->result().front().index());
+    ASSERT_EQ(
+        0, index->search_bf_by_p_keys_impl(second.data(), {{0}}, qm, 1, ctx));
+    ASSERT_EQ(1U, ctx->result().size());
+    EXPECT_EQ(0U, ctx->result().front().index());
+    ASSERT_EQ(0, index->flush(0));
+    ctx.reset();
+    ASSERT_EQ(0, index->close());
+    ASSERT_EQ(0, storage->close());
+  }
+}
+
+TEST(DiskAnnStreaming, CodePagesShareGraphQuota) {
+  const std::string path = "diskann_stream_size_quota";
+  test_util::RemoveTestFiles(path);
+  auto cleanup =
+      ailego::ScopeGuard::Make([&] { test_util::RemoveTestFiles(path); });
+  core::IndexMeta meta(core::IndexMeta::DT_FP32, kDim);
+  meta.set_metric("SquaredEuclidean", 0, ailego::Params{});
+  core::IndexQueryMeta qm(core::IndexMeta::DT_FP32, kDim);
+  auto vec = vector_for(0);
+  for (size_t quota : {128UL << 10, 512UL << 10}) {
+    SCOPED_TRACE(quota);
+    size_t published = 0, allocated = 0;
+    for (bool create : {true, false}) {
+      auto storage = core::IndexFactory::CreateStorage("MMapFileStorage");
+      ASSERT_EQ(0, storage->init({}));
+      ASSERT_EQ(0, storage->open(path, create));
+      auto index = core::IndexFactory::CreateStreamer("DiskAnnMutableStreamer");
+      ailego::Params params;
+      params.set(core::PARAM_VAMANA_STREAMER_CHUNK_SIZE, size_t{4096});
+      params.set(core::PARAM_VAMANA_STREAMER_MAX_INDEX_SIZE, quota);
+      ASSERT_EQ(0, index->init(meta, params));
+      ASSERT_EQ(0, index->open(storage));
+      auto ctx = index->create_context();
+      ctx->set_topk(1);
+      if (create) {
+        int ret = 0;
+        while (ret == 0 && published < 4096) {
+          ret = index->add_with_id_impl(published, vec.data(), qm, ctx);
+          if (ret == 0) ++published;
+        }
+        ASSERT_EQ(core::IndexError_IndexFull, ret);
+        allocated = index->stats().index_size();
+        ASSERT_LT(allocated, quota);
+        auto page = storage->get("diskann.stream.v1.codes.0");
+        if (quota == (128UL << 10)) {
+          EXPECT_EQ(0U, published);
+          EXPECT_FALSE(page);
+        } else {
+          ASSERT_GT(published, 0U);
+          ASSERT_TRUE(page);
+          EXPECT_GT(allocated, page->capacity());
+        }
+      }
+      EXPECT_EQ(allocated, index->stats().index_size());
+      EXPECT_EQ(core::IndexError_IndexFull,
+                index->add_with_id_impl(published, vec.data(), qm, ctx));
+      ASSERT_EQ(0, index->search_impl(vec.data(), qm, 1, ctx));
+      EXPECT_EQ(published ? 1U : 0U, ctx->result().size());
+      EXPECT_EQ(0, index->flush(0));
+      ctx.reset();
+      ASSERT_EQ(0, index->close());
+      ASSERT_EQ(0, storage->close());
+    }
+    test_util::RemoveTestFiles(path);
   }
 }
 

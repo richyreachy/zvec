@@ -1129,6 +1129,13 @@ ZVEC_EXPORT zvec_error_code_t ZVEC_CALL zvec_index_params_set_diskann_params(
     zvec_index_params_t *params, int max_degree, int list_size,
     int pq_chunk_num);
 
+/** Enable the writable RaBitQ graph for a DiskANN index (default false). */
+ZVEC_EXPORT zvec_error_code_t ZVEC_CALL zvec_index_params_set_diskann_streaming(
+    zvec_index_params_t *params, bool streaming);
+
+ZVEC_EXPORT bool ZVEC_CALL
+zvec_index_params_get_diskann_streaming(const zvec_index_params_t *params);
+
 /**
  * @brief Get DiskANN max_degree parameter
  * @param params Index parameters (must not be NULL)

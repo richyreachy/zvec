@@ -616,6 +616,10 @@ float RabitQuantizer::calc_coarse_distance_dp_query(const void *dp,
 
   rabitqlib::ConstBinDataMap<float> cur_bin(bin_data, impl_->padded_dim);
 
+  // Fixed-center zero vectors have an all-zero code, including legacy pages.
+  if (impl_->fixed_center && impl_->metric_type == rabitqlib::METRIC_IP &&
+      cur_bin.f_rescale() == 0)
+    return 1.0f;
   float ip_x0_qr = rabitqlib::warmup_ip_x0_q_512(
       cur_bin.bin_code(), ql.query_bin, *ql.delta, *ql.vl, impl_->padded_dim,
       rabitqlib::SplitSingleQuery<float>::kNumBits);
@@ -649,6 +653,10 @@ float RabitQuantizer::calc_distance_dp_query(const void *dp,
   rabitqlib::ConstExDataMap<float> cur_ex(ex_data, impl_->padded_dim,
                                           impl_->ex_bits);
 
+  // Fixed-center zero vectors have an all-zero code, including legacy pages.
+  if (impl_->fixed_center && impl_->metric_type == rabitqlib::METRIC_IP &&
+      cur_ex.f_rescale_ex() == 0)
+    return 1.0f;
   float ip_x0_qr = rabitqlib::mask_ip_x0_q(ql.rotated_query, cur_bin.bin_code(),
                                            impl_->padded_dim);
 

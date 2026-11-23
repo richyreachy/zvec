@@ -154,7 +154,17 @@ Status FieldSchema::validate() const {
         }
       }
 
-      if (index_params_->type() == IndexType::HNSW_RABITQ ||
+      auto *diskann =
+          dynamic_cast<const DiskAnnIndexParams *>(index_params_.get());
+      const bool streaming_diskann = diskann && diskann->streaming();
+      if (streaming_diskann &&
+          diskann->quantize_type() != QuantizeType::UNDEFINED &&
+          diskann->quantize_type() != QuantizeType::FP16) {
+        return Status::InvalidArgument(
+            "Streaming DiskANN requires FP32 or FP16 graph vectors");
+      }
+      if (streaming_diskann ||
+          index_params_->type() == IndexType::HNSW_RABITQ ||
           index_params_->type() == IndexType::IVF_RABITQ) {
         if (dimension_ < kMinRabitqDimSize || dimension_ > kMaxRabitqDimSize) {
           return Status::InvalidArgument(
@@ -162,7 +172,11 @@ Status FieldSchema::validate() const {
               "dimension in [",
               kMinRabitqDimSize, ", ", kMaxRabitqDimSize, "]");
         }
-        if (data_type_ != DataType::VECTOR_FP32) {
+        if (data_type_ != DataType::VECTOR_FP32 &&
+            !(streaming_diskann && data_type_ == DataType::VECTOR_FP16)) {
+          if (streaming_diskann)
+            return Status::InvalidArgument(
+                "Streaming DiskANN requires FP32 or FP16 vectors");
           return Status::InvalidArgument(
               "Invalid schema: RabitQ index only support FP32 "
               "data types");

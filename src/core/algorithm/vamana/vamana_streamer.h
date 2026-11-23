@@ -119,8 +119,14 @@ class VamanaStreamer : public IndexStreamer {
   void print_debug_info() override;
 
  protected:
+  VamanaStreamerEntity &graph() {
+    return *entity_;
+  }
   const VamanaStreamerEntity &graph() const {
     return *entity_;
+  }
+  size_t docs_hard_limit() const {
+    return docs_hard_limit_;
   }
   uint32_t graph_magic() const {
     return magic_;

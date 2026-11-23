@@ -207,6 +207,7 @@
     zvec_index_params_get_diskann_list_size;
     zvec_index_params_get_diskann_max_degree;
     zvec_index_params_get_diskann_pq_chunk_num;
+    zvec_index_params_get_diskann_streaming;
     zvec_index_params_get_fts_params;
     zvec_index_params_get_hnsw_ef_construction;
     zvec_index_params_get_hnsw_m;
@@ -221,6 +222,7 @@
     zvec_index_params_get_vamana_params;
     zvec_index_params_get_vamana_two_pass_build;
     zvec_index_params_set_diskann_params;
+    zvec_index_params_set_diskann_streaming;
     zvec_index_params_set_fts_params;
     zvec_index_params_set_hnsw_params;
     zvec_index_params_set_invert_params;

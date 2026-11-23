@@ -431,6 +431,38 @@ TEST(RabitQuantizer, UnquantizedDistance) {
       << " true=" << true_dist;
 }
 
+TEST(RabitQuantizer, FixedCenterZeroVectorDistance) {
+  std::vector<float> zero(kDim), query(kDim);
+  for (const auto *metric : {"InnerProduct", "SquaredEuclidean"}) {
+    for (uint32_t bits : {1u, 2u}) {
+      auto codec = IndexFactory::CreateQuantizer("RabitQuantizer");
+      IndexMeta meta(IndexMeta::DT_FP32, kDim);
+      meta.set_metric(metric, 0, Params());
+      Params params;
+      params.set(kParamTotalBits, bits);
+      params.set("proxima.rabitq.fixed_zero_center", true);
+      ASSERT_EQ(0, codec->init(meta, params));
+      std::vector<char> data(codec->quantized_datapoint_vector_length());
+      std::vector<char> packed_query(codec->quantized_query_vector_length());
+      codec->quantize_data(zero.data(), data.data());
+      for (float x : {0.0f, 2.0f}) {
+        query[0] = x;
+        const float expected =
+            std::string(metric) == "InnerProduct" ? 1 : x * x;
+        codec->quantize_query(query.data(), packed_query.data());
+        EXPECT_NEAR(expected,
+                    codec->calc_coarse_distance_dp_query(data.data(),
+                                                         packed_query.data()),
+                    1e-5);
+        EXPECT_NEAR(
+            expected,
+            codec->calc_distance_dp_query(data.data(), packed_query.data()),
+            1e-5);
+      }
+    }
+  }
+}
+
 TEST(RabitQuantizer, FixedCenterRoundTripPreservesAppendEncoding) {
   auto source = IndexFactory::CreateQuantizer("RabitQuantizer");
   auto reopened = IndexFactory::CreateQuantizer("RabitQuantizer");

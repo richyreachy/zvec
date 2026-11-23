@@ -1341,15 +1341,16 @@ Examples:
   diskann_params
       .def(py::init([](MetricType metric_type, int max_degree, int list_size,
                        int pq_chunk_num, QuantizeType quantize_type,
-                       QuantizerParam quantizer_param) {
+                       QuantizerParam quantizer_param, bool streaming) {
              return std::make_shared<DiskAnnIndexParams>(
                  metric_type, max_degree, list_size, pq_chunk_num,
-                 quantize_type, quantizer_param);
+                 quantize_type, quantizer_param, streaming);
            }),
            py::arg("metric_type") = MetricType::IP, py::arg("max_degree") = 100,
            py::arg("list_size") = 50, py::arg("pq_chunk_num") = 0,
            py::arg("quantize_type") = QuantizeType::UNDEFINED,
            py::arg("quantizer_param") = QuantizerParam(),
+           py::arg("streaming") = false,
            R"pbdoc(
 Constructs an DiskAnnIndexParams instance.
 
@@ -1366,7 +1367,9 @@ Args:
         Defaults to QuantizeType.UNDEFINED.
     quantizer_param (QuantizerParam, optional): Quantizer configuration.
         Defaults to QuantizerParam().
+    streaming (bool, optional): Enable the writable RaBitQ graph. Defaults to False.
 )pbdoc")
+      .def_property_readonly("streaming", &DiskAnnIndexParams::streaming)
       .def_property_readonly("max_degree", &DiskAnnIndexParams::max_degree,
                              "int: max node degree.")
       .def_property_readonly("list_size", &DiskAnnIndexParams::list_size,
@@ -1384,6 +1387,7 @@ Args:
             dict["type"] = index_type_to_string(self.type());
             dict["metric_type"] = metric_type_to_string(self.metric_type());
             dict["max_degree"] = self.max_degree();
+            dict["streaming"] = self.streaming();
             dict["list_size"] = self.list_size();
             dict["pq_chunk_num"] = self.pq_chunk_num();
             dict["quantize_type"] =
@@ -1401,6 +1405,7 @@ Args:
                    metric_type_to_string(self.metric_type()) +
                    ", \"max_degree\":" + std::to_string(self.max_degree()) +
                    ", \"list_size\":" + std::to_string(self.list_size()) +
+                   ", \"streaming\":" + (self.streaming() ? "true" : "false") +
                    ", \"pq_chunk_num\":" + std::to_string(self.pq_chunk_num()) +
                    ", \"quantize_type\":" +
                    quantize_type_to_string(self.quantize_type()) +
@@ -1410,18 +1415,19 @@ Args:
           })
       .def(py::pickle(
           [](const DiskAnnIndexParams &self) {
-            return py::make_tuple(self.metric_type(), self.max_degree(),
-                                  self.list_size(), self.pq_chunk_num(),
-                                  self.quantize_type(),
-                                  self.quantizer_param().enable_rotate());
+            return py::make_tuple(
+                self.metric_type(), self.max_degree(), self.list_size(),
+                self.pq_chunk_num(), self.quantize_type(),
+                self.quantizer_param().enable_rotate(), self.streaming());
           },
           [](py::tuple t) {
-            if (t.size() != 5 && t.size() != 6)
+            if (t.size() < 5 || t.size() > 7)
               throw std::runtime_error("Invalid state for DiskAnnIndexParams");
             QuantizerParam qp(t.size() >= 6 ? t[5].cast<bool>() : false);
             return std::make_shared<DiskAnnIndexParams>(
                 t[0].cast<MetricType>(), t[1].cast<int>(), t[2].cast<int>(),
-                t[3].cast<int>(), t[4].cast<QuantizeType>(), qp);
+                t[3].cast<int>(), t[4].cast<QuantizeType>(), qp,
+                t.size() == 7 && t[6].cast<bool>());
           }));
 }
 

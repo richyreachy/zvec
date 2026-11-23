@@ -6950,6 +6950,10 @@ void test_diskann_index_params_functions(void) {
   // Default metric type is L2
   TEST_ASSERT(zvec_index_params_get_metric_type(params) == ZVEC_METRIC_TYPE_L2);
 
+  TEST_ASSERT(!zvec_index_params_get_diskann_streaming(params));
+  TEST_ASSERT(zvec_index_params_set_diskann_streaming(params, true) == ZVEC_OK);
+  TEST_ASSERT(zvec_index_params_get_diskann_streaming(params));
+
   // Set and verify custom values
   zvec_index_params_set_metric_type(params, ZVEC_METRIC_TYPE_COSINE);
   TEST_ASSERT(zvec_index_params_get_metric_type(params) ==
@@ -6965,6 +6969,9 @@ void test_diskann_index_params_functions(void) {
   // Type-mismatch error path: HNSW params must not accept DiskANN setter
   zvec_index_params_t *hnsw = zvec_index_params_create(ZVEC_INDEX_TYPE_HNSW);
   TEST_ASSERT(hnsw != NULL);
+  TEST_ASSERT(zvec_index_params_set_diskann_streaming(hnsw, true) ==
+              ZVEC_ERROR_INVALID_ARGUMENT);
+  TEST_ASSERT(!zvec_index_params_get_diskann_streaming(hnsw));
   err = zvec_index_params_set_diskann_params(hnsw, 100, 50, 0);
   TEST_ASSERT(err == ZVEC_ERROR_INVALID_ARGUMENT);
   zvec_index_params_destroy(hnsw);

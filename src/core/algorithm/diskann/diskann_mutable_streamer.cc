@@ -15,6 +15,7 @@
 #include <cmath>
 #include <set>
 #include <shared_mutex>
+#include <unordered_map>
 #include <unordered_set>
 #include <zvec/ailego/hash/crc32c.h>
 #include <zvec/ailego/utility/float_helper.h>
@@ -32,6 +33,20 @@ constexpr uint32_t kRowsPerPage = 4096;
 std::string page_name(size_t page) {
   return "diskann.stream.v1.codes." + std::to_string(page);
 }
+std::string ids_name(size_t page) {
+  return "diskann.stream.v1.ids." + std::to_string(page);
+}
+
+struct IdOverride {
+  uint32_t node;
+  uint32_t id;
+};
+static_assert(sizeof(IdOverride) == 2 * sizeof(uint32_t));
+
+struct StreamPage {
+  Chunk::Pointer codes;
+  Chunk::Pointer ids;
+};
 }  // namespace
 
 // Distinct on-disk layout. The writable single-level Vamana graph owns the
@@ -129,17 +144,12 @@ class DiskAnnMutableStreamer final : public VamanaStreamer {
       VamanaStreamer::close();
       return IndexError_InvalidFormat;
     }
-    pages_.clear();
-    for (size_t i = 0; i < graph().doc_cnt(); i += kRowsPerPage) {
-      auto seg = stg->get(page_name(i / kRowsPerPage));
-      const size_t valid =
-          std::min<size_t>(kRowsPerPage, graph().doc_cnt() - i) * code_size_;
-      if (!seg || seg->data_size() < valid ||
-          seg->capacity() < kRowsPerPage * code_size_) {
-        VamanaStreamer::close();
-        return IndexError_InvalidFormat;
-      }
-      pages_.push_back(std::move(seg));
+    graph().chunk_broker().account_auxiliary_chunk(metadata);
+    graph().chunk_broker().account_auxiliary_chunk(publication);
+    ret = load_pages(stg, published);
+    if (ret != 0) {
+      VamanaStreamer::close();
+      return ret;
     }
     publication_ = std::move(publication);
     storage_ = std::move(stg);
@@ -159,6 +169,8 @@ class DiskAnnMutableStreamer final : public VamanaStreamer {
     int ret = VamanaStreamer::close();
     publication_.reset();
     pages_.clear();
+    id_to_node_.clear();
+    node_to_id_.clear();
     storage_.reset();
     return ret;
   }
@@ -176,50 +188,11 @@ class DiskAnnMutableStreamer final : public VamanaStreamer {
 
   int add_with_id_impl(uint32_t id, const void *v, const IndexQueryMeta &m,
                        ContextPointer &ctx) override {
-    return add_impl(id, v, m, ctx);
+    return append(id, v, m, ctx, &id);
   }
   int add_impl(uint64_t key, const void *v, const IndexQueryMeta &m,
                ContextPointer &ctx) override {
-    std::unique_lock<std::shared_mutex> lock(lock_);
-    if (!storage_ || read_only_ || failed_) return IndexError_NoReady;
-    if (check_params(v, m) != 0 || !ctx || ctx->magic() != graph_magic() ||
-        key == kInvalidKey)
-      return IndexError_InvalidArgument;
-    if (graph().get_id(key) != kInvalidNodeId) return IndexError_Exist;
-    auto x = floats(v);
-    if (x.empty()) return IndexError_InvalidArgument;
-    std::vector<char> code(code_size_);
-    codec_->quantize_data(x.data(), code.data());
-    const size_t id = graph().doc_cnt();
-    const size_t page = id / kRowsPerPage;
-    const size_t off = (id % kRowsPerPage) * code_size_;
-    if (page == pages_.size()) {
-      auto name = page_name(page);
-      auto seg = storage_->get(name);
-      if (!seg) {
-        int ret = storage_->append(name, kRowsPerPage * code_size_);
-        if (ret != 0) return ret;
-        seg = storage_->get(name);
-      }
-      if (!seg || seg->capacity() < kRowsPerPage * code_size_)
-        return IndexError_WriteData;
-      pages_.push_back(std::move(seg));
-    }
-    auto &seg = pages_[page];
-    if (seg->write(off, code.data(), code_size_) != code_size_ ||
-        seg->resize(off + code_size_) != off + code_size_)
-      return IndexError_WriteData;
-    // The graph publication is last. A failed code write cannot expose a node;
-    // readers never traverse edges while the reverse lists are being pruned.
-    int ret = VamanaStreamer::add_impl(key, v, m, ctx);
-    if (ret == 0) {
-      const uint32_t count = graph().doc_cnt();
-      if (publication_->write(0, &count, sizeof(count)) != sizeof(count)) {
-        ret = IndexError_WriteData;
-      }
-    }
-    if (ret != 0) failed_ = true;
-    return ret;
+    return append(key, v, m, ctx, nullptr);
   }
 
   int search_impl(const void *q, const IndexQueryMeta &m,
@@ -255,15 +228,16 @@ class DiskAnnMutableStreamer final : public VamanaStreamer {
   int get_vector_by_id(uint32_t id,
                        IndexStorage::MemoryBlock &block) const override {
     std::shared_lock<std::shared_mutex> lock(lock_);
-    return storage_ && !failed_ && id < graph().doc_cnt()
-               ? graph().get_vector(id, block)
-               : IndexError_NoExist;
+    if (!storage_ || failed_) return IndexError_NoReady;
+    uint32_t node = node_for_id(id);
+    return node == kInvalidNodeId ? IndexError_NoExist
+                                  : graph().get_vector(node, block);
   }
   const void *get_vector_by_id(uint32_t id) const override {
     std::shared_lock<std::shared_mutex> lock(lock_);
-    return storage_ && !failed_ && id < graph().doc_cnt()
-               ? graph().get_vector(id)
-               : nullptr;
+    if (!storage_ || failed_) return nullptr;
+    uint32_t node = node_for_id(id);
+    return node == kInvalidNodeId ? nullptr : graph().get_vector(node);
   }
   int get_vector(uint64_t key,
                  IndexStorage::MemoryBlock &block) const override {
@@ -289,21 +263,152 @@ class DiskAnnMutableStreamer final : public VamanaStreamer {
   int search_bf_impl(const void *q, const IndexQueryMeta &m, uint32_t count,
                      ContextPointer &ctx) const override {
     std::shared_lock<std::shared_mutex> lock(lock_);
-    return storage_ && !failed_
-               ? VamanaStreamer::search_bf_impl(q, m, count, ctx)
-               : IndexError_NoReady;
+    if (!storage_ || failed_) return IndexError_NoReady;
+    return translate_results(VamanaStreamer::search_bf_impl(q, m, count, ctx),
+                             count, ctx);
   }
   int search_bf_by_p_keys_impl(const void *q,
                                const std::vector<std::vector<uint64_t>> &keys,
                                const IndexQueryMeta &m, uint32_t count,
                                ContextPointer &ctx) const override {
     std::shared_lock<std::shared_mutex> lock(lock_);
-    return storage_ && !failed_ ? VamanaStreamer::search_bf_by_p_keys_impl(
-                                      q, keys, m, count, ctx)
-                                : IndexError_NoReady;
+    if (!storage_ || failed_) return IndexError_NoReady;
+    return translate_results(
+        VamanaStreamer::search_bf_by_p_keys_impl(q, keys, m, count, ctx), count,
+        ctx);
   }
 
  private:
+  // Graph edges and codes use dense ordinals. Only non-identity public IDs
+  // need an on-disk entry. Old pages without an ID segment retain their IDs.
+  int load_pages(const IndexStorage::Pointer &stg, uint32_t count) {
+    pages_.clear();
+    id_to_node_.clear();
+    node_to_id_.clear();
+    next_free_id_ = 0;
+    for (size_t base = 0; base <= count; base += kRowsPerPage) {
+      const size_t page = base / kRowsPerPage;
+      StreamPage p{stg->get(page_name(page)), stg->get(ids_name(page))};
+      // A quota failure can leave an empty page after the last published row.
+      if (!p.codes && base == count && !p.ids) break;
+      const size_t rows = std::min<size_t>(kRowsPerPage, count - base);
+      if (!p.codes || p.codes->data_size() < rows * code_size_ ||
+          p.codes->capacity() < kRowsPerPage * code_size_)
+        return IndexError_InvalidFormat;
+      graph().chunk_broker().account_auxiliary_chunk(p.codes);
+      if (p.ids) {
+        graph().chunk_broker().account_auxiliary_chunk(p.ids);
+        const size_t bytes = p.ids->data_size();
+        if (bytes % sizeof(IdOverride) || bytes > rows * sizeof(IdOverride))
+          return IndexError_InvalidFormat;
+        std::vector<IdOverride> entries(bytes / sizeof(IdOverride));
+        if (bytes && p.ids->fetch(0, entries.data(), bytes) != bytes)
+          return IndexError_ReadData;
+        for (const auto &entry : entries) {
+          if (entry.node < base || entry.node >= base + rows ||
+              entry.id == entry.node ||
+              !id_to_node_.emplace(entry.id, entry.node).second ||
+              !node_to_id_.emplace(entry.node, entry.id).second)
+            return IndexError_InvalidFormat;
+        }
+      }
+      pages_.push_back(std::move(p));
+    }
+    for (const auto &entry : id_to_node_) {
+      if (entry.first < count && !node_to_id_.count(entry.first))
+        return IndexError_InvalidFormat;
+    }
+    return 0;
+  }
+
+  uint32_t node_for_id(uint32_t id) const {
+    auto it = id_to_node_.find(id);
+    if (it != id_to_node_.end()) return it->second;
+    return id < graph().doc_cnt() && !node_to_id_.count(id) ? id
+                                                            : kInvalidNodeId;
+  }
+
+  uint32_t public_id(uint32_t node) const {
+    auto it = node_to_id_.find(node);
+    return it == node_to_id_.end() ? node : it->second;
+  }
+
+  int translate_results(int ret, uint32_t count, ContextPointer &ctx) const {
+    if (ret == 0 && !node_to_id_.empty()) {
+      for (uint32_t i = 0; i < count; ++i)
+        for (auto &doc : *ctx->mutable_result(i))
+          doc.set_index(public_id(doc.index()));
+    }
+    return ret;
+  }
+
+  int append(uint64_t key, const void *v, const IndexQueryMeta &m,
+             ContextPointer &ctx, const uint32_t *requested_id) {
+    std::unique_lock<std::shared_mutex> lock(lock_);
+    if (!storage_ || read_only_ || failed_) return IndexError_NoReady;
+    if (check_params(v, m) != 0 || !ctx || ctx->magic() != graph_magic() ||
+        key == kInvalidKey)
+      return IndexError_InvalidArgument;
+    if (graph().get_id(key) != kInvalidNodeId) return IndexError_Exist;
+    if (graph().doc_cnt() >= docs_hard_limit()) return IndexError_IndexFull;
+    auto x = floats(v);
+    if (x.empty()) return IndexError_InvalidArgument;
+    std::vector<char> code(code_size_);
+    codec_->quantize_data(x.data(), code.data());
+    const uint32_t node = graph().doc_cnt();
+    uint32_t id = requested_id ? *requested_id : node;
+    if (node_for_id(id) != kInvalidNodeId) {
+      if (requested_id) return IndexError_Exist;
+      while (node_for_id(next_free_id_) != kInvalidNodeId) ++next_free_id_;
+      id = next_free_id_;
+    }
+    const size_t page = node / kRowsPerPage;
+    const size_t off = (node % kRowsPerPage) * code_size_;
+    if (page == pages_.size()) pages_.emplace_back();
+    auto &seg = pages_[page].codes;
+    auto &ids = pages_[page].ids;
+    auto &broker = graph().chunk_broker();
+    if (!seg) {
+      int ret = broker.alloc_auxiliary_chunk(page_name(page),
+                                             kRowsPerPage * code_size_, &seg);
+      if (ret != 0) return ret;
+    }
+    if (id != node && !ids) {
+      int ret = broker.alloc_auxiliary_chunk(
+          ids_name(page), kRowsPerPage * sizeof(IdOverride), &ids);
+      if (ret != 0) return ret;
+    }
+    int ret = graph().ensure_dist_storage();
+    if (ret != 0) return ret;
+    if (seg->write(off, code.data(), code_size_) != code_size_ ||
+        seg->resize(off + code_size_) != off + code_size_)
+      return IndexError_WriteData;
+    // The graph publication is last. A failed code write cannot expose a node;
+    // readers never traverse edges while the reverse lists are being pruned.
+    ret = VamanaStreamer::add_impl(key, v, m, ctx);
+    if (ret != 0) {
+      failed_ = ret != IndexError_IndexFull || graph().doc_cnt() != node;
+      return ret;
+    }
+    if (node != id) {
+      const IdOverride entry{node, id};
+      const size_t offset = ids->data_size();
+      if (ids->write(offset, &entry, sizeof(entry)) != sizeof(entry) ||
+          ids->resize(offset + sizeof(entry)) != offset + sizeof(entry)) {
+        failed_ = true;
+        return IndexError_WriteData;
+      }
+      id_to_node_.emplace(id, node);
+      node_to_id_.emplace(node, id);
+    }
+    const uint32_t count = graph().doc_cnt();
+    if (publication_->write(0, &count, sizeof(count)) != sizeof(count)) {
+      failed_ = true;
+      return IndexError_WriteData;
+    }
+    return 0;
+  }
+
   std::vector<float> floats(const void *data) const {
     std::vector<float> x(dim_);
     if (meta().data_type() == IndexMeta::DataType::DT_FP32)
@@ -339,8 +444,9 @@ class DiskAnnMutableStreamer final : public VamanaStreamer {
       if (id >= graph().doc_cnt()) return IndexError_InvalidFormat;
       if (!seen.insert(id).second) return 0;
       IndexStorage::MemoryBlock block;
-      if (pages_[id / kRowsPerPage]->read((id % kRowsPerPage) * code_size_,
-                                          block, code_size_) != code_size_)
+      if (pages_[id / kRowsPerPage].codes->read(
+              (id % kRowsPerPage) * code_size_, block, code_size_) !=
+          code_size_)
         return IndexError_ReadData;
       float score = codec_->calc_distance_dp_query(block.data(), query.data());
       if (!std::isfinite(score)) return IndexError_InvalidFormat;
@@ -385,9 +491,9 @@ class DiskAnnMutableStreamer final : public VamanaStreamer {
       if (ctx->fetch_vector()) {
         IndexStorage::MemoryBlock b;
         if (graph().get_vector(id, b) != 0) return IndexError_ReadData;
-        out->emplace_back(key, d, id, std::move(b));
+        out->emplace_back(key, d, public_id(id), std::move(b));
       } else
-        out->emplace_back(key, d, id);
+        out->emplace_back(key, d, public_id(id));
     }
     return 0;
   }
@@ -396,7 +502,9 @@ class DiskAnnMutableStreamer final : public VamanaStreamer {
   IndexStorage::Pointer storage_;
   IndexStorage::Segment::Pointer publication_;
   std::unique_ptr<turbo::RabitQuantizer> codec_;
-  std::vector<IndexStorage::Segment::Pointer> pages_;
+  std::vector<StreamPage> pages_;
+  std::unordered_map<uint32_t, uint32_t> id_to_node_, node_to_id_;
+  uint32_t next_free_id_{0};
   size_t code_size_{0};
   uint32_t dim_{0};
   bool cosine_{false}, read_only_{true}, failed_{false};

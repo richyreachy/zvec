@@ -72,6 +72,10 @@ class VamanaStreamerEntity : public VamanaEntity {
   node_id_t calculate_medoid(uint32_t dimension, uint32_t data_type,
                              bool packed_uint4 = false) override;
 
+  ChunkBroker &chunk_broker() {
+    return *broker_;
+  }
+
   // --- Neighbor distance storage ---
   int ensure_dist_storage() override;
   bool dist_storage_loaded() const override {
