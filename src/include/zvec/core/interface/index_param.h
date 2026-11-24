@@ -570,6 +570,8 @@ struct ZVEC_CORE_API DiskAnnIndexParam : public BaseIndexParam {
   int max_degree = kDefaultDiskAnnMaxDegree;
   int list_size = kDefaultDiskAnnBuildListSize;
   int pq_chunk_num = kDefaultDiskAnnPqNumChunks;
+  // Opt-in mutable Vamana graph with training-free 2-bit RaBitQ navigation.
+  bool streaming = false;
 
   // Constructors with delegation
   DiskAnnIndexParam() : BaseIndexParam(IndexType::kDiskAnn) {}

@@ -467,6 +467,8 @@ bool DiskAnnIndexParam::deserialize_from_json_object(
   DESERIALIZE_VALUE_FIELD(json_obj, max_degree);
   DESERIALIZE_VALUE_FIELD(json_obj, list_size);
   DESERIALIZE_VALUE_FIELD(json_obj, pq_chunk_num);
+  streaming = false;  // Older parameters omit this field.
+  DESERIALIZE_VALUE_FIELD(json_obj, streaming);
 
   return true;
 }
@@ -477,6 +479,7 @@ ailego::JsonObject DiskAnnIndexParam::serialize_to_json_object(
   json_obj.set("max_degree", ailego::JsonValue(max_degree));
   json_obj.set("list_size", ailego::JsonValue(list_size));
   json_obj.set("pq_chunk_num", ailego::JsonValue(pq_chunk_num));
+  if (streaming) json_obj.set("streaming", ailego::JsonValue(true));
   return json_obj;
 }
 

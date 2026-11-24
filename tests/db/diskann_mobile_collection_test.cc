@@ -255,6 +255,55 @@ class DiskAnnMobileCollectionTest : public ::testing::Test {
   }
 };
 
+#if RABITQ_SUPPORTED
+TEST_F(DiskAnnMobileCollectionTest, StreamingSchemaSurvivesOptimizeAndReopen) {
+  constexpr size_t kStreamingDimension = 128;
+  auto params = std::make_shared<DiskAnnIndexParams>(MetricType::L2, 16, 40);
+  ASSERT_FALSE(params->streaming());
+  params->set_streaming(true);
+  CollectionSchema schema("streaming");
+  ASSERT_TRUE(schema
+                  .add_field(std::make_shared<FieldSchema>(
+                      kFp32Field, DataType::VECTOR_FP32, kStreamingDimension,
+                      false, params))
+                  .ok());
+  auto result = Collection::CreateAndOpen(kCollectionPath, schema, Options());
+  ASSERT_TRUE(result.has_value()) << result.error().message();
+  auto collection = std::move(result.value());
+  std::vector<float> vec(kStreamingDimension);
+  for (int round = 0; round < 2; ++round) {
+    std::vector<Doc> docs;
+    for (int i = 0; i < 32; ++i) {
+      std::fill(vec.begin(), vec.end(), static_cast<float>(32 * round + i));
+      Doc doc;
+      doc.set_pk(std::to_string(32 * round + i));
+      doc.set<std::vector<float>>(kFp32Field, vec);
+      docs.push_back(std::move(doc));
+    }
+    ASSERT_TRUE(WriteSucceeded(collection->insert(docs), docs.size()));
+    ASSERT_TRUE(collection->flush().ok());
+    ASSERT_TRUE(collection->optimize(OptimizeOptions{2}).ok());
+    collection.reset();
+    auto reopened = Collection::Open(kCollectionPath, Options());
+    ASSERT_TRUE(reopened.has_value()) << reopened.error().message();
+    collection = std::move(reopened.value());
+    auto actual_schema = collection->schema();
+    ASSERT_TRUE(actual_schema.has_value());
+    EXPECT_EQ(schema, *actual_schema);
+    SearchQuery query;
+    query.topk_ = 1;
+    query.target_.field_name_ = kFp32Field;
+    query.target_.set_vector(
+        std::string(reinterpret_cast<const char *>(vec.data()),
+                    vec.size() * sizeof(float)));
+    auto nearest = collection->query(query);
+    ASSERT_TRUE(nearest.has_value()) << nearest.error().message();
+    ASSERT_EQ(1U, nearest->size());
+    EXPECT_EQ(std::to_string(32 * round + 31), nearest->front()->pk());
+  }
+}
+#endif
+
 TEST_F(DiskAnnMobileCollectionTest, PublicCollectionApiLifecycle) {
   auto schema = MakeSchema(MetricType::L2, false, true);
   auto options = Options();

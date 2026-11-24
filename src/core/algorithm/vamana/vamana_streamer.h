@@ -45,6 +45,8 @@ class VamanaStreamer : public IndexStreamer {
   Context::Pointer create_context() const override;
 
   IndexProvider::Pointer create_provider() const override;
+  IndexProvider::Pointer create_provider(
+      std::shared_ptr<const std::vector<node_id_t>> order) const;
 
   int add_impl(uint64_t pkey, const void *query, const IndexQueryMeta &qmeta,
                Context::Pointer &context) override;
@@ -118,7 +120,25 @@ class VamanaStreamer : public IndexStreamer {
 
   void print_debug_info() override;
 
- private:
+ protected:
+  VamanaStreamerEntity &graph() {
+    return *entity_;
+  }
+  const VamanaStreamerEntity &graph() const {
+    return *entity_;
+  }
+  size_t docs_hard_limit() const {
+    return docs_hard_limit_;
+  }
+  uint32_t graph_magic() const {
+    return magic_;
+  }
+  float exact_graph_distance(const void *query, const void *vec) const {
+    float score;
+    search_distance_(vec, query, meta_.dimension(), &score);
+    return score;
+  }
+
   inline int check_params(const void *query,
                           const IndexQueryMeta &qmeta) const {
     if (ailego_unlikely(!query)) {
@@ -134,12 +154,12 @@ class VamanaStreamer : public IndexStreamer {
     return 0;
   }
 
+ private:
   int setup_entity();
   int update_context(VamanaContext *ctx) const;
   int finalize_build_locked();
   void update_entry_point_to_medoid();
 
- private:
   enum State { STATE_INIT = 0, STATE_INITED = 1, STATE_OPENED = 2 };
 
   class Stats : public IndexStreamer::Stats {

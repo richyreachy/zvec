@@ -1755,6 +1755,28 @@ zvec_error_code_t zvec_index_params_set_diskann_params(
   return ZVEC_OK;
 }
 
+zvec_error_code_t zvec_index_params_set_diskann_streaming(
+    zvec_index_params_t *params, bool streaming) {
+  auto *diskann = dynamic_cast<zvec::DiskAnnIndexParams *>(
+      reinterpret_cast<zvec::IndexParams *>(params));
+  if (!diskann) {
+    SET_LAST_ERROR(ZVEC_ERROR_INVALID_ARGUMENT, "Expected DiskANN index params");
+    return ZVEC_ERROR_INVALID_ARGUMENT;
+  }
+  diskann->set_streaming(streaming);
+  return ZVEC_OK;
+}
+
+bool zvec_index_params_get_diskann_streaming(const zvec_index_params_t *params) {
+  auto *diskann = dynamic_cast<const zvec::DiskAnnIndexParams *>(
+      reinterpret_cast<const zvec::IndexParams *>(params));
+  if (!diskann) {
+    SET_LAST_ERROR(ZVEC_ERROR_INVALID_ARGUMENT, "Expected DiskANN index params");
+    return false;
+  }
+  return diskann->streaming();
+}
+
 /**
  * @brief Get DiskANN max_degree parameter
  * @param params Index parameters (must be DiskANN type)

@@ -4,10 +4,14 @@ file(GLOB_RECURSE ALL_TEST_SRCS *_test.cc)
 
 foreach(CC_SRCS ${ALL_TEST_SRCS})
   get_filename_component(CC_TARGET ${CC_SRCS} NAME_WE)
+  set(extra_libs)
+  if(CC_TARGET STREQUAL "turbo_rabit_quantizer_test")
+    list(APPEND extra_libs core_knn_cluster)
+  endif()
   cc_gtest(
       NAME ${CC_TARGET}
       STRICT
-      LIBS zvec_ailego core_framework core_metric core_quantizer zvec_turbo
+      LIBS zvec_ailego core_framework core_metric core_quantizer zvec_turbo ${extra_libs}
       SRCS ${CC_SRCS}
       INCS . ${PROJECT_ROOT_DIR}/src/core/ ${PROJECT_ROOT_DIR}/src/turbo/
     )

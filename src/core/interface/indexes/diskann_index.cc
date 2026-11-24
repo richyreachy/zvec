@@ -19,6 +19,7 @@
 #include <zvec/core/interface/index.h>
 #if DISKANN_SUPPORTED
 #include "algorithm/diskann/diskann_params.h"
+#include "algorithm/vamana/vamana_params.h"
 #include "utility/utility_params.h"
 #include "holder_builder.h"
 #endif
@@ -95,6 +96,22 @@ int DiskAnnIndex::create_and_init_streamer(const BaseIndexParam &param) {
   }
 
   param_ = dynamic_cast<const DiskAnnIndexParam &>(param);
+  if (param_.streaming) {
+    if (param_.max_degree <= 0 || param_.max_degree > 256 ||
+        param_.list_size <= 0 || param_.list_size > 2048)
+      return core::IndexError_InvalidArgument;
+    proxima_index_params_.set(core::PARAM_VAMANA_STREAMER_MAX_DEGREE,
+                              param_.max_degree);
+    proxima_index_params_.set(core::PARAM_VAMANA_STREAMER_SEARCH_LIST_SIZE,
+                              param_.list_size);
+    proxima_index_params_.set(core::PARAM_VAMANA_STREAMER_GET_VECTOR_ENABLE,
+                              true);
+    proxima_index_params_.set(core::PARAM_DISKANN_STREAM_DIMENSION,
+                              param_.dimension);
+    streamer_ = core::IndexFactory::CreateStreamer("DiskAnnMutableStreamer");
+    if (!streamer_) return core::IndexError_Unsupported;
+    return streamer_->init(proxima_index_meta_, proxima_index_params_);
+  }
   param_.max_degree = std::min(100, param_.max_degree);
   param_.list_size = std::min(100, param_.list_size);
   param_.pq_chunk_num = std::min(1024, param_.pq_chunk_num);
@@ -137,6 +154,11 @@ int DiskAnnIndex::create_and_init_streamer(const BaseIndexParam &param) {
 
 int DiskAnnIndex::open(const std::string &file_path,
                        StorageOptions storage_options) {
+  if (param_.streaming) {
+    int ret = Index::open(file_path, storage_options);
+    if (ret == 0) is_trained_ = true;  // searchable before the first insert
+    return ret;
+  }
   if (storage_options.read_only && storage_options.create_new) {
     LOG_ERROR("Cannot create storage for a read-only index");
     return core::IndexError_Runtime;
@@ -204,6 +226,7 @@ int DiskAnnIndex::generate_holder() {
 }
 
 int DiskAnnIndex::add(const VectorData &vector, uint32_t doc_id) {
+  if (param_.streaming) return Index::add(vector, doc_id);
   if (!is_open_ || is_read_only_) return core::IndexError_NoReady;
   if (is_trained_ || build_stage_ != BuildStage::kCollecting) {
     LOG_ERROR("this diskann index is trained or has a pending build");
@@ -227,6 +250,7 @@ int DiskAnnIndex::add(const VectorData &vector, uint32_t doc_id) {
 }
 
 int DiskAnnIndex::train() {
+  if (param_.streaming) return is_open_ ? 0 : core::IndexError_NoReady;
   if (is_trained_) return 0;
   if (!is_open_ || is_read_only_) return core::IndexError_NoReady;
   if (build_stage_ == BuildStage::kCollecting) {
@@ -309,6 +333,11 @@ int DiskAnnIndex::dump_and_open() {
 
 int DiskAnnIndex::_dense_fetch(const uint32_t doc_id,
                                VectorDataBuffer *vector_data_buffer) {
+  if (param_.streaming) {
+    core::IndexStorage::MemoryBlock block;
+    int ret = streamer_->get_vector(doc_id, block);
+    return ret == 0 ? decode_dense_vector(block, vector_data_buffer) : ret;
+  }
   if (is_trained_) {
     return Index::_dense_fetch(doc_id, vector_data_buffer);
   } else {
@@ -357,7 +386,8 @@ int DiskAnnIndex::_prepare_for_search(
   // at least topk to keep enough candidates for a correct result.
   ailego::Params params;
   params.set(
-      core::PARAM_DISKANN_SEARCHER_LIST_SIZE,
+      param_.streaming ? core::PARAM_VAMANA_STREAMER_EF
+                       : core::PARAM_DISKANN_SEARCHER_LIST_SIZE,
       std::max(diskann_search_param->topk, diskann_search_param->list_size));
   context->update(params);
 
@@ -367,6 +397,7 @@ int DiskAnnIndex::_prepare_for_search(
 int DiskAnnIndex::merge(const std::vector<Index::Pointer> &indexes,
                         const IndexFilter &filter,
                         const MergeOptions &options) {
+  if (param_.streaming) return Index::merge(indexes, filter, options);
   if (indexes.empty()) return 0;
   if (is_trained_) return core::IndexError_Unsupported;
   int ret = reset_builder();

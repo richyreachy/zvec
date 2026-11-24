@@ -73,6 +73,12 @@ class ChunkBroker {
     return alloc_chunk(type, seq_id, chunk_meta_.chunk_size);
   }
 
+  // Named companion segments share the graph quota. Their capacities are
+  // accounted once per open without changing the persisted graph metadata.
+  void account_auxiliary_chunk(const Chunk::Pointer &chunk);
+  int alloc_auxiliary_chunk(const std::string &name, size_t size,
+                            Chunk::Pointer *chunk);
+
   Chunk::Pointer get_chunk(int type, uint64_t seq_id) const;
 
   inline size_t get_chunk_cnt(int type) const {
@@ -143,8 +149,15 @@ class ChunkBroker {
  private:
   IndexStreamer::Stats &stats_;
   HnswChunkMeta chunk_meta_{};
+  bool fits(size_t size) const {
+    if (chunk_meta_.total_size >= max_chunks_size_) return false;
+    const size_t remaining = max_chunks_size_ - chunk_meta_.total_size;
+    return auxiliary_size_ < remaining && size < remaining - auxiliary_size_;
+  }
+
   size_t page_mask_{0UL};
   size_t max_chunks_size_{0UL};
+  size_t auxiliary_size_{0};
   IndexStorage::Pointer stg_{};
   IndexStorage::Segment::Pointer chunk_meta_segment_{};
   bool check_crc_{false};

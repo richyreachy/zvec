@@ -32,6 +32,7 @@
 #include <arrow/result.h>
 #include <arrow/table.h>
 #include <gtest/gtest.h>
+#include <zvec/core/framework/index_framework.h>
 #include "db/common/constants.h"
 #include "db/common/file_helper.h"
 #include "db/index/column/vector_column/vector_column_indexer.h"
@@ -637,6 +638,80 @@ TEST_F(SegmentHelperTest, QuantizedIvfClosesRawFlatBeforeBuildingIndex) {
     }
   }
 }
+
+#if DISKANN_SUPPORTED && RABITQ_SUPPORTED
+TEST_F(SegmentHelperTest, StreamingDiskAnnReusesOnlyCompatibleUnfilteredBase) {
+  constexpr uint32_t kDim = 128;
+  auto params = std::make_shared<DiskAnnIndexParams>(MetricType::L2, 16, 40);
+  params->set_streaming(true);
+  FieldSchema graph_field("v", DataType::VECTOR_FP32, kDim, false, params);
+  auto flat_field = graph_field;
+  flat_field.set_index_params(FlatIndexParams(MetricType::L2));
+  auto base =
+      std::make_shared<VectorColumnIndexer>(col_path + "/base", graph_field);
+  auto tail =
+      std::make_shared<VectorColumnIndexer>(col_path + "/tail", flat_field);
+  ASSERT_TRUE(base->open({true, true}).ok());
+  ASSERT_TRUE(tail->open({true, true}).ok());
+  // A copied graph keeps this out-of-order node mapping. A single-threaded
+  // rebuild enumerates logical rows in order and needs no ID override page.
+  for (uint32_t id : {1U, 0U}) {
+    std::vector<float> v(kDim, static_cast<float>(id));
+    ASSERT_TRUE(
+        base->insert({vector_column_params::DenseVector{v.data()}}, id).ok());
+  }
+  std::vector<float> v(kDim, 2.f);
+  ASSERT_TRUE(
+      tail->insert({vector_column_params::DenseVector{v.data()}}, 0).ok());
+  ASSERT_TRUE(base->close().ok());
+  ASSERT_TRUE(tail->close().ok());
+  ASSERT_TRUE(base->open({true, false, true}).ok());
+  ASSERT_TRUE(tail->open({true, false, true}).ok());
+
+  auto check_merge = [&](const std::string &name, const FieldSchema &field,
+                         const IndexFilter::Ptr &filter, bool expect_reuse,
+                         const std::vector<uint32_t> &expected) {
+    SCOPED_TRACE(name);
+    auto path = col_path + "/" + name;
+    auto status = SegmentHelper::MergeWithOptionalReuse(
+        path, field, {base, tail}, filter, 1, nullptr);
+    ASSERT_TRUE(status.ok()) << status.message();
+    auto storage = core::IndexFactory::CreateStorage("MMapFileReadStorage");
+    ASSERT_NE(storage, nullptr);
+    ASSERT_EQ(0, storage->init({}));
+    ASSERT_EQ(0, storage->open(path, false));
+    EXPECT_EQ(expect_reuse, storage->get("diskann.stream.v1.ids.0") != nullptr);
+    ASSERT_EQ(0, storage->close());
+
+    VectorColumnIndexer output(path, field);
+    ASSERT_TRUE(output.open({true, false, true}).ok());
+    ASSERT_EQ(expected.size(), output.doc_count());
+    for (uint32_t id = 0; id < expected.size(); ++id) {
+      auto fetched = output.fetch(id);
+      ASSERT_TRUE(fetched.has_value());
+      const std::vector<float> original(kDim, static_cast<float>(expected[id]));
+      EXPECT_EQ(std::get<vector_column_params::DenseVectorBuffer>(
+                    fetched->vector_buffer)
+                    .data,
+                std::string(reinterpret_cast<const char *>(original.data()),
+                            kDim * sizeof(float)));
+    }
+    EXPECT_TRUE(output.close().ok());
+  };
+  check_merge("append", graph_field, nullptr, true, {0, 1, 2});
+  auto drop_first =
+      EasyIndexFilter::Create([](uint64_t id) { return id == 0; });
+  check_merge("purge", graph_field, drop_first, false, {1, 2});
+  auto changed_field = graph_field;
+  auto changed = *params;
+  changed.set_max_degree(32);
+  changed_field.set_index_params(changed);
+  check_merge("new_degree", changed_field, nullptr, false, {0, 1, 2});
+  EXPECT_EQ(2U, base->doc_count());
+  EXPECT_TRUE(base->close().ok());
+  EXPECT_TRUE(tail->close().ok());
+}
+#endif
 
 struct SegmentCompactReuseParam {
   IndexParams::Ptr vector_index_params;

@@ -182,6 +182,7 @@ class DiskAnnIndexParam(VectorIndexParam):
         pq_chunk_num: typing.SupportsInt = 0,
         quantize_type: zvec._zvec.typing.QuantizeType = ...,
         quantizer_param: QuantizerParam = ...,
+        streaming: bool = False,
     ) -> None:
         """
 
@@ -202,6 +203,8 @@ class DiskAnnIndexParam(VectorIndexParam):
                 Defaults to QuantizerParam().
         """
 
+    @property
+    def streaming(self) -> bool: ...
     def __repr__(self) -> str: ...
     def __setstate__(self, arg0: tuple) -> None: ...
     def to_dict(self) -> dict:

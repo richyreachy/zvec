@@ -23,18 +23,22 @@ namespace core {
 
 class VamanaIndexProvider : public IndexProvider {
  public:
-  VamanaIndexProvider(const IndexMeta &meta,
-                      const VamanaEntity::Pointer &entity,
-                      const std::string &owner)
-      : meta_(meta), entity_(entity), owner_class_(owner) {}
+  VamanaIndexProvider(
+      const IndexMeta &meta, const VamanaEntity::Pointer &entity,
+      const std::string &owner,
+      std::shared_ptr<const std::vector<node_id_t>> order = nullptr)
+      : meta_(meta),
+        entity_(entity),
+        owner_class_(owner),
+        order_(std::move(order)) {}
 
   VamanaIndexProvider(const VamanaIndexProvider &) = delete;
   VamanaIndexProvider &operator=(const VamanaIndexProvider &) = delete;
 
  public:
   IndexProvider::Iterator::Pointer create_iterator() override {
-    return VamanaIndexProvider::Iterator::Pointer(new (std::nothrow)
-                                                      Iterator(entity_));
+    return VamanaIndexProvider::Iterator::Pointer(
+        new (std::nothrow) Iterator(entity_, order_));
   }
 
   size_t count() const override {
@@ -69,14 +73,15 @@ class VamanaIndexProvider : public IndexProvider {
  private:
   class Iterator : public IndexProvider::Iterator {
    public:
-    Iterator(const VamanaEntity::Pointer &entity)
-        : entity_(entity), cur_id_(0U) {
+    Iterator(const VamanaEntity::Pointer &entity,
+             const std::shared_ptr<const std::vector<node_id_t>> &order)
+        : entity_(entity), order_(order), cur_id_(0U) {
       cur_id_ = get_next_valid_id(0);
     }
 
     const void *data() const override {
-      return entity_->get_vector(cur_id_, block_) == 0 ? block_.data()
-                                                       : nullptr;
+      return entity_->get_vector(node_at(cur_id_), block_) == 0 ? block_.data()
+                                                                : nullptr;
     }
 
     bool is_valid() const override {
@@ -84,7 +89,7 @@ class VamanaIndexProvider : public IndexProvider {
     }
 
     uint64_t key() const override {
-      return entity_->get_key(cur_id_);
+      return entity_->get_key(node_at(cur_id_));
     }
 
     void next() override {
@@ -96,9 +101,13 @@ class VamanaIndexProvider : public IndexProvider {
     }
 
    private:
+    node_id_t node_at(node_id_t position) const {
+      return order_ ? (*order_)[position] : position;
+    }
+
     node_id_t get_next_valid_id(node_id_t start_id) {
       for (node_id_t i = start_id; i < entity_->doc_cnt(); i++) {
-        if (entity_->get_key(i) != kInvalidNodeId) {
+        if (entity_->get_key(node_at(i)) != kInvalidKey) {
           return i;
         }
       }
@@ -106,6 +115,7 @@ class VamanaIndexProvider : public IndexProvider {
     }
 
     const VamanaEntity::Pointer entity_;
+    const std::shared_ptr<const std::vector<node_id_t>> order_;
     node_id_t cur_id_;
     mutable IndexStorage::MemoryBlock block_;
   };
@@ -113,6 +123,7 @@ class VamanaIndexProvider : public IndexProvider {
   const IndexMeta &meta_;
   const VamanaEntity::Pointer entity_;
   const std::string owner_class_;
+  const std::shared_ptr<const std::vector<node_id_t>> order_;
 };
 
 }  // namespace core

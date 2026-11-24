@@ -178,6 +178,8 @@ class ZVEC_CORE_API Index {
   }
 
  protected:
+  int decode_dense_vector(const core::IndexStorage::MemoryBlock &vector_block,
+                          VectorDataBuffer *vector_data_buffer);
   int _sparse_fetch(const uint32_t doc_id,
                     VectorDataBuffer *vector_data_buffer);
   virtual int _dense_fetch(const uint32_t doc_id,
@@ -518,6 +520,9 @@ class ZVEC_CORE_API IVFRabitqIndex : public Index {
 class ZVEC_CORE_API DiskAnnIndex : public Index {
  public:
   DiskAnnIndex() = default;
+  BaseIndexParam::Pointer get_param() const override {
+    return std::make_shared<DiskAnnIndexParam>(param_);
+  }
 
  protected:
   int create_and_init_streamer(const BaseIndexParam &param) override;

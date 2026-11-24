@@ -266,6 +266,10 @@ class DiskAnnIndexParamBuilder
     param->list_size = list_size;
     return *this;
   }
+  DiskAnnIndexParamBuilder &with_streaming(bool enabled = true) {
+    param->streaming = enabled;
+    return *this;
+  }
   DiskAnnIndexParamBuilder &with_pq_chunk_num(int pq_chunk_num) {
     param->pq_chunk_num = pq_chunk_num;
     return *this;

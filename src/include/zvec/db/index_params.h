@@ -735,12 +735,13 @@ class ZVEC_API DiskAnnIndexParams : public VectorIndexParams {
       int list_size = core_interface::kDefaultDiskAnnBuildListSize,
       int pq_chunk_num = core_interface::kDefaultDiskAnnPqNumChunks,
       QuantizeType quantize_type = QuantizeType::UNDEFINED,
-      QuantizerParam quantizer_param = {})
+      QuantizerParam quantizer_param = {}, bool streaming = false)
       : VectorIndexParams(IndexType::DISKANN, metric_type, quantize_type,
                           quantizer_param),
         max_degree_{max_degree},
         list_size_{list_size},
-        pq_chunk_num_{pq_chunk_num} {}
+        pq_chunk_num_{pq_chunk_num},
+        streaming_{streaming} {}
 
   using OPtr = std::shared_ptr<DiskAnnIndexParams>;
 
@@ -750,7 +751,7 @@ class ZVEC_API DiskAnnIndexParams : public VectorIndexParams {
   Ptr clone() const override {
     return std::make_shared<DiskAnnIndexParams>(
         metric_type_, max_degree_, list_size_, pq_chunk_num_, quantize_type_,
-        quantizer_param_);
+        quantizer_param_, streaming_);
   }
 
   std::string to_string() const override {
@@ -760,7 +761,9 @@ class ZVEC_API DiskAnnIndexParams : public VectorIndexParams {
     oss << base_str << ",max_degree:" << max_degree_
         << ",list_size:" << list_size_ << ", pq_chunk_num:" << pq_chunk_num_
         << ",enable_rotate:"
-        << (quantizer_param_.enable_rotate() ? "true" : "false") << "}";
+        << (quantizer_param_.enable_rotate() ? "true" : "false");
+    if (streaming_) oss << ",streaming:true";
+    oss << "}";
     return oss.str();
   }
 
@@ -788,8 +791,17 @@ class ZVEC_API DiskAnnIndexParams : public VectorIndexParams {
     pq_chunk_num_ = pq_chunk_num;
   }
 
+  bool streaming() const {
+    return streaming_;
+  }
+  void set_streaming(bool streaming) {
+    streaming_ = streaming;
+  }
+
   bool operator==(const IndexParams &other) const override {
     return type() == other.type() &&
+           streaming_ ==
+               static_cast<const DiskAnnIndexParams &>(other).streaming_ &&
            metric_type() ==
                static_cast<const DiskAnnIndexParams &>(other).metric_type() &&
            max_degree_ ==
@@ -808,6 +820,7 @@ class ZVEC_API DiskAnnIndexParams : public VectorIndexParams {
   int max_degree_;
   int list_size_;
   int pq_chunk_num_;
+  bool streaming_;
 };
 
 /*
