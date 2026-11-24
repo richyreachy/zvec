@@ -37,11 +37,12 @@ Develop g9i presets on `g9ibench_test` and promote validated changes to
 
 The g9i presets build a single-layer independent graph directly from training
 rows, with degree 64 and construction list sizes 200 (SIFT/GIST) or 400
-(GloVe). The ANN adapter builds in memory by default. Set the corresponding
-`ZVEC_QG_*_INDEX` prefix to replay the five fingerprinted independent snapshot
-parts. Install the zvec package from the source branch being tested; the adapter
-imports `zvec.QuantizedGraph` and records the loaded extension fingerprint.
-The native build command above writes a new directory with prefix `index`.
+(GloVe). The native build command writes `SNAPSHOT_DIRECTORY/index.zvec`.
+The file contains index metadata, keys, vectors, offsets, edges, router data,
+and encoded blocks. Python can save and reopen the same format with
+`graph.save(path)` and `zvec.QuantizedGraph.open(path)`. Standalone Python uses
+row ordinals as keys. To convert a historical independent snapshot, open its
+prefix with `count`, `dimension` and `metric`, then save to a new file.
 The public improved environment has its own release workflow.
 
 To save resolved copies for a new run, from your `g9ibench_test` checkout:

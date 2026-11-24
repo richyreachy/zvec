@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import tempfile
 import unittest
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -38,6 +40,24 @@ class QuantizedGraphTest(unittest.TestCase):
                     repeated = list(pool.map(lambda q: graph.search(q, 3), rows[:24]))
                 np.testing.assert_array_equal(repeated, expected)
                 self.assertEqual(expected[0].dtype, np.uint64)
+
+    def test_segmented_index_roundtrip(self):
+        rows = np.random.default_rng(8).random((256, 32), dtype=np.float32)
+        for metric in ("l2", "cosine"):
+            with self.subTest(metric=metric), tempfile.TemporaryDirectory() as tmp:
+                path = str(Path(tmp) / "index.zvec")
+                graph = QuantizedGraph.build(rows, metric=metric, options={"threads": 1})
+                expected = [graph.search(q, 10) for q in rows[:12]]
+                graph.save(path)
+                self.assertEqual(list(Path(tmp).iterdir()), [Path(path)])
+                reopened = QuantizedGraph.open(path)
+                np.testing.assert_array_equal([reopened.search(q, 10) for q in rows[:12]], expected)
+                reopened.save(path)
+                np.testing.assert_array_equal(QuantizedGraph.open(path).search(rows[0], 10), expected[0])
+                with open(path, "r+b") as f:
+                    f.truncate(100)
+                with self.assertRaises((ValueError, RuntimeError)):
+                    QuantizedGraph.open(path)
 
     def test_input_validation(self):
         rows = np.random.default_rng(9).random((128, 32), dtype=np.float32)

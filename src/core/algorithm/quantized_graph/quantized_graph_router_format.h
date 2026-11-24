@@ -14,11 +14,25 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
+#include <string_view>
 #include <cstdio>
 #include "turbo/preprocessor/quantized_graph_rotator/quantized_graph_rotator.h"
-#include "quantized_graph_router_io.h"
 
 namespace zvec::core {
+
+struct QuantizedGraphRouterReader {
+  std::string_view data;
+  size_t offset = 0;
+
+  bool operator()(void *out, size_t bytes) {
+    if (bytes > data.size() - offset) return false;
+
+    std::memcpy(out, data.data() + offset, bytes);
+    offset += bytes;
+    return true;
+  }
+};
 
 // V2: fixed 768D cosine. V3 additionally records original dimension, metric,
 // rotation dimension and SIMD code stride. The projection is never the graph

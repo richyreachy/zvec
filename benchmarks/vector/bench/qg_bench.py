@@ -169,10 +169,10 @@ def build(c, resolved, binary):
     out = Path(c['output_dir'])
     verify_provider(c)
     for name, p in c['profiles'].items():
-        require(not Path(p['index_prefix'] + '.qg').exists(), 'refusing to overwrite QG index')
+        require(not any(Path(p['index_prefix'] + ext).exists() for ext in ('.qg', '.zvec')), 'refusing to overwrite QG index')
         run(binary, 'build', resolved, name, log=out / ('build-' + name + '.log'))
         save(out / ('index-' + name + '.json'), dict(profile=p, source=source(binary),
-             files=[fingerprint(p['index_prefix'] + ext) for ext in ('.qg', '.router')],
+             files=[fingerprint(p['index_prefix'] + '.zvec')],
              provider_manifest=fingerprint(out / 'provider.json')))
 
 

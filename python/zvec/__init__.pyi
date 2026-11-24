@@ -19,7 +19,7 @@ Zvec core module
 from __future__ import annotations
 
 import collections
-from typing import Any
+from typing import Any, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -80,7 +80,8 @@ class QuantizedGraph:
     codec (rabitq, low_rank, global), max_neighbors, rotation_views,
     block_dimension, rank, codebook, training_samples, center_weight and seed.
 
-    open reads the five independent snapshot files sharing the given prefix.
+    save and open use one segmented Zvec index file. The prefix overload
+    opens historical five-file snapshots for migration.
     Build and open accept native proxima.quantized_graph.thp_* page parameters.
     configure replaces the capacity, margin, max_expansions, route_beam,
     bucket_width and uncertainty_bonus settings. search takes a contiguous
@@ -98,7 +99,12 @@ class QuantizedGraph:
         options: dict[str, Any] = ...,
         page_params: dict[str, Any] = ...,
     ) -> QuantizedGraph: ...
+    def save(self, path: str) -> None: ...
     @staticmethod
+    @overload
+    def open(path: str, *, page_params: dict[str, Any] = ...) -> QuantizedGraph: ...
+    @staticmethod
+    @overload
     def open(
         prefix: str,
         *,
