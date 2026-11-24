@@ -20,6 +20,7 @@
 #include <pybind11/pybind11.h>
 #include <zvec/core/framework/index_factory.h>
 #include "algorithm/quantized_graph/quantized_graph_builder.h"
+#include "algorithm/quantized_graph/quantized_graph_index.h"
 #include "algorithm/quantized_graph/quantized_graph_params.h"
 #include "algorithm/quantized_graph/quantized_graph_query.h"
 
@@ -28,7 +29,6 @@ namespace zvec {
 using namespace core;
 
 namespace {
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 using Array = py::array_t<float, py::array::c_style>;
 
 void check(bool ok, const std::string &message) {
@@ -294,9 +294,6 @@ class PythonQuantizedGraph {
   std::mutex mutex_;
   size_t capacity_ = 128;
 };
-#else
-struct PythonQuantizedGraph {};
-#endif
 }  // namespace
 
 void RegisterQuantizedGraph(py::module_ &m) {
@@ -304,7 +301,6 @@ void RegisterQuantizedGraph(py::module_ &m) {
       m, "QuantizedGraph",
       "Standalone FP32 graph with input row ordinals as IDs.");
   graph.def_static("supported", &QuantizedGraphSupported);
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
   graph
       .def_static(
           "build",
@@ -342,13 +338,5 @@ void RegisterQuantizedGraph(py::module_ &m) {
       .def("search", &PythonQuantizedGraph::search,
            py::arg("query").noconvert(), py::arg("k") = 10,
            "Return the nearest row IDs in distance order.");
-#else
-  auto unavailable = [](py::args, py::kwargs) {
-    throw std::runtime_error(
-        "This zvec build does not support quantized graphs");
-  };
-  graph.def_static("open", unavailable).def_static("build", unavailable)
-      .def("save", unavailable);
-#endif
 }
 }  // namespace zvec

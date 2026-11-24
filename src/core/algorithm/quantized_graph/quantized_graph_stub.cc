@@ -15,6 +15,10 @@
 
 namespace zvec::core {
 
+bool QuantizedGraphSupported() {
+  return false;
+}
+
 int QuantizedGraphBuilder::build(std::vector<float>, size_t, bool,
                                  const Options &, Result &) {
   return IndexError_Unsupported;

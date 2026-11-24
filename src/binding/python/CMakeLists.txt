@@ -32,10 +32,16 @@ endif()
 
 find_package(pybind11 REQUIRED)
 
+if(ZVEC_QUANTIZED_GRAPH_SUPPORTED)
+    set(qg_python_source model/python_quantized_graph.cc)
+else()
+    set(qg_python_source model/python_quantized_graph_stub.cc)
+endif()
+
 set(SRC_LISTS
         binding.cc
         model/python_collection.cc
-        model/python_quantized_graph.cc
+        ${qg_python_source}
         model/python_doc.cc
         model/python_reranker.cc
         model/param/python_param.cc

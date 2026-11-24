@@ -15,6 +15,7 @@
 #include <gtest/gtest.h>
 
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED
+#include "algorithm/quantized_graph/quantized_graph_index.h"
 #include <unistd.h>
 #include <cmath>
 #include <cstdio>

@@ -25,7 +25,9 @@
 #include <vector>
 #include <zvec/core/framework/index_factory.h>
 #include "algorithm/hnsw/hnsw_streamer_entity.h"
+#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 #include "algorithm/quantized_graph/quantized_graph_index.h"
+#endif
 #include "algorithm/quantized_graph/quantized_graph_query.h"
 #include "bench/qg_build_options.h"
 #include "bench_result.h"
