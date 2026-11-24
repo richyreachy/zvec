@@ -971,18 +971,18 @@ void reject_legacy(const YAML::Node &n) {
     for (const auto &entry : n) reject_legacy(entry);
 }
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED
-QuantizedGraphBuildOptions build_options(const YAML::Node &p) {
+QuantizedGraphEncodingOptions build_options(const YAML::Node &p) {
   auto c = p["encoding"];
-  QuantizedGraphBuildOptions o;
+  QuantizedGraphEncodingOptions o;
   o.max_neighbors = c["max_neighbors"].as<size_t>();
   o.threads = c["threads"].as<size_t>();
   o.rotation_views = c["rotation_views"].as<size_t>();
   auto codec = c["codec"].as<std::string>(),
        book = c["codebook"].as<std::string>();
   if (codec == "native") codec = "rabitq";
-  if (!QuantizedGraphBuildOptions::parse_name(codec, o.codec))
+  if (!QuantizedGraphEncodingOptions::parse_name(codec, o.codec))
     throw std::runtime_error("unknown codec");
-  if (!QuantizedGraphBuildOptions::parse_name(book, o.codebook))
+  if (!QuantizedGraphEncodingOptions::parse_name(book, o.codebook))
     throw std::runtime_error("unknown codebook");
   o.block_dimension = c["block_dimension"].as<size_t>();
   o.rank = c["rank"].as<size_t>();

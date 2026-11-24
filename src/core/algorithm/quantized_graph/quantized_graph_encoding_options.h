@@ -22,7 +22,7 @@ namespace zvec::core {
 
 // Build-time options only. The resulting codec and graph blocks are embedded
 // in the snapshot; search never trains or reads an external codec file.
-struct QuantizedGraphBuildOptions {
+struct QuantizedGraphEncodingOptions {
   // Native remains an alias for source compatibility. Keep the enum values.
   enum class Codec { RaBitQ = 0, Global = 1, LowRank = 2, Native = RaBitQ };
   enum class Codebook { Hadamard, Gaussian };

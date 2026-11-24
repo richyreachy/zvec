@@ -108,7 +108,7 @@ QuantizedGraphBuilder::Options build_options(const py::dict &options) {
   check_keys(d);
   auto e = py::dict(encoding.attr("copy")());
   auto &enc = o.encoding;
-  using Encoding = QuantizedGraphBuildOptions;
+  using Encoding = QuantizedGraphEncodingOptions;
   if (e.contains("codec")) {
     auto codec = e.attr("pop")("codec").cast<std::string>();
     if (!Encoding::parse_name(codec, enc.codec))

@@ -229,9 +229,9 @@ TEST_P(RawQuantizedGraph, BuildsAndSearchesWithoutAnotherIndex) {
   const auto variant = GetParam();
   auto config = options();
   if (variant & 2) {
-    config.encoding.codec = QuantizedGraphBuildOptions::Codec::LowRank;
+    config.encoding.codec = QuantizedGraphEncodingOptions::Codec::LowRank;
     config.encoding.block_dimension = 8;
-    config.encoding.codebook = QuantizedGraphBuildOptions::Codebook::Gaussian;
+    config.encoding.codebook = QuantizedGraphEncodingOptions::Codebook::Gaussian;
     config.encoding.rotation_views = 2;
   }
   if (variant & 4) config.router_anchors = 0;

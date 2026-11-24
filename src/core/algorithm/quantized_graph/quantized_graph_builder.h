@@ -70,7 +70,7 @@ struct QuantizedGraphData {
 class QuantizedGraphBuilder final : public IndexBuilder {
  public:
   struct Options {
-    QuantizedGraphBuildOptions encoding;
+    QuantizedGraphEncodingOptions encoding;
     size_t search_list_size = 400;
     size_t threads = 2;
     size_t passes = 2;

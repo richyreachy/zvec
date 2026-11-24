@@ -112,11 +112,11 @@ TEST_P(IndependentQuantizedGraph, BuildQueryAndSnapshotWithoutHnsw) {
   if (!QuantizedGraphSupported()) GTEST_SKIP();
   const unsigned variant = GetParam();
   ArrayGraph source(variant & 1, variant & 2);
-  QuantizedGraphBuildOptions options;
+  QuantizedGraphEncodingOptions options;
   options.threads = 2;
   options.training_samples = 16;
   if (variant & 4) {
-    options.codec = QuantizedGraphBuildOptions::Codec::LowRank;
+    options.codec = QuantizedGraphEncodingOptions::Codec::LowRank;
     options.block_dimension = 8;
     options.rotation_views = 2;
   }
@@ -276,7 +276,7 @@ TEST_P(IndependentQuantizedGraph, RouterTrainingWithoutHnsw) {
                    source, source.count, source.dimension, source.cosine,
                    source.count, 32, 718, router, source.fp16, views));
   ASSERT_FALSE(router.empty());
-  QuantizedGraphBuildOptions build;
+  QuantizedGraphEncodingOptions build;
   build.rotation_views = views;
   std::string codec;
   ASSERT_EQ(0, QuantizedGraphIndex::train_codec(source, source.count,

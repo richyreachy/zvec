@@ -24,7 +24,7 @@
 #include <vector>
 #include <rabitqlib/third/Eigen/Eigenvalues>
 #include <turbo/preprocessor/quantized_graph_rotator/quantized_graph_rotator.h>
-#include "quantized_graph_build_options.h"
+#include "quantized_graph_encoding_options.h"
 #include "quantized_graph_neighbors.h"
 #include "quantized_graph_sq8_center.h"
 
@@ -41,8 +41,8 @@ class QuantizedGraphCodecBuilder {
 
   template <class Graph>
   static Result train(const Graph &graph, size_t docs, size_t dimension,
-                      bool cosine, const QuantizedGraphBuildOptions &options) {
-    using Options = QuantizedGraphBuildOptions;
+                      bool cosine, const QuantizedGraphEncodingOptions &options) {
+    using Options = QuantizedGraphEncodingOptions;
     if (!options.valid() || !dimension || dimension > 4096 || !docs ||
         docs >= UINT32_MAX)
       throw std::invalid_argument("invalid codec training options or shape");
@@ -304,10 +304,10 @@ class QuantizedGraphCodecBuilder {
 
  private:
   static std::vector<float> train_words(
-      const QuantizedGraphBuildOptions &options) {
+      const QuantizedGraphEncodingOptions &options) {
     const size_t dim = options.block_dimension;
     std::vector<float> words(16 * dim);
-    if (options.codebook == QuantizedGraphBuildOptions::Codebook::Hadamard) {
+    if (options.codebook == QuantizedGraphEncodingOptions::Codebook::Hadamard) {
       for (size_t j = 0; j < 16; ++j)
         for (size_t d = 0; d < dim; ++d)
           words[j * dim + d] =
