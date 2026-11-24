@@ -148,10 +148,8 @@ TEST(QuantizedGraphFramework, BuildDumpAndQueryThroughBothReaders) {
     auto x = vectors(n, dim);
     auto holder = std::make_shared<RandomAccessIndexHolder>(meta);
     for (size_t i = n; i--;) holder->emplace(base + i, x.data() + i * dim);
-    const char *builder_name =
-        cosine ? "QuantizedGraphBuilder" : "QuantizedGraphIndexBuilder";
     auto b = std::dynamic_pointer_cast<QuantizedGraphBuilder>(
-        IndexFactory::CreateBuilder(builder_name));
+        IndexFactory::CreateBuilder("QuantizedGraphBuilder"));
     ASSERT_TRUE(b);
     ailego::Params params;
     params.set("zvec.quantized_graph.builder.threads", 1);
@@ -182,7 +180,7 @@ TEST(QuantizedGraphFramework, BuildDumpAndQueryThroughBothReaders) {
     IndexFlow flow;
     ASSERT_EQ(0, flow.load(path));
     ASSERT_EQ("QuantizedGraphSearcher", flow.searcher()->name());
-    EXPECT_EQ(builder_name, flow.meta().builder_name());
+    EXPECT_EQ("QuantizedGraphBuilder", flow.meta().builder_name());
     const auto &saved = flow.meta().builder_params();
     EXPECT_FALSE(saved.has("options"));
     EXPECT_EQ(1u, saved.get_as_uint32("zvec.quantized_graph.builder.threads"));

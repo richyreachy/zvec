@@ -80,5 +80,5 @@ The standalone API builds directly from FP32 rows with
 `zvec.QuantizedGraph.build(rows, metric="l2", options=...)` and returns row IDs
 from `graph.search(query, 10)`. Collection persists external keys and the QG
 snapshot in each sealed segment. Native framework users can create
-`QuantizedGraphBuilder` (also registered as `QuantizedGraphIndexBuilder`),
-then open its dump with `IndexFlow` or `QuantizedGraphStreamer`.
+`QuantizedGraphBuilder`, then open its dump with `IndexFlow` or
+`QuantizedGraphStreamer`.
