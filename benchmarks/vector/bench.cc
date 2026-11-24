@@ -1032,8 +1032,8 @@ void build_from_rows(const YAML::Node &profile, const std::string &input,
   }
 }
 
-QuantizedGraphSearchOptions search_options(const YAML::Node &c) {
-  QuantizedGraphSearchOptions o;
+QuantizedGraphQuery::Options search_options(const YAML::Node &c) {
+  QuantizedGraphQuery::Options o;
   o.margin = c["margin"].as<float>();
   o.bucket_width = c["bucket_width"].as<float>();
   o.max_expansions = c["max_expansions"].as<uint32_t>();
