@@ -19,12 +19,17 @@ provider, start at `build`. Older scripts can invoke the same program as
 
 ## r7i (Ice Lake)
 
-Use the [c7ibench adapter guide](https://github.com/richyreachy/ann-benchmarks/blob/c7ibench/ann_benchmarks/algorithms/zvec_qg/README.md)
-and the [succinct SIFT, GIST and GloVe presets](https://github.com/richyreachy/ann-benchmarks/tree/c7ibench/ann_benchmarks/algorithms/zvec_qg/configs/r7i).
-The [native campaign archive](https://github.com/richyreachy/ann-benchmarks/tree/c7ibench/benchmark-configs/r7i-new-api/succinct)
-contains the build inputs, recorded measurements and earlier configurations.
-For the frozen M64/800 CPU0 GloVe run, use the [seven recommended settings](https://github.com/richyreachy/ann-benchmarks/blob/c7ibench/ann_benchmarks/algorithms/zvec_qg/configs/r7i-cpu0/glove.json)
-and the [CPU0 replay command](https://github.com/richyreachy/ann-benchmarks/blob/c7ibench/ann_benchmarks/algorithms/zvec_qg/validation/cpu0-icelake-20261119/README.md#glove-query-presets).
+Use the [native Python adapter](https://github.com/richyreachy/ann-benchmarks/blob/r7ibench_nice/ann_benchmarks/algorithms/zvec_qg/module.py)
+and [r7i build and search presets](https://github.com/richyreachy/ann-benchmarks/tree/r7ibench_nice/ann_benchmarks/algorithms/zvec_qg/configs/r7i-native-builder)
+for SIFT, GIST and GloVe. For the C++ tools, see the
+[local_builder, recall and bench examples](../README.md#building-a-quantized-graph).
+
+To replay the historical provider-based runs, use the
+[archived reproduction script](https://github.com/richyreachy/ann-benchmarks/blob/0a2b9bd8e86e20f16f4957910181ba766fcfb409/benchmark-configs/r7i-new-api/reproduce.sh)
+with its pinned Zvec revisions and the
+[succinct configurations and results](https://github.com/richyreachy/ann-benchmarks/tree/0a2b9bd8e86e20f16f4957910181ba766fcfb409/benchmark-configs/r7i-new-api/succinct).
+For the frozen M64/800 CPU0 GloVe run, use the [seven recommended settings](https://github.com/richyreachy/ann-benchmarks/blob/0a2b9bd8e86e20f16f4957910181ba766fcfb409/ann_benchmarks/algorithms/zvec_qg/configs/r7i-cpu0/glove.json)
+and the [CPU0 replay command](https://github.com/richyreachy/ann-benchmarks/blob/0a2b9bd8e86e20f16f4957910181ba766fcfb409/ann_benchmarks/algorithms/zvec_qg/validation/cpu0-icelake-20261119/README.md#glove-query-presets).
 
 ## g9i
 
@@ -60,10 +65,6 @@ succinct measurements labeled separately, and keep the public improved runtime
 independent. Query timing is single-threaded, serial on CPU 0, without concurrent
 compilation. Build/algorithm job concurrency must not exceed two. Use official
 ANN Recall@10 and report actual recall and memory alongside QPS.
-
-`qg_bench.py` and `qg_preflight.py` remain generic native-API tools and accept
-external configuration paths. Their native-campaign JSON schema differs from
-the g9i independent graph profiles; do not interchange the two formats.
 
 ## Collection and standalone QG
 
