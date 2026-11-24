@@ -146,6 +146,12 @@ struct DecodedGraph {
 // The provider must remain alive and immutable during searches.
 class QuantizedGraphIndex {
  public:
+  static constexpr const char *kKeysSegment = "qg.keys";
+  static constexpr const char *kKeys64Segment = "qg.keys64";
+  static constexpr const char *kVectorsSegment = "qg.vectors";
+  static constexpr const char *kOffsetsSegment = "qg.offsets";
+  static constexpr const char *kEdgesSegment = "qg.edges";
+  static constexpr const char *kRouterSegment = "qg.router";
   static constexpr const char *kSnapshotSegment = "quantized_graph.blocks";
 
   QuantizedGraphIndex(size_t dimension, size_t max_neighbors, bool cosine,

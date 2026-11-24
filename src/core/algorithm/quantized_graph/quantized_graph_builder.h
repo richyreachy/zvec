@@ -93,6 +93,17 @@ class QuantizedGraphBuilder final : public IndexBuilder {
     std::shared_ptr<QuantizedGraphIndex> index;
     std::string codec;
     std::string router;
+    ailego::Params build_params;
+
+    int save(const std::string &path,
+             const std::vector<uint64_t> &keys = {}) const;
+    int open(const std::string &path, const ailego::Params &pages = {},
+             std::vector<uint64_t> *keys = nullptr);
+    int load(IndexStorage &storage, const ailego::Params &pages,
+             std::vector<uint64_t> *keys);
+
+   private:
+    static bool unique_keys(const std::vector<uint64_t> &keys);
   };
 
   // Takes ownership of the input allocation when called with std::move.
@@ -116,8 +127,6 @@ class QuantizedGraphBuilder final : public IndexBuilder {
 
  private:
   bool compatible(const IndexHolder::Pointer &holder) const;
-  template <class Part>
-  int serialize(Part part);
   Stats stats_;
   IndexMeta meta_;
   Options options_;

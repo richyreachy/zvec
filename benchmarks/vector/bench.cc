@@ -847,73 +847,43 @@ void write(const std::string &path, const std::vector<T> &v) {
   check(bool(f), "write " + path);
 }
 // The anonymous-namespace type enables inlining. Arrays own all borrowed data.
-struct Graph {
-  struct Vector {
-    const float *p = nullptr;
-    const void *data() const {
-      return p;
-    }
-  };
-  struct Edges {
-    const uint32_t *p;
-    size_t n;
-    size_t size() const {
-      return n;
-    }
-    uint32_t operator[](size_t i) const {
-      return p[i];
-    }
-  };
-  size_t dim, count;
-  std::vector<float> vectors;
-  std::vector<uint64_t> offsets, ids;
-  std::vector<uint32_t> edges;
-  Graph(const YAML::Node &c, const std::string &snapshot = {})
-      : dim(c["dimension"].as<size_t>()),
-        count(snapshot.empty() ? c["train_count"].as<size_t>()
-                               : c["train_shape"][0].as<size_t>()) {
+struct Graph : QuantizedGraphData {
+  std::vector<uint64_t> ids;
+  Graph(const YAML::Node &c, const std::string &snapshot = {}) {
+    dimension = c["dimension"].as<size_t>();
+    const size_t count = snapshot.empty() ? c["train_count"].as<size_t>()
+                             : c["train_shape"][0].as<size_t>();
     const auto p =
         snapshot.empty() ? c["provider_prefix"].as<std::string>() : snapshot;
     vectors = read<float>(p + ".vectors");
     offsets = read<uint64_t>(p + ".offsets");
+    edges = read<uint32_t>(p + ".edges");
+    check(dimension && count && vectors.size() % dimension == 0 &&
+              size() == count && offsets.size() == count + 1 &&
+              offsets.front() == 0 && offsets.back() == edges.size(),
+          "provider shape");
     if (snapshot.empty()) {
       ids = read<uint64_t>(p + ".ids");
-    } else {
-      ids.resize(count);
-      std::iota(ids.begin(), ids.end(), uint64_t{0});
+      check(ids.size() == count, "provider ID count");
+      auto sorted = ids;
+      std::sort(sorted.begin(), sorted.end());
+      for (size_t i = 0; i < count; ++i) check(sorted[i] == i, "provider IDs");
     }
-    edges = read<uint32_t>(p + ".edges");
-    check(dim && count && vectors.size() == dim * count &&
-              ids.size() == count && offsets.size() == count + 1 &&
-              offsets[0] == 0 && offsets.back() == edges.size(),
-          "provider shape");
-    auto sorted = ids;
-    std::sort(sorted.begin(), sorted.end());
+    const auto metric = c["metric"].as<std::string>();
+    cosine = metric == (snapshot.empty() ? "cosine" : "angular");
     for (size_t i = 0; i < count; ++i) {
-      check(sorted[i] == i && offsets[i] <= offsets[i + 1],
-            "provider IDs/offsets");
+      check(offsets[i] <= offsets[i + 1], "provider offsets");
       double norm = 0;
-      for (size_t d = 0; d < dim; ++d) {
-        float x = vectors[i * dim + d];
+      for (size_t d = 0; d < dimension; ++d) {
+        float x = vectors[i * dimension + d];
         check(std::isfinite(x), "nonfinite vector");
         norm += double(x) * x;
       }
-      if (c["metric"].as<std::string>() == "cosine")
+      if (cosine)
         check(std::abs(norm - 1) < 2e-5,
               "cosine provider must be normalized exactly once upstream");
     }
     for (auto id : edges) check(id < count, "edge ID range");
-  }
-  bool valid(uint32_t id) const {
-    return id < count;
-  }
-  int get_vector(uint32_t id, Vector &v) const {
-    if (!valid(id)) return IndexError_NoExist;
-    v.p = vectors.data() + size_t(id) * dim;
-    return 0;
-  }
-  Edges neighbors(uint32_t id) const {
-    return {edges.data() + offsets[id], size_t(offsets[id + 1] - offsets[id])};
   }
 };
 void export_graph(const YAML::Node &c) {
@@ -995,34 +965,27 @@ QuantizedGraphEncodingOptions build_options(const YAML::Node &p) {
   return o;
 }
 void build(const YAML::Node &c, const YAML::Node &p) {
-  Graph g(c);
+  auto g = std::make_shared<Graph>(c);
   auto o = build_options(p);
-  bool cosine = c["metric"].as<std::string>() == "cosine";
-  auto r = p["router"];
-  std::string codec, router;
-  status(QuantizedGraphIndex::train_codec(g, g.count, g.dim, cosine, false, o,
-                                          codec),
+  const auto dim = g->dimension;
+  const auto r = p["router"];
+  QuantizedGraphBuilder::Result result;
+  std::string codec;
+  status(QuantizedGraphIndex::train_codec(*g, g->size(), dim, g->cosine, false, o, codec),
          "train codec");
   status(QuantizedGraphIndex::train_router(
-             g, g.count, g.dim, cosine, r["anchors"].as<size_t>(),
+             *g, g->size(), dim, g->cosine, r["anchors"].as<size_t>(),
              r["projected_dimension"].as<size_t>(), r["seed"].as<uint64_t>(),
-             router, false, o.rotation_views),
-         "train router");
-  QuantizedGraphIndex index(g.dim, o.max_neighbors, cosine, g.dim * 4, router,
-                            false, codec);
-  status(index.prebuild(g, g.count, o.threads), "prebuild QG");
-  const auto prefix = p["index_prefix"].as<std::string>();
-  write(prefix + ".router", std::vector<char>(router.begin(), router.end()));
-  auto dumper = IndexFactory::CreateDumper("FileDumper");
-  check(bool(dumper), "dumper");
-  status(dumper->init({}), "dumper init");
-  status(dumper->create(prefix + ".qg"), "dumper create");
-  status(index.dump(dumper), "dump QG");
-  status(dumper->close(), "dumper close");
-  std::cout << "built native QuantizedGraphIndex " << prefix << std::endl;
+             result.router, false, o.rotation_views), "train router");
+  result.index = std::make_shared<QuantizedGraphIndex>(
+      dim, o.max_neighbors, g->cosine, dim * sizeof(float), result.router,
+      false, codec);
+  status(result.index->prebuild(*g, g->size(), o.threads), "prebuild QG");
+  result.data = g;
+  status(result.save(p["index_prefix"].as<std::string>() + ".zvec", g->ids),
+         "save QG index");
 }
-// Build the five independent snapshot parts into a new directory. Publish
-// them together so a reader never observes a partially written graph.
+
 void build_from_rows(const YAML::Node &profile, const std::string &input,
                      const std::filesystem::path &output) {
   namespace fs = std::filesystem;
@@ -1048,18 +1011,7 @@ void build_from_rows(const YAML::Node &profile, const std::string &input,
   check(fs::create_directory(staging),
         "snapshot staging directory already exists");
   try {
-    const auto prefix = (staging / "index").string();
-    write(prefix + ".vectors", result.data->vectors);
-    write(prefix + ".offsets", result.data->offsets);
-    write(prefix + ".edges", result.data->edges);
-    write(prefix + ".router",
-          std::vector<char>(result.router.begin(), result.router.end()));
-    auto dumper = IndexFactory::CreateDumper("FileDumper");
-    check(bool(dumper), "snapshot dumper");
-    status(dumper->init({}), "init dumper");
-    status(dumper->create(prefix + ".qg"), "create snapshot");
-    status(result.index->dump(dumper), "dump graph");
-    status(dumper->close(), "close snapshot");
+    status(result.save((staging / "index.zvec").string()), "save QG index");
     fs::rename(staging, output);
   } catch (...) {
     fs::remove_all(staging);
@@ -1072,38 +1024,54 @@ QuantizedGraphQuery::Options search_options(const YAML::Node &c) {
   o.margin = c["margin"].as<float>();
   o.bucket_width = c["bucket_width"].as<float>();
   o.max_expansions = c["max_expansions"].as<uint32_t>();
-  o.route_beam = c["route_beam"].as<uint32_t>();
-  o.uncertainty_bonus = c["uncertainty_bonus"].as<float>();
+  if (c["route_beam"]) o.route_beam = c["route_beam"].as<uint32_t>();
+  if (c["uncertainty_bonus"])
+    o.uncertainty_bonus = c["uncertainty_bonus"].as<float>();
   return o;
 }
 void query(const YAML::Node &c, const YAML::Node &p, const std::string &dest,
            const std::string &snapshot = {},
            const std::string &query_file = {}) {
   const bool independent = !snapshot.empty();
-  Graph g(c, snapshot);
   if (!independent) build_options(p);
-  const auto prefix =
-      independent ? snapshot : p["index_prefix"].as<std::string>();
-  auto rb = read<char>(prefix + ".router");
-  std::string router(rb.begin(), rb.end());
-  auto storage = IndexFactory::CreateStorage("MMapFileReadStorage");
-  status(storage->init({}), "init snapshot storage");
-  status(storage->open(prefix + ".qg", false), "open snapshot");
-  std::shared_ptr<QuantizedGraphIndex> index;
-  const bool cosine =
-      c["metric"].as<std::string>() == (independent ? "angular" : "cosine");
-  const auto pages =
-      independent ? zvec::core::qg_bench_options::page_params(p["page_params"])
-                  : zvec::ailego::Params{};
-  status(QuantizedGraphIndex::load(
-             g, g.count, g.dim, cosine, g.dim * 4, router, false,
-             storage->get(QuantizedGraphIndex::kSnapshotSegment), index, pages),
-         "load new QG snapshot");
+  const auto prefix = independent ? snapshot : p["index_prefix"].as<std::string>();
+  const auto pages = independent ? zvec::core::qg_bench_options::page_params(p["page_params"])
+                                 : zvec::ailego::Params{};
+  QuantizedGraphBuilder::Result result;
+  std::vector<uint64_t> keys;
+  const auto file = independent && std::filesystem::is_regular_file(prefix)
+                        ? prefix : prefix + ".zvec";
+  if (std::filesystem::exists(file)) {
+    status(result.open(file, pages, independent ? nullptr : &keys),
+           "open QG index");
+  } else {
+    auto provider = std::make_shared<Graph>(c, snapshot);
+    auto storage = IndexFactory::CreateStorage("MMapFileReadStorage");
+    check(bool(storage), "snapshot storage factory");
+    status(storage->init({}), "init snapshot storage");
+    status(storage->open(prefix + ".qg", false), "open legacy snapshot");
+    const auto bytes = read<char>(prefix + ".router");
+    const std::string router(bytes.begin(), bytes.end());
+    status(QuantizedGraphIndex::load(
+               *provider, provider->size(), provider->dimension, provider->cosine,
+               provider->dimension * sizeof(float), router, false,
+               storage->get(QuantizedGraphIndex::kSnapshotSegment), result.index, pages),
+           "load legacy QG snapshot");
+    keys = std::move(provider->ids);
+    result.data = std::move(provider);
+  }
+  const auto &g = *result.data;
+  const size_t dim = g.dimension;
+  const bool cosine = g.cosine;
+  check(dim == c["dimension"].as<size_t>() &&
+            g.size() == (independent ? c["train_shape"][0] : c["train_count"]).as<size_t>() &&
+            cosine == (c["metric"].as<std::string>() == (independent ? "angular" : "cosine")),
+        "QG index differs from profile");
   auto metric =
       IndexFactory::CreateMetric(cosine ? "InnerProduct" : "SquaredEuclidean");
   check(bool(metric), "metric factory");
   IndexMeta meta;
-  meta.set_meta(IndexMeta::DT_FP32, g.dim);
+  meta.set_meta(IndexMeta::DT_FP32, dim);
   status(metric->init(meta, {}), "metric init");
   auto distance = metric->distance();
   auto exact = [distance, cosine](const void *a, const void *b, size_t d,
@@ -1114,28 +1082,28 @@ void query(const YAML::Node &c, const YAML::Node &p, const std::string &dest,
   auto queries = read<float>(independent ? query_file
                                          : c["queries_file"].as<std::string>());
   const size_t nq =
-      independent ? queries.size() / g.dim : c["query_count"].as<size_t>();
+      independent ? queries.size() / dim : c["query_count"].as<size_t>();
   const size_t k = independent ? 10 : c["protocol"]["topk"].as<size_t>();
   check(nq > 0, "empty query set");
-  check(queries.size() == nq * g.dim, "query shape");
+  check(queries.size() == nq * dim, "query shape");
   for (size_t q = 0; q < nq; ++q) {
     double norm = 0;
-    for (size_t d = 0; d < g.dim; ++d) {
-      float x = queries[q * g.dim + d];
+    for (size_t d = 0; d < dim; ++d) {
+      float x = queries[q * dim + d];
       check(std::isfinite(x), "query finite");
       norm += double(x) * x;
     }
     if (cosine && independent) {
       check(norm > 0, "zero cosine query");
       const auto scale = 1 / std::sqrt(norm);
-      for (size_t d = 0; d < g.dim; ++d) queries[q * g.dim + d] *= scale;
+      for (size_t d = 0; d < dim; ++d) queries[q * dim + d] *= scale;
     } else if (cosine) {
       check(std::abs(norm - 1) < 2e-5,
             "query must be normalized exactly once upstream");
     }
   }
   std::filesystem::create_directories(dest);
-  QuantizedGraphQuery ctx(g.dim, exact);
+  QuantizedGraphQuery ctx(dim, exact);
   const auto points = independent ? c["settings"] : c["points"];
   const auto rounds = independent ? 3 : c["protocol"]["rounds"].as<int>();
   for (const auto &point : points) {
@@ -1148,8 +1116,9 @@ void query(const YAML::Node &c, const YAML::Node &p, const std::string &dest,
             : point["name"].as<std::string>();
     const auto search = independent ? point["options"] : point["search"];
     auto options = search_options(search);
-    const auto capacity =
-        (independent ? search : point)["capacity"].as<size_t>();
+    const auto capacity = independent && !search["capacity"]
+                              ? size_t{128}
+                              : (independent ? search : point)["capacity"].as<size_t>();
     const auto scan = independent ? 0 : point["scan_limit"].as<uint64_t>();
     for (int round = -1; round < rounds; ++round) {
       std::vector<uint64_t> ids(nq * k), ns(nq), expanded(nq), comparisons(nq);
@@ -1157,14 +1126,14 @@ void query(const YAML::Node &c, const YAML::Node &p, const std::string &dest,
       for (size_t q = 0; q < nq; ++q) {
         auto start = std::chrono::steady_clock::now();
         status(
-            ctx.reset(queries.data() + q * g.dim, k, capacity, options, scan),
+            ctx.reset(queries.data() + q * dim, k, capacity, options, scan),
             "reset query");
-        status(index->search(g, ctx), "QG search");
-        const auto &result = ctx.results();
-        check(result.size() >= k, "fewer than topk results");
+        status(result.index->search(g, ctx), "QG search");
+        const auto &hits = ctx.results();
+        check(hits.size() >= k, "fewer than topk results");
         for (size_t j = 0; j < k; ++j) {
-          ids[q * k + j] = g.ids[result[j].first];
-          scores[q * k + j] = result[j].second;
+          ids[q * k + j] = independent ? hits[j].first : keys[hits[j].first];
+          scores[q * k + j] = hits[j].second;
         }
         auto stop = std::chrono::steady_clock::now();
         ns[q] =
@@ -1205,8 +1174,9 @@ int run(int argc, char **argv) {
         build_from_rows(config, argv[3], argv[4]);
       } else if (mode == "query" && argc == 6) {
         check(!std::filesystem::exists(argv[5]), "query output already exists");
-        query(config, config, argv[5],
-              (std::filesystem::path(argv[3]) / "index").string(), argv[4]);
+        std::filesystem::path file(argv[3]);
+        if (std::filesystem::is_directory(file)) file /= "index";
+        query(config, config, argv[5], file.string(), argv[4]);
       } else {
         throw std::runtime_error(
             "expected build PROFILE TRAIN.f32 NEW_DIRECTORY or "
