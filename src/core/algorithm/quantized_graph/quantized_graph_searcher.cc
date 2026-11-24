@@ -14,6 +14,7 @@
 #include "quantized_graph_searcher.h"
 #include <cmath>
 #include <zvec/core/framework/index_factory.h>
+#include <zvec/core/framework/index_helper.h>
 #include "quantized_graph_query.h"
 
 namespace zvec::core {
@@ -87,11 +88,9 @@ int QuantizedGraphSearcher::cleanup() {
   return 0;
 }
 
-int QuantizedGraphSearcher::load(IndexStorage::Pointer storage,
-                                 IndexMetric::Pointer metric) {
-  if (!QuantizedGraphSupported()) return IndexError_Unsupported;
-  if (!storage) return IndexError_InvalidArgument;
-  auto &s = *storage;
+int QuantizedGraphBuilder::Result::load(
+    IndexStorage &s, const ailego::Params &pages,
+    std::vector<uint64_t> *external_keys) {
   auto segment = s.get(QuantizedGraphIndex::kSnapshotSegment);
   quantized_graph_detail::SnapshotHeader header{};
   if (!segment ||
@@ -102,37 +101,34 @@ int QuantizedGraphSearcher::load(IndexStorage::Pointer storage,
     return IndexError_InvalidFormat;
   const size_t dim = header[2];
   const bool cosine = header[4];
-  IndexMeta meta(IndexMeta::DT_FP32, dim);
-  if (cosine) meta.set_metric("Cosine", 0, ailego::Params{});
-  if (metric && metric->name() != meta.metric_name())
-    return IndexError_InvalidArgument;
-  auto exact =
-      IndexFactory::CreateMetric(cosine ? "InnerProduct" : "SquaredEuclidean");
-  if (!exact || exact->init(meta, {})) return IndexError_Unsupported;
   std::vector<uint64_t> keys;
-  if (s.get("qg.keys")) {
+  if (s.get(QuantizedGraphIndex::kKeysSegment)) {
     std::vector<uint32_t> compact;
-    if (!read_part(s, "qg.keys", UINT32_MAX - 1, compact))
+    if (!read_part(s, QuantizedGraphIndex::kKeysSegment, UINT32_MAX - 1, compact))
       return IndexError_InvalidFormat;
     keys.assign(compact.begin(), compact.end());
-  } else if (!read_part(s, "qg.keys64", UINT32_MAX - 1, keys))
+  } else if (!read_part(s, QuantizedGraphIndex::kKeys64Segment, UINT32_MAX - 1, keys))
     return IndexError_InvalidFormat;
   const auto n = keys.size();
+  if (!external_keys) {
+    for (size_t i = 0; i < n; ++i)
+      if (keys[i] != i) return IndexError_InvalidFormat;
+  } else if (!unique_keys(keys)) {
+    return IndexError_InvalidFormat;
+  }
   auto data = std::make_shared<QuantizedGraphData>();
   data->dimension = dim;
   data->cosine = cosine;
-  std::string router;
+  std::string router_bytes;
   if (!n || n > SIZE_MAX / (dim * sizeof(float)) ||
-      !std::is_sorted(keys.begin(), keys.end()) ||
-      std::adjacent_find(keys.begin(), keys.end()) != keys.end() ||
-      !read_part(s, "qg.vectors", n * dim, data->vectors) ||
+      !read_part(s, QuantizedGraphIndex::kVectorsSegment, n * dim, data->vectors) ||
       data->vectors.size() != n * dim ||
-      !read_part(s, "qg.offsets", n + 1, data->offsets) ||
+      !read_part(s, QuantizedGraphIndex::kOffsetsSegment, n + 1, data->offsets) ||
       data->offsets.size() != n + 1 ||
-      !read_part(s, "qg.edges", n * 256, data->edges) ||
+      !read_part(s, QuantizedGraphIndex::kEdgesSegment, n * 256, data->edges) ||
       data->offsets.front() != 0 ||
       data->offsets.back() != data->edges.size() ||
-      !read_part(s, "qg.router", size_t{1} << 30, router))
+      !read_part(s, QuantizedGraphIndex::kRouterSegment, size_t{1} << 30, router_bytes))
     return IndexError_InvalidFormat;
   for (size_t i = 0; i < n; ++i)
     if (data->offsets[i + 1] - data->offsets[i] > 256)
@@ -141,8 +137,59 @@ int QuantizedGraphSearcher::load(IndexStorage::Pointer storage,
     if (edge >= n) return IndexError_InvalidFormat;
   std::shared_ptr<QuantizedGraphIndex> graph;
   int rc = QuantizedGraphIndex::load(*data, n, dim, cosine, dim * sizeof(float),
-                                     router, false, segment, graph);
+                                     router_bytes, false, segment, graph, pages);
   if (rc) return rc;
+  this->data = std::move(data);
+  index = std::move(graph);
+  router = std::move(router_bytes);
+  codec.clear();
+  build_params = {};
+  if (external_keys) *external_keys = std::move(keys);
+  return 0;
+}
+
+int QuantizedGraphBuilder::Result::open(
+    const std::string &path, const ailego::Params &pages,
+    std::vector<uint64_t> *keys) {
+  auto storage = IndexFactory::CreateStorage("MMapFileReadStorage");
+  if (!storage) return IndexError_NoExist;
+  int rc = storage->init({});
+  if (rc || (rc = storage->open(path, false))) return rc;
+  IndexMeta meta;
+  if ((rc = IndexHelper::DeserializeFromStorage(storage.get(), &meta))) return rc;
+  if (!QuantizedGraphSupportsMeta(meta) ||
+      meta.searcher_name() != "QuantizedGraphSearcher")
+    return IndexError_InvalidFormat;
+  Result next;
+  std::vector<uint64_t> mapping;
+  if ((rc = next.load(*storage, pages, keys ? &mapping : nullptr))) return rc;
+  if (meta.dimension() != next.data->dimension ||
+      (meta.metric_name() == "Cosine") != next.data->cosine)
+    return IndexError_InvalidFormat;
+  if ((rc = storage->close())) return rc;
+  next.build_params = meta.builder_params();
+  *this = std::move(next);
+  if (keys) *keys = std::move(mapping);
+  return 0;
+}
+
+int QuantizedGraphSearcher::load(IndexStorage::Pointer storage,
+                                 IndexMetric::Pointer metric) {
+  if (!QuantizedGraphSupported()) return IndexError_Unsupported;
+  if (!storage) return IndexError_InvalidArgument;
+  QuantizedGraphBuilder::Result built;
+  std::vector<uint64_t> keys;
+  int rc = built.load(*storage, {}, &keys);
+  if (rc) return rc;
+  const size_t dim = built.data->dimension;
+  const bool cosine = built.data->cosine;
+  IndexMeta meta(IndexMeta::DT_FP32, dim);
+  if (cosine) meta.set_metric("Cosine", 0, ailego::Params{});
+  if (metric && metric->name() != meta.metric_name())
+    return IndexError_InvalidArgument;
+  auto exact =
+      IndexFactory::CreateMetric(cosine ? "InnerProduct" : "SquaredEuclidean");
+  if (!exact || exact->init(meta, {})) return IndexError_Unsupported;
   distance_ = [dist = exact->distance(), cosine](const void *a, const void *b,
                                                  size_t d, float *v) {
     dist(a, b, d, v);
@@ -150,9 +197,9 @@ int QuantizedGraphSearcher::load(IndexStorage::Pointer storage,
   };
   meta_ = std::move(meta);
   keys_ = std::move(keys);
-  graph_ = std::move(graph);
-  data_ = std::move(data);
-  stats_.set_loaded_count(n);
+  graph_ = std::move(built.index);
+  data_ = std::move(built.data);
+  stats_.set_loaded_count(keys_.size());
   return 0;
 }
 

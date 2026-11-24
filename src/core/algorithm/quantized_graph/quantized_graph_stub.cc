@@ -40,6 +40,21 @@ int QuantizedGraphBuilder::dump(IndexStorage &) {
   return IndexError_Unsupported;
 }
 
+int QuantizedGraphBuilder::Result::save(const std::string &,
+                                        const std::vector<uint64_t> &) const {
+  return IndexError_Unsupported;
+}
+
+int QuantizedGraphBuilder::Result::open(const std::string &, const ailego::Params &,
+                                        std::vector<uint64_t> *) {
+  return IndexError_Unsupported;
+}
+
+int QuantizedGraphBuilder::Result::load(IndexStorage &, const ailego::Params &,
+                                        std::vector<uint64_t> *) {
+  return IndexError_Unsupported;
+}
+
 int QuantizedGraphBuilder::cleanup() {
   return 0;
 }

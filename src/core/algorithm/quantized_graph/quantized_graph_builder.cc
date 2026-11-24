@@ -13,6 +13,9 @@
 // limitations under the License.
 #include "quantized_graph_builder.h"
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <unistd.h>
 #include <atomic>
 #include <cmath>
 #include <exception>
@@ -465,34 +468,42 @@ int QuantizedGraphBuilder::build(IndexThreads::Pointer,
 }
 
 template <class Part>
-int QuantizedGraphBuilder::serialize(Part part) {
-  if (!built_.index) return IndexError_InvalidArgument;
+static int serialize(const QuantizedGraphBuilder::Result &built,
+                     const std::vector<uint64_t> &keys, Part part) {
+  if (!built.index || !built.data || !built.data->size() ||
+      (!keys.empty() && keys.size() != built.data->size()))
+    return IndexError_InvalidArgument;
   auto buffer = [&](const char *name, const auto &values) {
     return part(name, [&](auto &write) {
       return write(values.data(), values.size() * sizeof(*values.data()));
     });
   };
-  if (keys_.back() <= UINT32_MAX) {
-    std::vector<uint32_t> compact(keys_.begin(), keys_.end());
-    if (!buffer("qg.keys", compact)) return IndexError_WriteData;
-  } else if (!buffer("qg.keys64", keys_))
+  if (keys.empty() || *std::max_element(keys.begin(), keys.end()) <= UINT32_MAX) {
+    std::vector<uint32_t> compact(built.data->size());
+    if (keys.empty())
+      std::iota(compact.begin(), compact.end(), uint32_t{0});
+    else
+      std::copy(keys.begin(), keys.end(), compact.begin());
+    if (!buffer(QuantizedGraphIndex::kKeysSegment, compact)) return IndexError_WriteData;
+  } else if (!buffer(QuantizedGraphIndex::kKeys64Segment, keys))
     return IndexError_WriteData;
-  if (!buffer("qg.vectors", built_.data->vectors) ||
-      !buffer("qg.offsets", built_.data->offsets) ||
-      !buffer("qg.edges", built_.data->edges) ||
-      !buffer("qg.router", built_.router) ||
+  if (!buffer(QuantizedGraphIndex::kVectorsSegment, built.data->vectors) ||
+      !buffer(QuantizedGraphIndex::kOffsetsSegment, built.data->offsets) ||
+      !buffer(QuantizedGraphIndex::kEdgesSegment, built.data->edges) ||
+      !buffer(QuantizedGraphIndex::kRouterSegment, built.router) ||
       !part(QuantizedGraphIndex::kSnapshotSegment,
-            [&](auto &write) { return built_.index->write_snapshot(write); }))
+            [&](auto &write) { return built.index->write_snapshot(write); }))
     return IndexError_WriteData;
-  stats_.set_dumped_count(keys_.size());
   return 0;
 }
 
-int QuantizedGraphBuilder::dump(const IndexDumper::Pointer &dumper) {
-  if (!dumper || !built_.index) return IndexError_InvalidArgument;
-  int rc = IndexHelper::SerializeToDumper(meta_, dumper.get());
+static int dump_result(const QuantizedGraphBuilder::Result &built,
+                       const std::vector<uint64_t> &keys, const IndexMeta &meta,
+                       const IndexDumper::Pointer &dumper) {
+  if (!dumper || !built.index) return IndexError_InvalidArgument;
+  int rc = IndexHelper::SerializeToDumper(meta, dumper.get());
   if (rc) return rc;
-  return serialize([&](const char *name, auto emit) {
+  return serialize(built, keys, [&](const char *name, auto emit) {
     quantized_graph_detail::SnapshotWriter write{dumper};
     if (!emit(write)) return false;
     const size_t pad = (32 - write.bytes % 32) % 32;
@@ -502,10 +513,55 @@ int QuantizedGraphBuilder::dump(const IndexDumper::Pointer &dumper) {
   });
 }
 
+int QuantizedGraphBuilder::dump(const IndexDumper::Pointer &dumper) {
+  int rc = dump_result(built_, keys_, meta_, dumper);
+  if (!rc) stats_.set_dumped_count(keys_.size());
+  return rc;
+}
+
 int QuantizedGraphBuilder::dump(IndexStorage &storage) {
-  return serialize([&](const char *name, auto emit) {
+  int rc = serialize(built_, keys_, [&](const char *name, auto emit) {
     return write_part(storage, name, emit);
   });
+  if (!rc) stats_.set_dumped_count(keys_.size());
+  return rc;
+}
+
+bool QuantizedGraphBuilder::Result::unique_keys(const std::vector<uint64_t> &keys) {
+  if (std::is_sorted(keys.begin(), keys.end()))
+    return std::adjacent_find(keys.begin(), keys.end()) == keys.end();
+  auto sorted = keys;
+  std::sort(sorted.begin(), sorted.end());
+  return std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end();
+}
+
+int QuantizedGraphBuilder::Result::save(
+    const std::string &path, const std::vector<uint64_t> &keys) const {
+  if (!data || !index || path.empty() ||
+      (!keys.empty() && (keys.size() != data->size() || !unique_keys(keys))))
+    return IndexError_InvalidArgument;
+  IndexMeta meta(IndexMeta::DT_FP32, data->dimension);
+  if (data->cosine) meta.set_metric("Cosine", 0, ailego::Params{});
+  meta.set_builder("QuantizedGraphBuilder", 0, build_params);
+  meta.set_searcher("QuantizedGraphSearcher", 0, ailego::Params{});
+  meta.set_streamer("QuantizedGraphStreamer", 0, ailego::Params{});
+  auto dumper = IndexFactory::CreateDumper("FileDumper");
+  if (!dumper) return IndexError_NoExist;
+  int rc = dumper->init({});
+  if (rc) return rc;
+
+  std::string tmp = path + ".XXXXXX";
+  int fd = mkstemp(tmp.data());
+  if (fd < 0) return IndexError_CreateFile;
+  struct Cleanup {
+    const std::string &path;
+    ~Cleanup() { std::remove(path.c_str()); }
+  } cleanup{tmp};
+  if (::close(fd) != 0) return IndexError_CloseFile;
+  if ((rc = dumper->create(tmp)) || (rc = dump_result(*this, keys, meta, dumper)) ||
+      (rc = dumper->close()))
+    return rc;
+  return std::rename(tmp.c_str(), path.c_str()) ? IndexError_WriteData : 0;
 }
 
 INDEX_FACTORY_REGISTER_BUILDER(QuantizedGraphBuilder);

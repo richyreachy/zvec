@@ -155,13 +155,18 @@ class PythonQuantizedGraph {
     check(QuantizedGraphSupported(), "QG unavailable on this CPU");
     auto options = build_options(config);
     options.page_params = page_params(pages);
-    QuantizedGraphBuilder::Result built;
     py::gil_scoped_release release;
     std::vector<float> vectors(rows.data(), rows.data() + rows.size());
     status(QuantizedGraphBuilder::build(std::move(vectors), rows.shape(1),
-                                        cosine, options, built));
-    data_ = std::move(built.data);
-    index_ = std::move(built.index);
+                                        cosine, options, graph_));
+    std::string{}.swap(graph_.codec);
+    init_query();
+  }
+
+  PythonQuantizedGraph(const std::string &path, const py::dict &pages) {
+    auto params = page_params(pages);
+    py::gil_scoped_release release;
+    status(graph_.open(path, params));
     init_query();
   }
 
@@ -197,10 +202,17 @@ class PythonQuantizedGraph {
     status(storage->open(prefix + ".qg", false));
     status(QuantizedGraphIndex::load(
         Provider{*data}, n, dim, cosine, dim * sizeof(float), router, false,
-        storage->get(QuantizedGraphIndex::kSnapshotSegment), index_, params));
+        storage->get(QuantizedGraphIndex::kSnapshotSegment), graph_.index, params));
     status(storage->close());
-    data_ = std::move(data);
+    graph_.data = std::move(data);
+    graph_.router = std::move(router);
     init_query();
+  }
+
+  void save(const std::string &path) {
+    py::gil_scoped_release release;
+    std::lock_guard<std::mutex> lock(mutex_);
+    status(graph_.save(path));
   }
 
   void configure(const py::dict &options) {
@@ -222,8 +234,8 @@ class PythonQuantizedGraph {
   }
 
   py::array_t<uint64_t> search(const Array &input, size_t k) {
-    if (input.ndim() != 1 || size_t(input.size()) != data_->dimension || !k ||
-        k > data_->size())
+    if (input.ndim() != 1 || size_t(input.size()) != graph_.data->dimension || !k ||
+        k > graph_.data->size())
       throw std::invalid_argument("invalid query shape or k");
 
     py::array_t<uint64_t> result(k);
@@ -233,8 +245,8 @@ class PythonQuantizedGraph {
       std::lock_guard<std::mutex> lock(mutex_);
       const float *q = input.data();
       std::vector<float> normalized;
-      if (data_->cosine) {
-        normalized.assign(q, q + data_->dimension);
+      if (graph_.data->cosine) {
+        normalized.assign(q, q + graph_.data->dimension);
         double norm = 0;
         for (float x : normalized) norm += double(x) * x;
         if (!(norm > 0 && std::isfinite(norm)))
@@ -242,14 +254,14 @@ class PythonQuantizedGraph {
         const auto scale = 1 / std::sqrt(norm);
         for (float &x : normalized) x *= scale;
         q = normalized.data();
-      } else if (!std::all_of(q, q + data_->dimension, [this](float x) {
+      } else if (!std::all_of(q, q + graph_.data->dimension, [this](float x) {
                    return std::abs(x) <= l2_limit_;
                  })) {
         throw std::invalid_argument(
             "query coordinate exceeds the finite L2 range");
       }
       status(query_->reset(q, k, capacity_, options_));
-      status(index_->search(Provider{*data_}, *query_));
+      status(graph_.index->search(Provider{*graph_.data}, *query_));
       const auto &hits = query_->results();
       check(hits.size() >= k, "insufficient results");
       for (size_t i = 0; i < k; ++i) ids[i] = hits[i].first;
@@ -260,23 +272,22 @@ class PythonQuantizedGraph {
  private:
   void init_query() {
     l2_limit_ = std::sqrt(double(std::numeric_limits<float>::max()) /
-                          (16 * data_->dimension));
+                          (16 * graph_.data->dimension));
     auto metric = IndexFactory::CreateMetric(
-        data_->cosine ? "InnerProduct" : "SquaredEuclidean");
+        graph_.data->cosine ? "InnerProduct" : "SquaredEuclidean");
     check(bool(metric), "missing exact metric");
     IndexMeta meta;
-    meta.set_meta(IndexMeta::DT_FP32, data_->dimension);
+    meta.set_meta(IndexMeta::DT_FP32, graph_.data->dimension);
     status(metric->init(meta, {}));
-    auto exact = [distance = metric->distance(), cosine = data_->cosine](
+    auto exact = [distance = metric->distance(), cosine = graph_.data->cosine](
                      const void *a, const void *b, size_t dim, float *out) {
       distance(a, b, dim, out);
       if (cosine) *out += 1.f;
     };
-    query_ = std::make_unique<QuantizedGraphQuery>(data_->dimension, exact);
+    query_ = std::make_unique<QuantizedGraphQuery>(graph_.data->dimension, exact);
   }
 
-  std::shared_ptr<const QuantizedGraphData> data_;
-  std::shared_ptr<QuantizedGraphIndex> index_;
+  QuantizedGraphBuilder::Result graph_;
   std::unique_ptr<QuantizedGraphQuery> query_;
   QuantizedGraphQuery::Options options_;
   double l2_limit_;
@@ -306,6 +317,14 @@ void RegisterQuantizedGraph(py::module_ &m) {
           py::arg("metric") = "l2", py::arg("options") = py::dict(),
           py::arg("page_params") = py::dict(),
           "Build from a contiguous float32 matrix. The graph owns its rows.")
+      .def("save", &PythonQuantizedGraph::save, py::arg("path"))
+      .def_static(
+          "open",
+          [](const std::string &path, const py::dict &pages) {
+            return std::make_unique<PythonQuantizedGraph>(path, pages);
+          },
+          py::arg("path"), py::kw_only(), py::arg("page_params") = py::dict(),
+          "Open a segmented Zvec FP32 index with row ordinal keys.")
       .def_static(
           "open",
           [](const std::string &prefix, size_t count, size_t dimension,
@@ -328,7 +347,8 @@ void RegisterQuantizedGraph(py::module_ &m) {
     throw std::runtime_error(
         "This zvec build does not support quantized graphs");
   };
-  graph.def_static("open", unavailable).def_static("build", unavailable);
+  graph.def_static("open", unavailable).def_static("build", unavailable)
+      .def("save", unavailable);
 #endif
 }
 }  // namespace zvec
