@@ -28,6 +28,26 @@ interchangeable with the `IndexCommon`/`QueryConfig` format used by `recall` and
 The [benchmark entry guide](bench/README.md) links to the r7i and g9i
 quantized graph presets in ANN-Benchmarks.
 
+## Building a quantized graph
+
+Use dense FP32 Zvec `.vecs` input. Save the following as `qg-build.yaml`
+and run `build/bin/local_builder qg-build.yaml`.
+
+```yaml
+BuilderCommon:
+  BuilderClass: QuantizedGraphBuilder
+  BuildFile: train.vecs
+  DumpPath: index.zvec
+  MetricName: SquaredEuclidean
+BuilderParams:
+  zvec.quantized_graph.builder.threads: !!int 4
+  zvec.quantized_graph.builder.encoding.max_neighbors: !!int 64
+```
+
+Use `Cosine` for cosine distance. Use `BuilderParams: {}` for defaults.
+The index preserves the keys from the input. With row ordinals as keys,
+`zvec.QuantizedGraph.open("index.zvec")` can also open the result.
+
 ## COHERE experiments
 
 ### Getting COHERE Data
