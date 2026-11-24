@@ -5634,3 +5634,33 @@ TEST(IndexInterface, RejectRetiredQuantizedGraphEntry) {
             IndexFactory::QueryParamDeserializeFromJson<HNSWQueryParam>(
                 R"({"index_type":"kHNSW","ef_search":64})"));
 }
+
+TEST(IndexInterface, QuantizedGraphQueryParameters) {
+  const auto json = R"({"index_type":"kQuantizedGraph","topk":7,"capacity":25,)"
+                    R"("margin":1,"bucket_width":0.5,"max_expansions":12,)"
+                    R"("route_beam":2,"uncertainty_bonus":0.25})";
+  auto base = IndexFactory::QueryParamDeserializeFromJson<BaseIndexQueryParam>(json);
+  ASSERT_TRUE(base);
+  auto p = std::dynamic_pointer_cast<QuantizedGraphQueryParam>(base->clone());
+  ASSERT_TRUE(p);
+  EXPECT_EQ(p->topk, 7u);
+  EXPECT_EQ(p->capacity, 25u);
+  EXPECT_FLOAT_EQ(p->margin, 1.0f);
+  EXPECT_FLOAT_EQ(p->bucket_width, 0.5f);
+  EXPECT_EQ(p->max_expansions, 12u);
+  EXPECT_EQ(p->route_beam, 2u);
+  EXPECT_FLOAT_EQ(p->uncertainty_bonus, 0.25f);
+  const auto serialized = IndexFactory::QueryParamSerializeToJson(*p);
+  auto roundtrip = IndexFactory::QueryParamDeserializeFromJson<
+      QuantizedGraphQueryParam>(serialized);
+  ASSERT_TRUE(roundtrip);
+  EXPECT_EQ(serialized, IndexFactory::QueryParamSerializeToJson(*roundtrip));
+
+  for (const char *field : {R"("capacity":0)", R"("capacity":-1)",
+                            R"("capacity":4294967296)", R"("capacity":2.5)",
+                            R"("route_beam":5)", R"("bucket_width":1.1)"}) {
+    SCOPED_TRACE(field);
+    EXPECT_FALSE(IndexFactory::QueryParamDeserializeFromJson<BaseIndexQueryParam>(
+        std::string(R"({"index_type":"kQuantizedGraph",)") + field + "}"));
+  }
+}

@@ -16,6 +16,7 @@
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_helper.h>
 #include "quantized_graph_query.h"
+#include "quantized_graph_search_context.h"
 
 namespace zvec::core {
 namespace {
@@ -32,7 +33,7 @@ bool read_part(IndexStorage &s, const char *name, size_t max_count,
   return reader(out.data(), seg->data_size()) && reader.crc == seg->data_crc();
 }
 
-class GraphContext final : public IndexContext {
+class GraphContext final : public QuantizedGraphSearchContext {
  public:
   GraphContext(size_t dim, bool angular, IndexMetric::MatrixDistance dist)
       : dimension(dim), cosine(angular), query(dim, std::move(dist)) {}
@@ -52,6 +53,20 @@ class GraphContext final : public IndexContext {
   IndexDocumentList *mutable_result(size_t i) override {
     return i < docs.size() ? &docs[i] : nullptr;
   }
+  int configure(uint32_t c, float margin, float width, uint32_t expansions,
+                uint32_t beam, float bonus) override {
+    QuantizedGraphQuery::Options o;
+    o.margin = margin;
+    o.bucket_width = width;
+    o.max_expansions = expansions;
+    o.route_beam = beam;
+    o.uncertainty_bonus = bonus;
+    if (!c || !o.valid())
+      return IndexError_InvalidArgument;
+    capacity = c;
+    options = o;
+    return 0;
+  }
   int update(const ailego::Params &p) override {
     auto o = options;
     auto c = capacity;
@@ -62,11 +77,10 @@ class GraphContext final : public IndexContext {
         !get("bucket_width", o.bucket_width) ||
         !get("route_beam", o.route_beam) ||
         !get("uncertainty_bonus", o.uncertainty_bonus) ||
-        !get("max_expansions", o.max_expansions) || !o.valid())
+        !get("max_expansions", o.max_expansions))
       return IndexError_InvalidArgument;
-    capacity = c;
-    options = o;
-    return 0;
+    return configure(c, o.margin, o.bucket_width, o.max_expansions, o.route_beam,
+                     o.uncertainty_bonus);
   }
   size_t dimension;
   bool cosine;
