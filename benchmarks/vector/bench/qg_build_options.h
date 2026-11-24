@@ -46,7 +46,7 @@ inline QuantizedGraphBuilder::Options build_options(const YAML::Node &profile) {
   o.page_params = page_params(profile["page_params"]);
 
   const auto e = b["encoding"];
-  using Encoding = QuantizedGraphBuildOptions;
+  using Encoding = QuantizedGraphEncodingOptions;
   auto &enc = o.encoding;
   const auto codec = e["codec"].as<std::string>();
   if (!Encoding::parse_name(codec, enc.codec))
