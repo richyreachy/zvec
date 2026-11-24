@@ -72,6 +72,7 @@ enum class IndexType {
   kDiskAnn,
   kVamana,
   kIVFRabitq,
+  kQuantizedGraph,
 };
 
 enum class IVFSearchMethod { kBF, kHNSW };
@@ -239,6 +240,20 @@ class ZVEC_CORE_API BaseIndexQueryParam {
   std::shared_ptr<GroupByParam> group_by_param = nullptr;
 
   virtual Pointer clone() const = 0;
+};
+
+struct ZVEC_CORE_API QuantizedGraphQueryParam : public BaseIndexQueryParam {
+  using Pointer = std::shared_ptr<QuantizedGraphQueryParam>;
+  uint32_t capacity = 128;
+  float margin = -1;
+  float bucket_width = 0;
+  uint32_t max_expansions = 0;
+  uint32_t route_beam = 1;
+  float uncertainty_bonus = 0;
+
+  BaseIndexQueryParam::Pointer clone() const override {
+    return std::make_shared<QuantizedGraphQueryParam>(*this);
+  }
 };
 
 struct ZVEC_CORE_API FlatQueryParam : public BaseIndexQueryParam {

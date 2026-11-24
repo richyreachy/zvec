@@ -147,12 +147,17 @@ class Recall {
   }
 
   bool load_query(const std::string &query_file, const std::string &first_sep,
-                  const std::string &second_sep) {
+                  const std::string &second_sep, size_t expected_dim = 0) {
     TxtInputReader<T> reader;
 
     if (!reader.load_query(query_file, first_sep, second_sep, linear_queries_,
                            linear_sparse_data_, linear_taglists_)) {
       LOG_ERROR("Load query error");
+      return false;
+    }
+
+    if (!valid_dense_queries(linear_queries_, expected_dim)) {
+      LOG_ERROR("Empty query input or unexpected vector dimension");
       return false;
     }
 
@@ -234,6 +239,10 @@ class Recall {
     TxtInputReader<T> reader;
     bool ret =
         reader.load_external_gt(external_gt_file, first_sep, second_sep, gt_);
+    if (ret && gt_.size() != linear_queries_.size()) {
+      LOG_ERROR("Ground truth and query counts differ");
+      return false;
+    }
     if (ret) {
       cout << "Load external ground truth file["
            << File::BaseName(external_gt_file) << "] done!" << endl;
@@ -1498,9 +1507,14 @@ int recall_dense(std::string &query_type, size_t thread_count,
   // Load tag lists if available
   load_taglists(index_dir, id_to_tags_list, tag_key_list);
 
+  const auto param = index->get_param();
+  const size_t expected_dim =
+      param->index_type == core_interface::IndexType::kQuantizedGraph
+          ? param->dimension
+          : 0;
   if (query_type == "float") {
     Recall<float> recall(thread_count, log_dir, batch_count, filter_mode);
-    if (!recall.load_query(query_file, first_sep, second_sep)) {
+    if (!recall.load_query(query_file, first_sep, second_sep, expected_dim)) {
       return -1;
     }
 
@@ -1771,6 +1785,11 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
+  if (ground_truth_file.empty() && index->get_param()->index_type ==
+                                       core_interface::IndexType::kQuantizedGraph) {
+    LOG_ERROR("QG recall requires IndexCommon.GroundTruthFile");
+    return -1;
+  }
   std::vector<core_interface::BaseIndexQueryParam::Pointer> cases;
   if (!parse_tool_query_cases(config_node, query_param, cases)) return -1;
   for (size_t case_id = 0; case_id < cases.size(); ++case_id) {
@@ -1780,10 +1799,12 @@ int main(int argc, char *argv[]) {
             ? log_dir
             : log_dir + "/case_" + std::to_string(case_id);
     if (retrieval_mode == RM_DENSE) {
-      recall_dense(query_type, thread_count, batch_count, top_k, gt_count,
-                   query_file, first_sep, second_sep, ground_truth_file,
-                   ground_truth_first_sep, ground_truth_second_sep, index,
-                   cases[case_id], index_dir, case_log_dir, filter_mode);
+      if (recall_dense(query_type, thread_count, batch_count, top_k, gt_count,
+                       query_file, first_sep, second_sep, ground_truth_file,
+                       ground_truth_first_sep, ground_truth_second_sep, index,
+                       cases[case_id], index_dir, case_log_dir, filter_mode) != 0) {
+        return -1;
+      }
     } else if (retrieval_mode == RM_SPARSE) {
       recall_sparse(query_type, thread_count, batch_count, top_k, gt_count,
                     query_file, first_sep, second_sep, ground_truth_file,

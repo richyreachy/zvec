@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <sys/stat.h>
 #include <signal.h>
 #include <iomanip>
@@ -80,11 +81,21 @@ inline bool parse_tool_query_cases(
     if (!entry.IsScalar()) return false;
     auto param = core_interface::IndexFactory::QueryParamDeserializeFromJson<
         core_interface::BaseIndexQueryParam>(entry.as<std::string>());
-    if (!param) return false;
+    if (!param || typeid(*param) != typeid(*base)) return false;
     param->refiner_param = base->refiner_param;
     cases.push_back(std::move(param));
   }
   return true;
+}
+
+template <typename T>
+bool valid_dense_queries(const std::vector<std::vector<T>> &queries,
+                         size_t dimension) {
+  return !queries.empty() &&
+         (!dimension || std::all_of(queries.begin(), queries.end(),
+                                   [dimension](const auto &query) {
+                                     return query.size() == dimension;
+                                   }));
 }
 
 int parse_and_load_index_param(
@@ -97,6 +108,15 @@ int parse_and_load_index_param(
     std::cout << "IndexConfig: " << index_config.as<string>() << std::endl;
     auto params = core_interface::IndexFactory::DeserializeIndexParamFromJson(
         index_config.as<string>());
+    if (!params) return -1;
+    if (params->index_type == core_interface::IndexType::kQuantizedGraph) {
+      const auto common = config_node["IndexCommon"];
+      if (common["QueryType"].as<string>("float") != "float" ||
+          common["RetrievalMode"].as<string>("dense") != "dense") {
+        LOG_ERROR("QG requires dense FP32 queries");
+        return -1;
+      }
+    }
     index = core_interface::IndexFactory::CreateAndInitIndex(*params);
     if (!index) {
       LOG_ERROR("Failed to create index");
@@ -146,6 +166,14 @@ int parse_and_load_index_param(
       }
     }
 
+    if (index->get_param()->index_type ==
+            core_interface::IndexType::kQuantizedGraph &&
+        !dynamic_cast<core_interface::QuantizedGraphQueryParam *>(
+            query_param.get())) {
+      LOG_ERROR("Expected kQuantizedGraph query parameters");
+      return -1;
+    }
+
     // QueryConfig.RefinerConfig
     if (auto refiner_config = query_config["RefinerConfig"]; refiner_config) {
       core_interface::Index::Pointer reference_index = nullptr;
@@ -172,6 +200,7 @@ int parse_and_load_index_param(
               core_interface::IndexFactory::DeserializeIndexParamFromJson(
                   reference_index_config_config.as<std::string>());
 
+          if (!params) return -1;
           reference_index =
               core_interface::IndexFactory::CreateAndInitIndex(*params);
         } else {
