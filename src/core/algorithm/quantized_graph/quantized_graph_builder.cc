@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "quantized_graph_builder.h"
+#include "quantized_graph_index.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -33,6 +34,15 @@
 #include <zvec/turbo/turbo.h>
 
 namespace zvec::core {
+
+bool QuantizedGraphSupported() {
+  return __builtin_cpu_supports("avx512f") &&
+         __builtin_cpu_supports("avx512bw") &&
+         __builtin_cpu_supports("avx512dq") &&
+         __builtin_cpu_supports("avx512vl") &&
+         __builtin_cpu_supports("avx512vnni") && __builtin_cpu_supports("fma");
+}
+
 namespace {
 template <class T>
 bool read_build_param(const ailego::Params &params, const std::string &key,

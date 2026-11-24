@@ -17,7 +17,9 @@
 #include <string>
 #include <vector>
 #include <zvec/core/framework/index_builder.h>
-#include "quantized_graph_index.h"
+#include <zvec/core/framework/index_error.h>
+#include "quantized_graph_encoding_options.h"
+#include "quantized_graph_support.h"
 
 namespace zvec::core {
 
