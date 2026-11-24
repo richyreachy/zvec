@@ -205,7 +205,7 @@ class PythonQuantizedGraph {
 
   void configure(const py::dict &options) {
     auto d = py::dict(options.attr("copy")());
-    QuantizedGraphSearchOptions search;
+    QuantizedGraphQuery::Options search;
     size_t capacity = 128;
     take(d, "capacity", capacity);
     take(d, "margin", search.margin);
@@ -278,7 +278,7 @@ class PythonQuantizedGraph {
   std::shared_ptr<const QuantizedGraphData> data_;
   std::shared_ptr<QuantizedGraphIndex> index_;
   std::unique_ptr<QuantizedGraphQuery> query_;
-  QuantizedGraphSearchOptions options_;
+  QuantizedGraphQuery::Options options_;
   double l2_limit_;
   std::mutex mutex_;
   size_t capacity_ = 128;

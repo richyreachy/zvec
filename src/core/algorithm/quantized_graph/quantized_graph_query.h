@@ -21,13 +21,21 @@
 #include <zvec/ailego/container/heap.h>
 #include <zvec/core/framework/index_error.h>
 #include <zvec/core/framework/index_metric.h>
-#include "quantized_graph_options.h"
 
 namespace zvec::core {
 
 // Each concurrent query needs its own context and normalized cosine input.
 class QuantizedGraphQuery {
  public:
+  struct Options {
+    float margin = -1;
+    float bucket_width = 0;
+    // Hard cap on expanded nodes, including filtered nodes; 0 uses the preset.
+    uint32_t max_expansions = 0;
+    uint32_t route_beam = 1;
+    float uncertainty_bonus = 0;
+  };
+
   using Heap = ailego::KeyValueHeap<uint32_t, float>;
   using Filter =
       std::function<bool(uint32_t)>;  // true excludes an internal ID.
@@ -39,9 +47,12 @@ class QuantizedGraphQuery {
                                                : dimension),
         distance_(std::move(distance)) {}
 
+  int reset(const float *query, uint32_t topk, size_t capacity) {
+    return reset(query, topk, capacity, {});
+  }
+
   int reset(const float *query, uint32_t topk, size_t capacity,
-            const QuantizedGraphSearchOptions &options = {},
-            uint64_t scan_limit = 0, Filter filter = {}) {
+            const Options &options, uint64_t scan_limit = 0, Filter filter = {}) {
     query_ = nullptr;
     topk_ = 0;
     heap_.clear();
@@ -84,7 +95,7 @@ class QuantizedGraphQuery {
     return query_;
   }
 
-  const QuantizedGraphSearchOptions &quantized_graph_options() const {
+  const Options &quantized_graph_options() const {
     return options_;
   }
 
@@ -118,7 +129,7 @@ class QuantizedGraphQuery {
   IndexMetric::MatrixDistance distance_;
   const float *query_ = nullptr;
   uint32_t topk_ = 0;
-  QuantizedGraphSearchOptions options_;
+  Options options_;
   uint64_t scan_limit_ = 0, comparisons_ = 0, expanded_ = 0;
   Filter filter_;
   Heap heap_;

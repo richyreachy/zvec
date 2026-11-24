@@ -81,7 +81,7 @@ void check_queries(const QuantizedGraphBuilder::Result &built) {
     *out = data.cosine ? 1.f - value : value;
   };
   QuantizedGraphQuery context(data.dimension, distance);
-  QuantizedGraphSearchOptions search;
+  QuantizedGraphQuery::Options search;
   search.margin = 1e6f;
   search.max_expansions = data.size() * 2;
   const size_t k = std::min(size_t{10}, data.size());
