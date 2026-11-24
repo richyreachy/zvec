@@ -229,8 +229,8 @@ int setup_build_from_original(const string &builder_class,
 bool check_config(YAML::Node &config_root) {
   if (config_root["QuantizedGraph"] || config_root["QuantizedGraphRouter"]) {
     LOG_ERROR(
-        "Quantized graph construction now uses the independent "
-        "QuantizedGraphIndex API; HnswStreamer only builds HNSW");
+        "For QG, use BuilderCommon.BuilderClass: QuantizedGraphBuilder "
+        "and configure it under BuilderParams");
     return false;
   }
   auto common = config_root["BuilderCommon"];
@@ -1292,16 +1292,12 @@ int do_build(YAML::Node &config_root, YAML::Node &config_common) {
     LOG_ERROR("Failed to prepare params");
     return -1;
   }
-  std::vector<std::string> id_map_param_list = {
-      PARAM_HNSW_STREAMER_USE_ID_MAP,
-      PARAM_FLAT_USE_ID_MAP,
-      PARAM_HNSW_RABITQ_STREAMER_USE_ID_MAP,
-  };
-  for (auto &param : id_map_param_list) {
-    params.set(param, !g_disable_id_map);
+  if (builder_class != "QuantizedGraphBuilder") {
+    params.set(PARAM_HNSW_STREAMER_USE_ID_MAP, !g_disable_id_map);
+    params.set(PARAM_FLAT_USE_ID_MAP, !g_disable_id_map);
+    params.set(PARAM_HNSW_RABITQ_STREAMER_USE_ID_MAP, !g_disable_id_map);
+    params.set(PARAM_RABITQ_GENERAL_DIMENSION, input_meta.dimension());
   }
-  // Pass original dimension for Cosine support (before converter modifies it)
-  params.set(PARAM_RABITQ_GENERAL_DIMENSION, input_meta.dimension());
 
   // INIT
   // Pass the quantizer into the builder so it can compute distances with
