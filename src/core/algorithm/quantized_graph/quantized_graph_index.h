@@ -27,33 +27,15 @@
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_storage.h>
 #include "quantized_graph_encoding_options.h"
+#include "quantized_graph_support.h"
 
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 #include <turbo/norm/normalizer.h>
 #include <turbo/quantizer/quantized_graph_quantizer/quantized_graph_quantizer.h>
 #include "quantized_graph.h"
 #include "quantized_graph_codec_builder.h"
 #include "quantized_graph_router_builder.h"
-#endif
 
 namespace zvec::core {
-
-inline bool QuantizedGraphSupportsMeta(const IndexMeta &m) {
-  return m.meta_type() == IndexMeta::MT_DENSE &&
-         m.data_type() == IndexMeta::DT_FP32 && m.dimension() &&
-         m.dimension() <= 4096 &&
-         m.element_size() == size_t(m.dimension()) * sizeof(float) &&
-         (m.metric_name() == "Cosine" || m.metric_name() == "SquaredEuclidean");
-}
-
-#if ZVEC_QUANTIZED_GRAPH_SUPPORTED
-inline bool QuantizedGraphSupported() {
-  return __builtin_cpu_supports("avx512f") &&
-         __builtin_cpu_supports("avx512bw") &&
-         __builtin_cpu_supports("avx512dq") &&
-         __builtin_cpu_supports("avx512vl") &&
-         __builtin_cpu_supports("avx512vnni") && __builtin_cpu_supports("fma");
-}
 
 namespace quantized_graph_detail {
 // Version 1 binds the Block layout and codec packing. Empty/RaBitQ and V1
@@ -374,10 +356,5 @@ class QuantizedGraphIndex {
   size_t stored_vector_bytes_, router_bytes_;
   uint32_t router_crc_;
 };
-#else
-inline bool QuantizedGraphSupported() {
-  return false;
-}
-#endif  // ZVEC_QUANTIZED_GRAPH_SUPPORTED
 
 }  // namespace zvec::core
