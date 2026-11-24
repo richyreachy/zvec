@@ -214,8 +214,13 @@ thread_local static std::array<core::IndexContext::Pointer,
 
 
 bool Index::init_context() {
-  context_index_ = (magic_enum::enum_integer(param_.index_type) - 1) * 2 +
-                   static_cast<size_t>(is_sparse_);
+  if (param_.index_type == IndexType::kQuantizedGraph) {
+    thread_local std::weak_ptr<core::IndexStreamer> owner;
+    if (owner.lock() != streamer_) {
+      context_list[context_index_].reset();
+      owner = streamer_;
+    }
+  }
   if (context_list[context_index_] == nullptr) {
     if ((context_list[context_index_] = streamer_->create_context()) ==
         nullptr) {
@@ -252,6 +257,9 @@ uint32_t Index::get_doc_count() const {
   }
   if (is_sparse_) {
     return streamer_->create_sparse_provider()->count();
+  }
+  if (param_.index_type == IndexType::kQuantizedGraph) {
+    return streamer_->stats().loaded_count();
   }
   return streamer_->create_provider()->count();
 }
@@ -674,6 +682,8 @@ int Index::open(const std::string &file_path, StorageOptions storage_options) {
   }
 
   // TODO: context pool
+  context_index_ = (magic_enum::enum_integer(param_.index_type) - 1) * 2 +
+                   static_cast<size_t>(is_sparse_);
   if (!pending_quantizer_training_ && !init_context()) {
     LOG_ERROR("Failed to init context");
     return core::IndexError_Runtime;

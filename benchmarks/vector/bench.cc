@@ -76,7 +76,7 @@ class Bench {
   }
 
   bool load_query(const std::string &query_file, const std::string &first_sep,
-                  const std::string &second_sep) {
+                  const std::string &second_sep, size_t expected_dim = 0) {
     TxtInputReader<T> reader;
     vector<vector<T>> queries;
     vector<SparseData<T>> sparse_data;
@@ -85,6 +85,11 @@ class Bench {
     if (!reader.load_query(query_file, first_sep, second_sep, queries,
                            sparse_data, taglists)) {
       LOG_ERROR("Load query error");
+      return false;
+    }
+
+    if (!valid_dense_queries(queries, expected_dim)) {
+      LOG_ERROR("Empty query input or unexpected vector dimension");
       return false;
     }
 
@@ -752,10 +757,17 @@ int bench(std::string &query_type, size_t thread_count, size_t batch_count,
   // Load tag lists if available
   load_taglists(index_dir, id_to_tags_list, tag_key_list);
 
+  const auto param = index->get_param();
+  const size_t expected_dim =
+      param->index_type == core_interface::IndexType::kQuantizedGraph
+          ? param->dimension
+          : 0;
   if (query_type == "float") {
     Bench<float> bench(thread_count, bench_secs, batch_count, retrieval_mode,
                        filter_mode);
-    bench.load_query(query_file, first_sep, second_sep);
+    if (!bench.load_query(query_file, first_sep, second_sep, expected_dim)) {
+      return -1;
+    }
     bench.set_tag_lists(id_to_tags_list, tag_key_list);
     bench.run(index, query_param, iter_count, top_k);
   } else if (query_type == "int8") {
@@ -1357,9 +1369,11 @@ int main(int argc, char *argv[]) {
 
           cout << "Bench Sparse done." << endl;
         } else {
-          bench(query_type, run_threads, batch_count, top_k, query_file,
-                first_sep, second_sep, bench_secs, iter_count, index,
-                cases[case_id], index_dir, retrieval_mode, filter_mode);
+          if (bench(query_type, run_threads, batch_count, top_k, query_file,
+                    first_sep, second_sep, bench_secs, iter_count, index,
+                    cases[case_id], index_dir, retrieval_mode, filter_mode) != 0) {
+            return -1;
+          }
 
           cout << "Bench done." << endl;
         }

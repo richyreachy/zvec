@@ -48,6 +48,32 @@ Use `Cosine` for cosine distance. Use `BuilderParams: {}` for defaults.
 The index preserves the keys from the input. With row ordinals as keys,
 `zvec.QuantizedGraph.open("index.zvec")` can also open the result.
 
+### Evaluating the QG index
+
+Run `build/bin/recall qg-search.yaml` for recall and
+`build/bin/bench qg-search.yaml` for throughput. The shared configuration
+below reads dense FP32 queries from `id;v0 v1 ...` rows. For recall, supply
+one ground-truth row `id;key0 key1 ...` per query in the same order.
+
+```yaml
+IndexCommon:
+  IndexConfig: '{"index_type":"kQuantizedGraph","data_type":"DT_FP32","dimension":128,"metric_type":"kL2sq"}'
+  IndexPath: index.zvec
+  QueryFile: queries.txt
+  GroundTruthFile: neighbors.txt
+  TopK: 10
+  CompareById: true
+  RecallThreadCount: 1
+  BenchThreadCount: 1
+  BenchIterCount: 10000
+QueryConfig:
+  QueryParam: '{"index_type":"kQuantizedGraph","capacity":128,"max_expansions":96}'
+```
+
+Set the dimension and metric to match the index. Use `kCosine` with original
+FP32 queries for cosine. `QueryConfig.QueryParams` accepts a sequence of query
+JSON strings to measure multiple settings against the same open index.
+
 ## COHERE experiments
 
 ### Getting COHERE Data
