@@ -509,7 +509,4 @@ int QuantizedGraphBuilder::dump(IndexStorage &storage) {
 }
 
 INDEX_FACTORY_REGISTER_BUILDER(QuantizedGraphBuilder);
-// Existing framework configurations and snapshots use this factory name.
-INDEX_FACTORY_REGISTER_BUILDER_ALIAS(QuantizedGraphIndexBuilder,
-                                     QuantizedGraphBuilder);
 }  // namespace zvec::core
