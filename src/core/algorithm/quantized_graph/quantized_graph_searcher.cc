@@ -72,7 +72,7 @@ class GraphContext final : public IndexContext {
   size_t dimension;
   bool cosine;
   QuantizedGraphQuery query;
-  QuantizedGraphSearchOptions options;
+  QuantizedGraphQuery::Options options;
   uint32_t capacity = 128;
   std::vector<float> normalized;
   std::vector<IndexDocumentList> docs;

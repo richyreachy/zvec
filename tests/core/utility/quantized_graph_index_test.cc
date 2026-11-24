@@ -135,7 +135,7 @@ TEST_P(IndependentQuantizedGraph, BuildQueryAndSnapshotWithoutHnsw) {
     source.distance(v, q, n, out);
   };
   QuantizedGraphQuery context(source.dimension, exact);
-  QuantizedGraphSearchOptions query_options;
+  QuantizedGraphQuery::Options query_options;
   query_options.route_beam = 0;
   query_options.max_expansions = 128;
   query_options.margin = 1e6f;
@@ -293,7 +293,7 @@ TEST_P(IndependentQuantizedGraph, RouterTrainingWithoutHnsw) {
       [&source](const void *v, const void *q, size_t n, float *out) {
         source.distance(v, q, n, out);
       });
-  QuantizedGraphSearchOptions options;
+  QuantizedGraphQuery::Options options;
   options.margin = 1e6f;
   for (uint32_t beam : {0u, 1u, 4u}) {
     options.route_beam = beam;
@@ -313,7 +313,7 @@ TEST(QuantizedGraphQuery, InvalidOptionsClearPreviousResults) {
       8, [](const void *, const void *, size_t, float *out) { *out = 0; });
   ASSERT_EQ(0, ctx.reset(q, 3, 3));
   ctx.reset_results().emplace(1, 0);
-  QuantizedGraphSearchOptions options;
+  QuantizedGraphQuery::Options options;
   options.route_beam = 5;
   EXPECT_EQ(IndexError_InvalidArgument, ctx.reset(q, 3, 3, options));
   EXPECT_EQ(0u, ctx.results().size());
