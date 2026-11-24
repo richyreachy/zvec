@@ -26,7 +26,7 @@
 #include <zvec/core/framework/index_error.h>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/core/framework/index_storage.h>
-#include "quantized_graph_build_options.h"
+#include "quantized_graph_encoding_options.h"
 
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED
 #include <turbo/norm/normalizer.h>
@@ -264,7 +264,7 @@ class QuantizedGraphIndex {
   template <class Graph>
   static int train_codec(const Graph &source, size_t count, size_t dimension,
                          bool cosine, bool fp16,
-                         const QuantizedGraphBuildOptions &options,
+                         const QuantizedGraphEncodingOptions &options,
                          std::string &data) {
     if (!options.valid()) return IndexError_InvalidArgument;
     if (!QuantizedGraphSupported()) return IndexError_Unsupported;

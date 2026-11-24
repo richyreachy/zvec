@@ -37,7 +37,7 @@ bool read_build_param(const ailego::Params &params, const std::string &key,
   const auto *value = params.hypercube().get(key);
   if constexpr (std::is_enum_v<T>) {
     return value->compatible<std::string>() &&
-           QuantizedGraphBuildOptions::parse_name(
+           QuantizedGraphEncodingOptions::parse_name(
                value->unsafe_cast<std::string>(), out);
   } else {
     const bool unsigned_int = value->compatible<unsigned char>() ||

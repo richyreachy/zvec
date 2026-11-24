@@ -34,15 +34,15 @@ inline ailego::Params page_params(const YAML::Node &params) {
   return out;
 }
 
-inline QuantizedGraphBuildOptions encoding_options(const YAML::Node &e,
-                                                  bool legacy = false) {
-  QuantizedGraphBuildOptions enc;
+inline QuantizedGraphEncodingOptions encoding_options(const YAML::Node &e,
+                                                      bool legacy = false) {
+  QuantizedGraphEncodingOptions enc;
   auto codec = e["codec"].as<std::string>();
   if (legacy && codec == "native") codec = "rabitq";
-  if (!QuantizedGraphBuildOptions::parse_name(codec, enc.codec))
+  if (!QuantizedGraphEncodingOptions::parse_name(codec, enc.codec))
     throw std::invalid_argument("unknown QG codec: " + codec);
   const auto book = e["codebook"].as<std::string>();
-  if (!QuantizedGraphBuildOptions::parse_name(book, enc.codebook))
+  if (!QuantizedGraphEncodingOptions::parse_name(book, enc.codebook))
     throw std::invalid_argument("unknown QG codebook: " + book);
   enc.max_neighbors = e["max_neighbors"].as<size_t>();
   enc.rotation_views = e["rotation_views"].as<size_t>();

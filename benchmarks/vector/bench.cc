@@ -954,7 +954,7 @@ void reject_legacy(const YAML::Node &n) {
     for (const auto &entry : n) reject_legacy(entry);
 }
 #if ZVEC_QUANTIZED_GRAPH_SUPPORTED
-QuantizedGraphBuildOptions build_options(const YAML::Node &p) {
+QuantizedGraphEncodingOptions build_options(const YAML::Node &p) {
   auto c = p["encoding"];
   auto o = qg_bench_options::encoding_options(c, true);
   o.threads = c["threads"].as<size_t>();
