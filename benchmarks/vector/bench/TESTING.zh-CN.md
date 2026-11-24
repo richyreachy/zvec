@@ -84,7 +84,7 @@ Cohere/GloVe 使用 cosine 转换器；SIFT/GIST 保留 L2 原始值，不做 co
 ## SIFT 数据准备与两阶段构建
 
 SIFT-128 使用原始 L2 向量和零起始行 ID。通用导出脚本需要 Python 3、`numpy`、`h5py`，
-适用于 SIFT、GIST 和 GloVe 的稠密 HDF5；`prepare_glove.py` 保留为限定 100 维的兼容入口。
+适用于 SIFT、GIST 和 GloVe 的稠密 HDF5。维度从文件读取，也可用 `--dimension` 指定期望值。
 以下命令从同一个原始图生成单视图和双视图，便于比较视图数的影响：
 
 ```bash
@@ -179,7 +179,15 @@ Cohere 的历史验证单独保留在下节。
 [完整查询参数和协议](https://github.com/richyreachy/ann-benchmarks/blob/g9ibench/benchmark_configs/legacy-qg-20261106/config/annbenchmark_three_datasets.yaml) 保存在 `config/`。
 完整报告、汇总 CSV、确认点、原始结果及日志保存在本机
 `~/workspace/annbenchmark/ann-benchmarks/results/three-datasets-20261103/`。
-其中 `all-confirmed.json` 可作为 `plot_results.py` 的输入；SIFT 原生 recall 配置复核记录为 `native-cli-audit.json`，文本入口与 ANN 运行器使用的同一配置得到相同严格召回。
+其中 `all-confirmed.json` 保存了上图的历史确认点，可用[当时的绘图脚本](https://github.com/richyreachy/zvec/blob/f62068c993edaf396d2400387617bbdac1af1f1a/benchmarks/vector/bench/plot_results.py)复现。SIFT 原生 recall 配置复核记录为 `native-cli-audit.json`，文本入口与 ANN 运行器使用的同一配置得到相同严格召回。
+
+对新的 HDF5 评测结果，在 ANN-Benchmarks 仓库根目录运行以下命令，每个数据集生成一张对数 QPS 图。
+
+```sh
+for dataset in sift-128-euclidean gist-960-euclidean glove-100-angular; do
+  python plot.py --dataset "$dataset" --count 10 --y-scale log --output "results/$dataset.png"
+done
+```
 
 ## 2026-11-03 多视图跨数据集验证
 

@@ -20,8 +20,8 @@ native 编码、64 个量化邻居、双视图。构建、查询配置与同一�
 在仓库根目录执行，先将 YAML 中 `/data/glove` 替换为本机路径：
 
 ```bash
-python3 benchmarks/vector/bench/prepare_glove.py \
-  /data/glove/glove-100-angular.hdf5 /data/glove --include-train
+python3 benchmarks/vector/bench/prepare_hdf5.py \
+  /data/glove/glove-100-angular.hdf5 /data/glove --dimension 100 --include-train
 ./build/bin/txt2vecs --input=/data/glove/train.txt \
   --output=/data/glove/glove100_base.zvec.vecs --dimension=100
 ./build/bin/local_builder tools/core/bench/config/glove_fp32_build.yaml

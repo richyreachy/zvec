@@ -36,10 +36,11 @@ def export(dataset, output, integer=False):
             np.savetxt(stream, rows, fmt=fmt)
 
 
-def main(expected_dimension=None):
+def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--dimension", type=int, help="Check the expected vector dimension")
     parser.add_argument(
         "--include-train",
         action="store_true",
@@ -60,7 +61,6 @@ def main(expected_dimension=None):
             or test.ndim != 2
             or train.shape[1] <= 0
             or test.shape[1] != train.shape[1]
-            or (expected_dimension is not None and train.shape[1] != expected_dimension)
             or not len(train)
             or not len(test)
             or neighbors.ndim != 2
@@ -70,12 +70,9 @@ def main(expected_dimension=None):
         ):
             raise ValueError(
                 "Expected matching dense vectors and at least 10 neighbor IDs per query"
-                + (
-                    f"; dimension must be {expected_dimension}"
-                    if expected_dimension is not None
-                    else ""
-                )
             )
+        if args.dimension is not None and train.shape[1] != args.dimension:
+            raise ValueError(f"Expected dimension {args.dimension}, got {train.shape[1]}")
         for start in range(0, len(neighbors), 4096):
             ids = neighbors[start : start + 4096]
             if ids.min() < 0 or ids.max() >= len(train):
