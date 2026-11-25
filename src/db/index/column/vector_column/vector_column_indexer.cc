@@ -37,12 +37,8 @@ Status VectorColumnIndexer::open(
 
 Status VectorColumnIndexer::create_proxima_index(
     const vector_column_params::ReadOptions &read_options) {
-  FieldSchema backing = field_schema_;
-  if (field_schema_.index_type() == IndexType::QUANTIZED_GRAPH) {
-    backing.set_index_params(FlatIndexParams(MetricType::L2));
-  }
   auto index_param_result =
-      ProximaEngineHelper::convert_to_engine_index_param(backing);
+      ProximaEngineHelper::convert_to_engine_index_param(field_schema_);
   if (!index_param_result.has_value()) {
     return Status::InvalidArgument(index_param_result.error().message());
   }
