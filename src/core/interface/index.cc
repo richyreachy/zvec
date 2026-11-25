@@ -496,6 +496,8 @@ int Index::init(const BaseIndexParam &param) {
   param_ = param;  // will lose the original type info
 
   is_sparse_ = param.is_sparse;
+  context_index_ = (magic_enum::enum_integer(param_.index_type) - 1) * 2 +
+                   static_cast<size_t>(is_sparse_);
   is_huge_page_ = param.is_huge_page;
 
   proxima_index_meta_.set_meta(param.data_type, param.dimension);
@@ -600,15 +602,9 @@ int Index::open(const std::string &file_path, StorageOptions storage_options) {
   int ret = storage_options.type == StorageOptions::StorageType::kBufferPool
                 ? storage_->open(file_path, open_options)
                 : storage_->open(file_path, storage_options.create_new);
-  // FileDumper snapshots have their segment directory at the end of the file,
-  // whereas mutable MMapFileStorage requires a directory address in the header.
-  // Read-only consumers can load the same native chunks through ReadStorage.
   if (ret == core::IndexError_Unsupported && storage_options.read_only &&
-      !storage_options.create_new) {
-    storage_ = core::IndexFactory::CreateStorage(
-        storage_options.type == StorageOptions::StorageType::kMMAP
-            ? "MMapFileReadStorage"
-            : "BufferReadStorage");
+      storage_options.type == StorageOptions::StorageType::kBufferPool) {
+    storage_ = core::IndexFactory::CreateStorage("BufferReadStorage");
     if (!storage_) return core::IndexError_Runtime;
     ret = storage_->init(storage_params);
     if (ret == 0) ret = storage_->open(file_path, false);
@@ -682,8 +678,6 @@ int Index::open(const std::string &file_path, StorageOptions storage_options) {
   }
 
   // TODO: context pool
-  context_index_ = (magic_enum::enum_integer(param_.index_type) - 1) * 2 +
-                   static_cast<size_t>(is_sparse_);
   if (!pending_quantizer_training_ && !init_context()) {
     LOG_ERROR("Failed to init context");
     return core::IndexError_Runtime;
@@ -716,7 +710,6 @@ int Index::close() {
   // alive until another IVF search or thread exit.
   if (context_index_ < context_list.size()) {
     context_list[context_index_].reset();
-    context_index_ = std::numeric_limits<size_t>::max();
   }
   if (ailego_unlikely(storage_->close() != 0)) {
     LOG_ERROR("Failed to close storage");

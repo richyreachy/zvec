@@ -331,6 +331,9 @@ class ZVEC_API QuantizedGraphIndexParams : public VectorIndexParams {
   std::string options_;
 };
 
+/*
+ * Vector: Hnsw index params
+ */
 class ZVEC_API HnswIndexParams : public VectorIndexParams {
  public:
   HnswIndexParams(
