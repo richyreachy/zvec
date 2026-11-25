@@ -15,6 +15,7 @@
 import pickle
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -56,23 +57,41 @@ class TestCollectionQuantizedGraph(unittest.TestCase):
                 p = pickle.loads(
                     pickle.dumps(zvec.QuantizedGraphQueryParam(capacity=128))
                 )
-                graph = zvec.QuantizedGraph.build(
-                    rows,
-                    metric="l2" if metric == zvec.MetricType.L2 else "cosine",
-                    options=options,
-                )
-                for q in rows[::33]:
+                batch = rows[:3]
+                for filt in (None, "bucket = 1", "bucket = 2"):
+                    args = dict(topk=7, filter=filt, return_scores=True)
+                    expected = [
+                        c.query_internal_ids(zvec.Query("v", vector=v, param=p), **args)
+                        for v in batch
+                    ]
+                    for data in (batch[0], batch[:1], batch):
+                        ids, scores = c.query_internal_ids("v", data, param=p, **args)
+                        for got, col in ((ids, 0), (scores, 1)):
+                            ref = [r[col] for r in expected]
+                            ref = ref[0] if data.ndim == 1 else ref[:len(data)]
+                            np.testing.assert_array_equal(got, ref)
+                for bad in (batch.astype("float64"), batch[:, ::-1], batch[:, :-1].copy(),
+                            batch[:0], batch[None, ...]):
+                    with self.assertRaises((TypeError, ValueError)):
+                        c.query_internal_ids("v", bad, param=p)
+
+                def search(v):
+                    return c.query_internal_ids("v", v, topk=3, param=p)
+
+                ref = search(rows[:32])
+                self.assertEqual(ref.dtype, np.int64)
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    np.testing.assert_array_equal(list(pool.map(search, rows[:32])), ref)
+                for i in range(0, len(rows), 33):
+                    q = rows[i]
                     query = zvec.Query(field_name="v", vector=q, param=p)
-                    expected = graph.search(q, 10)
                     hits = c.query(query, topk=10, include_vector=True)
-                    np.testing.assert_array_equal(
-                        [int(h.id[2:]) for h in hits], expected
-                    )
                     got, scores = c.query_internal_ids(
                         query, topk=10, return_scores=True
                     )
-                    np.testing.assert_array_equal(got, expected)
-                    vectors = rows[expected]
+                    self.assertEqual(c.resolve_internal_ids(got.tolist()), [h.id for h in hits])
+                    self.assertEqual(hits[0].id, f"k-{i}")
+                    vectors = rows[[int(h.id[2:]) for h in hits]]
                     if metric == zvec.MetricType.L2:
                         distances = np.square(vectors - q).sum(axis=1)
                     else:
