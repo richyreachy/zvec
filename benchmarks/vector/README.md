@@ -46,8 +46,12 @@ BuilderParams:
 ```
 
 Use `Cosine` for cosine distance. Use `BuilderParams: {}` for defaults.
-The index preserves the keys from the input. With row ordinals as keys,
-`zvec.QuantizedGraph.open("index.zvec")` can also open the result.
+The index file preserves the input keys and can be queried with the native bench tools.
+
+For internal IDs in Python, create the QG
+index on a Collection, reopen the Collection read-only, and call
+`collection.query_internal_ids("v", vectors, topk=10, param=query_param)`.
+Pass a contiguous FP32 vector or a matrix of queries.
 
 ### Evaluating the QG index
 

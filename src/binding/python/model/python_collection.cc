@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "python_collection.h"
+#include <algorithm>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 #include <zvec/db/collection.h>
@@ -110,6 +111,50 @@ py::array_t<T> owned_array(std::vector<T> values) {
   buffer.release();
   return py::array_t<T>({size}, {static_cast<py::ssize_t>(sizeof(T))},
                         ptr->data(), owner);
+}
+
+static py::object query_vector_ids(
+    const Collection &collection, const CollectionSchema &schema,
+    const std::string &field_name,
+    const py::array_t<float, py::array::c_style> &vectors, int topk,
+    QueryParams::Ptr param, const std::string &filter, bool return_scores) {
+  const auto *field = schema.get_vector_field(field_name);
+  if (!field || field->data_type() != DataType::VECTOR_FP32)
+    throw py::value_error("expected a dense FP32 field");
+  const bool batch = vectors.ndim() == 2;
+  if ((!batch && vectors.ndim() != 1) || vectors.size() == 0 ||
+      vectors.shape(vectors.ndim() - 1) != field->dimension() ||
+      reinterpret_cast<uintptr_t>(vectors.data()) % alignof(float))
+    throw py::value_error("expected aligned vectors of shape (D,) or (N, D)");
+  throw_if_error(validate_topk_and_output_fields(topk, std::nullopt));
+  if (topk == 0) throw py::value_error("topk must be positive");
+  const auto rows = batch ? vectors.shape(0) : 1;
+  std::vector<py::ssize_t> shape{topk};
+  if (batch) shape.insert(shape.begin(), rows);
+  py::array_t<int64_t> ids(shape);
+  std::optional<py::array_t<float>> scores;
+  if (return_scores) scores.emplace(shape);
+  auto *id = ids.mutable_data();
+  auto *score = scores ? scores->mutable_data() : nullptr;
+  const float *row = vectors.data();
+  const size_t dim = field->dimension();
+  SearchQuery query;
+  query.topk_ = topk;
+  query.filter_ = filter;
+  query.target_.field_name_ = field_name;
+  query.target_.query_params_ = std::move(param);
+  {
+    py::gil_scoped_release release;
+    for (py::ssize_t i = 0; i < rows; ++i, row += dim) {
+      query.target_.clause_ = VectorViewClause{
+          {reinterpret_cast<const char *>(row), dim * sizeof(float)}, {}, {}};
+      auto result = unwrap_expected(collection.query_internal_ids(query, return_scores));
+      id = std::copy(result.ids.begin(), result.ids.end(), id);
+      if (score) score = std::copy(result.scores.begin(), result.scores.end(), score);
+    }
+  }
+  if (scores) return py::make_tuple(std::move(ids), std::move(*scores));
+  return ids;
 }
 
 void ZVecPyCollection::Initialize(pybind11::module_ &m) {
@@ -378,6 +423,9 @@ refinement. Eligible dense queries use the specialized low-latency path;
 other query shapes use regular Query semantics. Use ResolveInternalIds to
 convert IDs to user primary keys.
 )doc")
+      .def("QueryInternalIds", &query_vector_ids, py::arg("schema"),
+           py::arg("field_name"), py::arg("vectors").noconvert(), py::arg("topk"),
+           py::arg("param"), py::arg("filter"), py::arg("return_scores"))
       .def(
           "ResolveInternalIds",
           [](const Collection &self, const std::vector<int64_t> &ids) {

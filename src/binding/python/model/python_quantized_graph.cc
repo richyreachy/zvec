@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cmath>
 #include <fstream>
-#include <limits>
 #include <mutex>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -22,7 +20,6 @@
 #include "algorithm/quantized_graph/quantized_graph_builder.h"
 #include "algorithm/quantized_graph/quantized_graph_index.h"
 #include "algorithm/quantized_graph/quantized_graph_params.h"
-#include "algorithm/quantized_graph/quantized_graph_query.h"
 
 namespace py = pybind11;
 namespace zvec {
@@ -146,14 +143,12 @@ class PythonQuantizedGraph {
     status(QuantizedGraphBuilder::build(std::move(vectors), rows.shape(1),
                                         cosine, options, graph_));
     std::string{}.swap(graph_.codec);
-    init_query();
   }
 
   PythonQuantizedGraph(const std::string &path, const py::dict &pages) {
     auto params = page_params(pages);
     py::gil_scoped_release release;
     status(graph_.open(path, params));
-    init_query();
   }
 
   PythonQuantizedGraph(const std::string &prefix, size_t n, size_t dim,
@@ -192,7 +187,6 @@ class PythonQuantizedGraph {
     status(storage->close());
     graph_.data = std::move(data);
     graph_.router = std::move(router);
-    init_query();
   }
 
   void save(const std::string &path) {
@@ -201,84 +195,9 @@ class PythonQuantizedGraph {
     status(graph_.save(path));
   }
 
-  void configure(const py::dict &options) {
-    auto d = py::dict(options.attr("copy")());
-    QuantizedGraphQuery::Options search;
-    size_t capacity = 128;
-    take(d, "capacity", capacity);
-    take(d, "margin", search.margin);
-    take(d, "max_expansions", search.max_expansions);
-    take(d, "route_beam", search.route_beam);
-    take(d, "bucket_width", search.bucket_width);
-    take(d, "uncertainty_bonus", search.uncertainty_bonus);
-    check_keys(d);
-    if (!capacity || capacity > UINT32_MAX)
-      throw std::invalid_argument("capacity must be a positive uint32");
-    std::lock_guard<std::mutex> lock(mutex_);
-    options_ = search;
-    capacity_ = capacity;
-  }
-
-  py::array_t<uint64_t> search(const Array &input, size_t k) {
-    if (input.ndim() != 1 || size_t(input.size()) != graph_.data->dimension || !k ||
-        k > graph_.data->size())
-      throw std::invalid_argument("invalid query shape or k");
-
-    py::array_t<uint64_t> result(k);
-    auto *ids = result.mutable_data();
-    {
-      py::gil_scoped_release release;
-      std::lock_guard<std::mutex> lock(mutex_);
-      const float *q = input.data();
-      std::vector<float> normalized;
-      if (graph_.data->cosine) {
-        normalized.assign(q, q + graph_.data->dimension);
-        double norm = 0;
-        for (float x : normalized) norm += double(x) * x;
-        if (!(norm > 0 && std::isfinite(norm)))
-          throw std::invalid_argument("invalid cosine query norm");
-        const auto scale = 1 / std::sqrt(norm);
-        for (float &x : normalized) x *= scale;
-        q = normalized.data();
-      } else if (!std::all_of(q, q + graph_.data->dimension, [this](float x) {
-                   return std::abs(x) <= l2_limit_;
-                 })) {
-        throw std::invalid_argument(
-            "query coordinate exceeds the finite L2 range");
-      }
-      status(query_->reset(q, k, capacity_, options_));
-      status(graph_.index->search(*graph_.data, *query_));
-      const auto &hits = query_->results();
-      check(hits.size() >= k, "insufficient results");
-      for (size_t i = 0; i < k; ++i) ids[i] = hits[i].first;
-    }
-    return result;
-  }
-
  private:
-  void init_query() {
-    l2_limit_ = std::sqrt(double(std::numeric_limits<float>::max()) /
-                          (16 * graph_.data->dimension));
-    auto metric = IndexFactory::CreateMetric(
-        graph_.data->cosine ? "InnerProduct" : "SquaredEuclidean");
-    check(bool(metric), "missing exact metric");
-    IndexMeta meta;
-    meta.set_meta(IndexMeta::DT_FP32, graph_.data->dimension);
-    status(metric->init(meta, {}));
-    auto exact = [distance = metric->distance(), cosine = graph_.data->cosine](
-                     const void *a, const void *b, size_t dim, float *out) {
-      distance(a, b, dim, out);
-      if (cosine) *out += 1.f;
-    };
-    query_ = std::make_unique<QuantizedGraphQuery>(graph_.data->dimension, exact);
-  }
-
   QuantizedGraphBuilder::Result graph_;
-  std::unique_ptr<QuantizedGraphQuery> query_;
-  QuantizedGraphQuery::Options options_;
-  double l2_limit_;
   std::mutex mutex_;
-  size_t capacity_ = 128;
 };
 }  // namespace
 
@@ -318,11 +237,6 @@ void RegisterQuantizedGraph(py::module_ &m) {
           py::arg("dimension"), py::arg("metric") = "l2",
           py::arg("page_params") = py::dict(),
           "Open an independent FP32 snapshot (.vectors, .edges, .offsets, "
-          ".router, .qg).")
-      .def("configure", &PythonQuantizedGraph::configure, py::arg("options"),
-           "Replace search settings. Omitted options use native defaults.")
-      .def("search", &PythonQuantizedGraph::search,
-           py::arg("query").noconvert(), py::arg("k") = 10,
-           "Return the nearest row IDs in distance order.");
+          ".router, .qg).");
 }
 }  // namespace zvec
