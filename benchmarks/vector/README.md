@@ -25,12 +25,20 @@ The COHERE example below uses the `_original` tools. Its search YAML is not
 interchangeable with the `IndexCommon`/`QueryConfig` format used by `recall` and
 `bench`. Run all local commands from the repository root.
 
-The [benchmark entry guide](bench/README.md) links to the r7i and g9i
-quantized graph presets in ANN-Benchmarks.
-
 ## Building a quantized graph
 
-Use dense FP32 Zvec `.vecs` input. Save the following as `qg-build.yaml`
+ANN-Benchmarks provides machine-specific profiles for SIFT, GIST and GloVe.
+See the [r7i presets](https://github.com/richyreachy/ann-benchmarks/tree/r7ibench_nice/ann_benchmarks/algorithms/zvec_qg/configs/r7i-native-builder)
+and [g9i presets](https://github.com/richyreachy/ann-benchmarks/tree/g9ibench/ann_benchmarks/algorithms/zvec_qg/configs/g9i).
+
+For an `independent-fp32-v1` profile and row-major FP32 input, run:
+
+```sh
+build/bin/bench qg build profile.json train.f32 snapshot
+build/bin/bench qg query profile.json snapshot queries.f32 results
+```
+
+For dense FP32 Zvec `.vecs` input, save the following as `qg-build.yaml`
 and run `build/bin/local_builder qg-build.yaml`.
 
 ```yaml
