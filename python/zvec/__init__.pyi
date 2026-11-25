@@ -83,10 +83,7 @@ class QuantizedGraph:
     save and open use one segmented Zvec index file. The prefix overload
     opens historical five-file snapshots for migration.
     Build and open accept native proxima.quantized_graph.thp_* page parameters.
-    configure replaces the capacity, margin, max_expansions, route_beam,
-    bucket_width and uncertainty_bonus settings. search takes a contiguous
-    query vector and returns uint64 row IDs in increasing distance order.
-    Queries on one instance share a context and execute serially.
+    For queries, open a read-only Collection and call query_internal_ids.
     """
 
     @staticmethod
@@ -113,8 +110,6 @@ class QuantizedGraph:
         metric: str = "l2",
         page_params: dict[str, Any] = ...,
     ) -> QuantizedGraph: ...
-    def configure(self, options: dict[str, Any]) -> None: ...
-    def search(self, query: NDArray[np.float32], k: int = 10) -> NDArray[np.uint64]: ...
 
 def io_backend_type() -> IOBackendType:
     """Returns the current I/O backend type for DiskAnn disk reads.
@@ -234,9 +229,21 @@ class _Collection:
     def Query(
         self, arg0: param._SearchQuery
     ) -> list[tuple[str, float, dict | None, dict | None] | None]: ...
+    @overload
     def QueryInternalIds(
         self, query: param._SearchQuery, return_scores: bool = False
     ) -> typing.Any: ...
+    @overload
+    def QueryInternalIds(
+        self,
+        schema: schema._CollectionSchema,
+        field_name: str,
+        vectors: NDArray[np.float32],
+        topk: int,
+        param: param.QueryParam | None,
+        filter: str,
+        return_scores: bool,
+    ) -> NDArray[np.int64] | tuple[NDArray[np.int64], NDArray[np.float32]]: ...
     def ResolveInternalIds(
         self, ids: collections.abc.Sequence[int]
     ) -> list[str | None]: ...
