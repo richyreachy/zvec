@@ -16,6 +16,7 @@
 #include <zvec/core/interface/index_factory.h>
 #include <zvec/db/status.h>
 #include "engine_helper.hpp"
+#include "quantized_graph_column.h"
 
 
 namespace zvec {
@@ -59,6 +60,11 @@ Status VectorColumnIndexer::create_proxima_index(
     return Status::InternalError("Failed to open index");
   }
 
+  if (field_schema_.index_type() == IndexType::QUANTIZED_GRAPH) {
+    qg_ = std::make_shared<QuantizedGraphColumn>();
+    return qg_->open(field_schema_, *index, read_options.create_new,
+                     read_options.read_only);
+  }
   return Status::OK();
 }
 
@@ -82,6 +88,7 @@ Status VectorColumnIndexer::close() {
   if (0 != index->close()) {
     return Status::InternalError("Failed to close index");
   }
+  qg_.reset();
   index.reset();
   return Status::OK();
 }
@@ -130,6 +137,7 @@ Status VectorColumnIndexer::merge(
                    {merge_options.write_concurrency, merge_options.pool})) {
     return Status::InternalError("Failed to merge index");
   }
+  if (qg_) return qg_->build(field_schema_, *index);
   return Status::OK();
 }
 
@@ -139,6 +147,9 @@ Status VectorColumnIndexer::insert(
     return Status::InvalidArgument("Index not opened");
   }
 
+  if (qg_)
+    return Status::NotSupported(
+        "QG inserts use the mutable collection segment");
   auto engine_vector_data =
       ProximaEngineHelper::convert_to_engine_vector(vector_data, is_sparse_);
   if (0 != index->add(engine_vector_data.value(), doc_id)) {
@@ -173,6 +184,14 @@ Result<IndexResults::Ptr> VectorColumnIndexer::search(
 
   auto engine_vector_data =
       ProximaEngineHelper::convert_to_engine_vector(vector_data, is_sparse_);
+  if (qg_) {
+    if (!engine_vector_data)
+      return tl::make_unexpected(engine_vector_data.error());
+    return qg_->search(
+        *index,
+        std::get<core_interface::DenseVector>(engine_vector_data->vector).data,
+        query_params);
+  }
   core_interface::SearchResult search_result;
   auto engine_query_param_result =
       ProximaEngineHelper::convert_to_engine_query_param(field_schema_,

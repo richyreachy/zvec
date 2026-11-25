@@ -11,6 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#if defined(__linux__)
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
 #include <zvec/ailego/io/mmap_file.h>
 #include <zvec/ailego/utility/file_helper.h>
 #include <zvec/core/framework/index_factory.h>
@@ -82,6 +86,22 @@ class MMapFileReadStorage : public IndexStorage {
       }
       memcpy(buf, data_ptr_ + offset, len);
       return len;
+    }
+
+    void release_read_cache(size_t offset, size_t len) override {
+#if defined(__linux__)
+      if (offset > data_size_ || len > data_size_ - offset) return;
+      static const size_t page = size_t(::sysconf(_SC_PAGESIZE));
+      const auto base = reinterpret_cast<uintptr_t>(data_ptr_);
+      const auto first = std::max((base + page - 1) / page * page,
+                                  (base + offset) / page * page);
+      const auto last = (base + offset + len) / page * page;
+      if (last > first)
+        ::madvise(reinterpret_cast<void *>(first), last - first, MADV_DONTNEED);
+#else
+      (void)offset;
+      (void)len;
+#endif
     }
 
     //! Read data from segment

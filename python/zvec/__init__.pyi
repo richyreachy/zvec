@@ -1,3 +1,17 @@
+# Copyright 2025-present the zvec project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 Zvec core module
 """
@@ -5,6 +19,10 @@ Zvec core module
 from __future__ import annotations
 
 import collections
+from typing import overload
+
+import numpy as np
+from numpy.typing import NDArray
 
 from . import typing
 from .extension import ReRanker, RrfReRanker, WeightedReRanker
@@ -32,6 +50,8 @@ from .model.param import (
     IvfRabitqIndexParam,
     IvfRabitqQueryParam,
     OptimizeOption,
+    QuantizedGraphIndexParam,
+    QuantizedGraphQueryParam,
     QuantizerParam,
     VamanaIndexParam,
     VamanaQueryParam,
@@ -110,6 +130,8 @@ __all__: list = [
     "Status",
     "StatusCode",
     "VamanaIndexParam",
+    "QuantizedGraphIndexParam",
+    "QuantizedGraphQueryParam",
     "VamanaQueryParam",
     "VectorQuery",
     "VectorSchema",
@@ -166,9 +188,21 @@ class _Collection:
     def Query(
         self, arg0: param._SearchQuery
     ) -> list[tuple[str, float, dict | None, dict | None] | None]: ...
+    @overload
     def QueryInternalIds(
         self, query: param._SearchQuery, return_scores: bool = False
     ) -> typing.Any: ...
+    @overload
+    def QueryInternalIds(
+        self,
+        schema: schema._CollectionSchema,
+        field_name: str,
+        vectors: NDArray[np.float32],
+        topk: int,
+        param: param.QueryParam | None,
+        filter: str,
+        return_scores: bool,
+    ) -> NDArray[np.int64] | tuple[NDArray[np.int64], NDArray[np.float32]]: ...
     def ResolveInternalIds(
         self, ids: collections.abc.Sequence[int]
     ) -> list[str | None]: ...

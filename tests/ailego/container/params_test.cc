@@ -18,6 +18,18 @@
 using namespace zvec;
 using namespace zvec::ailego;
 
+TEST(Params, RoundTripDoublePrecision) {
+  const double expected = 0.12345678901234566;
+  Params original, restored;
+  original.set("weight", expected);
+  std::string encoded;
+  Params::SerializeToBuffer(original, &encoded);
+  ASSERT_TRUE(Params::ParseFromBuffer(encoded, &restored));
+  double actual;
+  ASSERT_TRUE(restored.get("weight", &actual));
+  EXPECT_EQ(expected, actual);
+}
+
 TEST(Params, General) {
   Params params;
   Params params1;

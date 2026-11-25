@@ -21,7 +21,7 @@ from typing import Optional, Union, overload
 import numpy as np
 
 from zvec._zvec import _Collection
-from zvec._zvec.param import _GroupByVectorQuery
+from zvec._zvec.param import QueryParam, _GroupByVectorQuery
 
 from ..executor import QueryContext, QueryExecutor
 from ..extension import ReRanker
@@ -202,7 +202,7 @@ class Collection:
     ) -> None:
         """Create an index on a field.
 
-        Vector index types (HNSW, HNSW_RABITQ, IVF, IVF_RABITQ, FLAT) can only be applied to vector fields.
+        Vector index types (HNSW, HNSW_RABITQ, IVF, IVF_RABITQ, FLAT, QUANTIZED_GRAPH) can only be applied to vector fields.
         Inverted index (`InvertIndexParam`) is for scalar fields.
         FTS index (`FtsIndexParam`) is for full-text search on STRING fields.
 
@@ -513,13 +513,15 @@ class Collection:
 
     def query_internal_ids(
         self,
-        query: Query,
+        query: Union[Query, str],
+        vectors: Optional[np.ndarray] = None,
         *,
         topk: int = 10,
+        param: Optional[QueryParam] = None,
         filter: Optional[str] = None,
         return_scores: bool = False,
     ) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
-        """Execute a single query and return internal numeric IDs.
+        """Return internal numeric IDs for a Query or dense FP32 vectors.
 
         This API requires a read-only collection and accepts the same single
         :class:`Query` used by :meth:`query`, including scalar filters, sparse
@@ -527,19 +529,25 @@ class Collection:
         low-latency path; other query shapes use regular query semantics.
         Re-ranking and result-field materialization are not supported.
 
+        Alternatively, pass a field name and a contiguous float32 NumPy array.
+        Shape (D,) returns (topk,) IDs. A nonempty matrix of shape (N, D)
+        returns (N, topk) IDs in input order. Pass index options via param.
+        Keep the array and parameters unchanged until the call completes.
+
         The result is an owning int64 NumPy array. With
         ``return_scores=True``, it returns ``(ids, scores)`` where scores is an
         owning float32 NumPy array. Missing results are padded with ID ``-1``
         and score ``NaN``. Refinement parameters have the same semantics as
         :meth:`query`.
 
-        Use :meth:`query` for documents, multiple queries, group-by, re-ranking,
+        Use :meth:`query` for documents, multi-field queries, group-by, re-ranking,
         or fetching fields and vectors. Use :meth:`resolve_internal_ids` to
         convert these IDs to user primary keys.
 
         Examples:
             >>> query = zvec.Query("vector", vector=vector, param=param)
             >>> ids = collection.query_internal_ids(query, topk=10)
+            >>> batch_ids = collection.query_internal_ids("vector", vectors, topk=10)
             >>> ids, scores = collection.query_internal_ids(
             ...     query, topk=10, return_scores=True
             ... )
@@ -548,6 +556,15 @@ class Collection:
             msg = "query_internal_ids collection is closed"
             raise ValueError(msg)
         _require_positive_integer(topk, "topk")
+        if isinstance(query, str):
+            if vectors is None:
+                raise ValueError("vectors are required with a field name")
+            return self._obj.QueryInternalIds(
+                self._schema._get_object(), query, vectors, topk, param,
+                filter or "", return_scores,
+            )
+        if vectors is not None or param is not None:
+            raise ValueError("pass vectors and param in the Query or use a field name")
         ctx = QueryContext(topk=topk, filter=filter, queries=[query])
         cpp_query = self._querier._build_search_query(ctx, query, self._obj)
         return self._obj.QueryInternalIds(cpp_query, return_scores)

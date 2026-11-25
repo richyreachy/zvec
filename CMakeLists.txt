@@ -1,3 +1,17 @@
+# Copyright 2025-present the zvec project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 cmake_minimum_required(VERSION 3.26)
 # Keep legacy third-party projects compatible with CMake 4, which requires
 # a policy version of at least 3.5. Preserve higher values set by callers.
@@ -214,6 +228,27 @@ else()
   message(STATUS "RaBitQ support disabled - unsupported platform or compiler")
 endif()
 message(STATUS "RABITQ_SUPPORTED: ${RABITQ_SUPPORTED}")
+
+set(ZVEC_QUANTIZED_GRAPH_SUPPORTED OFF)
+if(RABITQ_SUPPORTED AND RABITQ_TARGET_PROCESSOR MATCHES "^(x86_64|amd64)$")
+  include(CheckCXXSourceCompiles)
+  check_cxx_source_compiles([=[
+    #include <immintrin.h>
+    #ifndef __x86_64__
+    #error "x86-64 target required"
+    #endif
+    __attribute__((target("avx512f,avx512bw,avx512dq,avx512vl,avx512vnni,fma")))
+    __m512i dot(__m512i acc, __m512i a, __m512i b) {
+      return _mm512_dpwssd_epi32(acc, a, b);
+    }
+    int main() { return __builtin_cpu_supports("avx512vnni") ? 0 : 1; }
+  ]=] COMPILER_SUPPORTS_QUANTIZED_GRAPH)
+  if(COMPILER_SUPPORTS_QUANTIZED_GRAPH)
+    set(ZVEC_QUANTIZED_GRAPH_SUPPORTED ON)
+  endif()
+endif()
+add_compile_definitions(ZVEC_QUANTIZED_GRAPH_SUPPORTED=$<BOOL:${ZVEC_QUANTIZED_GRAPH_SUPPORTED}>)
+message(STATUS "ZVEC_QUANTIZED_GRAPH_SUPPORTED: ${ZVEC_QUANTIZED_GRAPH_SUPPORTED}")
 
 # DiskAnn support:
 #   - Linux x86_64 and ARM64 with io_uring, libaio, or pread

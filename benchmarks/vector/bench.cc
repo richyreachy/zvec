@@ -12,8 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <iostream>
+#include <string>
+#include <vector>
 #include "bench_result.h"
 #include "helper.h"
+#include <yaml-cpp/yaml.h>
 
 static bool g_debug_mode = 0;
 
@@ -59,7 +66,7 @@ class Bench {
   }
 
   bool load_query(const std::string &query_file, const std::string &first_sep,
-                  const std::string &second_sep) {
+                  const std::string &second_sep, size_t expected_dim = 0) {
     TxtInputReader<T> reader;
     vector<vector<T>> queries;
     vector<SparseData<T>> sparse_data;
@@ -68,6 +75,11 @@ class Bench {
     if (!reader.load_query(query_file, first_sep, second_sep, queries,
                            sparse_data, taglists)) {
       LOG_ERROR("Load query error");
+      return false;
+    }
+
+    if (!valid_dense_queries(queries, expected_dim)) {
+      LOG_ERROR("Empty query input or unexpected vector dimension");
       return false;
     }
 
@@ -155,6 +167,8 @@ class Bench {
     query_param_->topk = topk;
     query_param_->is_linear = false;
 
+    // A fresh tool run must not inherit the previous run's stop flag.
+    stop_now.store(false, std::memory_order_relaxed);
     // Do bench
     signal(SIGINT, stop);
     bench_result_.mark_start();
@@ -184,11 +198,12 @@ class Bench {
 
  private:
   void start_bench(core_interface::Index::Pointer index, size_t max_iter,
-                   const bool *is_stop) {
+                   const std::atomic<bool> *is_stop) {
     size_t thread_index = pool_->indexof_this();
 
     size_t i = thread_index;
-    for (; i < max_iter && !*is_stop; i += threads_) {
+    for (; i < max_iter && !is_stop->load(std::memory_order_relaxed);
+         i += threads_) {
       int idx = i % batch_queries_.size();
 
       // prefilter
@@ -321,11 +336,11 @@ class Bench {
   BenchResult bench_result_;
   RetrievalMode retrieval_mode_{RM_UNDEFINED};
   FilterMode filter_mode_{FM_NONE};
-  static bool stop_now;
+  static std::atomic<bool> stop_now;
 };
 
 template <typename T>
-bool Bench<T>::stop_now = false;
+std::atomic<bool> Bench<T>::stop_now{false};
 
 //------------------------------------------------------------
 // Sparse Bench
@@ -453,6 +468,8 @@ class SparseBench {
     query_param_->topk = topk;
     query_param_->is_linear = false;
 
+    // A fresh tool run must not inherit the previous run's stop flag.
+    stop_now.store(false, std::memory_order_relaxed);
     // Do bench
     signal(SIGINT, stop);
     bench_result_.mark_start();
@@ -483,12 +500,13 @@ class SparseBench {
 
  private:
   void start_bench(core_interface::Index::Pointer index, size_t max_iter,
-                   const bool *is_stop) {
+                   const std::atomic<bool> *is_stop) {
     size_t thread_index = pool_->indexof_this();
 
     size_t i = thread_index;
     size_t sparse_query_size = batch_sparse_indices_.size();
-    for (; i < max_iter && !*is_stop; i += threads_) {
+    for (; i < max_iter && !is_stop->load(std::memory_order_relaxed);
+         i += threads_) {
       int idx = i % sparse_query_size;
 
       // prefilter
@@ -659,10 +677,10 @@ class SparseBench {
 
   FilterMode filter_mode_{FM_NONE};
   BenchResult bench_result_;
-  static bool stop_now;
+  static std::atomic<bool> stop_now;
 };
 template <typename T>
-bool SparseBench<T>::stop_now = false;
+std::atomic<bool> SparseBench<T>::stop_now{false};
 
 bool check_config(YAML::Node &config_node) {
   auto common = config_node["IndexCommon"];
@@ -723,10 +741,17 @@ int bench(std::string &query_type, size_t thread_count, size_t batch_count,
   // Load tag lists if available
   load_taglists(index_dir, id_to_tags_list, tag_key_list);
 
+  const auto param = index->get_param();
+  const size_t expected_dim =
+      param->index_type == core_interface::IndexType::kQuantizedGraph
+          ? param->dimension
+          : 0;
   if (query_type == "float") {
     Bench<float> bench(thread_count, bench_secs, batch_count, retrieval_mode,
                        filter_mode);
-    bench.load_query(query_file, first_sep, second_sep);
+    if (!bench.load_query(query_file, first_sep, second_sep, expected_dim)) {
+      return -1;
+    }
     bench.set_tag_lists(id_to_tags_list, tag_key_list);
     bench.run(index, query_param, iter_count, top_k);
   } else if (query_type == "int8") {
@@ -892,18 +917,44 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  if (retrieval_mode == RM_SPARSE) {
-    bench_sparse(query_type, thread_count, batch_count, top_k, query_file,
-                 first_sep, second_sep, bench_secs, iter_count, index,
-                 query_param, index_dir, filter_mode);
+  std::vector<core_interface::BaseIndexQueryParam::Pointer> cases;
+  if (!parse_tool_query_cases(config_node, query_param, cases)) return -1;
+  const int rounds =
+      config_common["BenchRounds"] ? config_common["BenchRounds"].as<int>() : 1;
+  std::vector<size_t> thread_counts{thread_count};
+  if (auto counts = config_common["BenchThreadCounts"]) {
+    if (!counts.IsSequence() || counts.size() == 0) return -1;
+    thread_counts.clear();
+    for (const auto &count : counts) {
+      const int value = count.as<int>();
+      if (value < 0) return -1;
+      thread_counts.push_back(static_cast<size_t>(value));
+    }
+  }
+  if (rounds < 1) return -1;
+  for (int round = 0; round < rounds; ++round) {
+    for (size_t position = 0; position < cases.size(); ++position) {
+      const size_t case_id = round % 2 ? cases.size() - 1 - position : position;
+      for (size_t run_threads : thread_counts) {
+        std::cout << "BENCH_CASE case=" << case_id << " round=" << round
+                  << " threads=" << run_threads << std::endl;
+        if (retrieval_mode == RM_SPARSE) {
+          bench_sparse(query_type, run_threads, batch_count, top_k, query_file,
+                       first_sep, second_sep, bench_secs, iter_count, index,
+                       cases[case_id], index_dir, filter_mode);
 
-    cout << "Bench Sparse done." << endl;
-  } else {
-    bench(query_type, thread_count, batch_count, top_k, query_file, first_sep,
-          second_sep, bench_secs, iter_count, index, query_param, index_dir,
-          retrieval_mode, filter_mode);
+          cout << "Bench Sparse done." << endl;
+        } else {
+          if (bench(query_type, run_threads, batch_count, top_k, query_file,
+                    first_sep, second_sep, bench_secs, iter_count, index,
+                    cases[case_id], index_dir, retrieval_mode, filter_mode) != 0) {
+            return -1;
+          }
 
-    cout << "Bench done." << endl;
+          cout << "Bench done." << endl;
+        }
+      }
+    }
   }
 
   // Cleanup

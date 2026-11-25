@@ -1,3 +1,17 @@
+# Copyright 2025-present the zvec project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 This module contains the params of Zvec
 """
@@ -30,6 +44,8 @@ __all__: list[str] = [
     "IvfRabitqIndexParam",
     "IvfRabitqQueryParam",
     "OptimizeOption",
+    "QuantizedGraphIndexParam",
+    "QuantizedGraphQueryParam",
     "QuantizerParam",
     "QueryParam",
     "SegmentOption",
@@ -848,6 +864,47 @@ class IVFQueryParam(QueryParam):
         """
         int: Number of inverted lists to search during IVF query.
         """
+
+class QuantizedGraphIndexParam(VectorIndexParam):
+    def __init__(
+        self,
+        metric_type: zvec._zvec.typing.MetricType = ...,
+        options: dict = ...,
+        *,
+        passes: int = ...,
+        threads: int = ...,
+        search_list_size: int = ...,
+        seed: int = ...,
+        router_seed: int = ...,
+        router_dimension: int = ...,
+        router_anchors: int = ...,
+        encoding: dict = ...,
+    ) -> None: ...
+    @property
+    def options(self) -> dict: ...
+
+class QuantizedGraphQueryParam(QueryParam):
+    @property
+    def capacity(self) -> int: ...
+    @property
+    def margin(self) -> float: ...
+    @property
+    def bucket_width(self) -> float: ...
+    @property
+    def max_expansions(self) -> int: ...
+    @property
+    def route_beam(self) -> int: ...
+    @property
+    def uncertainty_bonus(self) -> float: ...
+    def __init__(
+        self,
+        capacity: int = 128,
+        margin: float = -1,
+        bucket_width: float = 0,
+        max_expansions: int = 0,
+        route_beam: int = 1,
+        uncertainty_bonus: float = 0,
+    ) -> None: ...
 
 class VamanaIndexParam(VectorIndexParam):
     """

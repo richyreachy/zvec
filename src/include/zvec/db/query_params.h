@@ -13,7 +13,9 @@
 // limitations under the License.
 #pragma once
 
+#include <cmath>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <zvec/core/interface/constants.h>
 #include <zvec/db/type.h>
@@ -209,6 +211,32 @@ class ZVEC_API IvfRabitqQueryParams : public QueryParams {
 
  private:
   int nprobe_;
+};
+
+class ZVEC_API QuantizedGraphQueryParams : public QueryParams {
+ public:
+  QuantizedGraphQueryParams() : QueryParams(IndexType::QUANTIZED_GRAPH) {}
+  QuantizedGraphQueryParams(uint32_t c, float m, float width,
+                            uint32_t expansions, uint32_t beam,
+                            float uncertainty)
+      : QueryParams(IndexType::QUANTIZED_GRAPH),
+        capacity(c),
+        margin(m),
+        bucket_width(width),
+        max_expansions(expansions),
+        route_beam(beam),
+        uncertainty_bonus(uncertainty) {
+    if (!capacity || !std::isfinite(margin) || (margin < 0 && margin != -1) ||
+        !(bucket_width >= 0 && bucket_width <= 1) || route_beam > 4 ||
+        !(uncertainty_bonus >= 0 && uncertainty_bonus <= 1))
+      throw std::invalid_argument("invalid quantized graph search parameters");
+  }
+  uint32_t capacity = 128;
+  float margin = -1;
+  float bucket_width = 0;
+  uint32_t max_expansions = 0;
+  uint32_t route_beam = 1;
+  float uncertainty_bonus = 0;
 };
 
 class ZVEC_API FlatQueryParams : public QueryParams {

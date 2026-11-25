@@ -113,6 +113,7 @@ constexpr uint32_t kFlat = 3;
 constexpr uint32_t kIvf = 4;
 constexpr uint32_t kHnswRabitq = 5;
 constexpr uint32_t kVamana = 6;
+constexpr uint32_t kQuantizedGraph = 10;
 constexpr uint32_t kFts = 7;
 constexpr uint32_t kDiskann = 8;
 constexpr uint32_t kIvfRabitq = 9;
@@ -720,6 +721,16 @@ void ManifestCodec::EncodeIndexParams(const IndexParams *params,
         w.put_message(f_index_params::kIvfRabitq, payload);
       }
       break;
+    case IndexType::QUANTIZED_GRAPH: {
+      auto p = static_cast<const QuantizedGraphIndexParams *>(params);
+      std::string base;
+      EncodeBase(MakeBase(p), &base);
+      Writer fields(&payload);
+      fields.put_message(1, base);
+      fields.put_string(2, p->options());
+      w.put_message(f_index_params::kQuantizedGraph, payload);
+      break;
+    }
     case IndexType::VAMANA:
       if (auto *p = dynamic_cast<const VamanaIndexParams *>(params)) {
         EncodeVamana(p, &payload);
@@ -767,6 +778,18 @@ IndexParams::Ptr ManifestCodec::DecodeIndexParams(std::string_view buf) {
       case f_index_params::kIvfRabitq:
         params = DecodeIvfRabitq(r.bytes());
         break;
+      case f_index_params::kQuantizedGraph: {
+        Reader fields(r.bytes());
+        BaseParams base;
+        std::string options = "{}";
+        while (fields.next()) {
+          if (fields.field() == 1) base = DecodeBase(fields.bytes());
+          if (fields.field() == 2) options = std::string(fields.bytes());
+        }
+        params = std::make_shared<QuantizedGraphIndexParams>(base.metric_type,
+                                                             options);
+        break;
+      }
       case f_index_params::kVamana:
         params = DecodeVamana(r.bytes());
         break;

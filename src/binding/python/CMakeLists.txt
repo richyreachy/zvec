@@ -1,3 +1,17 @@
+# Copyright 2025-present the zvec project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 include(${PROJECT_ROOT_DIR}/cmake/bazel.cmake)
 include(${PROJECT_ROOT_DIR}/cmake/option.cmake)
 
@@ -56,6 +70,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
             $<TARGET_FILE:core_knn_vamana_static>
             $<TARGET_FILE:core_knn_cluster_static>
             $<TARGET_FILE:core_knn_diskann_static>
+            $<TARGET_FILE:core_quantized_graph_builder>
             $<TARGET_FILE:core_mix_reducer_static>
             $<TARGET_FILE:core_metric_static>
             $<TARGET_FILE:core_utility_static>
@@ -95,6 +110,7 @@ elseif (APPLE)
             -Wl,-force_load,$<TARGET_FILE:core_knn_vamana_static>
             -Wl,-force_load,$<TARGET_FILE:core_knn_cluster_static>
             -Wl,-force_load,$<TARGET_FILE:core_knn_diskann_static>
+            -Wl,-force_load,$<TARGET_FILE:core_quantized_graph_builder>
             -Wl,-force_load,$<TARGET_FILE:core_mix_reducer_static>
             -Wl,-force_load,$<TARGET_FILE:core_metric_static>
             -Wl,-force_load,$<TARGET_FILE:core_utility_static>
@@ -117,6 +133,7 @@ elseif (MSVC)
             core_knn_vamana_static
             core_knn_cluster_static
             core_knn_diskann_static
+            core_quantized_graph_builder
             core_mix_reducer_static
             core_metric_static
             core_utility_static
@@ -133,5 +150,7 @@ elseif (MSVC)
         )
     endforeach()
 endif ()
+
+target_link_libraries(_zvec PRIVATE core_quantized_graph_builder)
 
 target_include_directories(_zvec PRIVATE ${PYBIND11_INCLUDE_DIR} ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/binding/python/include)

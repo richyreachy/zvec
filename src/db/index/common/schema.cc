@@ -51,7 +51,7 @@ std::unordered_set<DataType> support_sparse_vector_type = {
 std::unordered_set<IndexType> support_dense_vector_index = {
     IndexType::FLAT,  IndexType::HNSW,       IndexType::HNSW_RABITQ,
     IndexType::IVF,   IndexType::IVF_RABITQ, IndexType::DISKANN,
-    IndexType::VAMANA};
+    IndexType::VAMANA, IndexType::QUANTIZED_GRAPH};
 
 std::unordered_set<IndexType> support_sparse_vector_index = {IndexType::FLAT,
                                                              IndexType::HNSW};
@@ -133,12 +133,25 @@ Status FieldSchema::validate() const {
           return Status::InvalidArgument(
               "Invalid schema for field[", name_,
               "]: dense vectors support "
-              "FLAT/HNSW/HNSW_RABITQ/IVF/IVF_RABITQ/DISKANN/VAMANA "
-              "index_type; got ",
+              "FLAT/HNSW/HNSW_RABITQ/IVF/IVF_RABITQ/DISKANN/VAMANA/"
+              "QUANTIZED_GRAPH index_type; got ",
               IndexTypeCodeBook::AsString(index_params_->type()));
         }
       }
 
+      if (index_params_->type() == IndexType::QUANTIZED_GRAPH) {
+        if (!dynamic_cast<const QuantizedGraphIndexParams *>(
+                index_params_.get())) {
+          return Status::InvalidArgument(
+              "Invalid schema for field[", name_,
+              "]: QUANTIZED_GRAPH requires QuantizedGraphIndexParams");
+        }
+        if (data_type_ != DataType::VECTOR_FP32 || dimension_ > 4096) {
+          return Status::InvalidArgument(
+              "Invalid schema for field[", name_,
+              "]: QUANTIZED_GRAPH requires FP32 vectors with dimension 1..4096");
+        }
+      }
       if (index_params_->type() == IndexType::HNSW_RABITQ ||
           index_params_->type() == IndexType::IVF_RABITQ) {
         if (dimension_ < kMinRabitqDimSize || dimension_ > kMaxRabitqDimSize) {

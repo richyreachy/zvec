@@ -14,6 +14,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -60,7 +61,7 @@ class ZVEC_API IndexParams {
     return type_ == IndexType::FLAT || type_ == IndexType::HNSW ||
            type_ == IndexType::HNSW_RABITQ || type_ == IndexType::IVF ||
            type_ == IndexType::IVF_RABITQ || type_ == IndexType::DISKANN ||
-           type_ == IndexType::VAMANA;
+           type_ == IndexType::VAMANA || type_ == IndexType::QUANTIZED_GRAPH;
   }
 
   IndexType type() const {
@@ -275,6 +276,59 @@ class ZVEC_API VectorIndexParams : public IndexParams {
   MetricType metric_type_;
   QuantizeType quantize_type_;
   QuantizerParam quantizer_param_;
+};
+
+class ZVEC_API QuantizedGraphIndexParams : public VectorIndexParams {
+ public:
+  struct Encoding {
+    std::optional<std::string> codec;
+    std::optional<std::string> codebook;
+    std::optional<int64_t> max_neighbors;
+    std::optional<int64_t> rank;
+    std::optional<int64_t> rotation_views;
+    std::optional<int64_t> block_dimension;
+    std::optional<int64_t> training_samples;
+    std::optional<double> center_weight;
+    std::optional<int64_t> seed;
+  };
+
+  struct BuildConfig {
+    std::optional<int64_t> passes;
+    std::optional<int64_t> threads;
+    std::optional<int64_t> search_list_size;
+    std::optional<int64_t> seed;
+    std::optional<int64_t> router_seed;
+    std::optional<int64_t> router_dimension;
+    std::optional<int64_t> router_anchors;
+    std::optional<Encoding> encoding;
+  };
+
+  explicit QuantizedGraphIndexParams(MetricType metric,
+                                     std::string options = "{}");
+  explicit QuantizedGraphIndexParams(BuildConfig config, MetricType metric);
+  const std::optional<BuildConfig> &build_config() const {
+    return config_;
+  }
+  Status validate() const override;
+  Ptr clone() const override {
+    return std::make_shared<QuantizedGraphIndexParams>(*this);
+  }
+  bool operator==(const IndexParams &other) const override {
+    auto p = dynamic_cast<const QuantizedGraphIndexParams *>(&other);
+    return p && metric_type_ == p->metric_type_ && options_ == p->options_;
+  }
+  std::string to_string() const override {
+    return vector_index_params_to_string("QuantizedGraphIndexParams",
+                                         metric_type_, quantize_type_) +
+           options_;
+  }
+  const std::string &options() const {
+    return options_;
+  }
+
+ private:
+  std::optional<BuildConfig> config_;
+  std::string options_;
 };
 
 /*

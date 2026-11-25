@@ -12,14 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
 #include <zvec/ailego/container/params.h>
 #include <zvec/core/framework/index_factory.h>
 #include <zvec/core/framework/index_meta.h>
 #include <zvec/core/interface/index_factory.h>
 #include <zvec/core/interface/index_param.h>
 #include "core/interface/utils/utils.h"
+#include "indexes/quantized_graph_index.h"
 
 namespace zvec::core_interface {
+namespace {
+bool HasLegacyQuantizedGraphOptions(const ailego::JsonObject &json) {
+  ailego::JsonValue value;
+  for (const char *key :
+       {"use_quantized_graph", "quantized_graph_model",
+        "quantized_graph_margin", "quantized_graph_bucket_width",
+        "quantized_graph_max_expansions", "quantized_graph_route_beam",
+        "quantized_graph_uncertainty_bonus"}) {
+    if (json.get(key, &value)) {
+      LOG_ERROR(
+          "%s belongs to the retired HNSW quantized-graph entry; use "
+          "QuantizedGraphIndex and QuantizedGraphQuery",
+          key);
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
 
 
 Index::Pointer IndexFactory::CreateAndInitIndex(const BaseIndexParam &param) {
@@ -38,7 +59,9 @@ Index::Pointer IndexFactory::CreateAndInitIndex(const BaseIndexParam &param) {
   // if (param.index_type == IndexType::kHNSW) {
   //   ptr = std::make_shared<HNSWIndex>(param);
   // }
-  if (param.index_type == IndexType::kFlat) {
+  if (param.index_type == IndexType::kQuantizedGraph) {
+    ptr = std::make_shared<QuantizedGraphIndex>();
+  } else if (param.index_type == IndexType::kFlat) {
     // ptr = std::make_shared<FlatIndex>(param);
     ptr = std::make_shared<FlatIndex>();
   } else if (param.index_type == IndexType::kHNSW) {
@@ -79,6 +102,7 @@ BaseIndexParam::Pointer IndexFactory::DeserializeIndexParamFromJson(
     return nullptr;
   }
   ailego::JsonObject json_obj = json_value.as_object();
+  if (HasLegacyQuantizedGraphOptions(json_obj)) return nullptr;
   ailego::JsonValue tmp_json_value;
 
   IndexType index_type;
@@ -90,6 +114,10 @@ BaseIndexParam::Pointer IndexFactory::DeserializeIndexParamFromJson(
   }
 
   switch (index_type) {
+    case IndexType::kQuantizedGraph: {
+      auto param = std::make_shared<BaseIndexParam>(index_type);
+      return param->deserialize_from_json(json_str) ? param : nullptr;
+    }
     case IndexType::kFlat: {
       FlatIndexParam::Pointer param = std::make_shared<FlatIndexParam>();
       if (!param->deserialize_from_json(json_str)) {
@@ -181,8 +209,15 @@ std::string IndexFactory::QueryParamSerializeToJson(const QueryParamType &param,
 
   IndexType index_type{IndexType::kNone};
   if constexpr (std::is_same_v<QueryParamType, FlatQueryParam>) {
-    // index_type
     index_type = IndexType::kFlat;
+  } else if constexpr (std::is_same_v<QueryParamType, QuantizedGraphQueryParam>) {
+    index_type = IndexType::kQuantizedGraph;
+    json_obj.set("capacity", ailego::JsonValue(param.capacity));
+    json_obj.set("margin", ailego::JsonValue(param.margin));
+    json_obj.set("bucket_width", ailego::JsonValue(param.bucket_width));
+    json_obj.set("max_expansions", ailego::JsonValue(param.max_expansions));
+    json_obj.set("route_beam", ailego::JsonValue(param.route_beam));
+    json_obj.set("uncertainty_bonus", ailego::JsonValue(param.uncertainty_bonus));
   } else if constexpr (std::is_same_v<QueryParamType, HNSWQueryParam>) {
     if (!omit_empty_value || param.ef_search != 0) {
       json_obj.set("ef_search", ailego::JsonValue(param.ef_search));
@@ -258,6 +293,7 @@ typename QueryParamType::Pointer IndexFactory::QueryParamDeserializeFromJson(
     return nullptr;
   }
   ailego::JsonObject json_obj = tmp_json_value.as_object();
+  if (HasLegacyQuantizedGraphOptions(json_obj)) return nullptr;
 
   auto parse_common_fields = [&](auto &param) -> bool {
     if (!extract_value_from_json(json_obj, "topk", param->topk,
@@ -295,7 +331,9 @@ typename QueryParamType::Pointer IndexFactory::QueryParamDeserializeFromJson(
   }
 
   if constexpr (std::is_same_v<QueryParamType, BaseIndexQueryParam>) {
-    if (index_type == IndexType::kFlat) {
+    if (index_type == IndexType::kQuantizedGraph) {
+      return QueryParamDeserializeFromJson<QuantizedGraphQueryParam>(json_str);
+    } else if (index_type == IndexType::kFlat) {
       auto param = std::make_shared<FlatQueryParam>();
       if (!parse_common_fields(param)) {
         return nullptr;
@@ -434,6 +472,30 @@ typename QueryParamType::Pointer IndexFactory::QueryParamDeserializeFromJson(
         LOG_ERROR("Failed to deserialize nprobe");
         return nullptr;
       }
+    } else if constexpr (std::is_same_v<QueryParamType, QuantizedGraphQueryParam>) {
+      if (index_type != IndexType::kQuantizedGraph) return nullptr;
+      auto read_uint = [&](const char *key, uint32_t &out) {
+        if (!json_obj.get(key, &tmp_json_value)) return true;
+        if (!tmp_json_value.is_integer()) return false;
+        const auto val = tmp_json_value.as_integer();
+        if (val < 0 || static_cast<uint64_t>(val) > UINT32_MAX) return false;
+        out = static_cast<uint32_t>(val);
+        return true;
+      };
+      auto read_float = [&](const char *key, float &out) {
+        return extract_value_from_json(json_obj, key, out, tmp_json_value);
+      };
+      if (!read_uint("capacity", param->capacity) || !param->capacity ||
+          !read_uint("route_beam", param->route_beam) || param->route_beam > 4 ||
+          !read_uint("max_expansions", param->max_expansions) ||
+          !read_float("margin", param->margin) ||
+          !read_float("bucket_width", param->bucket_width) ||
+          !read_float("uncertainty_bonus", param->uncertainty_bonus) ||
+          !std::isfinite(param->margin) ||
+          (param->margin < 0 && param->margin != -1) ||
+          !(param->bucket_width >= 0 && param->bucket_width <= 1) ||
+          !(param->uncertainty_bonus >= 0 && param->uncertainty_bonus <= 1))
+        return nullptr;
     } else if constexpr (std::is_same_v<QueryParamType, VamanaQueryParam>) {
       if (!extract_value_from_json(json_obj, "ef_search", param->ef_search,
                                    tmp_json_value)) {
@@ -476,6 +538,11 @@ template HNSWQueryParam::Pointer IndexFactory::QueryParamDeserializeFromJson<
     HNSWQueryParam>(const std::string &json_str);
 template IVFQueryParam::Pointer IndexFactory::QueryParamDeserializeFromJson<
     IVFQueryParam>(const std::string &json_str);
+template std::string IndexFactory::QueryParamSerializeToJson<QuantizedGraphQueryParam>(
+    const QuantizedGraphQueryParam &param, bool omit_empty_value);
+template QuantizedGraphQueryParam::Pointer
+IndexFactory::QueryParamDeserializeFromJson<QuantizedGraphQueryParam>(
+    const std::string &json_str);
 template std::string IndexFactory::QueryParamSerializeToJson<VamanaQueryParam>(
     const VamanaQueryParam &param, bool omit_empty_value);
 template VamanaQueryParam::Pointer IndexFactory::QueryParamDeserializeFromJson<

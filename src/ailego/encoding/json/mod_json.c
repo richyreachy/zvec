@@ -2305,6 +2305,7 @@ static inline mod_json_cchar_t *mod_json_token_value_number(
     mod_json_token_t *tok, mod_json_cchar_t *cstr) {
   enum { number_integer, number_float } num_type = number_integer;
 
+  mod_json_cchar_t *number_start = cstr;
   mod_json_float_t dbl = 0.0;
   uint32_t dig = 0;
   uint64_t u64 = 0;
@@ -2421,9 +2422,14 @@ static inline mod_json_cchar_t *mod_json_token_value_number(
 
   /* Finish parsing, call event according to the type of number. */
   if (num_type == number_float) {
-    dbl *= mod_json_utils_pow10(exp + exp_frac);
-    if (minus == '-') {
-      dbl = -dbl;
+    char *end;
+    mod_json_float_t parsed = mod_json_utils_strtof(number_start, &end);
+    if (end == cstr) {
+      dbl = parsed;
+    } else {
+      /* The active locale may use a decimal separator other than '.'. */
+      dbl *= mod_json_utils_pow10(exp + exp_frac);
+      if (minus == '-') dbl = -dbl;
     }
     if (mod_json_token_invoke_float(tok, dbl) != 0) {
       tok->error = mod_json_error_break;
@@ -3483,9 +3489,11 @@ static inline int mod_json_dump_float(mod_json_string_t *str,
                                       mod_json_float_t dbl) {
   mod_json_char_t buf[32];
 
-  return mod_json_string_add_cstr(
-      str, buf,
-      (mod_json_size_t)mod_json_utils_snprintf(buf, sizeof(buf), "%g", dbl));
+  int n = mod_json_utils_snprintf(buf, sizeof(buf), "%g", dbl);
+  if (mod_json_utils_strtof(buf, NULL) != dbl) {
+    n = mod_json_utils_snprintf(buf, sizeof(buf), "%.17g", dbl);
+  }
+  return mod_json_string_add_cstr(str, buf, (mod_json_size_t)n);
 }
 
 static inline int mod_json_dump_string(mod_json_string_t *str,

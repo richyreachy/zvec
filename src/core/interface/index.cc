@@ -214,8 +214,13 @@ thread_local static std::array<core::IndexContext::Pointer,
 
 
 bool Index::init_context() {
-  context_index_ = (magic_enum::enum_integer(param_.index_type) - 1) * 2 +
-                   static_cast<size_t>(is_sparse_);
+  if (param_.index_type == IndexType::kQuantizedGraph) {
+    thread_local std::weak_ptr<core::IndexStreamer> owner;
+    if (owner.lock() != streamer_) {
+      context_list[context_index_].reset();
+      owner = streamer_;
+    }
+  }
   if (context_list[context_index_] == nullptr) {
     if ((context_list[context_index_] = streamer_->create_context()) ==
         nullptr) {
@@ -252,6 +257,9 @@ uint32_t Index::get_doc_count() const {
   }
   if (is_sparse_) {
     return streamer_->create_sparse_provider()->count();
+  }
+  if (param_.index_type == IndexType::kQuantizedGraph) {
+    return streamer_->stats().loaded_count();
   }
   return streamer_->create_provider()->count();
 }
@@ -488,6 +496,8 @@ int Index::init(const BaseIndexParam &param) {
   param_ = param;  // will lose the original type info
 
   is_sparse_ = param.is_sparse;
+  context_index_ = (magic_enum::enum_integer(param_.index_type) - 1) * 2 +
+                   static_cast<size_t>(is_sparse_);
   is_huge_page_ = param.is_huge_page;
 
   proxima_index_meta_.set_meta(param.data_type, param.dimension);
@@ -592,6 +602,14 @@ int Index::open(const std::string &file_path, StorageOptions storage_options) {
   int ret = storage_options.type == StorageOptions::StorageType::kBufferPool
                 ? storage_->open(file_path, open_options)
                 : storage_->open(file_path, storage_options.create_new);
+  if (ret == core::IndexError_Unsupported && storage_options.read_only &&
+      storage_options.type == StorageOptions::StorageType::kBufferPool) {
+    storage_ = core::IndexFactory::CreateStorage("BufferReadStorage");
+    if (!storage_) return core::IndexError_Runtime;
+    ret = storage_->init(storage_params);
+    if (ret == 0) ret = storage_->open(file_path, false);
+  }
+
   if (ret != 0) {
     LOG_ERROR("Failed to open storage, path: %s, err: %s", file_path.c_str(),
               core::IndexError::What(ret));
@@ -601,11 +619,15 @@ int Index::open(const std::string &file_path, StorageOptions storage_options) {
   if (ret != 0) {
     return ret;
   }
-  if (!pending_quantizer_training_ &&
-      (streamer_ == nullptr ||
-       streamer_->open(storage_, storage_options.read_only) != 0)) {
-    LOG_ERROR("Failed to open streamer, path: %s", file_path.c_str());
-    return core::IndexError_Runtime;
+
+  if (!pending_quantizer_training_) {
+    ret = streamer_ ? streamer_->open(storage_, storage_options.read_only)
+                    : int(core::IndexError_Runtime);
+    if (ret != 0) {
+      LOG_ERROR("Failed to open streamer, path: %s, err: %s", file_path.c_str(),
+                core::IndexError::What(ret));
+      return ret;
+    }
   }
 
   // If a converter exists but reformer was not created during init() because
@@ -688,7 +710,6 @@ int Index::close() {
   // alive until another IVF search or thread exit.
   if (context_index_ < context_list.size()) {
     context_list[context_index_].reset();
-    context_index_ = std::numeric_limits<size_t>::max();
   }
   if (ailego_unlikely(storage_->close() != 0)) {
     LOG_ERROR("Failed to close storage");
