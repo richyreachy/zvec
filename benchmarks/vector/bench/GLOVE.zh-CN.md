@@ -3,7 +3,7 @@
 > 历史记录：本文保留原实验的说明、参数和实测值。旧 HNSW-QG YAML 已迁至
 > [ANN-Benchmarks 历史归档](https://github.com/richyreachy/ann-benchmarks/tree/g9ibench/benchmark_configs/legacy-qg-20261106/)。
 > 下文命令描述当时版本，不适用于当前独立 QG 入口；当前测试请使用
-> [zvec_qg 配置与说明](README.md)。r7i 配置不在本次清理范围内。
+> [zvec_qg 配置与说明](../README.md#building-a-quantized-graph)。r7i 配置不在本次清理范围内。
 
 2026-11-06 更新：使用代码 `686f898c`，FP32 / Cosine，原始 HNSW **M64、efConstruction800**，
 native 编码、64 个量化邻居、双视图。构建、查询配置与同一快照上的正式复测参数一致。

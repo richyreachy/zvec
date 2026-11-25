@@ -63,7 +63,7 @@ $$A(\lambda)=\|(r-\lambda u)\wedge(s-\lambda u)\|^2=A(0)+2B\lambda+C\lambda^2.$$
 
 训练和编码在构建阶段完成。当前独立 `QuantizedGraphIndex` API 使用调用方提供的向量和图拓扑，
 通过 `train_codec`、`train_router`、`prebuild` 和 dump/load 管理量化索引。
-旧 `local_builder` 的 HNSW-QG YAML 入口已退役；数据集配置与测试入口统一见 [ANN-Benchmarks 使用说明](README.md)。
+旧 `local_builder` 的 HNSW-QG YAML 入口已退役；数据集配置与测试入口统一见 [ANN-Benchmarks 使用说明](../README.md#building-a-quantized-graph)。
 快照不可变，修改原向量或图结构后需要重建。持久化增加磁盘体积，消除重复编码，不等于零拷贝加载或降低全部索引内存。
 
 ## 全维整数中心与延后精排

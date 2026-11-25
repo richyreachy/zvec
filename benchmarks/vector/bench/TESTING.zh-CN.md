@@ -3,7 +3,7 @@
 > 历史记录：本文保留原实验的说明、参数和实测值。旧 HNSW-QG YAML 已迁至
 > [ANN-Benchmarks 历史归档](https://github.com/richyreachy/ann-benchmarks/tree/g9ibench/benchmark_configs/legacy-qg-20261106/)。
 > 下文命令描述当时版本，不适用于当前独立 QG 入口；当前测试请使用
-> [zvec_qg 配置与说明](README.md)。r7i 配置不在本次清理范围内。
+> [zvec_qg 配置与说明](../README.md#building-a-quantized-graph)。r7i 配置不在本次清理范围内。
 
 原实验将构建、查询配置保存在 `config/`；这些 YAML 现已迁入上述历史归档。`results/` 仍保留 SIFT、GIST、GloVe 三张历史 ANN Recall/QPS PNG 图。实验记录更新至 2026-11-06（GloVe 配置；历史对比表保留原日期）。
 “最佳”限定为已有参数扫描和指定快照上的最佳已测选择，不保证任意机器、新建图或数据分布均最优。

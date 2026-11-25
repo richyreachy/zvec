@@ -227,12 +227,6 @@ int setup_build_from_original(const string &builder_class,
 }
 
 bool check_config(YAML::Node &config_root) {
-  if (config_root["QuantizedGraph"] || config_root["QuantizedGraphRouter"]) {
-    LOG_ERROR(
-        "For QG, use BuilderCommon.BuilderClass: QuantizedGraphBuilder "
-        "and configure it under BuilderParams");
-    return false;
-  }
   auto common = config_root["BuilderCommon"];
   if (!common) {
     LOG_ERROR("Can not find [BuilderClass] in config");
