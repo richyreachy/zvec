@@ -32,16 +32,9 @@ endif()
 
 find_package(pybind11 REQUIRED)
 
-if(ZVEC_QUANTIZED_GRAPH_SUPPORTED)
-    set(qg_python_source model/python_quantized_graph.cc)
-else()
-    set(qg_python_source model/python_quantized_graph_stub.cc)
-endif()
-
 set(SRC_LISTS
         binding.cc
         model/python_collection.cc
-        ${qg_python_source}
         model/python_doc.cc
         model/python_reranker.cc
         model/param/python_param.cc
@@ -158,6 +151,6 @@ elseif (MSVC)
     endforeach()
 endif ()
 
-target_link_libraries(_zvec PRIVATE core_quantized_graph_builder core_quantized_graph)
+target_link_libraries(_zvec PRIVATE core_quantized_graph_builder)
 
 target_include_directories(_zvec PRIVATE ${PYBIND11_INCLUDE_DIR} ${PROJECT_ROOT_DIR}/src ${PROJECT_ROOT_DIR}/src/binding/python/include)
