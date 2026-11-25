@@ -571,6 +571,11 @@ class ProximaEngineHelper {
     }
 
     switch (field_schema.index_params()->type()) {
+      case IndexType::QUANTIZED_GRAPH: {
+        FieldSchema backing = field_schema;
+        backing.set_index_params(FlatIndexParams(MetricType::L2));
+        return convert_to_engine_index_param(backing);
+      }
       case IndexType::FLAT: {
         auto index_param_builder =
             _build_common_index_param<FlatIndexParams,

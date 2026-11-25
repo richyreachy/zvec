@@ -1287,9 +1287,15 @@ int do_build(YAML::Node &config_root, YAML::Node &config_common) {
     return -1;
   }
   if (builder_class != "QuantizedGraphBuilder") {
-    params.set(PARAM_HNSW_STREAMER_USE_ID_MAP, !g_disable_id_map);
-    params.set(PARAM_FLAT_USE_ID_MAP, !g_disable_id_map);
-    params.set(PARAM_HNSW_RABITQ_STREAMER_USE_ID_MAP, !g_disable_id_map);
+    std::vector<std::string> id_map_param_list = {
+        PARAM_HNSW_STREAMER_USE_ID_MAP,
+        PARAM_FLAT_USE_ID_MAP,
+        PARAM_HNSW_RABITQ_STREAMER_USE_ID_MAP,
+    };
+    for (auto &param : id_map_param_list) {
+      params.set(param, !g_disable_id_map);
+    }
+    // Pass original dimension for Cosine support (before converter modifies it)
     params.set(PARAM_RABITQ_GENERAL_DIMENSION, input_meta.dimension());
   }
 
