@@ -23,8 +23,6 @@
 
 namespace zvec {
 
-void RegisterQuantizedGraph(pybind11::module_ &m);
-
 #ifdef ZVEC_PY4BENCH
 void BindPy4Bench(pybind11::module_ &m);
 #endif
@@ -39,7 +37,6 @@ PYBIND11_MODULE(_zvec, m) {
   ZVecPyConfig::Initialize(m);
   ZVecPyDoc::Initialize(m);
   ZVecPyCollection::Initialize(m);
-  RegisterQuantizedGraph(m);
 #ifdef ZVEC_PY4BENCH
   BindPy4Bench(m);
 #endif

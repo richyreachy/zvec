@@ -19,7 +19,7 @@ Zvec core module
 from __future__ import annotations
 
 import collections
-from typing import Any, overload
+from typing import overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -70,46 +70,6 @@ from .typing import (
 )
 from .typing.enum import LogLevel, LogType
 from .zvec import create_and_open, init, open
-
-class QuantizedGraph:
-    """Standalone quantized graph over FP32 rows with zero-based row IDs.
-
-    build accepts a C-contiguous matrix and either "l2" or "cosine".
-    Options include threads, passes, search_list_size, seed, router_anchors,
-    router_dimension, router_seed and an encoding dictionary. Encoding accepts
-    codec (rabitq, low_rank, global), max_neighbors, rotation_views,
-    block_dimension, rank, codebook, training_samples, center_weight and seed.
-
-    save and open use one segmented Zvec index file. The prefix overload
-    opens historical five-file snapshots for migration.
-    Build and open accept native proxima.quantized_graph.thp_* page parameters.
-    For queries, open a read-only Collection and call query_internal_ids.
-    """
-
-    @staticmethod
-    def supported() -> bool: ...
-    @staticmethod
-    def build(
-        vectors: NDArray[np.float32],
-        *,
-        metric: str = "l2",
-        options: dict[str, Any] = ...,
-        page_params: dict[str, Any] = ...,
-    ) -> QuantizedGraph: ...
-    def save(self, path: str) -> None: ...
-    @staticmethod
-    @overload
-    def open(path: str, *, page_params: dict[str, Any] = ...) -> QuantizedGraph: ...
-    @staticmethod
-    @overload
-    def open(
-        prefix: str,
-        *,
-        count: int,
-        dimension: int,
-        metric: str = "l2",
-        page_params: dict[str, Any] = ...,
-    ) -> QuantizedGraph: ...
 
 def io_backend_type() -> IOBackendType:
     """Returns the current I/O backend type for DiskAnn disk reads.
@@ -163,7 +123,6 @@ __all__: list = [
     "MetricType",
     "OptimizeOption",
     "QuantizeType",
-    "QuantizedGraph",
     "QuantizerParam",
     "Query",
     "ReRanker",

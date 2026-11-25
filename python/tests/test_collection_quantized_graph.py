@@ -22,7 +22,6 @@ import numpy as np
 import zvec
 
 
-@unittest.skipUnless(zvec.QuantizedGraph.supported(), "QG unavailable on this CPU")
 class TestCollectionQuantizedGraph(unittest.TestCase):
     def test_reopen_query_and_row_mapping(self):
         rows = np.random.default_rng(21).standard_normal((256, 32)).astype("float32")
@@ -44,7 +43,15 @@ class TestCollectionQuantizedGraph(unittest.TestCase):
                 ]
                 self.assertTrue(all(s.ok() for s in c.insert(docs)))
                 param = zvec.QuantizedGraphIndexParam(metric, options)
-                c.create_index("v", param)
+                try:
+                    c.create_index("v", param)
+                except RuntimeError as exc:
+                    c.close()
+                    if str(exc).endswith(
+                        ("quantized graph unavailable", "QG unavailable on this platform")
+                    ):
+                        self.skipTest(str(exc))
+                    raise
                 c.optimize()
                 c.close()
                 c = zvec.open(path, zvec.CollectionOption(read_only=True))
