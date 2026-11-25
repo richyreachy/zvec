@@ -23,8 +23,6 @@
 
 namespace zvec {
 
-void RegisterQuantizedGraph(pybind11::module_ &m);
-
 PYBIND11_MODULE(_zvec, m) {
   m.doc() = "Zvec core module";
 
@@ -35,6 +33,5 @@ PYBIND11_MODULE(_zvec, m) {
   ZVecPyConfig::Initialize(m);
   ZVecPyDoc::Initialize(m);
   ZVecPyCollection::Initialize(m);
-  RegisterQuantizedGraph(m);
 }
 }  // namespace zvec
